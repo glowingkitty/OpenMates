@@ -310,6 +310,12 @@ _FACT_QUESTION_SUBJECTIVE_INTENT = re.compile(
     r"prefer|ideal|top|worth|suggest)\b",
     re.IGNORECASE,
 )
+_FACT_QUESTION_INTERACTIVE_INTENT = re.compile(
+    r"\b(?:interactive|questionnaire|quiz|form|survey|poll|options?|choices?|"
+    r"choose|select|rating|rate|slider|swipe|dialogue|dialog|ask|questions?)\b|"
+    r"interactive_(?:question|response)|```interactive_",
+    re.IGNORECASE,
+)
 _FACT_QUESTION_OPTIONAL_FORMAT_KEYS = (
     "base_code_block_instruction",
     "base_document_generation_instruction",
@@ -385,6 +391,29 @@ def _omit_fact_question_format_guidance(
 def _omit_fact_question_app_guidance(text: str) -> bool:
     """The proven fact turn must also lack product, capability, and link intent."""
     return not _FACT_QUESTION_APP_GUIDANCE_INTENT.search(text)
+
+
+def _omit_fact_question_interactive_guidance(
+    request: AskSkillRequest,
+    preprocessing: PreprocessingResult,
+    user_overrides: UserOverrides | None,
+    forwarded_tools: list[dict[str, Any]],
+) -> bool:
+    """Keep the protocol unless the existing full fact proof and intent permit omission."""
+    return (
+        _omit_fact_question_format_guidance(request, preprocessing, user_overrides, forwarded_tools)
+        and not _FACT_QUESTION_INTERACTIVE_INTENT.search(request.current_user_content)
+    )
+
+
+def _without_optional_fact_interactive_section(prompt_parts: list[str]) -> list[str]:
+    """Remove only the appended protocol, leaving equal safety text intact."""
+    remaining = prompt_parts.copy()
+    for index in range(len(remaining) - 1, -1, -1):
+        if remaining[index] is INTERACTIVE_QUESTIONS_INSTRUCTION:
+            del remaining[index]
+            break
+    return remaining
 
 
 def _without_appended_fact_app_guidance(
@@ -5312,6 +5341,12 @@ async def handle_main_processing(
             prompt_parts = _without_appended_fact_app_guidance(
                 prompt_parts, optional_fact_app_guidance_parts,
             )
+        if _omit_fact_question_interactive_guidance(
+            request_data, preprocessing_results, user_overrides, available_tools_for_llm,
+        ):
+            # Only the appended protocol is optional. The shared safety,
+            # answer, language and composer instructions still apply.
+            prompt_parts = _without_optional_fact_interactive_section(prompt_parts)
         cacheable_system_prefix = "\n\n".join(filter(None, stable_prefix_parts))
         full_system_prompt = "\n\n".join(filter(None, prompt_parts))
         answer_recovery_system_prompt = "\n\n".join(

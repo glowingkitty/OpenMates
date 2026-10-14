@@ -52,6 +52,51 @@ def test_proven_empty_first_turn_with_zero_forwarded_tools_omits_optional_format
     assert main._omit_fact_question_format_guidance(request, preprocessing, None, [])
 
 
+@pytest.mark.parametrize(("question", "proven", "keeps_interactive"), [
+    ("What’s the capital of Spain?", True, False),
+    ("What is the capital of Spain for a quiz?", True, True),
+    ("What is the capital of Spain in an interactive form?", True, True),
+    ("What is the capital of Spain?", False, True),
+])
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.preprocessing.conditional-context
+def test_proven_fact_omits_only_unneeded_interactive_protocol(question, proven, keeps_interactive):
+    # A complete admission proof is required before the main prompt can shrink.
+    request, preprocessing = _proven_turn()
+    request.current_user_content = question
+    request.message_history[0].content = question
+    if not proven:
+        preprocessing.context_fast_path = False
+    assert main._omit_fact_question_format_guidance(
+        request, preprocessing, None, [],
+    ) is proven
+    omit_interactive = main._omit_fact_question_interactive_guidance(
+        request, preprocessing, None, [],
+    )
+    assert omit_interactive is not keeps_interactive
+    safety = "SAFETY_RULE: Answer safely."
+    composer = "COMPOSER_RULE: Suggest a contextual next message when useful."
+    prompt_parts = [safety, composer, main.INTERACTIVE_QUESTIONS_INSTRUCTION]
+    if omit_interactive:
+        prompt_parts = main._without_optional_fact_interactive_section(prompt_parts)
+    assert (main.INTERACTIVE_QUESTIONS_INSTRUCTION in prompt_parts) is keeps_interactive
+    assert safety in prompt_parts and composer in prompt_parts
+
+
+@pytest.mark.parametrize("question", [
+    "What is the capital of Spain for a questionnaire?",
+    "What is the capital of Spain in a survey?",
+    "What is the capital of Spain on a rating form?",
+    "What is the capital of Spain for a dialogue choice?",
+    "What is the capital of Spain with an interactive_response?",
+])
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.preprocessing.conditional-context
+def test_interactive_content_and_intent_preserve_protocol(question):
+    request, preprocessing = _proven_turn()
+    request.current_user_content = question
+    request.message_history[0].content = question
+    assert not main._omit_fact_question_interactive_guidance(request, preprocessing, None, [])
+
+
 # contract-test: supporting surface=rest_api assertions=ai-model-routing.preprocessing.conditional-context
 def test_unselected_project_discovery_inventory_does_not_block_proven_empty_turn():
     request, preprocessing = _proven_turn()

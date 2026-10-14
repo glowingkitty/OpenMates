@@ -2173,7 +2173,7 @@ async function preparePreflight(database, raw, now) {
   return database.transaction((trx) => preparePreflightInTransaction(trx, data, now));
 }
 
-async function preparePreflightInTransaction(trx, data, now, { accountAlreadyLocked = false } = {}) {
+async function preparePreflightInTransaction(trx, data, now, { accountAlreadyLocked = false, timing = null } = {}) {
   const { ownerHash, teamHash, chatId, turnId, userMessageId, deviceHash, keyVersion,
     wrappedKey, recoveryKey, commitment, commitmentVersion, expectedVersion,
     chatMetadata, message, values, queuedAfterTaskId } = data;
@@ -2209,6 +2209,7 @@ async function preparePreflightInTransaction(trx, data, now, { accountAlreadyLoc
         }
         const metadataCompletion = missingChatMetadata(chat, chatMetadata);
         if (Object.keys(metadataCompletion).length > 0) {
+          timing?.enter('chat_write');
           const scope = teamHash
             ? { id: chatId, hashed_team_id: teamHash, messages_v: 0 }
             : { id: chatId, hashed_user_id: ownerHash, messages_v: 0 };
@@ -2245,6 +2246,7 @@ async function preparePreflightInTransaction(trx, data, now, { accountAlreadyLoc
         share_pii: false,
         share_highlights: true,
       };
+      timing?.enter('chat_write');
       await trx(CHATS).insert(chat);
       if (teamHash) {
         await trx(CHAT_KEY_WRAPPERS).insert({
@@ -2266,6 +2268,7 @@ async function preparePreflightInTransaction(trx, data, now, { accountAlreadyLoc
     if (canonical && canonical.recovery_public_key !== recoveryKey) fail(409, 'recovery_key_mismatch');
     if (chat.messages_v !== expectedVersion) fail(409, 'version_conflict');
     if (await trx(MESSAGES).where({ client_message_id: userMessageId }).first()) fail(409, 'message_identity_conflict');
+    timing?.enter('message_write');
     await trx(MESSAGES).insert({ id: randomUUID(), ...message });
     const committedVersion = expectedVersion + 1;
     const timestamp = Math.floor(now.getTime() / 1000);
@@ -2284,6 +2287,7 @@ async function preparePreflightInTransaction(trx, data, now, { accountAlreadyLoc
       prepared_at: now, expires_at: new Date(now.getTime() + PREFLIGHT_TTL_MS),
       ...(await routingProofSchemaAvailable(trx) ? { routing_message_digest: routingMessageDigest(message) } : {}),
     };
+    timing?.enter('preflight_write');
     await trx(PREFLIGHTS).insert(row);
     return responseForPreflight(row);
 }
@@ -2441,55 +2445,73 @@ async function holdInferenceOutbox(trx, row, ownerHash, taskId, billingId, outbo
 
 class AtomicProjectionUnavailable extends Error {}
 
-async function admitFirstPersonal(database, raw, now) {
+async function admitFirstPersonal(database, raw, now, timing) {
   const data = parsePreflightData(raw, 'admit_first_personal');
   if (data.teamHash || data.expectedVersion !== 0 || !data.chatMetadata) {
     fail(400, 'invalid_first_personal_admission');
   }
   const { ownerHash, chatId, wrappedKey: expectedKey } = data;
   try {
+    timing?.enter('transaction_setup');
     return await database.transaction(async (trx) => {
-      await requireUnfencedRecoveryAccount(trx, ownerHash);
-      // A missing state is epoch zero. Do not initialize it as a side effect
-      // of a fast-path probe; the established preflight owns legacy behavior.
-      const protocol = await sharedAdmissionProtocolState(trx);
-      if (!protocol) return { atomic_fallback: true };
-      if (Number(protocol.protocol_epoch) !== 1) return { atomic_fallback: true };
-      if (protocol.sends_paused) fail(503, 'inference_temporarily_paused');
-      const prepared = await preparePreflightInTransaction(trx, data, now, { accountAlreadyLocked: true });
-      const row = await trx(PREFLIGHTS).where({ id: prepared.preflight_id }).forUpdate().first();
-      const chat = await trx(CHATS).where({ id: chatId }).forUpdate().first();
-      if (!row || !chat || row.hashed_user_id !== ownerHash || row.device_hash !== data.deviceHash
-        || row.inference_commitment !== data.commitment
-        || row.wrapped_chat_key !== expectedKey || chat.encrypted_chat_key !== expectedKey) {
-        fail(409, 'preflight_mismatch');
+      try {
+        timing?.enter('account_lock');
+        await requireUnfencedRecoveryAccount(trx, ownerHash);
+        // A missing state is epoch zero. Do not initialize it as a side effect
+        // of a fast-path probe; the established preflight owns legacy behavior.
+        timing?.enter('protocol_read');
+        const protocol = await sharedAdmissionProtocolState(trx);
+        if (!protocol) return { atomic_fallback: true };
+        if (Number(protocol.protocol_epoch) !== 1) return { atomic_fallback: true };
+        if (protocol.sends_paused) fail(503, 'inference_temporarily_paused');
+        timing?.enter('chat_lock_reads');
+        const prepared = await preparePreflightInTransaction(trx, data, now,
+          { accountAlreadyLocked: true, timing });
+        timing?.enter('post_prepare_reads');
+        const row = await trx(PREFLIGHTS).where({ id: prepared.preflight_id }).forUpdate().first();
+        const chat = await trx(CHATS).where({ id: chatId }).forUpdate().first();
+        if (!row || !chat || row.hashed_user_id !== ownerHash || row.device_hash !== data.deviceHash
+          || row.inference_commitment !== data.commitment
+          || row.wrapped_chat_key !== expectedKey || chat.encrypted_chat_key !== expectedKey) {
+          fail(409, 'preflight_mismatch');
+        }
+        if (chat.hashed_team_id != null || chat.chat_visibility === 'direct'
+          || chat.participant_user_hashes != null || chat.participant_key_envelopes != null) {
+          fail(404, 'chat_not_found');
+        }
+        const projection = firstPersonalChatProjection(chat, row, ownerHash);
+        if (!projection) throw new AtomicProjectionUnavailable();
+        const taskId = stablePreflightUuid(row.id, 'inference-task');
+        const billingId = stablePreflightUuid(row.id, 'billing-identity');
+        const outboxId = stablePreflightUuid(row.id, 'inference-outbox');
+        let response;
+        const newOutbox = row.state === 'PREPARED';
+        if (newOutbox) {
+          if (new Date(row.expires_at) <= now) fail(410, 'preflight_expired');
+          timing?.enter('outbox_write');
+          response = await holdInferenceOutbox(trx, row, ownerHash, taskId, billingId, outboxId, now);
+        } else if (['ENQUEUED', 'RUNNING', 'FAILED', 'TERMINAL', 'CONSUMED'].includes(row.state)) {
+          if (row.inference_task_id !== taskId || row.billing_identity !== billingId
+            || row.outbox_id !== outboxId) fail(409, 'enqueue_identity_mismatch');
+          response = responseForPreflight(row);
+        } else fail(409, 'invalid_preflight_state');
+        if (newOutbox) {
+          timing?.enter('proof_write');
+          await initializeRoutingProof(trx,
+            { ...row, state: 'ENQUEUED', inference_task_id: taskId, outbox_id: outboxId },
+            chat, ownerHash);
+        }
+        return { ...response, admission_protocol_epoch: 1, admission_sends_paused: false,
+          admission_chat_projection: projection };
+      } catch (error) {
+        timing?.failHere();
+        throw error;
+      } finally {
+        timing?.enter('commit_result');
       }
-      if (chat.hashed_team_id != null || chat.chat_visibility === 'direct'
-        || chat.participant_user_hashes != null || chat.participant_key_envelopes != null) {
-        fail(404, 'chat_not_found');
-      }
-      const projection = firstPersonalChatProjection(chat, row, ownerHash);
-      if (!projection) throw new AtomicProjectionUnavailable();
-      const taskId = stablePreflightUuid(row.id, 'inference-task');
-      const billingId = stablePreflightUuid(row.id, 'billing-identity');
-      const outboxId = stablePreflightUuid(row.id, 'inference-outbox');
-      let response;
-      const newOutbox = row.state === 'PREPARED';
-      if (newOutbox) {
-        if (new Date(row.expires_at) <= now) fail(410, 'preflight_expired');
-        response = await holdInferenceOutbox(trx, row, ownerHash, taskId, billingId, outboxId, now);
-      } else if (['ENQUEUED', 'RUNNING', 'FAILED', 'TERMINAL', 'CONSUMED'].includes(row.state)) {
-        if (row.inference_task_id !== taskId || row.billing_identity !== billingId
-          || row.outbox_id !== outboxId) fail(409, 'enqueue_identity_mismatch');
-        response = responseForPreflight(row);
-      } else fail(409, 'invalid_preflight_state');
-      if (newOutbox) await initializeRoutingProof(trx,
-        { ...row, state: 'ENQUEUED', inference_task_id: taskId, outbox_id: outboxId },
-        chat, ownerHash);
-      return { ...response, admission_protocol_epoch: 1, admission_sends_paused: false,
-        admission_chat_projection: projection };
     });
   } catch (error) {
+    timing?.failHere();
     if (error instanceof AtomicProjectionUnavailable) return { atomic_fallback: true };
     throw error;
   }

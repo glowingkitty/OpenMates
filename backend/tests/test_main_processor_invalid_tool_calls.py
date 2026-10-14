@@ -284,6 +284,8 @@ async def _run_mocked_protocol_guard_main_processor(
     admit_on_stream=False,
     on_provider_call=None,
     user_vault_key_id=None,
+    all_mates_configs=None,
+    user_overrides_for_main=None,
 ):
     """Run the real main processor loop with only external integrations mocked."""
     for name in (
@@ -470,10 +472,11 @@ async def _run_mocked_protocol_guard_main_processor(
             directus_service,
             None,
             user_vault_key_id,
-            [],
+            all_mates_configs or [],
             discovered_apps_metadata=discovered_apps_metadata or {},
             cache_service=cache_service,
-            user_overrides=SimpleNamespace(skills=None, wikipedia_references=[]),
+            user_overrides=(user_overrides_for_main if user_overrides_for_main is not None
+                            else SimpleNamespace(skills=None, wikipedia_references=[])),
         )
     ]
     return output, calls
@@ -993,6 +996,60 @@ async def test_no_tool_dispatch_prunes_only_unavailable_tool_guidance(monkeypatc
     assert len(with_tool["system_prompt"].encode()) - len(no_tool["system_prompt"].encode()) == (
         len(discipline.encode()) + len(proactive.encode()) + 4
     )
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.preprocessing.conditional-context
+async def test_proven_first_turn_fact_omits_interactive_protocol_in_provider_prompt(monkeypatch) -> None:
+    """Capture the actual main provider prompt after the complete fact gate."""
+    question = "What’s the capital of Spain?"
+    safety = "SAFETY_RULE: Answer safely and protect privacy."
+    composer = "COMPOSER_RULE: Offer a contextual next message when useful."
+    persona = "PERSONA_RULE: Answer as the selected general knowledge Mate."
+    identity = "MODEL_RULE: {MODEL_NAME} ({MODEL_ID})"
+    _output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch,
+        [["Madrid."]],
+        generated_tools=[],
+        request_overrides={
+            "current_user_content": question,
+            "message_history": [{"role": "user", "content": question}],
+            "admission_context": {
+                "scope_complete": True,
+                "context_revision": "server-admission-v1",
+                "explicit_related_task_ids": [],
+            },
+            "related_task_candidates": [],
+        },
+        preprocessing_overrides={
+            "context_fast_path": True,
+            "early_task_area": "general",
+            "selected_app_ids": [],
+            "selected_main_llm_model_id": "google/gemini-3.8-flash",
+            "selected_main_llm_model_name": "Gemini 3.8 Flash",
+            "selected_main_llm_thinking_level": "LOW",
+        },
+        base_instructions={
+            "base_ethics_instruction": safety,
+            "follow_up_instruction": composer,
+            "creator_and_used_model_instruction": identity,
+        },
+        all_mates_configs=[SimpleNamespace(
+            id="mate-1", default_system_prompt=persona, tools=None,
+        )],
+        user_overrides_for_main=SimpleNamespace(
+            skills=None, wikipedia_references=[], has_overrides=False,
+        ),
+    )
+    assert len(calls) == 1
+    call = calls[0]
+    assert call["tools"] == []
+    assert call["model_id"] == "google/gemini-3.8-flash"
+    assert call["thinking_level"] == "LOW"
+    prompt = call["system_prompt"]
+    assert main_processor.INTERACTIVE_QUESTIONS_INSTRUCTION not in prompt
+    for instruction in (safety, persona, composer,
+                        "MODEL_RULE: Gemini 3.8 Flash (google/gemini-3.8-flash)"):
+        assert instruction in prompt
 
 
 # contract-test: supporting surface=rest_api assertions=app-skills.execution.registered-validated

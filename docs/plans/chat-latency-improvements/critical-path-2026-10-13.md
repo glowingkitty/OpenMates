@@ -178,3 +178,38 @@ On published `ecb105de08cb1246bdcda640ac8435adbceb3b03`, both actual warm TUI re
 The local routing test exposed the exact integration fault: the trusted private-context field list includes `same_turn_request`, while the public `AskSkillRequest` intentionally has no such field. Routing copied that descriptor onto the public schema, raising `ValueError` inside an exception group. Main then repeated preprocessing on the fallback path. The fix keeps that descriptor in the main worker's trusted checkpoint path and skips it during routing hydration, matching main's existing schema hydration. Context binding, fresh authority checks, publication rechecks and encrypted handoff remain required. A bounded fallback diagnostic records allowlisted leaf exception types and repository-relative source frames, without exception text or request data.
 
 All 113 focused routing, handoff, private-context and same-turn barrier unit checks passed on the current integration base, including all four previously failing route variants. The narrow isolated routing check runs pytest with no browser, signup, web rebuild or inference. Prior recovery results remain evidence for their unchanged paths; a worker-registration health probe does not establish route hydration success. Real latency acceptance still requires deployed-source TUI measurements first, followed by web.
+
+
+## Reserved routing restored (`62549591a0`)
+
+The fast-routing fix passed 113 local current-source tests and the exact-source isolated routing file. That diagnostic completed in 164 seconds without signup, browser setup, web rebuilding, schema preparation or inference. The deployed runtime update reused the unchanged schema; its current CMS handler was rebuilt because independently published recovery code had changed. Actual inference then ran on development in TUI first, using Google AI Studio Gemini 3.8 Flash, LOW thinking and an uncompressed SSE stream. Reserved routing succeeded in both ordinary prompts; no grouped-exception fallback remained.
+
+| Individual warm TUI observation | User row / clear | Selected Mate | First authored text | TUI idle |
+|---|---:|---:|---:|---:|
+| Spain, first after runtime update | 33 ms | 2,757 ms | 5,230 ms | 11,536 ms |
+| Berlin AI events | 32 ms | 1,375 ms | 13,716 ms | 55,967 ms |
+| Spain, later warm sample | 32 ms | 1,957 ms | 4,202 ms | 10,012 ms |
+
+Berlin met the 1,500-ms Mate requirement in this observation. Both Spain observations missed Mate and factual first-text requirements. These are individual runs, not medians or percentiles. Additional Focus/remote-access scenarios and final latency acceptance remain pending; an earlier correctness pass does not satisfy the targets. The post-final-to-idle SDK tail remains a separate issue (Berlin 33,408 ms).
+
+Spain's later sample accounts for the complete first-authored interval:
+
+| Cumulative time after Return | Step | Interval |
+|---|---|---:|
+| 0–325 ms | Fresh same-socket privacy snapshot, sanitization and encrypted admission frame | 325 ms |
+| 325–838 ms | Durable admission through client ACK | 513 ms |
+| 838–1,086 ms | Bound context, first-history projection and broker dispatch | 248 ms |
+| 1,086–1,439 ms | Routing authority, catalogue and fresh credit/Project reads | 353 ms |
+| 1,439–1,926 ms | Stage-one preparation, Jev, model resolution and selected-Mate publication | 487 ms |
+| 1,926–2,065 ms | Encrypted handoff and main receipt | 139 ms |
+| 2,065–2,736 ms | Main claim, required setup and prompt preparation | 671 ms |
+| 2,736–4,172 ms | Google SDK request to first authored text | 1,436 ms |
+| 4,172–4,202 ms | Delivery and TUI paint | 30 ms |
+
+The Memory snapshot itself took 209 ms. API durable preflight was 472 ms, including a 422-ms atomic CMS admission request; the later routing verification was only 43 ms over HTTP. These are different operations. Main setup included stage-one loading (79 ms), durable claim (63 ms), configuration (33 ms), embed-index preparation (176 ms), a fresh wallet read (163 ms plus decryption), and active-summary preparation (313 ms). Embed, billing and summary work overlap and must not be summed. The first-text metadata barrier was zero. With the observed 1,436-ms provider span, the SDK call would have to start by 1,564 ms to achieve 3,000 ms authored text, rather than its observed 2,736 ms.
+
+A bounded read-only system probe found no sustained disk/WAL/checkpoint pressure, but was not request-correlated; PostgreSQL I/O timing was unavailable. It does not identify the atomic admission's internal bottleneck. The next diagnostic therefore adds authenticated fixed numeric phases for first-Personal admission, preserving SQL sequence, transaction outcomes and response bodies. Prior logging measured routing verification only.
+
+The minimal main-context change omits the 477-word interactive-question protocol only under the existing complete factual first-turn proof, with no interactive/form/dialogue intent. It retains safety, selected Mate persona, model identity, composer suggestion instructions and Gemini LOW policy. A full-main-loop prompt capture and 136 relevant local cases passed. Ordinary questions, context-bearing turns, tools and ambiguous or interactive requests retain that protocol. A shorter prompt is not itself a measured provider-latency improvement.
+
+The focus/TUI-start hint already prepares the socket, chat key, privacy worker and encrypted Project/Focus/Workflow metadata with two sliding hours. It does not replace the fresh one-use Personal Memory snapshot or fresh credit authority. No positive authority cache or across-turn snapshot reuse is introduced by this batch.
