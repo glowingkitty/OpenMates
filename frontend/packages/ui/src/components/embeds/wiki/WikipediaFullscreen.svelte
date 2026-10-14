@@ -180,7 +180,8 @@
               src={proxiedImage}
               alt={articleTitle}
               class="wiki-hero-image"
-              onerror={handleImageError}
+              data-testid="wiki-fullscreen-image"
+              use:handleImageError
             />
           </div>
         {/if}

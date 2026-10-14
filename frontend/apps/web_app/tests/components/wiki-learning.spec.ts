@@ -4,6 +4,7 @@ import { waitForComponentPreview } from '../helpers/component-preview';
 
 const summary = { title: 'Ada Lovelace', canonical_title: 'Ada_Lovelace', language: 'en',
   extract: 'Ada Lovelace explored how the analytical engine could manipulate symbols.',
+  thumbnail_url: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4c/Ada_Lovelace_daguerreotype_by_Antoine_Claudet_1843_-_cropped.png/330px-Ada_Lovelace_daguerreotype_by_Antoine_Claudet_1843_-_cropped.png',
   description: 'English mathematician', source_url: 'https://en.wikipedia.org/wiki/Ada_Lovelace' };
 const guide = { canonical_title: 'Ada Lovelace', language: 'en', source_url: summary.source_url,
   expires_in_seconds: 86400,
@@ -23,7 +24,14 @@ test.beforeEach(async ({ page }) => {
       (window as unknown as { wikiActions: unknown[] }).wikiActions.push((event as CustomEvent).detail);
     });
   });
-  await page.route('**/api/v1/image?**', route => route.fulfill({ path: 'static/store-examples/home-1.webp', contentType: 'image/webp', headers: { 'Access-Control-Allow-Origin': '*' } }));
+  await page.route('**/api/v1/image?**', route => {
+    const isArticleImage = new URL(route.request().url()).searchParams.get('url') === summary.thumbnail_url;
+    return route.fulfill({
+      path: isArticleImage ? 'tests/fixtures/wiki-ada-lovelace.png' : 'static/store-examples/home-1.webp',
+      contentType: isArticleImage ? 'image/png' : 'image/webp',
+      headers: { 'Access-Control-Allow-Origin': '*' },
+    });
+  });
   await page.route('**/v1/wikipedia/summary?**', route => route.fulfill({ json: summary }));
   await page.route('**/v1/wikipedia/learning?**', route => route.fulfill({ json: guide }));
 });
@@ -36,6 +44,18 @@ test.describe('Wiki learning fullscreen', () => {
       await page.goto(preview('', width));
       await waitForComponentPreview(page);
       await expect(page.getByTestId('wiki-fullscreen-title')).toHaveText('Ada Lovelace');
+      const image = page.getByTestId('wiki-fullscreen-image');
+      await expect(image).toHaveAttribute('src', /\/api\/v1\/image\?/);
+      const imageUrl = new URL((await image.getAttribute('src'))!);
+      expect(imageUrl.searchParams.get('url')).toBe(summary.thumbnail_url);
+      expect(imageUrl.searchParams.get('max_width')).toBe('1024');
+      await expect.poll(() => image.evaluate(element => {
+        const img = element as HTMLImageElement;
+        return img.complete && img.naturalWidth > 0;
+      })).toBe(true);
+      await image.scrollIntoViewIfNeeded();
+      await expect(image).toBeInViewport();
+      await page.screenshot({ path: test.info().outputPath(`wiki-image-${width}.png`), fullPage: true });
       const attribution = page.getByTestId('wiki-source-attribution');
       await expect(attribution).toHaveCount(1);
       await expect(attribution).toContainText('Source: Wikipedia');
@@ -98,6 +118,32 @@ test.describe('Wiki learning fullscreen', () => {
       await relatedCards.first().getByRole('button').click();
       await expect.poll(() => page.evaluate(() => (window as unknown as { wikiActions: { action: string; value: { canonical_title: string } }[] }).wikiActions.find(x => x.action === 'related')?.value.canonical_title)).toBe('Charles Babbage');
     }
+  });
+
+  // contract-test: supporting surface=gui.web assertions=wikipedia-mentions.learning.chat-and-memory
+  test('missing or failed article images keep the text and learning available without page errors', async ({ page }) => {
+    const browserErrors: string[] = [];
+    page.on('pageerror', error => browserErrors.push(error.message));
+    await page.route('**/v1/wikipedia/summary?**', route => route.fulfill({ json: { ...summary, thumbnail_url: null } }));
+    await page.goto(preview());
+    await waitForComponentPreview(page);
+    await expect(page.getByTestId('wiki-fullscreen-extract')).toHaveText(summary.extract);
+    await expect(page.getByTestId('wiki-fullscreen-image')).toHaveCount(0);
+    await expect(page.getByTestId('wiki-questions').getByTestId('follow-up-suggestion-item')).toHaveCount(3);
+
+    await page.route('**/v1/wikipedia/summary?**', route => route.fulfill({ json: summary }));
+    await page.route('**/api/v1/image?**', route => {
+      if (new URL(route.request().url()).searchParams.get('url') === summary.thumbnail_url) {
+        return route.fulfill({ status: 404, body: 'Image not found' });
+      }
+      return route.fallback();
+    });
+    await page.goto(preview());
+    await waitForComponentPreview(page);
+    await expect(page.getByTestId('wiki-fullscreen-image')).toHaveCSS('display', 'none');
+    await expect(page.getByTestId('wiki-fullscreen-extract')).toHaveText(summary.extract);
+    await expect(page.getByTestId('wiki-questions').getByTestId('follow-up-suggestion-item')).toHaveCount(3);
+    expect(browserErrors).toEqual([]);
   });
 
   // contract-test: direct surface=gui.web assertions=wikipedia-mentions.learning.chat-and-memory
