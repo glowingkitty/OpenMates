@@ -38,7 +38,7 @@ import { storageArchiveFetch } from "../config/api";
   import { editMessageStore } from '../stores/editMessageStore';
   import { locale } from 'svelte-i18n';
   import { contentCache } from '../utils/contentCache';
-  import { getDemoMessages, getExampleChat as getStaticExampleChat, isPublicChat, DEMO_CHATS, LEGAL_CHATS } from '../demo_chats'; // Import demo chat utilities for re-fetching on locale change
+  import { getDemoMessages, isPublicChat, DEMO_CHATS, LEGAL_CHATS } from '../demo_chats'; // Import demo chat utilities for re-fetching on locale change
   import { messageHighlightStore } from '../stores/messageHighlightStore';
   import type { 
     AppSettingsMemoriesResponseContent,
@@ -97,7 +97,6 @@ import { storageArchiveFetch } from "../config/api";
   import { loadTeamMembers, loadTeamMemberAvatar } from '../services/teamService';
   import { webSocketService } from '../services/websocketService';
   import { getApiEndpoint } from '../config/api';
-  import { activeChatStore } from '../stores/activeChatStore';
   import { reportIssueStore } from '../stores/reportIssueStore';
   import { settingsDeepLink } from '../stores/settingsDeepLinkStore';
   import { panelState } from '../stores/panelStateStore';
@@ -1435,14 +1434,6 @@ import { storageArchiveFetch } from "../config/api";
     })();
   });
 
-  async function navigateToChat(chatId: string): Promise<void> {
-    if (onChatNavigate) {
-      await onChatNavigate(chatId);
-      return;
-    }
-    activeChatStore.setActiveChat(chatId);
-  }
-
   let lastSourceSyncChatKey = $state<string | undefined>(undefined);
 
   $effect(() => {
@@ -1477,44 +1468,6 @@ import { storageArchiveFetch } from "../config/api";
   });
   let piiRevealed = $derived(currentChatId ? (piiRevealedMap.get(currentChatId) ?? false) : false);
   
-  // --- Parent chat / Sub-chat "Return" header tracking ---
-  let parentChatId = $state<string | null>(null);
-
-  async function checkParentChat(activeId: string | null | undefined, retries = 5) {
-    if (!activeId) {
-      parentChatId = null;
-      return;
-    }
-    try {
-      const staticChat = getStaticExampleChat(activeId);
-      if (staticChat?.parent_id) {
-        parentChatId = staticChat.parent_id;
-        return;
-      }
-
-      const { getChat } = await import('../services/db/chatCrudOperations');
-      const { chatDB } = await import('../services/db');
-      await chatDB.init();
-      const chat = await getChat(chatDB, activeId);
-      if (chat && chat.parent_id) {
-        parentChatId = chat.parent_id;
-      } else if (chat?.is_sub_chat && retries > 0) {
-        await new Promise(resolve => setTimeout(resolve, 300));
-        return checkParentChat(activeId, retries - 1);
-      } else {
-        parentChatId = null;
-      }
-    } catch (e) {
-      console.error('Error checking parent chat:', e);
-      parentChatId = null;
-    }
-  }
-
-  $effect(() => {
-    const activeId = currentChatId;
-    void checkParentChat(activeId);
-  });
-
   // CRITICAL: Only show permission dialog if it belongs to the current chat
   // This prevents the dialog from showing in the wrong chat when user switches chats
   // The dialog's chatId must match the currently active chat's ID
@@ -2917,26 +2870,6 @@ import { storageArchiveFetch } from "../config/api";
     - Wrapped in a positioning parent so the AI processing overlay can float above the scroll area.
 -->
 <div class="chat-history-wrapper" class:disable-pointer-events={disablePointerEvents} style={containerStyle}>
-    {#if parentChatId}
-        <button
-            type="button"
-            class="return-to-parent-button"
-            data-testid="return-to-parent-button"
-            title={$text('chats.chat.sub_chats.return_to_parent')}
-            style="position: absolute; top: 12px; left: 118px; z-index: 10001; display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 20px; background: var(--grey10); border: 1.5px solid var(--grey30); color: var(--fontPrimary); font-size: 13px; font-weight: 500; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.1); transition: transform 0.2s, background 0.2s;"
-            onclick={() => {
-                void navigateToChat(parentChatId);
-            }}
-        >
-            <span style="display: flex; align-items: center;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="19" y1="12" x2="5" y2="12"></line>
-                    <polyline points="12 19 5 12 12 5"></polyline>
-                </svg>
-            </span>
-            <span>{$text('chats.chat.sub_chats.return_to_parent')}</span>
-        </button>
-    {/if}
 <div 
     class="chat-history-container"
     data-testid="chat-history-container"

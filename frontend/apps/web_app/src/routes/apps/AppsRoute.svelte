@@ -5,7 +5,7 @@
   import { Header, Settings, NotificationStack, Login, text, authStore, userProfile, setAuthenticatedState, panelState, settingsDeepLink, isInSignupProcess, currentSignupStep, STEP_ALPHA_DISCLAIMER, focusTrap } from '@repo/ui';
   import { loginInterfaceOpen } from '@repo/ui/stores/uiStateStore';
   import AppsWorkspace from '@repo/ui/components/apps/AppsWorkspace.svelte';
-  import { readAppsWorkspaceRoute } from '@repo/ui/utils/appsWorkspaceRoute';
+  import { readAppsWorkspaceRoute, withAppsWorkspaceOrigin } from '@repo/ui/utils/appsWorkspaceRoute';
 
   let authReturnHash: string | null = null;
 
@@ -18,7 +18,13 @@
     // A pending fullscreen close or request must not restore Apps after the
     // user has selected another workspace.
     if (!readAppsWorkspaceRoute(window.location.hash)) return;
-    void goto(`/${hash}`, { noScroll: true, keepFocus: true });
+    const target = withAppsWorkspaceOrigin(hash, window.location.hash);
+    if (!readAppsWorkspaceRoute(target)) {
+      if (target.startsWith('#')) window.location.hash = target;
+      else void goto(target, { noScroll: true, keepFocus: true });
+      return;
+    }
+    void goto(`/${target}`, { noScroll: true, keepFocus: true });
   }
   function signup(): void { rememberAuthReturn(); currentSignupStep.set(STEP_ALPHA_DISCLAIMER); isInSignupProcess.set(true); loginInterfaceOpen.set(true); }
   function login(): void { rememberAuthReturn(); isInSignupProcess.set(false); loginInterfaceOpen.set(true); }

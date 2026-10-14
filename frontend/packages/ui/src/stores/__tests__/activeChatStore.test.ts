@@ -107,6 +107,26 @@ describe("activeChatStore", () => {
       expect(locationMock.hash).toContain("settings=privacy/hide-personal-data");
     });
 
+    // contract-test: supporting surface=gui.web assertions=apps.navigation.hash-and-forwarding
+    it("preserves an Apps result route when a stale chat selection clears during reload", () => {
+      const appsHash = "#apps/web/search&tab=overview&embed-id=child-result&root-id=root-result";
+      activeChatStore.setWithoutHashUpdate("stale-chat");
+      locationMock.hash = appsHash;
+      activeChatStore.clearActiveChat();
+      expect(activeChatStore.get()).toBeNull();
+      expect(locationMock.hash).toBe(appsHash);
+
+      activeChatStore.setActiveChat(null);
+      expect(locationMock.hash).toBe(appsHash);
+    });
+
+    // contract-test: supporting surface=gui.web assertions=apps.navigation.hash-and-forwarding,chat-navigation.draft-only.addressable
+    it("still clears a chat ID accidentally mixed into an Apps route", () => {
+      locationMock.hash = "#apps/web/search&chat-id=private-chat&embed-id=chat-embed";
+      activeChatStore.clearActiveChat();
+      expect(locationMock.hash).not.toContain("chat-id=");
+    });
+
     // contract-test: supporting surface=gui.web assertions=notifications.workflow-run.chat-target
     it("preserves an exact Workflow completion target during startup chat resets", () => {
       const completionHash = "#workflow-id=workflow-1&workflow-tab=runs&run-id=run-1&chat-id=chat-1&message-id=message-1&delivery-id=delivery-1";

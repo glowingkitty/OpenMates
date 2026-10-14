@@ -20,6 +20,7 @@ import { browser } from "$app/environment";
 import { replaceState } from "$app/navigation";
 import { isOnSemanticChatPath } from "../services/chatUrlService";
 import { getHashParam, updateHashParams } from "../utils/settingsHashUtils";
+import { readAppsWorkspaceRoute } from "../utils/appsWorkspaceRoute";
 
 /**
  * Store to track when deep link processing is happening
@@ -42,6 +43,11 @@ const PROGRAMMATIC_UPDATE_WINDOW_MS = 100; // Window to ignore hashchange events
  */
 function updateUrlHash(chatId: string | null) {
   if (!browser) return;
+
+  // Chat startup and logout can clear a stale chat selection while Apps owns
+  // the URL. Its embed-id is a result route, not an active chat embed.
+  if (!chatId && readAppsWorkspaceRoute(window.location.hash) &&
+    !getHashParam(window.location.hash, "chat-id")) return;
 
   // Startup chat resets can overlap a Workflow completion deep link. Keep its
   // exact delivery target until the Workflow route verifies and opens the chat.

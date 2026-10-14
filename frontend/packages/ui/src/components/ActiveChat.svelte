@@ -1,5 +1,6 @@
 <script lang="ts">
 import { storageArchiveFetch } from "../config/api";
+import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
     import HeaderActionMenu from './HeaderActionMenu.svelte';
     import { headerOverlayControls } from '../actions/headerOverlayControls';
@@ -1701,10 +1702,7 @@ import { storageArchiveFetch } from "../config/api";
         }
     }
     
-    /**
-     * Navigate to the focus mode details page in Settings / Apps.
-     * Deep link format: apps/{appId}/focus/{focusModeId}
-     */
+    /** Navigate to the focus mode details page in Apps. */
     async function handleFocusModeDetailsNavigation(focusId: string, appId: string) {
         if (focusId.startsWith('project-focus:')) {
             settingsDeepLink.set(`projects/${focusId.split(':')[1]}`);
@@ -1716,18 +1714,7 @@ import { storageArchiveFetch } from "../config/api";
         // Extract the focus mode ID within the app (remove app prefix)
         const focusModeId = focusId.includes('-') ? focusId.split('-').slice(1).join('-') : focusId;
         
-        try {
-            const { navigateToSettings } = await import('../stores/settingsNavigationStore');
-            const { settingsDeepLink } = await import('../stores/settingsDeepLinkStore');
-            const { panelState } = await import('../stores/panelStateStore');
-            
-            const deepLink = `apps/${appId}/focus/${focusModeId}`;
-            navigateToSettings(deepLink, 'Focus Mode Details', 'focus_mode', '');
-            settingsDeepLink.set(deepLink);
-            panelState.openSettings();
-        } catch (e) {
-            console.error('[ActiveChat] Error navigating to focus mode details:', e);
-        }
+        window.location.hash = buildAppsWorkspaceHash(`apps/${appId}/focus/${focusModeId}`, undefined, window.location.pathname + window.location.search + window.location.hash);
     }
 
     async function handleQuickTipAction(event: CustomEvent) {
@@ -15297,8 +15284,7 @@ import { storageArchiveFetch } from "../config/api";
                                     isIdeaBucketChat={!!currentChat?.ideabucket}
                                     onFocusPillDeepLink={() => {
                                         if (activeFocusAppId && activeFocusModeKey) {
-                                            settingsDeepLink.set(`apps/${activeFocusAppId}/focus/${activeFocusModeKey}`);
-                                            panelState.openSettings();
+                                            window.location.hash = buildAppsWorkspaceHash(`apps/${activeFocusAppId}/focus/${activeFocusModeKey}`, undefined, window.location.pathname + window.location.search + window.location.hash);
                                         } else if (activeFocusProjectId) {
                                             settingsDeepLink.set(`projects/${activeFocusProjectId}`);
                                             panelState.openSettings();

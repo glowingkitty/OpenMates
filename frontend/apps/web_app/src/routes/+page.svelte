@@ -98,7 +98,7 @@
 	import { page } from '$app/state';
 	import WorkflowsRoute from './workflows/+page.svelte';
 	import AppsRoute from './apps/AppsRoute.svelte';
-	import { buildAppsWorkspaceHash } from '@repo/ui/utils/appsWorkspaceRoute';
+	import { buildAppsWorkspaceHash, withAppsWorkspaceOrigin } from '@repo/ui/utils/appsWorkspaceRoute';
 	import ProjectsRoute from './projects/+page.svelte';
 	import PlanDetailRoute from './plans/+page.svelte';
 	import TasksRoute from './tasks/+page.svelte';
@@ -115,6 +115,13 @@
 	// Height (px) reserved for the dev console at the bottom of the viewport
 	const DEV_CONSOLE_HEIGHT = 280;
 	let activeChat = $state<ActiveChat | null>(null); // Fixed: Use $state for Svelte 5
+	let pendingExampleChatNavigation = $state<{
+		chat: Chat;
+		messageId?: string | null;
+		scrollToLatestResponse?: boolean;
+		embedId?: string | null;
+		autoplayVideo?: boolean;
+	} | null>(null);
 	let visibleChatReadyId = $state<string | null>(null);
 	let voiceCallReturnLookupPending = $state(false);
 	let voiceCallReturnLookupGeneration = 0;
@@ -147,6 +154,13 @@
 	// selected workspace in sync before any asynchronous deep-link work starts.
 	let workspaceHash = $state(browser ? window.location.hash : page.url.hash);
 	let workspaceHashRoute = $derived(readWorkspaceHashRoute(workspaceHash));
+	$effect(() => {
+		const navigation = pendingExampleChatNavigation;
+		const chatSurface = activeChat;
+		if (!navigation || !chatSurface) return;
+		pendingExampleChatNavigation = null;
+		void openExampleChatNavigation(navigation, chatSurface);
+	});
 	let showGlobalVoiceCall = $derived(
 		($voiceCallController.status === 'connecting' || $voiceCallController.status === 'live' || $voiceCallController.status === 'error') &&
 		(workspaceHashRoute.workspace !== 'chats' || settingsOverlayOpen || voiceCallReturnLookupPending ||
@@ -794,6 +808,22 @@
 		}
 	}
 
+	async function openExampleChatNavigation(
+		navigation: NonNullable<typeof pendingExampleChatNavigation>,
+		chatSurface: ActiveChat
+	): Promise<void> {
+		const { chat, messageId, scrollToLatestResponse, embedId, autoplayVideo } = navigation;
+		if (!isCurrentChatNavigationTarget(chat.chat_id) ||
+			getHashParam(window.location.hash, 'chat-id') !== chat.chat_id) return;
+		// Example chats are static; their embed refs are registered during page startup.
+		chatSurface.loadChat(chat, { scrollToLatestResponse, autoplayVideo, messageId });
+		lastLoadedChatId = chat.chat_id;
+		window.dispatchEvent(new CustomEvent('globalChatSelected', {
+			detail: { chat }, bubbles: true, composed: true
+		}));
+		if (embedId) await handleEmbedDeepLink(embedId, true);
+	}
+
 	async function handleChatDeepLink(
 		chatId: string,
 		messageId?: string | null,
@@ -851,21 +881,10 @@
 		// Check if this is an example chat (hardcoded with embeds)
 		if (isExampleChat(chatId)) {
 			const exampleChatObj = getExampleChat(chatId);
-			if (exampleChatObj && activeChat) {
-				// Example chats are static — load directly (embed refs already registered on page load)
-				activeChat.loadChat(exampleChatObj, { scrollToLatestResponse, autoplayVideo, messageId });
-				lastLoadedChatId = exampleChatObj.chat_id;
-
-				const globalChatSelectedEvent = new CustomEvent('globalChatSelected', {
-					detail: { chat: exampleChatObj },
-					bubbles: true,
-					composed: true
-				});
-				window.dispatchEvent(globalChatSelectedEvent);
-
-				if (embedId) {
-					await handleEmbedDeepLink(embedId, true);
-				}
+			if (exampleChatObj) {
+				const navigation = { chat: exampleChatObj, messageId, scrollToLatestResponse, embedId, autoplayVideo };
+				if (activeChat) await openExampleChatNavigation(navigation, activeChat);
+				else pendingExampleChatNavigation = navigation;
 				return;
 			}
 		}
@@ -1742,11 +1761,11 @@
 	 * Handles navigation to settings pages based on hash
 	 * @param hash The hash string (e.g., '#settings/billing/invoices/.../refund')
 	 */
-	function processSettingsDeepLink(hash: string, options: { preserveHash?: boolean } = {}) {
+	function processSettingsDeepLink(hash: string, options: { preserveHash?: boolean; originHash?: string } = {}) {
         const path = getSettingsPathFromHash(hash);
         if (path === 'apps' || path?.startsWith('apps/')) {
             panelState.closeSettings();
-            void goto(`/${buildAppsWorkspaceHash(path)}`, { replaceState: true, noScroll: true, keepFocus: true });
+            void goto(`/${withAppsWorkspaceOrigin(buildAppsWorkspaceHash(path), options.originHash ?? window.location.pathname + window.location.search + window.location.hash)}`, { replaceState: true, noScroll: true, keepFocus: true });
             return;
         }
 		processSettingsDeepLinkUnified(hash, {
@@ -1755,10 +1774,10 @@
 		}, options);
 	}
 
-	function processWorkspaceSettingsPath(hash: string) {
+	function processWorkspaceSettingsPath(hash: string, originHash?: string) {
 		if (!getSettingsPathFromHash(hash)) return;
 		// Keep the workspace route while reusing Settings alias and special-link routing.
-		processSettingsDeepLink(hash, { preserveHash: true });
+		processSettingsDeepLink(hash, { preserveHash: true, originHash });
 	}
 
 	function handleSignupDeepLink(step: string): void {
@@ -3421,7 +3440,7 @@
 	 *
 	 * CRITICAL: Ignores programmatic hash updates to prevent infinite loops
 	 */
-	async function handleHashChange() {
+	async function handleHashChange(event?: HashChangeEvent | PopStateEvent) {
 		// CRITICAL: Check programmatic-update guard SYNCHRONOUSLY before any await.
 		// The previous pattern did `await import('@repo/ui')` first, which takes ~10-50ms
 		// on mobile. By the time isProgrammaticHashUpdate() was called, the 100ms guard
@@ -3432,7 +3451,8 @@
 		workspaceHash = newHash;
 		if (readWorkspaceHashRoute(newHash).workspace !== 'chats') {
 			console.debug('[+page.svelte] Workspace hash changed:', newHash);
-			processWorkspaceSettingsPath(newHash);
+			const oldUrl = event instanceof HashChangeEvent && event.oldURL ? new URL(event.oldURL) : null;
+			processWorkspaceSettingsPath(newHash, oldUrl ? oldUrl.pathname + oldUrl.search + oldUrl.hash : undefined);
 			return;
 		}
 		const hashChatId = getHashParam(newHash, 'chat-id');

@@ -2,6 +2,7 @@
 /** Browser contracts for public Apps navigation, schema forms, and guest admission. */
 export {};
 import { assertGuestHeaderControlsSeparated } from './helpers/header-layout';
+import { ALL_EXAMPLE_CHATS } from '../../../packages/ui/src/demo_chats/exampleChatData';
 const { expect, test } = require('./helpers/cookie-audit');
 const { loginToTestAccount, submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
 const { deriveApiUrl } = require('./helpers/cli-test-helpers');
@@ -186,13 +187,50 @@ test.describe('Apps workspace', () => {
     await page.goForward();
     await expect(page.getByTestId('apps-skill-form')).toBeVisible();
     await page.getByTestId('apps-detail-close').click();
-    await expect.poll(() => appHash(page)).toBe('#apps/health');
+    await expect.poll(() => appHash(page)).toBe('#apps');
 
     await page.goto(getE2EDebugUrl('/apps/health/search-appointments'), { waitUntil: 'domcontentloaded' });
     await expect(page.getByTestId('apps-skill-form')).toBeVisible({ timeout: 30000 });
     expect(appHash(page)).toBe('#apps/health/search-appointments');
     await page.reload({ waitUntil: 'domcontentloaded' });
     await expect(page.getByTestId('apps-skill-form')).toBeVisible({ timeout: 30000 });
+    await page.getByTestId('apps-detail-close').click();
+    await expect.poll(() => appHash(page)).toBe('#apps/health');
+  });
+
+  // contract-test: direct surface=gui.web assertions=apps.navigation.hash-and-forwarding
+  test('app, skill, focus and memory detail close restore an example chat origin', async ({ page }: { page: any }) => {
+    const exampleChatId = 'example-gigantic-airplanes';
+    expect(ALL_EXAMPLE_CHATS.map(chat => chat.chat_id)).toContain(exampleChatId);
+    const origin = `#chat-id=${exampleChatId}`;
+    for (const path of ['health', 'health/search-appointments', 'health/focus/care-plan', 'health/memory/medical-history']) {
+      await page.goto(getE2EDebugUrl(`/#apps/${path}&origin=${encodeURIComponent(origin)}`), { waitUntil: 'domcontentloaded' });
+      await expect(page.getByTestId('apps-detail-fullscreen')).toBeVisible({ timeout: 30000 });
+      if (path === 'health') {
+        await page.getByTestId('apps-tab-focus_modes').click();
+        await expect.poll(() => new URLSearchParams(new URL(page.url()).hash.split('&').slice(1).join('&')).get('origin')).toBe(origin);
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await expect(page.getByTestId('apps-detail-fullscreen')).toBeVisible({ timeout: 30000 });
+      }
+      await page.getByTestId('apps-detail-close').click();
+      await expect.poll(() => new URL(page.url()).hash).toBe(origin);
+      await expect(page.getByTestId('chat-close-button')).toBeVisible({ timeout: 30000 });
+    }
+  });
+
+  // contract-test: direct surface=gui.web assertions=apps.navigation.hash-and-forwarding
+  test('opaque page origin survives reload and close returns to its first-party path', async ({ page }: { page: any }) => {
+    await page.goto(getE2EDebugUrl('/#apps'), { waitUntil: 'domcontentloaded' });
+    const token = 'a'.repeat(32);
+    const sharePath = '/share/chat/fictional-share#key=fixture-only';
+    await page.evaluate(({ token, sharePath }: { token: string; sharePath: string }) =>
+      sessionStorage.setItem(`openmates:apps-origin:${token}`, sharePath), { token, sharePath });
+    await page.goto(getE2EDebugUrl(`/#apps/health&origin-ref=${token}`), { waitUntil: 'domcontentloaded' });
+    await expect(page.getByTestId('apps-detail-fullscreen')).toBeVisible({ timeout: 30000 });
+    expect(page.url()).not.toContain('fixture-only');
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.getByTestId('apps-detail-close').click();
+    await expect.poll(() => new URL(page.url()).pathname + new URL(page.url()).hash).toBe(sharePath);
   });
 
   // contract-test: direct surface=gui.web assertions=apps.discovery.public-catalog,apps.forms.metadata-driven,apps.navigation.hash-and-forwarding

@@ -12,7 +12,7 @@
   import { retainAppsResult, listAppsResults, listPendingAppsResultItems, promoteGuestAppsResults, startAppsHistoricalDiscovery,
     appsResultSaveStates, recoverPendingAppsResults, retryAppsResultSave, AppsResultSavePendingError, type AppsResultItem } from '../../services/appsWorkspaceResultsService';
   import { listAppsWorkflows, type AppsWorkflowLibraryItem } from '../../services/appsWorkflowLibraryService';
-  import { readAppsWorkspaceRoute, buildAppsWorkspaceHash, resolveAppsSkillId, resolveAppsAppId, type AppsWorkspaceTab } from '../../utils/appsWorkspaceRoute';
+  import { readAppsWorkspaceRoute, readAppsWorkspaceOrigin, buildAppsWorkspaceHash, resolveAppsSkillId, resolveAppsAppId, type AppsWorkspaceTab } from '../../utils/appsWorkspaceRoute';
   import type { AppsSkillDetails } from '../../types/appsWorkspace';
   import type { AppMetadata } from '../../types/apps';
   import { CONTENT_EMBED_CATALOG } from '../../data/embedRegistry.generated';
@@ -306,6 +306,9 @@
     onNavigate(`${buildAppsWorkspaceHash(detailPath, route?.tab ?? 'overview')}&embed-id=${encodeURIComponent(embedId)}${rootEmbedId && rootEmbedId !== embedId ? `&root-id=${encodeURIComponent(rootEmbedId)}` : ''}`);
   }
   function closeResult(): void { onNavigate(buildAppsWorkspaceHash(detailPath, route?.tab ?? 'overview')); }
+  function closeDetail(): void {
+    onNavigate(readAppsWorkspaceOrigin(hash) ?? (skillId || route?.settingsPath ? buildAppsWorkspaceHash(`apps/${route?.appId}`) : lastHomeHash));
+  }
   function openNewMessage(message: string): void { window.open(`/#new-message=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer'); }
   function openExampleChat(chatId: string): void { window.open(`/#chat-id=${encodeURIComponent(chatId)}`, '_blank', 'noopener,noreferrer'); }
   async function shareDetail(): Promise<void> {
@@ -334,7 +337,7 @@
   {#if route?.appId}
     <div class="apps-detail-layer">
       {#key route.appId}
-        <UnifiedEmbedFullscreen appId={resolvedAppId ?? route.appId} skillId={skillId ?? undefined} closeOnChatSelection={false} onClose={() => onNavigate(skillId || route?.settingsPath ? buildAppsWorkspaceHash(`apps/${route?.appId}`) : lastHomeHash)} onShare={() => void shareDetail()} testId="apps-detail-fullscreen" closeTestId="apps-detail-close" embedHeaderPresentation="apps" embedHeaderIconInteractive={false} embedHeaderEyebrow={heroCategory} embedHeaderFooter={heroStats} embedHeaderProviders={heroProviders} appIconName={heroAppIcon} skillIconName={heroSkillIcon} embedHeaderTitle={title} embedHeaderSubtitle={description}>
+        <UnifiedEmbedFullscreen appId={resolvedAppId ?? route.appId} skillId={skillId ?? undefined} closeOnChatSelection={false} onClose={closeDetail} onShare={() => void shareDetail()} testId="apps-detail-fullscreen" closeTestId="apps-detail-close" embedHeaderPresentation="apps" embedHeaderIconInteractive={false} embedHeaderEyebrow={heroCategory} embedHeaderFooter={heroStats} embedHeaderProviders={heroProviders} appIconName={heroAppIcon} skillIconName={heroSkillIcon} embedHeaderTitle={title} embedHeaderSubtitle={description}>
           {#snippet embedHeaderCta()}
             {#if skillId && !route?.settingsPath}
               <button class="hero-action" data-testid="apps-use-skill" onclick={useSkill}>{tr('use_skill')}</button>
