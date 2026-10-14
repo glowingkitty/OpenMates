@@ -24,6 +24,18 @@ const codeEmbed = {
 export default defaultProps;
 
 export const variants = {
+  multilineUser: {
+    ...defaultProps,
+    content: 'Find **social posts** about rainy-day cafes.\nKeep the source link on its own line.\n\n\nInclude a short summary after the gap.',
+  },
+  multilineUserCode: {
+    ...defaultProps,
+    content: 'Before **saved code**.\n\n````svelte\nlet count = $state(0);\n\n```text\nnested\n\ncode\n```\n````\n\nAfter the code.',
+  },
+  multilineUserStructured: {
+    ...defaultProps,
+    content: '1. **First**\n\n   Still first with *emphasis*.\n\n1. Second\n\n- **Bullet first**\n\n- Bullet second\n\n> **Quote first**\n>\n> Quote second.',
+  },
   parsedCode: {
     ...defaultProps,
     content: {

@@ -40,16 +40,28 @@ verification:
   - Existing successful recordings are uploaded and only latest relevant recordings delivered.
 task_tracking: OpenMates Tasks linked to codex:01a13630-3aed-7ae2-943e-ac86f4c45cb9 own status and dependencies.
 remaining:
-- Publish the reviewed successor to dev commit 428df4265ea7037167264491f40dfde49218e3a7.
+- The reviewed successor is published at dev commit 428df4265ea7037167264491f40dfde49218e3a7.
   Frontend and all seventeen backend services are healthy; the current backend tree matches that publication.
   Preserve concurrent changes when preparing the next exact-source candidate.
-- Finish sharing and session-revocation integration checks after their focused fixes. Canonical storage passes
-  all nine cases and canonical optional-field reconciliation passes 26/26. The sharing viewer decrypts correctly
-  but its skill activity is collapsed; the revocation check now reaches logout but needs the guest-only marker
-  to reflect the actual banner variant. Preserve the remaining assertions.
+- Finish sharing integration after the visible opt-out control fix. Canonical storage passes all nine cases,
+  optional-field reconciliation passes 26/26, session revocation passes its isolated case, and CLI cold recovery
+  passes all eight cases. Revocation's actual participant videos were not captured; checkpoint images remain.
 - Verify and publish keyed-tabular TOON decoder compatibility and immutable streamed-embed replay handling.
   The saved Image output contains real files that the old decoder drops. Focused decoder cases pass; the CLI
-  replay fix has eighteen focused and five existing passing cases. Exact-source SDK build and product E2E remain.
+  replay fix passes twenty focused cases. Exact-source SDK build and declarations pass; full type checking has
+  the same 206 existing diagnostics as the declared dev baseline, with none added. Publication remains pending.
+- Publish the real Code source with its verified 1440x900 reviewed screenshot and six source follow-ups; the
+  currently deployed fixture has neither. Protect literal Svelte runes from math extraction. The initial exact
+  candidate failed before browser execution on an omitted spacing dependency; a math-only corrected candidate
+  is in isolated verification. Keep the original user-spacing change and its explicit dependencies for the
+  following candidate rather than losing that approved scope. Its 39 focused formatting/math cases pass.
+- Complete source-scoped embed reads and bounded failed CLI recovery. The 205 sampled post-restart reads are
+  CLI/SDK traffic; redacted identities prevent attribution among stale, forbidden and key-unavailable sources.
+  The UI source-context fix is independent of those sampled reads. Local checks pass 33 UI and 49 CLI cases;
+  isolated product verification and deployment remain. Preserve opaque endpoint authorization and encryption.
+- Publish the corrected image MIME handling. Safety uses the actual provider MIME; requested PNG/JPG storage
+  formats are honored. The legacy reviewed JPEG is published with unchanged bytes and hash. All 22 focused
+  producer/publisher cases pass; final integration, publication and public example admission remain.
 - Run the authorized read-only personal dev-account check with three concurrent iPad-size WebKit tabs and a reload
   after rollout. Guest WebKit passes without retry and authenticated cloned-tab routing passes; neither establishes
   physical-iPad behavior or the original crash cause. Keep credentials and private evidence local.

@@ -74,13 +74,15 @@ async function decryptIntoOutput(
   };
 }
 
-export async function handleCodeRunOutputSyncedImpl(payload: unknown): Promise<void> {
+export async function handleCodeRunOutputSyncedImpl(payload: unknown, writeGuard: () => void = () => {}): Promise<void> {
   const output = await decryptIntoOutput(payload as CodeRunOutputSyncedPayload);
   if (!output) return;
+  writeGuard();
   try {
     await idbUpsertCodeRunOutput(chatDB, output);
   } catch (error) {
     console.error("[handlersCodeRunOutputs] IDB upsert failed", error);
   }
+  writeGuard();
   window.dispatchEvent(new CustomEvent("codeRunOutputSynced", { detail: output }));
 }

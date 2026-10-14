@@ -122,7 +122,8 @@ async function runIsolatedProofFixture(program: string, owner: unknown, testInfo
 type CanonicalHistoryFixture = { chatId: string; ownerId: string; clientMessageId: string;
 	chat: Record<string, unknown>; message: Record<string, unknown>;
 	embed?: Record<string, unknown>; embedKeys?: Array<Record<string, unknown>>;
-	outputs?: Array<Record<string, unknown>>; staleOutputs?: Array<Record<string, unknown>> };
+	outputs?: Array<Record<string, unknown>>; staleOutputs?: Array<Record<string, unknown>>;
+	childEmbed?: Record<string, unknown>; childOutput?: Record<string, unknown>; childStaleOutput?: Record<string, unknown> };
 
 function canonicalHistorySdk(apiUrl: string, home: string, program: string, input: unknown = {}): any {
 	const cli = path.resolve(__dirname, '../../../packages/openmates-cli/dist/cli.js');
@@ -147,9 +148,8 @@ function canonicalHistorySdk(apiUrl: string, home: string, program: string, inpu
 	}).trim());
 }
 
-function persistCanonicalHistoryFixture(fixture: CanonicalHistoryFixture, operation: 'seed' | 'cleanup'): void {
-	expect(fs.existsSync(isolatedCompose), 'Requires the disposable isolated CI compose').toBe(true);
-	const program = `
+function canonicalHistoryFixtureProgram(): string {
+	return `
 import asyncio,hashlib,json,logging,os,sys
 logging.disable(logging.CRITICAL)
 assert os.environ.get('OPENMATES_CI_ISOLATED')=='1'
@@ -174,19 +174,40 @@ async def main():
                     assert key['hashed_user_id']==owner
                     created,_=await directus.create_item('embed_keys',key,admin_required=True)
                     assert created, 'Encrypted recovery key seed failed'
-                for output in data.get('outputs',[]):
+                if data.get('childEmbed'):
+                    child=data['childEmbed']
+                    assert child['hashed_user_id']==owner and child['hashed_chat_id']==data['embed']['hashed_chat_id']
+                    assert child['parent_embed_id']==data['embed']['embed_id']
+                    created,_=await directus.create_item('embeds',child,admin_required=True)
+                    assert created, 'Encrypted child seed failed'
+                fixture_outputs=[*data.get('outputs',[]),*([data['childOutput']] if data.get('childOutput') else [])]
+                for output in fixture_outputs:
                     assert output['hashed_user_id']==owner and output['root_chat_id']==data['chatId']
-                    assert output['target_chat_id']==data['chatId'] and output['subject_id']==data['embed']['embed_id']
+                    assert output['target_chat_id']==data['chatId'] and output['subject_id'] in [data['embed']['embed_id'],data.get('childEmbed',{}).get('embed_id')]
                     created,_=await directus.create_item('chat_recovery_outputs',output,admin_required=True)
                     assert created, 'Acknowledged recovery output seed failed'
             assert await cache.add_chat_to_ids_versions(data['ownerId'],data['chatId'],data['chat']['last_edited_overall_timestamp'])
             assert await cache.set_chat_list_item_data(data['ownerId'],data['chatId'],_chat_list_cache_data_from_metadata(data['chat']))
             assert await cache.set_chat_versions(data['ownerId'],data['chatId'],_chat_versions_from_metadata(data['chat']))
+        elif data['operation'] in ('keys-unavailable','keys-ready'):
+            metadata=await directus.chat.get_chat_metadata(data['chatId'])
+            assert metadata and metadata['hashed_user_id']==owner
+            for key in data.get('embedKeys',[]):
+                assert key['hashed_user_id']==owner and key['hashed_embed_id']==data['embed']['hashed_embed_id']
+                rows=await directus.get_items('embed_keys',params={'filter':{'id':{'_eq':key['id']}},'limit':2},no_cache=True,admin_required=True)
+                assert len(rows)<=1
+                if data['operation']=='keys-unavailable':
+                    assert rows and all(rows[0].get(field)==key.get(field) for field in ('hashed_user_id','hashed_embed_id','hashed_chat_id','key_type','encrypted_embed_key'))
+                    assert await directus.delete_item('embed_keys',key['id'],admin_required=True)
+                else:
+                    assert not rows
+                    created,_=await directus.create_item('embed_keys',key,admin_required=True)
+                    assert created
         else:
             metadata=await directus.chat.get_chat_metadata(data['chatId'])
             if metadata:
                 assert metadata.get('hashed_user_id')==owner, 'Only fixture-owned chat may be removed'
-                for output in data.get('outputs',[]):
+                for output in [*data.get('outputs',[]),*([data['childOutput']] if data.get('childOutput') else [])]:
                     rows=await directus.get_items('chat_recovery_outputs',params={'filter':{'id':{'_eq':output['id']}},'limit':1},no_cache=True,admin_required=True)
                     if rows:
                         assert rows[0]['hashed_user_id']==owner
@@ -196,6 +217,11 @@ async def main():
                     if rows:
                         assert rows[0]['hashed_user_id']==owner
                         assert await directus.delete_item('embed_keys',key['id'],admin_required=True)
+                if data.get('childEmbed'):
+                    rows=await directus.get_items('embeds',params={'filter':{'id':{'_eq':data['childEmbed']['id']}},'limit':1},no_cache=True,admin_required=True)
+                    if rows:
+                        assert rows[0]['hashed_user_id']==owner and rows[0]['parent_embed_id']==data['embed']['embed_id']
+                        assert await directus.delete_item('embeds',data['childEmbed']['id'],admin_required=True)
                 if data.get('embed'):
                     rows=await directus.get_items('embeds',params={'filter':{'id':{'_eq':data['embed']['id']}},'limit':1},no_cache=True,admin_required=True)
                     if rows:
@@ -211,6 +237,12 @@ async def main():
     finally: await directus.close(); await cache.close()
 asyncio.run(main())
 `;
+}
+
+function persistCanonicalHistoryFixture(fixture: CanonicalHistoryFixture,
+	operation: 'seed' | 'cleanup' | 'keys-unavailable' | 'keys-ready'): void {
+	expect(fs.existsSync(isolatedCompose), 'Requires the disposable isolated CI compose').toBe(true);
+	const program = canonicalHistoryFixtureProgram();
 	const output = execFileSync('docker', ['compose', '-f', isolatedCompose, 'exec', '-T', '-e',
 		'OPENMATES_CI_ISOLATED=1', 'api', 'python', '-c', program], {
 		cwd: repositoryRoot, input: JSON.stringify({ ...fixture, operation }), encoding: 'utf8', timeout: 90_000
@@ -311,8 +343,14 @@ test('stale CLI embed discovery reconciles only a verified canonical ACK', async
 			const staleOutputs=outputs.map(output=>({record_id:output.id,root_chat_id:output.root_chat_id,
 				root_hashed_team_id:null,target_chat_id:output.target_chat_id,turn_id:output.turn_id,
 				subject_id:embedId,output_kind:'embed',output_version:1,chat_key_version:1,message_role:null}));
+			const childId=randomUUID();
+			const childContent=await encrypt('type: code\\ncode: child source readiness fixture',embedKey);
+			const childEmbed={...embed,id:randomUUID(),embed_id:childId,hashed_embed_id:hash(childId),
+				parent_embed_id:embedId,encrypted_content:childContent};
+			const childOutput={...outputs[0],id:randomUUID(),subject_id:childId,canonical_digest:hash(childContent)};
+			const childStaleOutput={...staleOutputs[0],record_id:childOutput.id,subject_id:childId};
 			process.stdout.write(JSON.stringify({chatId,ownerId:owner.id,clientMessageId,chat,message,
-				embed,embedKeys,outputs,staleOutputs}));
+				embed,embedKeys,outputs,staleOutputs,childEmbed,childOutput,childStaleOutput}));
 		`);
 		persistCanonicalHistoryFixture(fixture, 'seed');
 		const guardedHead = canonicalHistorySdk(apiUrl, home, `
@@ -426,19 +464,67 @@ test('stale CLI embed discovery reconciles only a verified canonical ACK', async
 		const fixtureIds = new Set([verified.record_id, tampered.record_id]);
 		expect(observed.requests.filter((row: any) => row.type === 'recovery_output_get')
 			.filter((row: any) => fixtureIds.has(row.record_id))
-			.map((row: any) => row.record_id)).toEqual([verified.record_id, tampered.record_id,
-				tampered.record_id]);
+			.map((row: any) => row.record_id)).toEqual([verified.record_id, tampered.record_id]);
 		expect(observed.requests.filter((row: any) => row.type === 'recovery_output_status')
 			.filter((row: any) => fixtureIds.has(row.record_id))
-			.map((row: any) => row.record_id)).toEqual([verified.record_id, tampered.record_id,
-				tampered.record_id]);
+			.map((row: any) => row.record_id)).toEqual([verified.record_id, tampered.record_id]);
 		expect(observed.statuses).toEqual([
 			{ record_id: verified.record_id, state: 'ACKNOWLEDGED', verified: true },
-			{ record_id: tampered.record_id, state: 'ACKNOWLEDGED', verified: false },
 			{ record_id: tampered.record_id, state: 'ACKNOWLEDGED', verified: false }
 		]);
 		expect(observed.accepted).toEqual([verified.record_id]);
-		expect(observed.rejected).toEqual([tampered.record_id, tampered.record_id]);
+		expect(observed.rejected).toEqual([tampered.record_id]);
+
+
+		// A child uses only its verified same-source parent's wrappers. Remove
+		// and restore those exact fixture-owned rows through the isolated protocol.
+		persistCanonicalHistoryFixture(fixture, 'keys-unavailable');
+		clearWorkflowCliSyncCache(home);
+		const parentReadiness = canonicalHistorySdk(apiUrl, home, `
+			await client.whoAmI();
+			let clock=Date.now(); const actualNow=Date.now; Date.now=()=>clock;
+			const leaf=client.replayAvailableRecoveryOutputs.bind(client),attempts=[];let childAccepted=0,inferenceRequests=0;
+			client.replayAvailableRecoveryOutputs=async(...args)=>{
+				if(args[2][0]?.record_id===input.fixture.childStaleOutput.record_id)attempts.push('child');
+				const count=await leaf(...args);if(args[2][0]?.record_id===input.fixture.childStaleOutput.record_id&&count>0)childAccepted++;return count;
+			};
+			const open=client.openWsClient.bind(client);
+			client.openWsClient=async(...args)=>{
+				const result=await open(...args),drain=result.ws.drainAvailableRecoveryOutputPages.bind(result.ws),send=result.ws.sendAsync.bind(result.ws);
+				result.ws.sendAsync=async(type,payload)=>{if(['chat_turn_admit','new_chat','chat_message'].includes(type))inferenceRequests++;return send(type,payload)};
+				result.ws.drainAvailableRecoveryOutputPages=(root)=>{
+					const pages=drain(root);
+					pages.push([input.fixture.childStaleOutput],[input.fixture.childStaleOutput]);
+					return pages;
+				};return result;
+			};
+			const childPath='/v1/embeds/chats/'+input.fixture.chatId+'/embeds/'+input.fixture.childEmbed.embed_id;
+			const before=await client.http.get(childPath,client.getCliRequestHeaders());
+			if(before.status!==404)throw Error('Child with unavailable parent wrappers must remain opaque404');
+			const first=await client.listChats(100,1,{forceRefresh:true}),firstAttempts=attempts.length;
+			const second=await client.listChats(100,1,{forceRefresh:true}),secondAttempts=attempts.length;
+			clock+=5001;
+			const expired=await client.listChats(100,1,{forceRefresh:true}),expiredAttempts=attempts.length;
+			const {execFileSync}=require('node:child_process');
+			execFileSync('docker',['compose','-f',input.compose,'exec','-T','-e','OPENMATES_CI_ISOLATED=1',
+				'api','python','-c',input.fixtureProgram],{cwd:input.root,input:JSON.stringify({...input.fixture,operation:'keys-ready'}),encoding:'utf8',timeout:90000});
+			const restored=await client.listChats(100,1,{forceRefresh:true}),restoredAttempts=attempts.length;
+			const after=await client.http.get(childPath,client.getCliRequestHeaders());
+			const parentAfter=await client.http.get('/v1/embeds/chats/'+input.fixture.chatId+'/embeds/'+input.fixture.embed.embed_id,
+				client.getCliRequestHeaders());
+			Date.now=actualNow;
+			process.stdout.write(JSON.stringify({missingStatus:before.status,firstAttempts,secondAttempts,expiredAttempts,restoredAttempts,
+				pendingFirst:first.pendingRecoveryOutputs>=1,pendingSecond:second.pendingRecoveryOutputs>=1,
+				pendingExpired:expired.pendingRecoveryOutputs>=1,restoredReadable:after.ok,
+				childCipherUnchanged:after.data?.embed?.encrypted_content===input.fixture.childEmbed.encrypted_content,
+				childVersionUnchanged:after.data?.embed?.version_number===1,
+				parentCipherUnchanged:parentAfter.data?.embed?.encrypted_content===input.fixture.embed.encrypted_content,
+				childAccepted,inferenceRequests}));
+		`, {fixture,compose:isolatedCompose,root:repositoryRoot,fixtureProgram:canonicalHistoryFixtureProgram()});
+		expect(parentReadiness).toEqual({missingStatus:404,firstAttempts:1,secondAttempts:1,expiredAttempts:2,restoredAttempts:3,
+			pendingFirst:true,pendingSecond:true,pendingExpired:true,restoredReadable:true,childCipherUnchanged:true,
+			childVersionUnchanged:true,parentCipherUnchanged:true,childAccepted:1,inferenceRequests:0});
+		await testInfo.attach('cli-bounded-parent-readiness', {body:JSON.stringify(parentReadiness),contentType:'application/json'});
 
 		installRecorderDeps();
 		const result = await runCli(apiUrl, ['chats', 'list', '--limit', '100', '--json'], 120_000, {

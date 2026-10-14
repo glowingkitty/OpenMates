@@ -111,6 +111,8 @@ import {
   type TaskProposalEvent,
   type TaskUpdateProposalEvent,
 } from "./ws.js";
+import { RecoveryFailureRetry, recoveryOutputIdentity, recoveryReadinessSignature,
+  type RecoveryRetryOperation } from "./recoveryFailureRetry.js";
 import type { FocusPhaseState } from "../../ui/src/types/focusPhases.js";
 import { registerChatContextEvents, parseChatContextContent, type ChatContextEvent } from "./chatContextEvents.js";
 import { prepareCliJevContext, decodePersonalProjectCandidates, type CliJevContext, type EncryptedPersonalProjectCandidate, type FocusAuthoringDocument } from "./cliJevContext.js";
@@ -3379,6 +3381,7 @@ function wsTokenSessionBinding(token: string | null | undefined, refreshCookie: 
 }
 
 export class OpenMatesClient {
+  private recoveryFailureRetry?: RecoveryFailureRetry;
   private readonly workflowDeliveriesBySocket = new WeakMap<OpenMatesWsClient, Map<string, WorkflowDeliveryDiscovery>>();
   private readonly ownTeamDisplayNames = new Map<string, { name: string; expiresAt: number }>();
   private pendingWhoAmIAuthHandoff: PersonalSendAuthHandoff | null = null;
@@ -8739,7 +8742,11 @@ export class OpenMatesClient {
     onPending?: () => void,
     signal?: AbortSignal,
     verifiedInSync?: Map<string, string>,
+    retryOperation?: RecoveryRetryOperation,
   ): Promise<number> {
+    const retry = retryOperation && (this.recoveryFailureRetry ??= new RecoveryFailureRetry());
+    const retryScope = retry ? computeSHA256(JSON.stringify([this.apiUrl, ownerId, teamId,
+      this.session?.sessionId ?? null, computeSHA256(Buffer.from(this.getMasterKeyBytes()).toString("base64"))])) : "";
     let acknowledged = 0;
     for (const page of pages) {
       signal?.throwIfAborted();
@@ -8751,11 +8758,7 @@ export class OpenMatesClient {
       // record stays pending on the server and cannot hide unrelated chats.
       for (const output of page) {
         signal?.throwIfAborted();
-        const identity = JSON.stringify([
-          output.root_chat_id, output.target_chat_id, output.turn_id, output.subject_id,
-          output.output_kind, output.output_version, output.chat_key_version,
-          output.message_role ?? null, output.root_hashed_team_id ?? null,
-        ]);
+        const identity = recoveryOutputIdentity(output);
         const previouslyVerified = verifiedInSync?.get(output.record_id);
         if (previouslyVerified !== undefined) {
           if (previouslyVerified !== identity) {
@@ -8765,13 +8768,22 @@ export class OpenMatesClient {
           // current pass is the required fresh metadata read after that ACK.
           continue;
         }
+        const readiness = retry ? recoveryReadinessSignature(cache, output) : "";
+        if (retry && retryOperation && retry.shouldDefer(retryScope, output, readiness, retryOperation)) {
+          onPending?.();
+          continue;
+        }
         try {
           const recovered = await this.replayAvailableRecoveryOutputs(ws, ownerId, [output], cache, teamId);
           acknowledged += recovered;
-          if (recovered > 0) verifiedInSync?.set(output.record_id, identity);
+          if (recovered > 0) {
+            verifiedInSync?.set(output.record_id, identity);
+            if (retry && retryOperation) retry.succeeded(retryScope, output, retryOperation);
+          }
         } catch (error) {
           signal?.throwIfAborted();
           if (!onPending) throw error;
+          if (retry && retryOperation) retry.failed(retryScope, output, readiness, retryOperation);
           onPending();
         }
       }
@@ -16604,6 +16616,7 @@ export class OpenMatesClient {
     syncBehavior: {
       skipTypedRecoveryOutputReplay?: boolean;
       verifiedRecoveryOutputs?: Map<string, string>;
+      failedRecoveryOperation?: RecoveryRetryOperation;
       recoveryRefreshes?: number;
     } = {},
   ): Promise<SyncCache> {
@@ -16931,9 +16944,11 @@ export class OpenMatesClient {
           chats, embeds, embedKeys, chatKeyWrappers,
         };
         const verifiedRecoveryOutputs = syncBehavior.verifiedRecoveryOutputs ?? new Map<string, string>();
+        const failedRecoveryOperation = syncBehavior.failedRecoveryOperation
+          ?? (this.recoveryFailureRetry ??= new RecoveryFailureRetry()).beginOperation();
         recoveredOutputCount = await this.replayRecoveryOutputPages(ws, ownerId, pages, currentCache, teamId,
-          () => { pendingRecoveryOutputs += 1; }, signal, verifiedRecoveryOutputs);
-        syncBehavior = { ...syncBehavior, verifiedRecoveryOutputs };
+          () => { pendingRecoveryOutputs += 1; }, signal, verifiedRecoveryOutputs, failedRecoveryOperation);
+        syncBehavior = { ...syncBehavior, verifiedRecoveryOutputs, failedRecoveryOperation };
       }
       // Normal user-key chat encryption is an owner-device operation. Do not mix
       // personal workflow delivery keys into an active team's cache/key context.

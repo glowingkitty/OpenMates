@@ -5,8 +5,12 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+from io import BytesIO
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
+from PIL import Image
 
 from backend.shared.python_utils.media_encryption import encrypt_media_variants
 from backend.shared.python_utils.generated_assets import CHUNKED_MODEL_ENCRYPTION
@@ -17,7 +21,13 @@ from scripts import publish_example_media as publisher
 USER_ID = "owner-1"
 CHAT_ID = "4b6afae0-f3aa-481b-9ba0-c586d177bb9f"
 EMBED_ID = "c8057f50-682e-40f9-886a-cedcadf76539"
-PNG = b"\x89PNG\r\n\x1a\nreviewed image payload"
+def raster_bytes(file_format: str) -> bytes:
+    output = BytesIO()
+    Image.new("RGB", (8, 8), "green").save(output, format=file_format)
+    return output.getvalue()
+
+
+PNG = raster_bytes("PNG")
 
 
 class FakeDirectus:
@@ -51,14 +61,18 @@ class FakeS3:
         self.uploaded = []
 
     async def get_file(self, *, bucket_name, object_key):
-        assert bucket_name == "openmates-chatfiles"
+        prefix = "dev-" if self.environment == "development" else ""
+        assert bucket_name == f"{prefix}openmates-chatfiles"
+        if isinstance(self.encrypted, dict):
+            return self.encrypted[object_key]
         assert object_key == "private/source.enc"
         return self.encrypted
 
     async def upload_file(self, bucket_key, file_key, content, content_type, metadata, region):
         assert region == "nbg1"
         self.uploaded.append((bucket_key, file_key, content, content_type, metadata))
-        return {"url": f"https://openmates-public-examples.{self.base_domain}/{file_key}"}
+        prefix = "dev-" if self.environment == "development" else ""
+        return {"url": f"https://{prefix}openmates-public-examples.{self.base_domain}/{file_key}"}
 
 
 def args(tmp_path, *, reviewed=True):
@@ -150,3 +164,91 @@ async def test_reads_real_chunked_model_variant_before_publication(monkeypatch):
         nonce="",
     )
     assert plaintext == model
+
+
+def owned_asset(variants, *, source="openmates_image_generate"):
+    encrypted = encrypt_media_variants({name: body for name, (body, _) in variants.items()}, write_version=2)
+    directus = FakeDirectus()
+    directus.rows["upload_files"] = [{
+        "embed_id": EMBED_ID, "user_id": USER_ID,
+        "ai_detection": {"source": source},
+        "files_metadata": {name: {
+            "s3_key": f"private/{name}.enc", **metadata, **encrypted.metadata[name],
+        } for name, (_, metadata) in variants.items()},
+        "aes_key": encrypted.aes_key_b64, "aes_nonce": "",
+    }]
+    return directus, FakeS3({f"private/{name}.enc": body for name, body in encrypted.payloads.items()})
+
+
+@pytest.mark.asyncio
+async def test_legacy_png_label_publishes_valid_jpeg_bytes_with_actual_mime_and_same_digest(tmp_path, monkeypatch):
+    monkeypatch.setattr(publisher, "get_bucket_name", lambda key, environment: {
+        "chatfiles": "openmates-chatfiles", "public_example_media": "openmates-public-examples",
+    }[key])
+    jpeg = raster_bytes("JPEG")
+    directus, s3 = owned_asset({"original": (jpeg, {"mime_type": "image/png", "format": "png"})})
+    manifest = await publisher.publish(args(tmp_path), directus=directus, s3=s3, encryption=object())
+    digest = hashlib.sha256(jpeg).hexdigest()
+    expected_key = f"reviewed-media/image/original/sha256-{digest}.jpg"
+    assert s3.uploaded[0][1:4] == (expected_key, jpeg, "image/jpeg")
+    assert manifest["embeds"][0]["variants"][0] == {
+        "variant": "original", "sha256": digest, "mime_type": "image/jpeg",
+        "public_url": f"https://openmates-public-examples.nbg1.your-objectstorage.com/{expected_key}",
+    }
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("bad_bytes", [
+    b"\x89PNG\r\n\x1a\ncorrupt pixels", b"<svg xmlns='http://www.w3.org/2000/svg'/>",
+    raster_bytes("GIF"), raster_bytes("JPEG")[:-20], b"ID3audio data",
+])
+async def test_rejects_corrupt_unsupported_or_non_raster_bytes_before_any_upload(tmp_path, monkeypatch, bad_bytes):
+    monkeypatch.setattr(publisher, "get_bucket_name", lambda key, environment: "openmates-chatfiles")
+    directus, s3 = owned_asset({
+        "full": (raster_bytes("WEBP"), {"mime_type": "image/webp"}),
+        "original": (bad_bytes, {"mime_type": "image/png", "format": "png"}),
+    })
+    with pytest.raises(RuntimeError, match="invalid or unsupported raster"):
+        await publisher.publish(args(tmp_path), directus=directus, s3=s3, encryption=object())
+    assert not s3.uploaded
+    assert not args(tmp_path).output.exists()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("metadata", [
+    {"mime_type": "audio/mpeg", "format": "mp3"},
+    {"mime_type": "image/png", "format": "mp3"},
+])
+async def test_rejects_mixed_media_labels_and_image_bytes_as_audio(tmp_path, monkeypatch, metadata):
+    monkeypatch.setattr(publisher, "get_bucket_name", lambda key, environment: "openmates-chatfiles")
+    directus, s3 = owned_asset({"original": (PNG, metadata)}, source="openmates_audio_generate")
+    with pytest.raises(RuntimeError, match="media"):
+        await publisher.publish(args(tmp_path), directus=directus, s3=s3, encryption=object())
+    assert not s3.uploaded
+    assert not args(tmp_path).output.exists()
+
+
+@pytest.mark.asyncio
+async def test_runtime_publisher_uses_dev_bucket_without_configuring_buckets(tmp_path, monkeypatch):
+    from backend.core.api.app.services import directus as directus_module
+    from backend.core.api.app.services.s3 import service as s3_module
+    from backend.core.api.app.utils import encryption as encryption_module
+    from backend.core.api.app.utils import secrets_manager as secrets_module
+
+    directus, s3 = owned_asset({"original": (raster_bytes("JPEG"), {"mime_type": "image/png"})})
+    directus.close = AsyncMock()
+    s3.environment = "development"
+    s3.initialize = AsyncMock()
+    monkeypatch.setattr(directus_module, "DirectusService", lambda: directus)
+    monkeypatch.setattr(s3_module, "S3UploadService", lambda **kwargs: s3)
+    monkeypatch.setattr(encryption_module, "EncryptionService", lambda: object())
+    monkeypatch.setattr(secrets_module, "SecretsManager", lambda: SimpleNamespace(initialize=AsyncMock()))
+    monkeypatch.setattr(publisher, "get_bucket_name", lambda key, environment: {
+        "chatfiles": "dev-openmates-chatfiles", "public_example_media": "dev-openmates-public-examples",
+    }[key])
+    manifest = await publisher.publish(args(tmp_path))
+    s3.initialize.assert_awaited_once_with(configure_buckets=False)
+    directus.close.assert_awaited_once()
+    assert manifest["embeds"][0]["variants"][0]["public_url"].startswith(
+        "https://dev-openmates-public-examples.nbg1.your-objectstorage.com/"
+    )

@@ -1237,7 +1237,7 @@ export function parse_message(
 ): any {
   // If unified parsing is not enabled, fallback to existing behavior
   if (!opts.unifiedParsingEnabled) {
-    const doc = markdownToTipTap(markdown);
+    const doc = markdownToTipTap(markdown, mode === "read" && opts.role === "user");
     // Still apply embed: link + source quote conversion in read mode even on the fast path
     if (mode === "read") {
       const withLinks = convertEmbedLinks(doc, opts.role);
@@ -1247,7 +1247,7 @@ export function parse_message(
   }
 
   // First, parse basic markdown structure using existing parser
-  let basicDoc = markdownToTipTap(markdown);
+  let basicDoc = markdownToTipTap(markdown, mode === "read" && opts.role === "user");
 
   // Check if the content needs migration from old embed node types
   if (needsMigration(basicDoc)) {

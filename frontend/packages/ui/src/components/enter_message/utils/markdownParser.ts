@@ -3,6 +3,7 @@
 // Tests: frontend/packages/ui/src/message_parsing/__tests__/parse_message.test.ts
 import MarkdownIt from "markdown-it";
 import { get } from "svelte/store";
+import { preserveUserBlankLines } from "../../../message_parsing/userReadSpacing";
 import { modelsMetadata } from "../../../data/modelsMetadata";
 import { matesMetadata } from "../../../data/matesMetadata";
 import { currentPersonalDocumentMemories } from '../../../stores/personalDocumentMemories';
@@ -51,6 +52,16 @@ md.renderer.rules.link_open = (tokens, idx, options, env, self) => {
 
   return defaultLinkRender(tokens, idx, options, env, self);
 };
+
+// User-authored read messages retain single line breaks; assistant Markdown
+// continues to use normal paragraph wrapping.
+const userReadMd = new MarkdownIt({
+  html: true,
+  linkify: true,
+  typographer: true,
+  breaks: true,
+});
+userReadMd.renderer.rules.link_open = md.renderer.rules.link_open;
 
 // Map to store extracted LaTeX formulas for TipTap Mathematics nodes
 // Key: placeholder ID, Value: { tex: LaTeX formula, display: boolean }
@@ -273,7 +284,7 @@ function textFromNodes(nodes: any[]): string {
 // Helper function to pre-process markdown to ensure double newlines create empty paragraphs
 // Exported for unit tests (see __tests__/markdownParser.preprocess.test.ts).
 // OPE-380 regression covers fence tracking with indented ```json blocks.
-export function preprocessMarkdown(markdownText: string): string {
+export function preprocessMarkdown(markdownText: string, preserveUserLineBreaks = false): string {
   markdownText = rewriteSettingsMarkdownLinks(markdownText);
 
   // Normalise embed ```json fences so markdown-it sees them at column 0.
@@ -322,6 +333,10 @@ export function preprocessMarkdown(markdownText: string): string {
   // Store formulas globally for use in convertNodeToTiptap
   mathFormulas.clear();
   formulas.forEach((value, key) => mathFormulas.set(key, value));
+
+  if (preserveUserLineBreaks) {
+    return preserveUserBlankLines(textWithMathExtracted);
+  }
 
   // Split the text by double newlines and process each section.
   //
@@ -1469,7 +1484,7 @@ function cleanTiptapDocument(content: any[]): any[] {
 }
 
 // Main function to parse markdown text to TipTap JSON
-export function parseMarkdownToTiptap(markdownText: string): any {
+export function parseMarkdownToTiptap(markdownText: string, preserveUserLineBreaks = false): any {
   if (!markdownText || typeof markdownText !== "string") {
     // Return a document with an empty paragraph (no text node)
     // Empty text nodes are not allowed in ProseMirror/Tiptap
@@ -1486,11 +1501,11 @@ export function parseMarkdownToTiptap(markdownText: string): any {
 
   try {
     // Pre-process markdown to handle double newlines
-    const processedMarkdown = preprocessMarkdown(markdownText);
+    const processedMarkdown = preprocessMarkdown(markdownText, preserveUserLineBreaks);
     // console.log('Preprocessed markdown:', processedMarkdown); // Debug log
 
     // Convert markdown to HTML
-    let html = md.render(processedMarkdown);
+    let html = (preserveUserLineBreaks ? userReadMd : md).render(processedMarkdown);
     // console.log('Generated HTML:', html); // Debug log
 
     // Post-process HTML to remove target="_blank" from internal links

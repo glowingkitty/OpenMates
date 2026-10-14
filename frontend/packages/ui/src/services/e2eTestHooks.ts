@@ -87,15 +87,53 @@ export async function installE2ETestHooks() {
     }) => Promise<{ pending: boolean; connected: boolean }>;
     __openmatesE2EExampleEmbedCollision?: (input: {
       exampleChatId: string; seedPrivate?: boolean;
+      sourceProbe?: { chatId: string; embedId: string; cleanup?: boolean };
     }) => Promise<{
       privateCachePreserved: boolean; privateResolverPreserved: boolean; publicResolverSelected: boolean;
       missingPublicFixtureBlocked: boolean; privateRefIndexPreserved: boolean; privatePiiPreserved: boolean;
-    }>;
+    } | { sourceProbeMounted: boolean; sourceDiffersFromActive: boolean }>;
   };
 
   // Synthetic owner-cache collision against a checked-in public example UUID.
   // Return only booleans; private/cache content never leaves the browser.
-  testWindow.__openmatesE2EExampleEmbedCollision = async ({ exampleChatId, seedPrivate = false }) => {
+  let cleanupSourceProbe: (() => Promise<void>) | null = null;
+  testWindow.__openmatesE2EExampleEmbedCollision = async ({ exampleChatId, seedPrivate = false, sourceProbe }) => {
+    if (sourceProbe) {
+      const { activeChatStore } = await import('../stores/activeChatStore');
+      const { authStore } = await import('../stores/authState');
+      const sourceDiffersFromActive = !!activeChatStore.get() && activeChatStore.get() !== sourceProbe.chatId;
+      if (!get(authStore).isAuthenticated) throw new Error('Source probe requires the authenticated test owner');
+      const uuid = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
+      if (!uuid.test(sourceProbe.chatId) || !uuid.test(sourceProbe.embedId)) throw new Error('Source probe requires fixture UUIDs');
+      await cleanupSourceProbe?.(); cleanupSourceProbe = null;
+      if (sourceProbe.cleanup) return { sourceProbeMounted: false, sourceDiffersFromActive };
+      if (!sourceDiffersFromActive) throw new Error('Source probe must preserve a different active chat');
+      const { mount, unmount } = await import('svelte');
+      const { default: EmbedReferencePreview } = await import('../components/embeds/EmbedReferencePreview.svelte');
+      const { EMBED_SOURCE_CHAT_CONTEXT } = await import('../types/embedFullscreen');
+      const target = document.createElement('div');
+      target.dataset.testid = 'e2e-source-context-preview';
+      // This gated component integration host stays inside recorded viewports,
+      // below the public chat header. It does not navigate a fullscreen route.
+      Object.assign(target.style, {
+        position: 'fixed', top: '160px', left: '16px',
+        width: 'min(480px, calc(100vw - 32px))', maxHeight: 'calc(100vh - 184px)',
+        boxSizing: 'border-box', padding: '12px', overflow: 'auto', zIndex: '2147483000',
+        background: 'Canvas', color: 'CanvasText', border: '1px solid currentColor', borderRadius: '8px',
+      });
+      const proofLabel = document.createElement('div');
+      proofLabel.textContent = 'Source fetch · component integration';
+      proofLabel.style.marginBottom = '8px';
+      target.appendChild(proofLabel);
+      document.body.appendChild(target);
+      const component = mount(EmbedReferencePreview, {
+        target, props: { embedRef: sourceProbe.embedId, embedId: sourceProbe.embedId },
+        context: new Map([[EMBED_SOURCE_CHAT_CONTEXT, { chatId: sourceProbe.chatId }]]),
+      });
+      cleanupSourceProbe = async () => { await unmount(component); target.remove(); };
+      return { sourceProbeMounted: true, sourceDiffersFromActive };
+    }
+
     const { getExampleChatEmbed, getExampleChatEmbeds, resolveExampleChatEmbedRef } = await import('../demo_chats/exampleChatStore');
     const { embedStore } = await import('./embedStore');
     const { resolveEmbed } = await import('./embedResolver');

@@ -8,6 +8,35 @@
 import os
 
 
+def validate_raster_image(image_bytes: bytes) -> tuple[str, str]:
+    """Decode supported raster bytes and return their actual format and MIME.
+
+    Unlike the lightweight provider hint below, publication/storage must not
+    trust a filename or default unknown bytes to PNG. Bytes are never rewritten.
+    Pillow is imported only by callers needing this stricter validation.
+    """
+    from io import BytesIO
+    import warnings
+
+    from PIL import Image
+
+    formats = {"PNG": ("png", "image/png"), "JPEG": ("jpg", "image/jpeg"), "WEBP": ("webp", "image/webp")}
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", Image.DecompressionBombWarning)
+            with Image.open(BytesIO(image_bytes)) as image:
+                actual = formats.get(image.format or "")
+                if actual is None:
+                    raise ValueError("Unsupported raster image format")
+                image.verify()
+            # verify checks containers; loading also rejects truncated pixels.
+            with Image.open(BytesIO(image_bytes)) as image:
+                image.load()
+        return actual
+    except Exception as exc:
+        raise ValueError("Invalid or unsupported raster image bytes") from exc
+
+
 def detect_image_mime_type(image_bytes: bytes, filename: str = "") -> str:
     """Infer MIME type from image magic bytes, with filename fallback."""
     if image_bytes.startswith(b"\xff\xd8\xff"):

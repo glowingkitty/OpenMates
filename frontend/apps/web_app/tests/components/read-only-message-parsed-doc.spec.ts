@@ -72,3 +72,66 @@ test('still reparses a legacy single raw markdown text node', async ({ page }) =
   const message = page.getByTestId('message-content');
   await expect(message.locator('strong')).toHaveText('Legacy saved markdown');
 });
+
+// contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
+test('renders stored user line breaks and each blank line with Markdown emphasis', async ({ page }) => {
+  await page.goto(preview('multilineUser'));
+  await waitForComponentPreview(page);
+  const paragraphs = page.getByTestId('message-content').locator('.ProseMirror > p');
+  await expect(paragraphs).toHaveCount(4);
+  await expect(paragraphs.first().locator('strong')).toHaveText('social posts');
+  await expect(paragraphs.first().locator('br')).toHaveCount(1);
+  await expect(paragraphs.nth(1)).toHaveText('');
+  await expect(paragraphs.nth(2)).toHaveText('');
+  await expect(paragraphs.nth(3)).toHaveText('Include a short summary after the gap.');
+
+  await page.goto(preview('multilineUserCode'));
+  await waitForComponentPreview(page);
+  const codeMessage = page.getByTestId('message-content');
+  // Read-mode fenced code is a compact chip. Exact source whitespace is
+  // covered by markdownParser.preprocess.test.ts; this bare preview exposes
+  // the chip's fullscreen callback rather than an ActiveChat fullscreen host.
+  const codeChip = codeMessage.getByRole('button', { name: 'Code snippet 6 lines, Svelte', exact: true });
+  await expect(codeChip).toBeVisible();
+  await expect(codeChip).toBeEnabled();
+  await page.evaluate(() => {
+    const target = window as typeof window & {
+      savedCodeFullscreen?: { embedType: string; language: string; lineCount: number; hasEmbedId: boolean };
+    };
+    document.addEventListener('embedfullscreen', event => {
+      const detail = (event as CustomEvent<{
+        embedId?: string; embedType?: string; attrs?: { language?: string; lineCount?: number };
+      }>).detail;
+      target.savedCodeFullscreen = {
+        embedType: detail.embedType ?? '',
+        language: detail.attrs?.language ?? '',
+        lineCount: detail.attrs?.lineCount ?? 0,
+        hasEmbedId: typeof detail.embedId === 'string' && detail.embedId.length > 0,
+      };
+    }, { once: true });
+  });
+  await codeChip.click();
+  await expect.poll(() => page.evaluate(() =>
+    (window as typeof window & { savedCodeFullscreen?: unknown }).savedCodeFullscreen,
+  )).toEqual({ embedType: 'code-code', language: 'svelte', lineCount: 6, hasEmbedId: true });
+  await expect(codeMessage).toContainText('After the code.');
+  await expect(codeMessage).not.toContainText(/EMPTY_PARAGRAPH|MATH_(?:INLINE|BLOCK)_\d+/);
+
+  await page.goto(preview('multilineUserStructured'));
+  await waitForComponentPreview(page);
+  const structuredMessage = page.getByTestId('message-content');
+  const orderedList = structuredMessage.locator('.ProseMirror > ol');
+  await expect(orderedList).toHaveCount(1);
+  await expect(orderedList.locator(':scope > li')).toHaveCount(2);
+  await expect(orderedList.locator(':scope > li').first().locator(':scope > p')).toHaveCount(2);
+  await expect(orderedList.locator('strong')).toHaveText('First');
+  await expect(orderedList.locator('em')).toHaveText('emphasis');
+  const bulletList = structuredMessage.locator('.ProseMirror > ul');
+  await expect(bulletList).toHaveCount(1);
+  await expect(bulletList.locator(':scope > li')).toHaveCount(2);
+  await expect(bulletList.locator('strong')).toHaveText('Bullet first');
+  const quote = structuredMessage.locator('.ProseMirror > blockquote');
+  await expect(quote).toHaveCount(1);
+  await expect(quote.locator(':scope > p')).toHaveCount(2);
+  await expect(quote.locator('strong')).toHaveText('Quote first');
+});

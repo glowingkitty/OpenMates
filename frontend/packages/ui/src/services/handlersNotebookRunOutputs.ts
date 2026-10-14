@@ -76,13 +76,15 @@ async function decryptIntoOutput(
   };
 }
 
-export async function handleNotebookRunOutputSyncedImpl(payload: unknown): Promise<void> {
+export async function handleNotebookRunOutputSyncedImpl(payload: unknown, writeGuard: () => void = () => {}): Promise<void> {
   const output = await decryptIntoOutput(payload as NotebookRunOutputSyncedPayload);
   if (!output) return;
+  writeGuard();
   try {
     await idbUpsertNotebookRunOutput(chatDB, output);
   } catch (error) {
     console.error("[handlersNotebookRunOutputs] IDB upsert failed", error);
   }
+  writeGuard();
   window.dispatchEvent(new CustomEvent("notebookRunOutputSynced", { detail: output }));
 }

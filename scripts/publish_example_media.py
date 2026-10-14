@@ -28,6 +28,7 @@ from backend.shared.python_utils.generated_assets import (  # noqa: E402
     decrypt_generated_asset_variant,
 )
 from backend.shared.python_utils.media_encryption import decrypt_media_payload  # noqa: E402
+from backend.shared.python_utils.image_mime import validate_raster_image  # noqa: E402
 from backend.shared.python_utils.object_storage_regions import LEGACY_BUCKET_REGION  # noqa: E402
 
 
@@ -117,9 +118,26 @@ def _media_type(record: dict[str, Any]) -> str:
 
 def _variant_mime(variant: dict[str, Any]) -> str | None:
     mime = str(variant.get("mime_type") or "").lower()
+    format_mime = FORMAT_MIMES.get(str(variant.get("format") or "").lower())
+    if mime in MIME_EXTENSIONS and format_mime and mime.split("/")[0] != format_mime.split("/")[0]:
+        raise RuntimeError("Reviewed generated asset variant has mixed media metadata")
     if mime in MIME_EXTENSIONS:
         return mime
-    return FORMAT_MIMES.get(str(variant.get("format") or "").lower())
+    return format_mime
+
+
+def _validated_variant_mime(plaintext: bytes, declared_mime: str) -> str:
+    if declared_mime.startswith("image/"):
+        try:
+            _, mime = validate_raster_image(plaintext)
+        except ValueError as exc:
+            raise RuntimeError("Reviewed media variant has invalid or unsupported raster bytes") from exc
+        return mime
+    # Never copy recognizable image bytes under an audio/video/model label.
+    if (plaintext.startswith((b"\xff\xd8\xff", b"\x89PNG\r\n\x1a\n", b"GIF87a", b"GIF89a"))
+            or (plaintext.startswith(b"RIFF") and plaintext[8:12] == b"WEBP")):
+        raise RuntimeError("Reviewed media variant bytes do not match its media type")
+    return declared_mime
 
 
 def _valid_variant_for_media(media_type: str, variant_name: str, mime: str) -> bool:
@@ -218,7 +236,7 @@ async def publish(args: argparse.Namespace, *, directus: Any = None, s3: Any = N
         await secrets.initialize()
         directus = DirectusService()
         s3 = S3UploadService(secrets_manager=secrets, directus_service=directus)
-        await s3.initialize(configure_buckets=True)
+        await s3.initialize(configure_buckets=False)
         encryption = EncryptionService()
     elif s3 is None or encryption is None:
         raise RuntimeError("Media publisher dependencies are incomplete")
@@ -238,6 +256,7 @@ async def publish(args: argparse.Namespace, *, directus: Any = None, s3: Any = N
                 raise RuntimeError("Reviewed generated asset has no variants")
             key = await _asset_key(record, user_id=args.user_id, directus=directus, encryption=encryption)
             public_variants: list[dict[str, str]] = []
+            validated_variants: list[tuple[str, str, bytes, str, str]] = []
             for variant_name, metadata in sorted(files.items()):
                 if not isinstance(metadata, dict) or not SAFE_NAME.fullmatch(variant_name):
                     raise RuntimeError("Reviewed generated asset variant is invalid")
@@ -251,8 +270,14 @@ async def publish(args: argparse.Namespace, *, directus: Any = None, s3: Any = N
                 if not _valid_variant_for_media(media_type, variant_name, mime):
                     raise RuntimeError("Reviewed generated asset variant does not match its media type")
                 plaintext = await _read_plaintext(s3, metadata=metadata, key=key, nonce=str(record.get("aes_nonce") or ""))
+                mime = _validated_variant_mime(plaintext, mime)
+                if not _valid_variant_for_media(media_type, variant_name, mime):
+                    raise RuntimeError("Reviewed generated asset bytes do not match its media type")
                 digest = hashlib.sha256(plaintext).hexdigest()
                 object_key = f"{PUBLIC_OBJECT_PREFIX}/{media_type}/{variant_name}/sha256-{digest}.{MIME_EXTENSIONS[mime]}"
+                validated_variants.append((variant_name, mime, plaintext, digest, object_key))
+            # Validate every selected variant before uploading any of this asset.
+            for variant_name, mime, plaintext, digest, object_key in validated_variants:
                 uploaded = await s3.upload_file(
                     PUBLIC_BUCKET_KEY, object_key, plaintext, mime,
                     metadata={"source-sha256": digest, "purpose": "reviewed-public-example-media"},

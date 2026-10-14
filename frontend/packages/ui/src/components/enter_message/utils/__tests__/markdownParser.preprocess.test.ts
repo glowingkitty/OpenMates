@@ -58,6 +58,96 @@ vi.mock("../../../../stores/appSkillsStore", () => ({
 }));
 
 import { parseMarkdownToTiptap, preprocessMarkdown } from "../markdownParser";
+import { parse_message } from "../../../../message_parsing/parse_message";
+
+describe("user read message spacing", () => {
+  // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
+  it.each([false, true])("retains authored user spacing through the read renderer (unified=%s)", (unifiedParsingEnabled) => {
+    const markdown = "First **line**.\nSecond line.\n\n\nLast line.";
+    const userDoc = parse_message(markdown, "read", { unifiedParsingEnabled, role: "user" });
+    const assistantDoc = parse_message(markdown, "read", { unifiedParsingEnabled, role: "assistant" });
+    const writeDoc = parse_message(markdown, "write", { unifiedParsingEnabled, role: "user" });
+
+    expect(userDoc.content).toHaveLength(4);
+    expect(userDoc.content[0].content).toContainEqual({ type: "hardBreak" });
+    expect(userDoc.content[1]).toEqual({ type: "paragraph", content: [] });
+    expect(userDoc.content[2]).toEqual({ type: "paragraph", content: [] });
+    expect(JSON.stringify(assistantDoc)).not.toContain('"type":"hardBreak"');
+    expect(JSON.stringify(writeDoc)).not.toContain('"type":"hardBreak"');
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
+  it("retains single breaks, each blank paragraph and Markdown emphasis", () => {
+    const doc = parseMarkdownToTiptap("Find **social posts**.\nKeep the source link.\n\n\nAfter the gap.", true);
+
+    expect(doc.content).toHaveLength(4);
+    expect(doc.content[0].content).toContainEqual({ type: "hardBreak" });
+    expect(doc.content[0].content).toContainEqual({ type: "text", text: "social posts", marks: [{ type: "bold" }] });
+    expect(doc.content[1]).toEqual({ type: "paragraph", content: [] });
+    expect(doc.content[2]).toEqual({ type: "paragraph", content: [] });
+    expect(doc.content[3].content).toEqual([{ type: "text", text: "After the gap." }]);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
+  it.each([
+    ["1. **First**\n\n1. Second", "orderedList"],
+    ["- **First**\n\n- Second", "bulletList"],
+  ])("keeps separated items in one %s user Markdown container", (markdown, listType) => {
+    const doc = parseMarkdownToTiptap(markdown, true);
+
+    expect(doc.content).toHaveLength(1);
+    expect(doc.content[0].type).toBe(listType);
+    expect(doc.content[0].content).toHaveLength(2);
+    expect(doc.content[0].content.map((node: { type: string }) => node.type)).toEqual(["listItem", "listItem"]);
+    expect(doc.content[0].content[0].content[0].content)
+      .toContainEqual({ type: "text", text: "First", marks: [{ type: "bold" }] });
+    expect(doc.content[0].content[1].content[0].content).toEqual([{ type: "text", text: "Second" }]);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
+  it("keeps multiple formatted paragraphs inside a user list item", () => {
+    const doc = parseMarkdownToTiptap("1. **First**\n\n   Still first with *emphasis*.\n\n2. Second", true);
+
+    expect(doc.content).toHaveLength(1);
+    expect(doc.content[0].type).toBe("orderedList");
+    expect(doc.content[0].content).toHaveLength(2);
+    expect(doc.content[0].content[0].content).toHaveLength(2);
+    expect(doc.content[0].content[0].content[1].content)
+      .toContainEqual({ type: "text", text: "emphasis", marks: [{ type: "italic" }] });
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
+  it("keeps formatted user quote paragraphs in their blockquote", () => {
+    const doc = parseMarkdownToTiptap("> **First**\n>\n> Second with *emphasis*.", true);
+
+    expect(doc.content).toHaveLength(1);
+    expect(doc.content[0].type).toBe("blockquote");
+    expect(doc.content[0].content).toHaveLength(2);
+    expect(doc.content[0].content[0].content)
+      .toContainEqual({ type: "text", text: "First", marks: [{ type: "bold" }] });
+    expect(doc.content[0].content[1].content)
+      .toContainEqual({ type: "text", text: "emphasis", marks: [{ type: "italic" }] });
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
+  it("keeps ordinary assistant single-line wrapping", () => {
+    const doc = parseMarkdownToTiptap("First line.\nSecond line.");
+
+    expect(doc.content).toHaveLength(1);
+    expect(doc.content[0].content.some((node: { type: string }) => node.type === "hardBreak")).toBe(false);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
+  it("preserves long code fences and nested backticks without injected markers", () => {
+    const code = "let count = $state(0);\n\n```text\nnested\n\ncode\n```";
+    const doc = parseMarkdownToTiptap(`Before.\n\n\`\`\`\`svelte\n${code}\n\`\`\`\`\n\nAfter.`, true);
+    const block = doc.content.find((node: { type: string }) => node.type === "codeBlock");
+
+    expect(block.content[0].text).toBe(`${code}\n`);
+    expect(JSON.stringify(doc)).not.toContain("EMPTY_PARAGRAPH");
+    expect(JSON.stringify(doc)).not.toContain("MATH_");
+  });
+});
 
 describe("math delimiters inside code", () => {
   // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering
