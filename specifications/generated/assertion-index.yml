@@ -83047,39 +83047,39 @@ assertions:
       surface: gui.web
     - &id10546
       path: frontend/apps/web_app/tests/components/marketing-landing.spec.ts
-      line: 23
+      line: 29
       name: landing hero and illustrated sections remain usable (${width}px)
       surface: gui.web
     - &id10547
       path: frontend/apps/web_app/tests/components/marketing-landing.spec.ts
-      line: 559
+      line: 567
       name: responsive landing composition fits ${device} in English and German
       surface: gui.web
     - &id10548
       path: frontend/apps/web_app/tests/marketing-landing-route.spec.ts
-      line: 18
+      line: 29
       name: public landing server-renders and opens real app workspaces
       surface: gui.web
     - &id10549
       path: frontend/apps/web_app/tests/marketing-landing-route.spec.ts
-      line: 103
+      line: 114
       name: landing composer preserves a guest draft and Open Web App opens chats
         (${name})
       surface: gui.web
     - &id10550
       path: frontend/apps/web_app/tests/website-public-routes.spec.ts
-      line: 128
+      line: 134
       name: standalone hero uses built app defaults and selects icons without app
         startup
       surface: gui.web
     - &id10551
       path: frontend/apps/web_app/tests/website-public-routes.spec.ts
-      line: 155
+      line: 161
       name: standalone example opens the app and preserves the landing tab (${width}px)
       surface: gui.web
     - &id10552
       path: frontend/apps/web_app/tests/website-public-routes.spec.ts
-      line: 203
+      line: 209
       name: standalone landing and publication indexes are server-rendered without
         app startup
       surface: gui.web
@@ -83118,23 +83118,23 @@ assertions:
       surface: gui.web
     - &id10554
       path: frontend/apps/web_app/tests/components/marketing-landing.spec.ts
-      line: 23
+      line: 29
       name: landing hero and illustrated sections remain usable (${width}px)
       surface: gui.web
     - &id10555
       path: frontend/apps/web_app/tests/components/marketing-landing.spec.ts
-      line: 230
+      line: 237
       name: 320px reduced-motion landing offers language-only settings and all event/social
         links
       surface: gui.web
     - &id10556
       path: frontend/apps/web_app/tests/marketing-landing-route.spec.ts
-      line: 18
+      line: 29
       name: public landing server-renders and opens real app workspaces
       surface: gui.web
     - &id10557
       path: frontend/apps/web_app/tests/website-public-routes.spec.ts
-      line: 367
+      line: 373
       name: standalone global styles preserve the landing viewport and media at ${width}px
       surface: gui.web
     supporting_tests: []
@@ -83171,18 +83171,18 @@ assertions:
       surface: gui.web
     - &id10564
       path: frontend/apps/web_app/tests/components/marketing-landing.spec.ts
-      line: 23
+      line: 29
       name: landing hero and illustrated sections remain usable (${width}px)
       surface: gui.web
     - &id10565
       path: frontend/apps/web_app/tests/components/marketing-landing.spec.ts
-      line: 230
+      line: 237
       name: 320px reduced-motion landing offers language-only settings and all event/social
         links
       surface: gui.web
     - &id10566
       path: frontend/apps/web_app/tests/components/marketing-landing.spec.ts
-      line: 559
+      line: 567
       name: responsive landing composition fits ${device} in English and German
       surface: gui.web
     - &id10567
@@ -83214,12 +83214,12 @@ assertions:
       surface: gui.web
     - &id10572
       path: frontend/apps/web_app/tests/marketing-landing-route.spec.ts
-      line: 18
+      line: 29
       name: public landing server-renders and opens real app workspaces
       surface: gui.web
     - &id10573
       path: frontend/apps/web_app/tests/marketing-landing-route.spec.ts
-      line: 103
+      line: 114
       name: landing composer preserves a guest draft and Open Web App opens chats
         (${name})
       surface: gui.web
@@ -83241,35 +83241,35 @@ assertions:
       surface: gui.web
     - &id10577
       path: frontend/apps/web_app/tests/website-public-routes.spec.ts
-      line: 155
+      line: 161
       name: standalone example opens the app and preserves the landing tab (${width}px)
       surface: gui.web
     - &id10578
       path: frontend/apps/web_app/tests/website-public-routes.spec.ts
-      line: 203
+      line: 209
       name: standalone landing and publication indexes are server-rendered without
         app startup
       surface: gui.web
     - &id10579
       path: frontend/apps/web_app/tests/website-public-routes.spec.ts
-      line: 235
+      line: 241
       name: canonical news and blog details render in English and German
       surface: gui.web
     - &id10580
       path: frontend/apps/web_app/tests/website-public-routes.spec.ts
-      line: 256
+      line: 262
       name: public article language switching preserves its route and shared header
         (${width}px)
       surface: gui.web
     - &id10581
       path: frontend/apps/web_app/tests/website-public-routes.spec.ts
-      line: 302
+      line: 308
       name: news subscriptions open the standalone public form in the publication
         language
       surface: gui.web
     - &id10582
       path: frontend/apps/web_app/tests/website-public-routes.spec.ts
-      line: 367
+      line: 373
       name: standalone global styles preserve the landing viewport and media at ${width}px
       surface: gui.web
     supporting_tests:
@@ -83361,7 +83361,7 @@ assertions:
       surface: gui.web
     - &id10584
       path: frontend/apps/web_app/tests/marketing-landing-route.spec.ts
-      line: 103
+      line: 114
       name: landing composer preserves a guest draft and Open Web App opens chats
         (${name})
       surface: gui.web
@@ -83389,17 +83389,17 @@ assertions:
     direct_tests:
     - &id10586
       path: frontend/apps/web_app/tests/components/marketing-landing.spec.ts
-      line: 23
+      line: 29
       name: landing hero and illustrated sections remain usable (${width}px)
       surface: gui.web
     - &id10587
       path: frontend/apps/web_app/tests/marketing-landing-route.spec.ts
-      line: 18
+      line: 29
       name: public landing server-renders and opens real app workspaces
       surface: gui.web
     - &id10588
       path: frontend/apps/web_app/tests/website-public-routes.spec.ts
-      line: 367
+      line: 373
       name: standalone global styles preserve the landing viewport and media at ${width}px
       surface: gui.web
     supporting_tests: []
@@ -83421,7 +83421,7 @@ assertions:
     direct_tests:
     - &id10589
       path: frontend/apps/web_app/tests/components/marketing-landing.spec.ts
-      line: 230
+      line: 237
       name: 320px reduced-motion landing offers language-only settings and all event/social
         links
       surface: gui.web
@@ -83432,7 +83432,7 @@ assertions:
       surface: gui.web
     - &id10591
       path: frontend/apps/web_app/tests/marketing-landing-route.spec.ts
-      line: 18
+      line: 29
       name: public landing server-renders and opens real app workspaces
       surface: gui.web
     - &id10592
@@ -83453,30 +83453,30 @@ assertions:
       surface: gui.web
     - &id10595
       path: frontend/apps/web_app/tests/website-public-routes.spec.ts
-      line: 203
+      line: 209
       name: standalone landing and publication indexes are server-rendered without
         app startup
       surface: gui.web
     - &id10596
       path: frontend/apps/web_app/tests/website-public-routes.spec.ts
-      line: 235
+      line: 241
       name: canonical news and blog details render in English and German
       surface: gui.web
     - &id10597
       path: frontend/apps/web_app/tests/website-public-routes.spec.ts
-      line: 256
+      line: 262
       name: public article language switching preserves its route and shared header
         (${width}px)
       surface: gui.web
     - &id10598
       path: frontend/apps/web_app/tests/website-public-routes.spec.ts
-      line: 302
+      line: 308
       name: news subscriptions open the standalone public form in the publication
         language
       surface: gui.web
     - &id10599
       path: frontend/apps/web_app/tests/website-public-routes.spec.ts
-      line: 317
+      line: 323
       name: privacy, terms, and imprint are full styled public documents
       surface: gui.web
     supporting_tests: []
@@ -83520,7 +83520,7 @@ assertions:
       surface: gui.web
     - &id10601
       path: frontend/apps/web_app/tests/components/landing-hero-motion.spec.ts
-      line: 22
+      line: 28
       name: iPad landing wheel glyphs stay loaded after scrolling away and back
       surface: gui.web
     - &id10602
@@ -83530,44 +83530,44 @@ assertions:
       surface: gui.web
     - &id10603
       path: frontend/apps/web_app/tests/components/marketing-landing.spec.ts
-      line: 23
+      line: 29
       name: landing hero and illustrated sections remain usable (${width}px)
       surface: gui.web
     - &id10604
       path: frontend/apps/web_app/tests/components/marketing-landing.spec.ts
-      line: 230
+      line: 237
       name: 320px reduced-motion landing offers language-only settings and all event/social
         links
       surface: gui.web
     - &id10605
       path: frontend/apps/web_app/tests/components/marketing-landing.spec.ts
-      line: 319
+      line: 327
       name: landing swipe release carries momentum without pausing (${width}px)
       surface: gui.web
     - &id10606
       path: frontend/apps/web_app/tests/components/marketing-landing.spec.ts
-      line: 383
+      line: 391
       name: landing app rail selects, pauses, resumes and accepts manual input
       surface: gui.web
     - &id10607
       path: frontend/apps/web_app/tests/components/marketing-landing.spec.ts
-      line: 475
+      line: 483
       name: landing rail highlight crosses the speed-label center symmetrically at
         ${width}px
       surface: gui.web
     - &id10608
       path: frontend/apps/web_app/tests/components/marketing-landing.spec.ts
-      line: 512
+      line: 520
       name: landing app rail crosses its automatic loop without a visible seam
       surface: gui.web
     - &id10609
       path: frontend/apps/web_app/tests/components/marketing-landing.spec.ts
-      line: 559
+      line: 567
       name: responsive landing composition fits ${device} in English and German
       surface: gui.web
     - &id10610
       path: frontend/apps/web_app/tests/website-public-routes.spec.ts
-      line: 155
+      line: 161
       name: standalone example opens the app and preserves the landing tab (${width}px)
       surface: gui.web
     supporting_tests: []
@@ -83605,13 +83605,13 @@ assertions:
     direct_tests:
     - &id10611
       path: frontend/apps/web_app/tests/components/marketing-landing.spec.ts
-      line: 230
+      line: 237
       name: 320px reduced-motion landing offers language-only settings and all event/social
         links
       surface: gui.web
     - &id10612
       path: frontend/apps/web_app/tests/components/marketing-landing.spec.ts
-      line: 559
+      line: 567
       name: responsive landing composition fits ${device} in English and German
       surface: gui.web
     - &id10613
@@ -83621,18 +83621,18 @@ assertions:
       surface: gui.web
     - &id10614
       path: frontend/apps/web_app/tests/marketing-landing-route.spec.ts
-      line: 153
+      line: 164
       name: saved dark theme stays dark from prepaint through landing hydration
       surface: gui.web
     - &id10615
       path: frontend/apps/web_app/tests/website-public-routes.spec.ts
-      line: 256
+      line: 262
       name: public article language switching preserves its route and shared header
         (${width}px)
       surface: gui.web
     - &id10616
       path: frontend/apps/web_app/tests/website-public-routes.spec.ts
-      line: 433
+      line: 440
       name: saved dark theme applies in the document head before hydration
       surface: gui.web
     supporting_tests: []
@@ -83660,17 +83660,17 @@ assertions:
     direct_tests:
     - &id10617
       path: frontend/apps/web_app/tests/components/marketing-landing.spec.ts
-      line: 23
+      line: 29
       name: landing hero and illustrated sections remain usable (${width}px)
       surface: gui.web
     - &id10618
       path: frontend/apps/web_app/tests/marketing-landing-route.spec.ts
-      line: 18
+      line: 29
       name: public landing server-renders and opens real app workspaces
       surface: gui.web
     - &id10619
       path: frontend/apps/web_app/tests/website-public-routes.spec.ts
-      line: 367
+      line: 373
       name: standalone global styles preserve the landing viewport and media at ${width}px
       surface: gui.web
     supporting_tests: []
@@ -83692,12 +83692,12 @@ assertions:
     direct_tests:
     - &id10620
       path: frontend/apps/web_app/tests/components/marketing-landing.spec.ts
-      line: 23
+      line: 29
       name: landing hero and illustrated sections remain usable (${width}px)
       surface: gui.web
     - &id10621
       path: frontend/apps/web_app/tests/website-public-routes.spec.ts
-      line: 128
+      line: 134
       name: standalone hero uses built app defaults and selects icons without app
         startup
       surface: gui.web
@@ -83724,34 +83724,34 @@ assertions:
       surface: gui.web
     - &id10623
       path: frontend/apps/web_app/tests/components/marketing-landing.spec.ts
-      line: 319
+      line: 327
       name: landing swipe release carries momentum without pausing (${width}px)
       surface: gui.web
     - &id10624
       path: frontend/apps/web_app/tests/components/marketing-landing.spec.ts
-      line: 383
+      line: 391
       name: landing app rail selects, pauses, resumes and accepts manual input
       surface: gui.web
     - &id10625
       path: frontend/apps/web_app/tests/components/marketing-landing.spec.ts
-      line: 475
+      line: 483
       name: landing rail highlight crosses the speed-label center symmetrically at
         ${width}px
       surface: gui.web
     - &id10626
       path: frontend/apps/web_app/tests/components/marketing-landing.spec.ts
-      line: 512
+      line: 520
       name: landing app rail crosses its automatic loop without a visible seam
       surface: gui.web
     - &id10627
       path: frontend/apps/web_app/tests/website-public-routes.spec.ts
-      line: 128
+      line: 134
       name: standalone hero uses built app defaults and selects icons without app
         startup
       surface: gui.web
     - &id10628
       path: frontend/apps/web_app/tests/website-public-routes.spec.ts
-      line: 155
+      line: 161
       name: standalone example opens the app and preserves the landing tab (${width}px)
       surface: gui.web
     supporting_tests: []
@@ -83781,13 +83781,13 @@ assertions:
     direct_tests:
     - &id10629
       path: frontend/apps/web_app/tests/website-public-routes.spec.ts
-      line: 128
+      line: 134
       name: standalone hero uses built app defaults and selects icons without app
         startup
       surface: gui.web
     - &id10630
       path: frontend/apps/web_app/tests/website-public-routes.spec.ts
-      line: 197
+      line: 203
       name: the supplied-events Calendar example is removed from the web app
       surface: gui.web
     supporting_tests: []
@@ -83847,7 +83847,7 @@ assertions:
     direct_tests:
     - &id10635
       path: frontend/apps/web_app/tests/components/landing-hero-motion.spec.ts
-      line: 64
+      line: 70
       name: landing hero entrance staggers its content, settles, and respects reduced
         motion
       surface: gui.web
@@ -88857,7 +88857,7 @@ assertions:
     supporting_tests:
     - &id11304
       path: frontend/apps/web_app/tests/website-public-routes.spec.ts
-      line: 458
+      line: 465
       name: confirmation token waits for an explicit click and reveals Signal only
         after a successful response
       surface: gui.web
@@ -129145,7 +129145,7 @@ assertions:
       surface: gui.web
     - &id16332
       path: frontend/apps/web_app/tests/marketing-landing-route.spec.ts
-      line: 18
+      line: 29
       name: public landing server-renders and opens real app workspaces
       surface: gui.web
     supporting_tests: []

@@ -2,6 +2,12 @@ import { expect, test } from '../helpers/cookie-audit';
 import { waitForComponentPreview } from '../helpers/component-preview';
 import { landingAppOrder, landingAppExamples } from '../../../../packages/public-site/src/components/landing/landingPageContent';
 
+test.beforeEach(async ({ page }) => {
+  await page.route('**/v1/settings/server-status', route => route.fulfill({
+    json: { anonymous_free_usage: { active: true, can_send_text: true } },
+  }));
+});
+
 // playwright-account: not_required reason=isolated_component_preview
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { createVideoProofRuntime, defineVideoProof } = require('../helpers/video-proof');
@@ -46,6 +52,7 @@ for (const { width, height } of [{ width: 390, height: 844 }, { width: 1440, hei
       await expect(row.locator('.publication-intro')).toHaveCSS('opacity', '0');
     }
     await expect(root.getByTestId('public-site-header').locator('.wordmark')).toHaveAttribute('href', `${APP}/`);
+    await expect(compose).toBeVisible();
     const geometry = await root.evaluate(element => {
       const rect = (id: string) => element.querySelector(`[data-testid="${id}"]`)!.getBoundingClientRect().toJSON();
       return { hero: rect('landing-hero'), viewport: rect('landing-viewport-container'), scroller: rect('landing-scroll-container'), compose: rect('landing-compose'), cue: rect('landing-scroll-cue') };
@@ -272,6 +279,7 @@ test('320px reduced-motion landing offers language-only settings and all event/s
   await expect(language).toHaveAttribute('aria-label', /Deutsch/);
   await expect(language).toBeFocused();
   await expect(root.getByRole('heading', { level: 1 })).toContainText('Privatsphäre');
+  await expect(page.getByTestId('landing-compose')).toBeVisible();
   const mobileSpacing = await root.evaluate((element) => ({
     cue: element.querySelector('[data-testid="landing-scroll-cue"]')!.getBoundingClientRect().bottom,
     composer: element.querySelector('[data-testid="landing-compose"]')!.getBoundingClientRect().top
@@ -594,6 +602,7 @@ for (const [device, viewports] of Object.entries(responsiveGroups)) {
         await rail.getByTestId('landing-rail-group').nth(1).locator('[data-app-id="social_media"]').evaluate((button: HTMLButtonElement) => button.click());
         await expect(rail).toHaveAttribute('data-active-app', 'social_media');
         await proof.assert('landing.responsive-fit', async () => {
+        await expect(page.getByTestId('landing-compose')).toBeVisible();
         const layout = await page.getByTestId('landing-page').evaluate(element => {
           const rect = (selector: string) => element.querySelector(selector)!.getBoundingClientRect().toJSON();
           const id = (name: string) => rect(`[data-testid="${name}"]`);

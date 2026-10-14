@@ -6,6 +6,17 @@ const { getE2EDebugUrl } = require('./signup-flow-helpers');
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
 
+test.beforeEach(async ({ page }) => {
+  await page.route('**/v1/settings/server-status', async route => {
+    // Keep the app's full status response when navigation starts its services.
+    if (new URL(route.request().frame().url()).pathname !== '/landing') {
+      await route.continue();
+      return;
+    }
+    await route.fulfill({ json: { anonymous_free_usage: { active: true, can_send_text: true } } });
+  });
+});
+
 const openWebAppProof = defineVideoProof({
   id: 'landing-open-web-app', title: 'Open the app after drafting from the landing page', surface: 'web',
   devices: ['web-phone', 'web-laptop'], domain: 'landing.dev.openmates.org',
@@ -31,7 +42,7 @@ test('public landing server-renders and opens real app workspaces', async ({ pag
   const privateBootstrap: string[] = [];
   const sockets: string[] = [];
   page.on('request', request => {
-    if (['fetch', 'xhr'].includes(request.resourceType()) && /\/v1\/(?:auth|chats|sync|settings|websocket)(?:\/|$)/.test(new URL(request.url()).pathname)) {
+    if (new URL(request.url()).pathname !== '/v1/settings/server-status' && ['fetch', 'xhr'].includes(request.resourceType()) && /\/v1\/(?:auth|chats|sync|settings|websocket)(?:\/|$)/.test(new URL(request.url()).pathname)) {
       privateBootstrap.push(request.url());
     }
   });

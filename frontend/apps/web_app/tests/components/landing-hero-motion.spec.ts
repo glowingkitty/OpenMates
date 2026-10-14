@@ -4,6 +4,12 @@ import { expect, test } from '../helpers/cookie-audit';
 import { waitForComponentPreview } from '../helpers/component-preview';
 import { landingAppOrder } from '../../../../packages/public-site/src/components/landing/landingPageContent';
 
+test.beforeEach(async ({ page }) => {
+  await page.route('**/v1/settings/server-status', route => route.fulfill({
+    json: { anonymous_free_usage: { active: true, can_send_text: true } },
+  }));
+});
+
 // playwright-account: not_required reason=isolated_component_preview
 const execFileAsync = promisify(execFile);
 const APP = 'https://app.dev.openmates.org';

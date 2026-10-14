@@ -6,6 +6,12 @@ import publicationManifest from '../../../packages/public-site/src/publications/
 import newsReleases from '../../../packages/public-site/src/generated/newsReleases.generated.json';
 import publicApps from '../../../packages/public-site/src/generated/publicApps.generated.json';
 
+test.beforeEach(async ({ page }) => {
+  await page.route('**/api/server-status', route => route.fulfill({
+    json: { anonymous_free_usage: { active: true, can_send_text: true } },
+  }));
+});
+
 // playwright-account: not_required reason=isolated_runner_local_public_website
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
@@ -404,6 +410,7 @@ for (const { width, height } of [{ width: 390, height: 844 }, { width: 1440, hei
     await expect(aiVisual).toHaveAttribute('aria-hidden', 'true');
     await expect(aiVisual).toHaveCSS('animation-name', 'none');
     expect(await aiVisual.locator('.hero-ai-glyph').evaluate(element => getComputedStyle(element).maskImage)).toContain('/icons/ai.svg');
+    await expect(composer).toBeVisible();
     const before = await composer.boundingBox();
     expect(before).not.toBeNull();
     expect(Math.abs((await root.boundingBox())!.height - height)).toBeLessThan(2);
