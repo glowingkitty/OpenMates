@@ -64,7 +64,6 @@
 		getAllDraftChatIdsWithDrafts,
 		NEW_CHAT_SENTINEL,
 		loadDefaultInspirations,
-		registerExampleChatEmbedRefs,
 		DevConsole,
 		openSearch,
 		notFoundPathStore,
@@ -2070,10 +2069,6 @@
 				console.warn(`[+page.svelte] Invalid gift-card code in hash: ${rawCode}`);
 			}
 		}
-
-		// Register example chat embed_ref → embed_id mappings so inline embed
-		// references in example chat messages resolve correctly.
-		registerExampleChatEmbedRefs();
 
 		// Load default Daily Inspirations from server (published entries curated by admin).
 		// Populates dailyInspirationStore only if it is still empty (personalized ones via

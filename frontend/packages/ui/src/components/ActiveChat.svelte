@@ -128,7 +128,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import { getPreparedChatForSend } from '../services/preparedChatForSend';
     import { formatDraftPreview } from '../utils/draftPreview';
     import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, isNewsletterChat, isLegalChat, isDemoChat, translateDemoChat, getAllExampleChats, isExampleChat, getExampleChat, getExampleChatCompressionCheckpoints, getExampleChatEmbed } from '../demo_chats';
-    import landingExampleChats from '../generated/landingExampleChats.generated.json';
     import { getVideoForLocale } from '../demo_chats/data/videos';
     import { ALL_NEWSLETTER_CHATS } from '../demo_chats/newsletterChatStore';
     import ChatContextMenu from './chats/ChatContextMenu.svelte'; // Context menu for resume chat cards
@@ -3766,10 +3765,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         }
 
         if (selectedTagIds.length === 0) {
-            return [
-                ...localMetas,
-                ...orderMetasByPreferredIds(communityMetas, landingExampleChats.map((example) => example.chatId)),
-            ];
+            return [...localMetas, ...communityMetas.slice(0, RECENT_CHATS_TOTAL)];
         }
 
         const rankedExampleIds = rankExampleChatIdsByInterests(
