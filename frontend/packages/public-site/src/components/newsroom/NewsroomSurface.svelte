@@ -1,5 +1,7 @@
 <script lang="ts">
   import { tick, type Snippet } from "svelte";
+  import PublicationIcon from "./PublicationIcon.svelte";
+  import { socialLinks } from "../../data/siteMetadata";
   import NewsroomMedia from "./NewsroomMedia.svelte";
   import PublicationHeader from "./PublicationHeader.svelte";
   import PublicationCard from "./PublicationCard.svelte";
@@ -33,6 +35,9 @@
   let sidebarOpen = $state(false);
   let visiblePrimaryCount = $state(3);
   let visibleRelatedCount = $state(2);
+  let detailClose = $state<HTMLButtonElement>();
+  let closeOverHeader = $state(false);
+  let closeReady = $state(false);
   let publicationScroll = $state<HTMLElement>();
 
   $effect(() => {
@@ -96,6 +101,40 @@
     relatedItems.slice(0, visibleRelatedCount),
   );
 
+  function measureClose() {
+    const banner = publicationScroll?.querySelector('.publication-hero')?.getBoundingClientRect();
+    const close = detailClose?.getBoundingClientRect();
+    closeOverHeader = !!banner && !!close && close.top < banner.bottom && close.bottom > banner.top;
+  }
+
+  $effect(() => {
+    // A detail-to-detail transition can retain both bound nodes while replacing
+    // the hero. Observe the new banner only after Svelte commits that view.
+    void navigationKey;
+    void view;
+    const scroll = publicationScroll;
+    const close = detailClose;
+    if (!scroll || !close) return;
+    let disposed = false;
+    let observer: ResizeObserver | undefined;
+    let frame: number | undefined;
+    closeReady = false;
+    void tick().then(() => {
+      if (disposed) return;
+      observer = new ResizeObserver(measureClose);
+      observer.observe(scroll);
+      const banner = scroll.querySelector('.publication-hero');
+      if (banner) observer.observe(banner);
+      measureClose();
+      frame = requestAnimationFrame(() => { closeReady = true; });
+    });
+    return () => {
+      disposed = true;
+      if (frame !== undefined) cancelAnimationFrame(frame);
+      observer?.disconnect();
+    };
+  });
+
   async function showSearch() {
     searchOpen = true;
     sidebarOpen = false;
@@ -145,7 +184,7 @@
   type: NewsroomAction["type"],
 )}
   <button type="button" class="utility-action" onclick={() => act(type)}>
-    <span class={`clickable-icon icon_${icon}`} aria-hidden="true"></span><span
+    <PublicationIcon name={icon} /><span
       >{label}</span
     >
   </button>
@@ -282,17 +321,15 @@
       navigationOnly={!!publicHeader}
     />
 
-    <div class="publication-scroll" bind:this={publicationScroll}>
+    {#if !isIndex}
+      <button type="button" class="detail-close" class:over-header={closeOverHeader} class:ready={closeReady}
+        bind:this={detailClose} data-testid="publication-detail-close"
+        aria-label={view === "social-post" ? data.closeSocialLabel : (locale === "de" ? "Artikel schließen" : "Close article")}
+        onclick={() => act("open-item")}><PublicationIcon name="close" gradient /></button>
+    {/if}
+    <div class="publication-scroll" bind:this={publicationScroll} onscroll={measureClose}>
       {#if view === "social-post"}
         <main class="social-detail-page">
-          <button
-            type="button"
-            class="detail-close"
-            aria-label={data.closeSocialLabel}
-            onclick={() => act("open-item")}
-          >
-            <span class="clickable-icon icon_close" aria-hidden="true"></span>
-          </button>
           <section
             class="social-detail-grid"
             aria-labelledby="social-post-title"
@@ -327,13 +364,7 @@
                     data-testid={`social-platform-link-${link.platform}`}
                     class="platform-link"
                   >
-                    <span
-                      class:icon-bluesky={link.platform === "bluesky"}
-                      class:icon-instagram={link.platform === "instagram"}
-                      class:icon-mastodon={link.platform === "mastodon"}
-                      class="platform-icon"
-                      aria-hidden="true"
-                    ></span>
+                    <PublicationIcon name={link.platform} />
                   </a>
                 {/each}
               </nav>
@@ -356,7 +387,6 @@
                     "open-item",
                     isBlogSurface ? data.blogItems[0].id : data.newsItems[0].id,
                   )}
-                onClose={() => act("open-item")}
               />
             </div>
           {/if}
@@ -375,10 +405,7 @@
                         aria-expanded={searchOpen}
                         onclick={toggleSearch}
                       >
-                        <span
-                          class={`clickable-icon icon_${searchOpen ? "close" : "search"}`}
-                          aria-hidden="true"
-                        ></span><span>{data.searchLabel}</span>
+                        <PublicationIcon name={searchOpen ? "close" : "search"} /><span>{data.searchLabel}</span>
                       </button>
                     </div>
                     {#if !isBlogSurface}
@@ -424,13 +451,13 @@
                   <div class="center-actions">
                     {#if filteredPrimaryItems.length > visiblePrimaryCount}
                       <button type="button" class="utility-action" onclick={showMorePrimary}>
-                        <span class="clickable-icon icon_grid" aria-hidden="true"></span>
+                        <PublicationIcon name="grid" />
                         <span>{data.showMoreLabel}</span>
                       </button>
                     {/if}
                     {#if !isBlogSurface}
                       {@render actionButton(
-                        "announcement",
+                        "mail",
                         data.subscribeLabel,
                         "subscribe-news",
                       )}
@@ -444,8 +471,10 @@
                   {@render sectionTitle(data.socialLabel)}
                   {@render socialRail(filteredSocialItems)}
                   <div class="follow-row">
-                    <span>{data.followLabel}:</span><strong>Instagram</strong
-                    ><strong>Mastodon</strong><strong>LinkedIn</strong>
+                    <span>{data.followLabel}:</span>
+                    {#each ['Instagram', 'Mastodon', 'LinkedIn'] as platform}
+                      <a class="platform-link" href={socialLinks.find(link => link.label === platform)?.href ?? 'https://www.linkedin.com/in/marco0/'} target="_blank" rel="noopener noreferrer" aria-label={platform === 'LinkedIn' ? "Marco’s OpenMates updates on LinkedIn" : `OpenMates on ${platform}`} data-testid={`publication-follow-${platform.toLowerCase()}`}><PublicationIcon name={platform.toLowerCase()} /></a>
+                    {/each}
                   </div>
                 </section>
               {/if}
@@ -501,7 +530,7 @@
                       data.pressKitLabel,
                       "press-kit",
                     )}{@render actionButton(
-                      "announcement",
+                      "mail",
                       data.subscribeLabel,
                       "subscribe-news",
                     )}
@@ -524,7 +553,7 @@
                   {#if relatedItems.length > visibleRelatedCount}
                     <div class="center-actions">
                       <button type="button" class="utility-action" onclick={showMoreRelated}>
-                        <span class="clickable-icon icon_grid" aria-hidden="true"></span>
+                        <PublicationIcon name="grid" />
                         <span>{data.showMoreLabel}</span>
                       </button>
                     </div>
@@ -581,7 +610,7 @@
   .newsroom-shell.has-public-header {
     position: relative;
     z-index: 0;
-    height: calc(100dvh - 70px);
+    height: calc(100dvh - var(--public-header-height, 70px));
   }
 
   /* Full-page fixtures fill the capture canvas; no negative margins or second
@@ -611,6 +640,7 @@
     transform: translateX(0);
   }
   .main-panel {
+    position: relative;
     display: grid;
     grid-template-rows: auto minmax(0, 1fr);
     height: 100%;
@@ -621,6 +651,7 @@
     background: var(--color-grey-0);
     box-shadow: var(--shadow-sm);
   }
+  .has-public-header .main-panel { grid-template-rows: minmax(0, 1fr); }
   .publication-scroll {
     min-height: 0;
     overflow: auto;
@@ -945,26 +976,24 @@
     border-radius: var(--radius-8);
     background: var(--color-grey-20);
   }
+  /* Matches EmbedTopBar's circular control and icons.css header overlay colors. */
   .detail-close {
-    all: unset;
-    position: absolute;
-    top: var(--spacing-8);
-    right: var(--spacing-8);
-    z-index: 2;
-    display: grid;
-    width: 2.75rem;
-    aspect-ratio: 1;
-    place-items: center;
-    border-radius: 50%;
-    background: var(--color-grey-0);
-    box-shadow: var(--shadow-md);
-    cursor: pointer;
+    position: absolute; top: var(--spacing-6); right: var(--spacing-8); z-index: 4;
+    display: grid; place-items: center; padding: var(--spacing-4); border: 0;
+    box-sizing: border-box; width: calc(25px + 2 * var(--spacing-4)); height: calc(25px + 2 * var(--spacing-4));
+    min-width: 0; min-height: 0; margin: 0; scale: 1; filter: none;
+    border-radius: 40px; background: var(--color-grey-10); color: var(--color-primary-start);
+    box-shadow: 0 2px 8px rgb(0 0 0 / 15%); cursor: pointer;
   }
-  .detail-close :global(.clickable-icon) {
-    width: 1.5rem;
-    height: 1.5rem;
-    background-color: var(--color-primary-start);
-  }
+  .detail-close.ready { transition: background-color var(--duration-normal) var(--easing-in-out), color var(--duration-normal) var(--easing-in-out), transform var(--duration-fast) var(--easing-in-out); }
+  .newsroom-shell:not(.has-public-header) .detail-close { top: calc(4rem + var(--spacing-6)); }
+  .detail-close :global(svg) { width: 25px; height: 25px; }
+  .detail-close.over-header :global(svg path) { fill: #fff; }
+  .detail-close.over-header { background: rgb(255 255 255 / 20%); color: #fff; }
+  .detail-close:hover { transform: scale(1.08); box-shadow: 0 4px 12px rgb(0 0 0 / 20%); }
+  .detail-close:active { transform: scale(.95); }
+  .detail-close:focus-visible { outline: 2px solid var(--color-primary-start); outline-offset: 3px; }
+  @media (prefers-reduced-motion: reduce) { .detail-close.ready { transition: none; } }
   .social-detail-grid {
     display: grid;
     width: min(100%, var(--publication-content-max-width));
@@ -1024,23 +1053,6 @@
     outline: 0.125rem solid var(--color-button-primary);
     outline-offset: 0.125rem;
   }
-  .platform-icon {
-    width: 1.25rem;
-    height: 1.25rem;
-    background-color: currentColor;
-    mask-position: center;
-    mask-repeat: no-repeat;
-    mask-size: contain;
-  }
-  .platform-icon.icon-bluesky {
-    mask-image: url("/icons/bluesky.svg");
-  }
-  .platform-icon.icon-instagram {
-    mask-image: url("/icons/instagram.svg");
-  }
-  .platform-icon.icon-mastodon {
-    mask-image: url("/icons/mastodon.svg");
-  }
   .more-posts {
     width: min(100%, var(--publication-content-max-width));
     margin-inline: auto;
@@ -1062,13 +1074,15 @@
     }
   }
 
+  @media (max-width: 600px) { .newsroom-shell.has-public-header { --public-header-height: 110px; } }
+
   @media (max-width: 730px) {
     .newsroom-shell {
       display: block;
       min-height: 100dvh;
     }
     .newsroom-shell.has-public-header {
-      min-height: calc(100dvh - 70px);
+      min-height: calc(100dvh - var(--public-header-height, 70px));
     }
     .sidebar-layer {
       position: fixed;
@@ -1085,8 +1099,8 @@
       transform: translateX(0);
     }
     .has-public-header .sidebar-layer {
-      top: calc(70px + 4rem);
-      height: calc(100dvh - 70px - 4rem);
+      top: var(--public-header-height, 70px);
+      height: calc(100dvh - var(--public-header-height, 70px));
     }
     :global([dir="rtl"]) .sidebar-layer {
       transform: translateX(100%);

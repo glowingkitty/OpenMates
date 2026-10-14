@@ -550,6 +550,7 @@
         "notification-email-migration.spec.ts",
         "teams-invite-acceptance.spec.ts",
         "newsletter-flow.spec.ts",
+        "website-newsletter-delivery.spec.ts",
         "account-retirement-reads.spec.ts",
         "teams-direct-chat.spec.ts",
         "cli-tui-team-direct-chat.spec.ts"

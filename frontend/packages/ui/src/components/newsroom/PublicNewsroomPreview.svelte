@@ -47,6 +47,7 @@
     {websiteBaseUrl}
     language={currentLocale}
     availableLanguages={['en', 'de']}
+    publication={currentView === 'blog' || currentView === 'blog-post' ? 'blog' : 'news'}
     onLanguageChange={(code) => { currentLocale = code === 'de' ? 'de' : 'en'; }}
   />
 {/snippet}

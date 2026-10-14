@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import LandingNativeIcon from './LandingNativeIcon.svelte';
   import { landingAppExamples, type LandingPublication } from './landingPageContent';
   import DeviceScreenshots from '../DeviceScreenshots.svelte';
   import NewsletterSignup from '../NewsletterSignup.svelte';
@@ -33,7 +34,9 @@
   let chosenLanguage = $state('en');
   let freeUsageAvailable = $state<boolean | null>(null);
   let copy = $derived(landingCopy[chosenLanguage === 'de' ? 'de' : 'en']);
-  let composerLabel = $derived(freeUsageAvailable ? copy.tryFree : copy.tryNow);
+  let composerAlternative = $state(false);
+  let touchDevice = $state(false);
+  let composerLabel = $derived(composerAlternative ? (touchDevice ? copy.askAnythingTouch : copy.askAnythingDesktop) : (freeUsageAvailable ? copy.tryFree : copy.tryNow));
   let landingRoot: HTMLDivElement;
   let scrollContainer: HTMLElement;
   let railWindow: HTMLDivElement;
@@ -79,6 +82,7 @@
     document.documentElement.lang = chosenLanguage === 'de' ? 'de' : 'en';
     document.documentElement.dir = 'ltr';
 
+    touchDevice = window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
     const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
     let frame = 0;
     let position = 0;
@@ -94,6 +98,7 @@
     let lastWheelTime = 0;
     let pointer: { id: number; x: number; y: number; position: number; dragging: boolean; lastX: number; lastTime: number; velocity: number } | null = null;
     let suppressClick = false;
+    let appChangeCount = 0;
     let observer: IntersectionObserver | undefined;
     const revealedSections = new WeakSet<HTMLElement>();
     const revealSection = (element: HTMLElement) => {
@@ -125,6 +130,8 @@
       if (index !== activeIndex) {
         activeIndex = index;
         promptHasChanged = true;
+        appChangeCount += 1;
+        if (appChangeCount % 3 === 0) composerAlternative = !composerAlternative;
       }
     };
     const renderRail = () => {
@@ -244,8 +251,7 @@
     };
     const onScroll = () => {
       revealVisibleSections();
-      if (reducedMotion) return;
-      landingRoot.style.setProperty('--hero-parallax-y', `${Math.min(scrollContainer.scrollTop * 0.12, 48)}px`);
+
     };
     const updateMotion = () => {
       reducedMotion = motionQuery.matches;
@@ -286,22 +292,43 @@
     window.addEventListener('pointercancel', onPointerEnd);
     railWindow.addEventListener('click', onClickCapture, true);
     railWindow.addEventListener('keydown', onKeyDown);
-    const onVisibilityChange = () => {
-      if (document.hidden) {
-        cancelAnimationFrame(frame);
-        frame = 0;
-      } else {
-        heroEntranceComplete = true;
-        velocity = automaticVelocity;
-        pointer = null;
-        updateMotion();
+    const suspendRendering = () => {
+      cancelAnimationFrame(frame);
+      frame = 0;
+      if (pointer && railWindow.hasPointerCapture(pointer.id)) railWindow.releasePointerCapture(pointer.id);
+      pointer = null;
+    };
+    const resumeRendering = () => {
+      if (document.hidden) return;
+      // A suspended page can retain a RAF id whose callback will never run.
+      suspendRendering();
+      heroEntranceComplete = true;
+      velocity = automaticVelocity;
+      target = null;
+      pauseUntil = 0;
+      measureRail();
+      updateMotion();
+    };
+    const updateSectionSnap = () => {
+      for (const section of scrollContainer.querySelectorAll<HTMLElement>('.hero, .feature, .newsletter-reveal, .publication-row')) {
+        // Native proximity snap only applies to sections fitting the viewport.
+        // Tall phone sections retain ordinary, uninterrupted scrolling.
+        section.classList.toggle('section-snap', section.offsetHeight <= scrollContainer.clientHeight + 1);
       }
     };
+    const onVisibilityChange = () => {
+      if (document.hidden) suspendRendering();
+      else resumeRendering();
+    };
     document.addEventListener('visibilitychange', onVisibilityChange);
-    window.addEventListener('focus', revealVisibleSections);
-    window.addEventListener('pageshow', revealVisibleSections);
-    const resizeObserver = new ResizeObserver(() => { measureRail(); revealVisibleSections(); });
+    window.addEventListener('focus', resumeRendering);
+    window.addEventListener('pageshow', resumeRendering);
+    window.addEventListener('pagehide', suspendRendering);
+    const resizeObserver = new ResizeObserver(() => { measureRail(); revealVisibleSections(); updateSectionSnap(); });
     resizeObserver.observe(railWindow);
+    resizeObserver.observe(scrollContainer);
+    scrollContainer.querySelectorAll<HTMLElement>('.hero, .feature, .newsletter-reveal, .publication-row').forEach(section => resizeObserver.observe(section));
+    updateSectionSnap();
     measureRail();
     updateMotion();
     return () => {
@@ -320,8 +347,9 @@
       railWindow.removeEventListener('click', onClickCapture, true);
       railWindow.removeEventListener('keydown', onKeyDown);
       document.removeEventListener('visibilitychange', onVisibilityChange);
-      window.removeEventListener('focus', revealVisibleSections);
-      window.removeEventListener('pageshow', revealVisibleSections);
+      window.removeEventListener('focus', resumeRendering);
+      window.removeEventListener('pageshow', resumeRendering);
+      window.removeEventListener('pagehide', suspendRendering);
     };
   });
 </script>
@@ -333,9 +361,9 @@
     <main class="scroll-container" bind:this={scrollContainer} data-testid="landing-scroll-container">
       <section class="hero" aria-labelledby="hero-title" data-testid="landing-hero">
         <div class="hero-visual" data-testid="landing-hero-media">
-          <div class="hero-ai-entrance"><div class="hero-ai-visual" aria-hidden="true" data-testid="landing-hero-ai-icon"><span class="hero-ai-glyph"></span></div></div>
+          <div class="hero-ai-entrance"><div class="hero-ai-visual" aria-hidden="true" data-testid="landing-hero-ai-icon"><span class="hero-ai-glyph"><LandingNativeIcon name="ai" /></span></div></div>
         </div>
-        <h1 id="hero-title">{copy.heroLine1}<br />{copy.heroLine2}</h1>
+        <h1 id="hero-title">{#each [copy.heroLine1, copy.heroLine2] as line, index}{#if index > 0}<br />{/if}{#if line.includes(copy.heroPrivacyHighlight)}{line.slice(0, line.indexOf(copy.heroPrivacyHighlight))}<span class="privacy-highlight" data-testid="landing-privacy-highlight">{copy.heroPrivacyHighlight}</span>{line.slice(line.indexOf(copy.heroPrivacyHighlight) + copy.heroPrivacyHighlight.length)}{:else}{line}{/if}{/each}</h1>
         <div class="hero-prompt-entrance">
           {#if activeApp}
             {#key activeApp.id}
@@ -393,6 +421,7 @@
           <span class="feature-icon coding-icon" aria-hidden="true" data-testid="landing-feature-icon"></span>
           <h2 id="model-choice-title">{copy.modelChoiceTitle1}<br />{copy.modelChoiceTitle2}</h2>
           <p>{copy.modelChoiceBody}</p>
+          <div class="feature-links"><a class="text-link" href={siteUrl('/blog')} data-testid="landing-model-selection-link">{copy.modelSelectionLink}</a><a class="text-link" href={siteUrl('/blog')} data-testid="landing-data-ownership-link">{copy.dataOwnershipLink}</a></div>
         </div>
         <div class="feature-example" data-testid="landing-feature-media-model-choice"><DeviceScreenshots baseKey="model-selector" desktopAlt="OpenMates AI model selector on desktop" mobileAlt="OpenMates AI model selector on mobile" /></div>
       </section>
@@ -466,7 +495,7 @@
       </footer>
     </main>
     {#if freeUsageAvailable !== null}
-      <a class="composer-link" href={appUrl(freeUsageAvailable ? '/#compose' : '/#signup/basics')} data-testid="landing-compose" aria-label={composerLabel}><span class="composer-ai" aria-hidden="true"></span><span>{composerLabel}</span><span class="composer-mic" aria-hidden="true"></span></a>
+      <a class="composer-link" href={appUrl(freeUsageAvailable ? '/#compose' : '/#signup/basics')} data-testid="landing-compose" aria-label={composerLabel}><span class="composer-ai" aria-hidden="true"><LandingNativeIcon name="ai" /></span><span class="composer-label" data-testid="landing-compose-label" aria-live="polite">{#key composerLabel}<span class="composer-label-text">{composerLabel}</span>{/key}</span><span class="composer-mic" aria-hidden="true"><LandingNativeIcon name="microphone" gradient /></span></a>
     {/if}
   </div>
 </div>
@@ -476,15 +505,15 @@
   a { color: inherit; text-decoration: none; }
   a:focus-visible { outline: 3px solid var(--color-primary-start); outline-offset: 3px; }
   .viewport-container { position: relative; flex: 1; min-height: 0; container-type: size; margin: 0 var(--spacing-10) var(--spacing-10); overflow: hidden; border-radius: var(--radius-6); background: var(--color-grey-0); box-shadow: var(--shadow-md); }
-  .scroll-container { width: 100%; height: 100%; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scroll-behavior: smooth; }
+  .scroll-container { width: 100%; height: 100%; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scroll-behavior: smooth; scroll-snap-type: y proximity; scroll-padding-bottom: 100px; }
   /* Width and height both constrain the composition: tall tablets can grow while short laptops still fit. */
   .hero { --hero-ai-size: clamp(64px, min(24cqw, 16cqh), 256px); position: relative; height: 100%; box-sizing: border-box; padding: 12px clamp(12px, 2cqw, 32px) 100px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: clamp(8px, min(2cqw, 1.4cqh), 18px); overflow: hidden; text-align: center; background: linear-gradient(135deg, var(--color-primary-start), var(--color-primary-end)); color: var(--color-font-button); }
   .hero > * { flex-shrink: 0; }
-  .hero-visual { position: relative; width: var(--hero-ai-size); height: var(--hero-ai-size); display: grid; place-items: center; transform: translateY(var(--hero-parallax-y, 0px)); }
+  .hero-visual { position: relative; width: var(--hero-ai-size); height: var(--hero-ai-size); display: grid; place-items: center;  }
   .hero-ai-entrance { width: 100%; height: 100%; display: grid; place-items: center; animation: hero-entrance 620ms cubic-bezier(.22, 1, .36, 1) both; }
   .hero-ai-visual { position: relative; display: grid; place-items: center; width: 100%; aspect-ratio: 1; animation: hero-ai-float 8s ease-in-out infinite alternate; }
   .hero-ai-visual::before { content: ''; position: absolute; inset: 4%; border-radius: var(--radius-full); background: radial-gradient(circle at 35% 35%, var(--color-font-button), transparent 70%); filter: blur(32px); opacity: .24; animation: hero-ai-glow 12s ease-in-out infinite alternate; }
-  .hero-ai-glyph { position: relative; display: block; width: 72%; height: 72%; background: var(--color-font-button); -webkit-mask: url('/icons/ai.svg') center / contain no-repeat; mask: url('/icons/ai.svg') center / contain no-repeat; filter: drop-shadow(0 8px 20px color-mix(in srgb, var(--color-grey-100) 18%, transparent)); }
+  .hero-ai-glyph { position: relative; display: block; width: 72%; height: 72%; color: var(--color-font-button); filter: drop-shadow(0 8px 20px color-mix(in srgb, var(--color-grey-100) 18%, transparent)); }
   @keyframes hero-ai-float { from { transform: translateY(4px); } to { transform: translateY(-8px); } }
   @keyframes hero-ai-glow { from { opacity: .15; transform: translate(-5%, 3%) scale(.9); } to { opacity: .3; transform: translate(6%, -3%) scale(1.12); } }
   .hero h1 { animation: hero-entrance 620ms 100ms cubic-bezier(.22, 1, .36, 1) both; margin: 0; color: var(--color-font-button); max-width: 100%; font-size: clamp(28px, min(8.5cqw, 8.2cqh), 112px); line-height: 1.12; font-weight: 800; letter-spacing: -0.035em; }
@@ -512,9 +541,14 @@
   .composer-link { position: absolute; z-index: 5; left: 50%; bottom: max(var(--spacing-8), env(safe-area-inset-bottom)); transform: translateX(-50%); width: min(629px, calc(100% - 30px)); min-height: 64px; box-sizing: border-box; padding: 0 var(--spacing-12); display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-8); border-radius: 32px; background: var(--color-grey-blue); color: var(--color-font-primary); font-weight: 700; box-shadow: 0 4px 12px color-mix(in srgb, var(--color-grey-100) 8%, transparent); text-align: center; animation: composer-enter 550ms cubic-bezier(.2, .75, .25, 1) both; }
   @keyframes composer-enter { from { opacity: 0; transform: translate(-50%, 24px); } to { opacity: 1; transform: translate(-50%, 0); } }
   .composer-link:hover { box-shadow: var(--shadow-lg); }
-  .composer-ai, .composer-mic { display: block; flex: 0 0 24px; width: 24px; height: 24px; background: var(--color-grey-60); -webkit-mask: var(--composer-icon-url) center / contain no-repeat; mask: var(--composer-icon-url) center / contain no-repeat; }
-  .composer-ai { --composer-icon-url: url('/icons/ai.svg'); }.composer-mic { --composer-icon-url: url('/icons/recordaudio.svg'); }
-  .feature { min-height: 100%; width: 100%; margin: 0 auto; padding: clamp(48px, 5vw, 96px) clamp(32px, 6vw, 112px); box-sizing: border-box; overflow: hidden; }
+  .composer-ai, .composer-mic { display: block; flex: 0 0 24px; width: 24px; height: 24px; color: var(--color-font-tertiary); }
+  .composer-label { color: var(--color-font-tertiary); min-width: 0; }
+  .composer-label-text { display: inline-block; animation: composer-label-enter 280ms ease-out both; }
+  @keyframes composer-label-enter { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+  .scroll-container :global(.section-snap) { scroll-snap-align: start; }
+  .privacy-highlight { position: relative; display: inline; isolation: isolate; color: var(--color-font-primary); border-radius: 2px; padding: 0 2px; box-decoration-break: clone; -webkit-box-decoration-break: clone; background: linear-gradient(rgba(250, 204, 21, .35), rgba(250, 204, 21, .35)) left center / 100% 100% no-repeat; animation: privacy-marker 850ms 600ms ease-out both; }
+  @keyframes privacy-marker { from { background-size: 0% 100%; color: var(--color-font-button); } to { background-size: 100% 100%; color: var(--color-font-primary); } }
+  .feature { min-height: 100%; width: 100%; margin: 0 auto; padding: clamp(48px, 5vw, 96px) clamp(32px, 6vw, 112px) max(112px, env(safe-area-inset-bottom)); box-sizing: border-box; overflow: hidden; }
   .feature-media { display: grid; grid-template-columns: minmax(280px, .72fr) minmax(0, 1.28fr); align-items: center; gap: clamp(28px, 4vw, 76px); }
   .feature-copy { max-width: 480px; }.feature-later .feature-copy { max-width: 580px; }
   .feature-icon { display: block; width: 48px; height: 48px; margin-bottom: var(--spacing-8); background: var(--color-primary-start); -webkit-mask: var(--feature-icon-url) center / 80% no-repeat; mask: var(--feature-icon-url) center / 80% no-repeat; }
@@ -553,7 +587,7 @@
   .site-footer nav { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--spacing-8); font-size: var(--font-size-small); color: var(--color-font-tertiary); }.social-links { display: flex; flex-wrap: wrap; gap: var(--spacing-4); }
   .social-links a { display: inline-grid; place-items: center; width: 38px; height: 38px; border-radius: var(--radius-full); background: var(--color-grey-20); }.social-links a:hover { background: var(--color-grey-blue); }.social-icon { display: block; width: 22px; height: 22px; background: var(--color-grey-80); mask: var(--social-icon-url) center / contain no-repeat; -webkit-mask: var(--social-icon-url) center / contain no-repeat; }
   @media (max-width: 900px) { .feature-media { grid-template-columns: 1fr; }.feature-copy, .feature-later .feature-copy { max-width: 680px; }.feature-example, .feature-later .feature-example { width: 100%; margin: 0 auto; } }
-  @media (max-width: 760px) { .viewport-container { margin: 0 var(--spacing-4) var(--spacing-4); }.feature { min-height: 100%; padding: var(--spacing-20) var(--spacing-8); gap: var(--spacing-16); }.feature h2 { margin-bottom: var(--spacing-12); }.publication-row { grid-template-columns: 1fr; gap: var(--spacing-12); padding: var(--spacing-16) var(--spacing-8); }.site-footer { flex-direction: column; align-items: flex-start; padding: var(--spacing-16) var(--spacing-8); }.site-footer nav { justify-content: flex-start; } }
+  @media (max-width: 760px) { .viewport-container { margin: 0 var(--spacing-4) var(--spacing-4); }.feature { min-height: 100%; padding: var(--spacing-20) var(--spacing-8) max(112px, env(safe-area-inset-bottom)); gap: var(--spacing-16); }.feature h2 { margin-bottom: var(--spacing-12); }.publication-row { grid-template-columns: 1fr; gap: var(--spacing-12); padding: var(--spacing-16) var(--spacing-8); }.site-footer { flex-direction: column; align-items: flex-start; padding: var(--spacing-16) var(--spacing-8); }.site-footer nav { justify-content: flex-start; } }
   @media (max-width: 440px) { .scroll-cue-content { gap: var(--spacing-4); }.publication-cards { grid-template-columns: 1fr; }.publication-card img { height: 170px; } }
   /* Phone sizing balances readable copy with breathing room. The compact rule
      follows panel height after the header and mobile browser chrome take space. */
@@ -585,5 +619,5 @@
     .rail-window { grid-column: 1 / -1; width: 100%; height: 64px; --icon-size: 48px; --icon-gap: 18px; }
     .scroll-cue { grid-column: 1 / -1; min-height: 24px; font-size: 12px; }
   }
-  @media (prefers-reduced-motion: reduce) { .scroll-container { scroll-behavior: auto; }.composer-link, .hero-ai-entrance, .hero h1, .hero-prompt-entrance, .hero-speed, .rail-window, .rail-track, .scroll-cue, .scroll-cue-content, .prompt-bubble, .hero-ai-visual, .hero-ai-visual::before { animation: none !important; }.rail-icon, :global(.reveal-ready) .feature-icon, :global(.reveal-ready) .feature-copy h2, :global(.reveal-ready) .feature-copy p, :global(.reveal-ready) .feature-copy .text-link, :global(.reveal-ready) .feature-example, :global(.newsletter-reveal.reveal-ready), :global(.publication-row.reveal-ready) .publication-intro, :global(.publication-row.reveal-ready) .event-cards, :global(.publication-row.reveal-ready) .publication-cards, :global(.publication-row.reveal-ready) .empty-publication { transition: none !important; }.hero-visual { transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .scroll-container { scroll-behavior: auto; }.privacy-highlight, .composer-label-text, .composer-link, .hero-ai-entrance, .hero h1, .hero-prompt-entrance, .hero-speed, .rail-window, .rail-track, .scroll-cue, .scroll-cue-content, .prompt-bubble, .hero-ai-visual, .hero-ai-visual::before { animation: none !important; }.rail-icon, :global(.reveal-ready) .feature-icon, :global(.reveal-ready) .feature-copy h2, :global(.reveal-ready) .feature-copy p, :global(.reveal-ready) .feature-copy .text-link, :global(.reveal-ready) .feature-example, :global(.newsletter-reveal.reveal-ready), :global(.publication-row.reveal-ready) .publication-intro, :global(.publication-row.reveal-ready) .event-cards, :global(.publication-row.reveal-ready) .publication-cards, :global(.publication-row.reveal-ready) .empty-publication { transition: none !important; }.hero-visual { transform: none; } }
 </style>

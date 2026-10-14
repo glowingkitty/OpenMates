@@ -70,7 +70,7 @@ test.describe('public news, blog, and social publications', () => {
 		for (const route of ['/news', '/blog', '/social/workflow-automation-webinar']) {
 			await page.goto(route, { waitUntil: 'domcontentloaded' });
 			await expect(page.getByTestId('newsroom-surface')).toBeVisible();
-			await expect(page.getByTestId('sidebar-toggle')).not.toHaveCSS('mask-image', 'none');
+			await expect(page.getByTestId('sidebar-toggle').locator('svg')).toBeVisible();
 			for (const theme of ['light', 'dark']) {
 				await page.evaluate((value) => document.documentElement.dataset.theme = value, theme);
 				const styles = await page.getByTestId('newsroom-surface').evaluate((surface) => {

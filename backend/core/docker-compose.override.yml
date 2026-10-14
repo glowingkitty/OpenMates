@@ -8,6 +8,8 @@ services:
     image: &development-celery-image openmates-dev-celery-worker:local
     environment: &development-worker-environment
       BACKEND_CONFIG_FILE: "/app/backend/config/backend_config.dev.yml"
+      # Send recipient-held newsletter confirmations to the standalone dev website.
+      NEWSLETTER_PUBLIC_WEBSITE_ORIGIN: "${NEWSLETTER_PUBLIC_WEBSITE_ORIGIN:-https://landing.dev.openmates.org}"
 
   core-worker:
     image: *development-celery-image
@@ -58,6 +60,8 @@ services:
     environment:
       # Enable pre-release platform gates only on the local development stack.
       BACKEND_CONFIG_FILE: "/app/backend/config/backend_config.dev.yml"
+      # Send recipient-held newsletter confirmations to the standalone dev website.
+      NEWSLETTER_PUBLIC_WEBSITE_ORIGIN: "${NEWSLETTER_PUBLIC_WEBSITE_ORIGIN:-https://landing.dev.openmates.org}"
     volumes:
       # Host cron and the CI coordinator publish canonical daily aggregates here.
       # The product runtime checkout has its own test-results directory.

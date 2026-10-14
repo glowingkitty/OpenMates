@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PublicationIcon from "./PublicationIcon.svelte";
   interface Props {
     label: string;
     homeHref: string;
@@ -25,15 +26,13 @@
   <nav aria-label={label}>
     <div class="left-section">
       <button
-        class="sidebar-toggle clickable-icon"
-        class:icon_menu={!sidebarOpen}
-        class:icon_close={sidebarOpen}
+        class="sidebar-toggle"
         data-testid="sidebar-toggle"
         type="button"
         onclick={onToggleSidebar}
         aria-label={sidebarOpen ? `Close ${label} navigation` : `Open ${label} navigation`}
         aria-expanded={sidebarOpen}
-      ></button>
+      ><PublicationIcon name={sidebarOpen ? "close" : "menu"} /></button>
 
       <a class="logo-link" href={homeHref} aria-label={`${label} home`}>
         {#if !navigationOnly}
@@ -69,15 +68,17 @@
     background: var(--color-grey-0);
   }
   .publication-header.navigation-only {
-    height: 4rem;
-    min-height: 4rem;
-    border-bottom: 1px solid var(--color-grey-20);
+    position: absolute;
+    top: 0;
+    inset-inline-start: 0;
+    width: auto;
+    height: auto;
+    min-height: 0;
+    padding: var(--spacing-6) var(--spacing-8);
+    background: transparent;
   }
-  .navigation-only .logo-link small {
-    position: static;
-    font-size: var(--font-size-small);
-    font-weight: 700;
-  }
+  .navigation-only .logo-link { display: none; }
+  .navigation-only .sidebar-toggle { background: var(--color-grey-10); border-radius: 40px; padding: var(--spacing-4); box-shadow: 0 2px 8px rgb(0 0 0 / 15%); }
 
   nav {
     display: flex;
@@ -100,9 +101,15 @@
     width: 25px;
     height: 25px;
     flex: 0 0 25px;
+    min-width: 0; min-height: 0; margin: 0; scale: 1; filter: none; box-sizing: content-box;
     cursor: pointer;
-    background-color: var(--color-primary-start);
+    background: transparent;
+    border: 0;
+    padding: 0;
+    color: var(--color-primary-start);
   }
+
+  .sidebar-toggle :global(svg) { width: 25px; height: 25px; }
 
   .sidebar-toggle:focus-visible,
   .primary-cta:focus-visible,

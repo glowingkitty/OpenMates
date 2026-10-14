@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PublicationIcon from "./PublicationIcon.svelte";
   import { tick } from "svelte";
   import type { NewsroomItem } from "./types";
 
@@ -45,7 +46,7 @@
       aria-expanded={searchOpen}
       onclick={toggleSearch}
     >
-      <span class={`clickable-icon icon_${searchOpen ? "close" : "search"}`} aria-hidden="true"></span>
+      <PublicationIcon name={searchOpen ? "close" : "search"} />
     </button>
     <button
       type="button"
@@ -53,7 +54,7 @@
       aria-label={`Close ${label} navigation`}
       onclick={onClose}
     >
-      <span class="clickable-icon icon_close" aria-hidden="true"></span>
+      <PublicationIcon name="close" />
     </button>
   </header>
 
@@ -140,10 +141,10 @@
     cursor: pointer;
   }
 
-  header :global(.clickable-icon) {
+  header :global(svg) {
     width: 1.65rem;
     height: 1.65rem;
-    background-color: var(--color-primary-start);
+    color: var(--color-primary-start);
   }
 
   .sidebar-title {

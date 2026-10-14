@@ -40,6 +40,7 @@ interface PublicationRecord {
 	media?: NewsroomMediaSource;
 	socialLinks?: SocialPostLink[];
 	externalUrl?: string;
+	coverageLanguage?: PublicPublicationLocale;
 }
 
 function manifestRecords(
@@ -91,23 +92,58 @@ function blogRecords(locale: PublicPublicationLocale): PublicationRecord[] {
 
 function coverageRecords(locale: PublicPublicationLocale): PublicationRecord[] {
 	return [{
+		id: 'coverage-builders-berlin-founder-interview',
+		slug: 'builders-berlin-founder-interview',
+		kind: 'coverage',
+		copy: locale === 'de'
+			? {
+				title: 'Interview mit dem OpenMates-Gründer | Builders: Berlin Podcast',
+				description: 'Solveri spricht mit Marco Bartsch über OpenMates und Datenschutz bei KI. Das Interview öffnet auf YouTube.',
+				bodyMarkdown: ''
+			}
+			: {
+				title: 'OpenMates Founder Interview | Builders: Berlin Podcast',
+				description: 'Solveri interviews Marco Bartsch about OpenMates and privacy in AI. The interview opens on YouTube.',
+				bodyMarkdown: ''
+			},
+		publishedAt: '2026-07-03T00:00:00.000Z',
+		updatedAt: '2026-07-03T00:00:00.000Z',
+		author: 'Solveri · Builders: Berlin Podcast',
+		coverageLanguage: 'en',
+		media: {
+			type: 'image',
+			url: '/publications/press/builders-berlin-openmates-founder.webp',
+			alt: locale === 'de'
+				? 'Original-Vorschaubild des OpenMates-Gründerinterviews von Solveri'
+				: 'Original thumbnail of Solveri’s OpenMates founder interview'
+		},
+		externalUrl: 'https://www.youtube.com/watch?v=mLnGXIZzzXs'
+	}, {
 		id: 'coverage-zdf-privacy-alternatives',
 		slug: 'zdf-privacy-alternatives',
 		kind: 'coverage',
 		copy: locale === 'de'
 			? {
-				title: 'Datenschutzfreundliche Alternativen zu Big-Tech-KI',
-				description: 'Externer ZDF-Bericht – öffnet beim ursprünglichen Herausgeber.',
+				title: '39C3-Messe: Open-Source-KI gegen Datensammler',
+				description: 'Sven Rieken berichtet vom Chaos Communication Congress über OpenMates und datenschutzfreundliche Alternativen zu Big Tech. Öffnet bei ZDFheute.',
 				bodyMarkdown: ''
 			}
 			: {
-				title: 'Privacy-focused alternatives to big-tech AI',
-				description: 'External ZDF report — opens at the original publisher.',
+				title: '39C3 fair: Open-source AI against data collectors',
+				description: 'Sven Rieken reports from the Chaos Communication Congress on OpenMates and privacy-friendly alternatives to Big Tech. Opens at ZDFheute.',
 				bodyMarkdown: ''
 			},
-		publishedAt: '2025-12-28T12:00:00.000Z',
-		updatedAt: '2025-12-28T12:00:00.000Z',
-		author: 'ZDF',
+		publishedAt: '2025-12-29T20:49:43.673Z',
+		updatedAt: '2025-12-29T20:49:43.673Z',
+		author: 'ZDFheute · Sven Rieken',
+		coverageLanguage: 'de',
+		media: {
+			type: 'image',
+			url: '/publications/press/zdf-39c3-open-source-ai.webp',
+			alt: locale === 'de'
+				? 'Original-Titelbild des ZDFheute-Berichts vom Chaos Communication Congress'
+				: 'Original header image of ZDFheute’s Chaos Communication Congress report'
+		},
 		externalUrl: 'https://www.zdfheute.de/wirtschaft/39c3-hamburg-ki-alternativen-chatgpt-100.html'
 	}];
 }
@@ -127,7 +163,7 @@ function toItem(record: PublicationRecord, locale: PublicPublicationLocale): New
 		: record.kind === 'blog'
 			? (locale === 'de' ? 'Blogbeitrag' : 'Blog post')
 			: record.kind === 'coverage'
-				? 'ZDF · Germany'
+				? record.author
 				: 'OpenMates';
 	return {
 		id: record.id,
@@ -139,7 +175,11 @@ function toItem(record: PublicationRecord, locale: PublicPublicationLocale): New
 		publishedLabel: formatDate(record.publishedAt, locale),
 		readTime: record.kind === 'blog' ? readingTimeLabel(record, locale) : undefined,
 		author: record.author,
-		language: record.kind === 'coverage' ? (locale === 'de' ? 'Deutsch' : 'German') : undefined,
+		language: record.kind === 'coverage'
+			? record.coverageLanguage === 'en'
+				? (locale === 'de' ? 'Englisch' : 'English')
+				: (locale === 'de' ? 'Deutsch' : 'German')
+			: undefined,
 		socialLinks: record.socialLinks?.map((link) => ({
 			...link,
 			label: locale === 'de'

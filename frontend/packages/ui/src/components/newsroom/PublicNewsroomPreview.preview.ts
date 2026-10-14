@@ -11,6 +11,7 @@ export default props('news');
 export const layout = 'fill';
 
 export const variants = {
+  'Social post': props('social-post'),
   Blog: props('blog'),
   Release: props('release'),
   'Blog post': props('blog-post'),

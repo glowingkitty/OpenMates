@@ -85,6 +85,7 @@
 		{websiteBaseUrl}
 		language={data.locale}
 		availableLanguages={['en', 'de']}
+    publication={data.view === 'blog' || data.view === 'blog-post' ? 'blog' : 'news'}
 		onLanguageChange={selectLanguage}
 	/>
 {/snippet}

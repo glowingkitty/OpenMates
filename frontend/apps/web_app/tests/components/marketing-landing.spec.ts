@@ -70,7 +70,8 @@ for (const { width, height } of [{ width: 390, height: 844 }, { width: 1440, hei
     expect(titleTop - (iconBox.y + iconBox.height), 'AI icon and title must stay together without a large empty gap').toBeLessThanOrEqual(32);
     await expect(aiVisual).toHaveAttribute('aria-hidden', 'true');
     await expect(page.getByTestId('landing-hero-media').locator('.device-frame')).toHaveCount(0);
-    expect(await aiVisual.locator('.hero-ai-glyph').evaluate(element => getComputedStyle(element).maskImage)).toContain('/icons/ai.svg');
+    await expect(aiVisual.locator('.hero-ai-glyph svg path')).toHaveCount(1);
+    await expect(aiVisual.locator('.hero-ai-glyph')).toHaveCSS('mask-image', 'none');
     await expect(aiVisual).toHaveCSS('animation-name', /hero-ai-float$/);
     expect(geometry.cue.bottom).toBeLessThan(geometry.compose.top);
     const cueCenters = await page.getByTestId('landing-scroll-cue').locator('svg, span').evaluateAll(nodes => nodes.map(node => {

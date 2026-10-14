@@ -7,10 +7,9 @@
     detail?: boolean;
     showNavigation?: boolean;
     onOpen: () => void;
-    onClose?: () => void;
   }
 
-  let { hero, detail = false, showNavigation = false, onOpen, onClose }: Props = $props();
+  let { hero, detail = false, showNavigation = false, onOpen }: Props = $props();
 </script>
 
 <section
@@ -57,16 +56,6 @@
       class="hero-arrow next"
       aria-label="Next featured publication">›</button
     >
-  {/if}
-  {#if detail && onClose}
-    <button
-      type="button"
-      class="hero-close"
-      aria-label="Close article"
-      onclick={onClose}
-    >
-      <span class="clickable-icon icon_close" aria-hidden="true"></span>
-    </button>
   {/if}
 </section>
 
@@ -166,8 +155,7 @@
     box-shadow: var(--shadow-lg);
   }
 
-  .hero-arrow,
-  .hero-close {
+  .hero-arrow {
     all: unset;
     position: absolute;
     display: grid;
@@ -190,22 +178,6 @@
   }
   .hero-arrow.next {
     right: var(--spacing-3);
-  }
-
-  .hero-close {
-    top: var(--spacing-5);
-    right: var(--spacing-5);
-    width: 2.75rem;
-    aspect-ratio: 1;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.9);
-    box-shadow: var(--shadow-md);
-  }
-
-  .hero-close :global(.clickable-icon) {
-    width: 1.5rem;
-    height: 1.5rem;
-    background-color: var(--color-primary-start);
   }
 
   @media (max-width: 730px) {
