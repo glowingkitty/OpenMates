@@ -621,6 +621,99 @@ describe("OpenMatesClient session API URL", () => {
     assert.equal(requests[7]?.body?.encrypted_envelope, "opaque-request");
   });
 
+  // contract-test: supporting surface=cli assertions=auth.session.authoritative-enforcement,auth.session.isolation,terminal-ui.offline.cache-first
+  it("TUI admission coalesces delayed validation and rotates before workspace or socket warmup", async () => {
+    let release!: () => void;
+    const wait = new Promise<void>(resolve => { release = resolve; });
+    const requests: string[] = [];
+    const server = createServer(async (request, response) => {
+      requests.push(request.url!);
+      await wait;
+      response.writeHead(200, { "content-type": "application/json", "set-cookie": "auth_refresh_token=admitted-rotated; Path=/; HttpOnly" });
+      response.end(JSON.stringify({ success: true, ws_token: "admitted-ws", user: { id: "test-user", username: "Test" } }));
+    });
+    await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address(); assert.ok(address && typeof address === "object");
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      const client = OpenMatesClient.load(); client.beginInteractiveViewerSession();
+      const first = client.admitInteractiveSession(), second = client.admitInteractiveSession();
+      while (!requests.length) await new Promise<void>(resolve => setImmediate(resolve));
+      assert.equal(client.canRefreshInteractiveWorkspace(), false);
+      assert.deepEqual(requests, ["/v1/auth/session"]);
+      release();
+      assert.equal((await first).status, "ready"); assert.equal((await second).status, "ready");
+      assert.equal(client.canRefreshInteractiveWorkspace(), true);
+      assert.equal(client.getSession().cookies.auth_refresh_token, "admitted-rotated");
+      assert.equal(JSON.parse(readFileSync(sessionPath, "utf8")).cookies.auth_refresh_token, "admitted-rotated");
+      const internal = client as unknown as { makeWsClient: () => { open: () => Promise<void> }; openWsClient: () => Promise<unknown> };
+      internal.makeWsClient = () => ({ open: async () => {} });
+      await internal.openWsClient(); await internal.openWsClient();
+      assert.deepEqual(requests, ["/v1/auth/session"], "fresh startup proof avoids duplicate WS validation");
+      client.endInteractiveViewerSession();
+    } finally { release(); await new Promise<void>(resolve => server.close(() => resolve())); }
+  });
+
+  for (const scenario of ["invalid", "auth_failed", "gateway", "transport", "reauth"] as const) {
+    // contract-test: supporting surface=cli assertions=auth.session.authoritative-enforcement,auth.session.risk-reauth,terminal-ui.offline.cache-first
+    it(`TUI admission handles ${scenario} without workspace fanout`, async () => {
+      const server = createServer((request, response) => {
+        assert.equal(request.url, "/v1/auth/session");
+        if (scenario === "transport") { request.socket.destroy(); return; }
+        response.writeHead(scenario === "gateway" ? 503 : 200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ success: false, message: "Not logged in",
+          ...(scenario === "reauth" ? { re_auth_required: "2fa", re_auth_reason: "new_device" }
+            : scenario === "auth_failed" ? { re_auth_reason: "authentication_failed" } : {}) }));
+      });
+      await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+      const address = server.address(); assert.ok(address && typeof address === "object");
+      try {
+        writeLegacySession(`http://127.0.0.1:${address.port}`);
+        saveSyncCache({ syncedAt: Date.now(), totalChatCount: 0, loadedChatCount: 0, chats: [], embeds: [], embedKeys: [] });
+        const client = OpenMatesClient.load(); client.beginInteractiveViewerSession();
+        const result = await client.admitInteractiveSession();
+        const ended = scenario === "invalid" || scenario === "auth_failed";
+        assert.equal(result.status, ended ? "ended" : scenario === "reauth" ? "reauth" : "offline");
+        assert.equal(client.canRefreshInteractiveWorkspace(), false);
+        assert.equal(client.hasSession(), !ended);
+        assert.equal(loadStoredSession() !== null, !ended);
+        assert.equal(loadSyncCache() !== null, !ended);
+        client.endInteractiveViewerSession();
+      } finally { await new Promise<void>(resolve => server.close(() => resolve())); }
+    });
+  }
+
+  for (const replacement of ["account", "team"] as const) {
+    // contract-test: supporting surface=cli assertions=auth.session.isolation,terminal-ui.offline.cache-first
+    it(`TUI admission fences a changed ${replacement} before admitting or purging it`, async () => {
+      let release!: () => void, started!: () => void;
+      const wait = new Promise<void>(resolve => { release = resolve; });
+      const requested = new Promise<void>(resolve => { started = resolve; });
+      const server = createServer(async (_request, response) => {
+        started(); await wait;
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ success: replacement === "team", user: { id: "old-user" }, ws_token: "old-ws" }));
+      });
+      await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+      const address = server.address(); assert.ok(address && typeof address === "object");
+      try {
+        writeLegacySession(`http://127.0.0.1:${address.port}`);
+        const client = OpenMatesClient.load(); client.beginInteractiveViewerSession();
+        const pending = client.admitInteractiveSession(); await requested;
+        const newer = { ...client.getSession(), ...(replacement === "account"
+          ? { hashedEmail: "replacement-owner", createdAt: Date.now() } : { activeTeamId: "replacement-team" }) };
+        writeFileSync(sessionPath, JSON.stringify(newer), { mode: 0o600 });
+        (client as unknown as { session: unknown }).session = newer;
+        release(); assert.equal((await pending).status, "stale");
+        assert.equal(client.canRefreshInteractiveWorkspace(), false);
+        assert.equal(client.getSession().hashedEmail, newer.hashedEmail);
+        assert.equal(JSON.parse(readFileSync(sessionPath, "utf8")).hashedEmail, newer.hashedEmail);
+        assert.equal(JSON.parse(readFileSync(sessionPath, "utf8")).activeTeamId, newer.activeTeamId);
+        client.endInteractiveViewerSession();
+      } finally { release(); await new Promise<void>(resolve => server.close(() => resolve())); }
+    });
+  }
+
   // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("keeps explicit API URL overrides higher priority than the persisted session", () => {
     const client = OpenMatesClient.load({ apiUrl: "http://127.0.0.1:8000" });

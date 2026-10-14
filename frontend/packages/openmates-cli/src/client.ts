@@ -3383,6 +3383,19 @@ function wsTokenSessionBinding(token: string | null | undefined, refreshCookie: 
   return token ?? "";
 }
 
+export type InteractiveSessionAdmission = {
+  status: "ready" | "offline" | "reauth" | "ended" | "stale";
+  user?: Record<string, unknown>;
+};
+
+class SessionValidationError extends Error {
+  readonly temporary: boolean;
+  readonly reauth: boolean;
+  constructor(message: string, temporary: boolean, reauth: boolean) {
+    super(message); this.temporary = temporary; this.reauth = reauth;
+  }
+}
+
 export class OpenMatesClient {
   private readonly ownedMetadataSubscriptions = new Set<() => void>();
   private readonly activeSubmittedChatTurns = new Map<string, string>();
@@ -3392,6 +3405,10 @@ export class OpenMatesClient {
   private pendingWhoAmIAuthHandoff: PersonalSendAuthHandoff | null = null;
   private personalMemoryAuthHandoff: { snapshot: WeakRef<DecryptedMemoryEntry[]>; auth: PersonalSendAuthHandoff } | null = null;
   private personalMemoryReadInFlight: { ownerKey: string; promise: Promise<DecryptedMemoryEntry[]> } | null = null;
+  private interactiveAdmissionEnabled = false;
+  private interactiveAdmissionOwner: string | null = null;
+  private interactiveAdmissionAuth: PersonalSendAuthHandoff | null = null;
+  private interactiveAdmissionPending: { owner: string; promise: Promise<InteractiveSessionAdmission> } | null = null;
   private whoAmIInFlight: { ownerKey: string; promise: Promise<Record<string, unknown>> } | null = null;
   readonly apiUrl: string;
   private session: OpenMatesSession | null;
@@ -5235,10 +5252,12 @@ export class OpenMatesClient {
       this.pendingWhoAmIAuthHandoff = null;
       const session = this.requireSession();
       const previousRefreshToken = session.cookies.auth_refresh_token;
+      const admissionOwner = this.interactiveAdmissionEnabled ? this.interactiveWorkspaceOwner(session) : null;
       const response = await this.http.post<{
         success?: boolean;
         message?: string;
         re_auth_reason?: string;
+        re_auth_required?: string;
         user?: Record<string, unknown>;
         ws_token?: string;
       }>(
@@ -5246,14 +5265,19 @@ export class OpenMatesClient {
         { session_id: session.sessionId },
         this.getCliRequestHeaders(),
       );
+      if (admissionOwner && (this.interactiveWorkspaceOwner() !== admissionOwner
+        || !this.explicitSession && this.interactiveWorkspaceOwner(loadSession()) !== admissionOwner)) {
+        throw new Error("Account or Team changed during session validation.");
+      }
       if (!response.ok || !response.data.success) {
         if (response.status === 502 || response.status === 503 || response.status === 504) {
-          throw new Error(
-            `Session validation temporarily unavailable (HTTP ${response.status}). The API may be restarting; retry shortly.`,
+          throw new SessionValidationError(
+            `Session validation temporarily unavailable (HTTP ${response.status}). The API may be restarting; retry shortly.`, true, false,
           );
         }
-        throw new Error(
+        throw new SessionValidationError(
           `Session validation failed (HTTP ${response.status}): ${response.data.message ?? "invalid session"}${response.data.re_auth_reason ? ` (${response.data.re_auth_reason})` : ""}. Please run \`${this.loginRecoveryCommand()}\`.`,
+          response.status >= 500, !!response.data.re_auth_required,
         );
       }
       if (response.data.ws_token) {
@@ -5271,6 +5295,9 @@ export class OpenMatesClient {
           createdAt: session.createdAt, masterKeyExportedB64: session.masterKeyExportedB64,
           activeTeamId: session.activeTeamId, cookieFingerprint: authCookieFingerprint(session.cookies),
         };
+        if (this.interactiveAdmissionOwner === this.interactiveWorkspaceOwner()) {
+          this.interactiveAdmissionAuth = this.pendingWhoAmIAuthHandoff;
+        }
       }
       return response.data.user ?? {};
     });
@@ -5278,6 +5305,56 @@ export class OpenMatesClient {
     this.whoAmIInFlight = entry;
     try { return await promise; }
     finally { if (this.whoAmIInFlight === entry) this.whoAmIInFlight = null; }
+  }
+
+  private interactiveWorkspaceOwner(session = this.session): string | null {
+    return session ? JSON.stringify([session.apiUrl, session.hashedEmail, session.sessionId,
+      session.createdAt, session.masterKeyExportedB64, session.activeTeamId ?? null]) : null;
+  }
+
+  /** Cached ciphertext remains readable while startup's live authority is pending. */
+  canRefreshInteractiveWorkspace(): boolean {
+    return !this.interactiveAdmissionEnabled || !!this.session
+      && this.interactiveAdmissionOwner === this.interactiveWorkspaceOwner();
+  }
+
+  /** Admit one current TUI owner before optional workspace network fanout. */
+  async admitInteractiveSession(): Promise<InteractiveSessionAdmission> {
+    if (!this.hasSession()) return { status: "ended" };
+    const owner = this.interactiveWorkspaceOwner()!;
+    if (this.interactiveAdmissionPending?.owner === owner) return this.interactiveAdmissionPending.promise;
+    const current = () => this.interactiveWorkspaceOwner() === owner
+      && (this.explicitSession || this.interactiveWorkspaceOwner(loadSession()) === owner);
+    this.interactiveAdmissionOwner = null;
+    this.interactiveAdmissionAuth = null;
+    const promise = (async (): Promise<InteractiveSessionAdmission> => {
+      try {
+        const user = await this.whoAmI();
+        if (!current()) return { status: "stale" };
+        const auth = this.pendingWhoAmIAuthHandoff;
+        if (!auth || !this.personalSendAuthHandoffCurrent(auth)) return { status: "offline" };
+        this.interactiveAdmissionOwner = owner;
+        this.interactiveAdmissionAuth = auth;
+        return { status: "ready", user };
+      } catch (error) {
+        if (!current()) return { status: "stale" };
+        this.interactiveAdmissionOwner = null;
+        this.interactiveAdmissionAuth = null;
+        if (!(error instanceof SessionValidationError) || error.temporary) return { status: "offline" };
+        if (error.reauth) return { status: "reauth" };
+        if (!this.explicitSession) purgeLocalPrivateData();
+        this.invalidatePreparedPrivacy();
+        for (const stop of [...this.ownedMetadataSubscriptions]) stop();
+        this.closePreparedSendSocket();
+        this.session = null;
+        this.http.replaceCookies({});
+        return { status: "ended" };
+      }
+    })();
+    const pending = { owner, promise };
+    this.interactiveAdmissionPending = pending;
+    try { return await promise; }
+    finally { if (this.interactiveAdmissionPending === pending) this.interactiveAdmissionPending = null; }
   }
 
   private async ownDirectChatHash(): Promise<string> {
@@ -16708,8 +16785,10 @@ export class OpenMatesClient {
     session: OpenMatesSession;
     ownerId: string | null;
   }> {
-    const reusedOwner = options.personalSendAuthHandoff
-      ? await this.reusePersonalSendAuthHandoff(options.personalSendAuthHandoff) : null;
+    const handoff = options.personalSendAuthHandoff ?? (this.canRefreshInteractiveWorkspace()
+      ? this.interactiveAdmissionAuth : null);
+    const reusedOwner = handoff && this.personalSendAuthHandoffCurrent(handoff)
+      ? await this.reusePersonalSendAuthHandoff(handoff) : null;
     const ownerId = reusedOwner ?? (options.signal
       ? await withHttpAbortSignal(options.signal, () => this.refreshWsToken(options.signal))
       : await this.refreshWsToken());
@@ -16750,11 +16829,17 @@ export class OpenMatesClient {
   private interactiveViewerGeneration = 0;
 
   beginInteractiveViewerSession(): void {
+    this.interactiveAdmissionEnabled = true;
+    this.interactiveAdmissionOwner = null;
+    this.interactiveAdmissionAuth = null;
     this.interactiveViewerAllowed = process.stdin.isTTY === true && process.stdout.isTTY === true;
     this.preparedSendSocketAttemptOwner = null;
   }
 
   endInteractiveViewerSession(): void {
+    this.interactiveAdmissionEnabled = false;
+    this.interactiveAdmissionOwner = null;
+    this.interactiveAdmissionAuth = null;
     this.invalidatePreparedPrivacy();
     for (const stop of [...this.ownedMetadataSubscriptions]) stop();
     this.interactiveViewerAllowed = false;

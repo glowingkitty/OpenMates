@@ -609,3 +609,22 @@ test("long fullscreen embeds retain their header and visible keyboard controls a
     }
   }
 });
+
+// contract-test: supporting surface=cli assertions=terminal-ui.offline.cache-first,auth.session.authoritative-enforcement
+test("Home renders cached work while admission is pending without identity, activity or personalization requests", async () => {
+  const state = createInitialTuiState(); state.signedIn=true;
+  const reads: string[] = [];
+  const remote = async () => { throw new Error("Remote read before admission"); };
+  const client = {
+    hasSession: () => true, getMasterKeyBytes: () => new Uint8Array(32),
+    canRefreshInteractiveWorkspace: () => false,
+    listCachedChats: async () => { reads.push("chats"); return {chats:[chat(1)]}; },
+    getCachedContinueItems: async () => { reads.push("continue"); return {memories:[],reminders:[]}; },
+    whoAmI: remote, listChats: remote, getContinueItems: remote, getDailyInspirations: remote,
+    getChatActivity: remote, listProjects: remote,
+  };
+  await loadHomeData(state, client as never, () => {});
+  assert.deepEqual(reads,["chats","continue"]);
+  assert.equal(state.recentChats[0].id,"chat-1");
+  assert.equal(state.homeLoading,false); assert.equal(state.homeChatsLoading,false);
+});

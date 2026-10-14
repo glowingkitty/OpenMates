@@ -85,7 +85,7 @@ function updateHomeChats(state: TuiState, chats: ChatListItem[]): void {
     state.selectedIndex=index>=0 ? index : Math.max(0,Math.min(state.selectedIndex,items.length-1));
   }
 }
-export async function loadHomeData(state: TuiState, client: OpenMatesClient, render: () => void): Promise<void> {
+export async function loadHomeData(state: TuiState, client: OpenMatesClient, render: () => void, options: { cachedOnly?: boolean; skipIdentity?: boolean } = {}): Promise<void> {
   state.homeAbortController?.abort();
   const controller=new AbortController();state.homeAbortController=controller;
   const request = ++state.homeLoadVersion, signedIn=state.signedIn;
@@ -132,6 +132,10 @@ export async function loadHomeData(state: TuiState, client: OpenMatesClient, ren
   if(signedIn && typeof client.getCachedContinueItems === "function") {
     try {const cached=await client.getCachedContinueItems();if(!current())return;if(cached)updateContinue(cached);} catch {if(!current())return;}
   }
+  if (options.cachedOnly || signedIn && client.canRefreshInteractiveWorkspace?.() === false) {
+    if (current()) { state.homeLoading=false; state.homeChatsLoading=false; render(); }
+    return;
+  }
   const work: Promise<void>[]=[];
   let continueRefresh: Promise<void> | undefined;
   const refreshContinue = (): Promise<void> => {
@@ -166,7 +170,7 @@ export async function loadHomeData(state: TuiState, client: OpenMatesClient, ren
       state.inspirationIndices[workspace]=Math.max(0,index);
     }render();}
   }).catch(()=>{if(current())state.homeError="Daily inspiration is temporarily unavailable.";}));
-  if(signedIn && typeof client.whoAmI === "function") work.push(client.whoAmI().then((user)=>{if(current()){state.username=typeof user.username==="string" ? terminalText(user.username):null;render();}}).catch(()=>{}));
+  if(signedIn && !options.skipIdentity && typeof client.whoAmI === "function") work.push(client.whoAmI().then((user)=>{if(current()){state.username=typeof user.username==="string" ? terminalText(user.username):null;render();}}).catch(()=>{}));
   if(signedIn && typeof client.listChats === "function") work.push(client.listChats(Number.MAX_SAFE_INTEGER,1,{forceRefresh:true,signal:controller.signal,onSyncedChats:(page)=>{
     if(current()){updateHomeChats(state,page.chats);state.homeChatsLoading=false;render();warmRecent();if(teamId)void refreshContinue();}
   }}).then(async(page)=>{if(current()){

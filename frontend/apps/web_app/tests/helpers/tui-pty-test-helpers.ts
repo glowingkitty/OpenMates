@@ -28,7 +28,7 @@ def read_frame():
         output=output[end+len(end_marker):]
     frame=re.sub(r'\x1b\[\d+;1H','\n',latest_frame)
     return re.sub(r'\x1b\[[0-?]*[ -/]*[@-~]','',frame).replace('\r','')
-keys={'skip':'n','enter':'\r','exit':'\x03','sidebar':'\x02','escape':'\x1b'}
+keys={'skip':'n','enter':'\r','exit':'\x03','sidebar':'\x02','escape':'\x1b','pagedown':'\x1b[6~'}
 try:
     for step in plan['steps']:
         if step.get('text') is not None: os.write(master,step['text'].encode()+b'\r')

@@ -16,6 +16,7 @@ import { createInterface } from "node:readline/promises";
 import { stdin as nodeStdin, stdout as nodeStdout } from "node:process";
 import { randomUUID } from "node:crypto";
 import { appendFileSync } from "node:fs";
+import { terminalText } from "./tuiText.js";
 import { parseMessageSegments } from "./messageSegments.js";
 
 import { MATE_NAMES, shouldWaitForTeamAi, type OpenMatesClient, type WorkflowGraph, type WorkflowRunDetail } from "./client.js";
@@ -107,6 +108,52 @@ export async function runTui(
   let identityEpoch = 0;
   let identityRetryTimer: ReturnType<typeof setTimeout> | null = null;
   let workspaceScope: string | null = null;
+  let admissionAttemptedScope: string | null = null;
+  let admissionPending: Promise<void> | null = null;
+  const remoteReady = () => workspaceReady && (!state.signedIn
+    || client.canRefreshInteractiveWorkspace?.() !== false);
+  const startRemoteWorkspace = (skipIdentity = false) => {
+    if (closed || !remoteReady()) return;
+    render();
+    if (state.signedIn && typeof client.warmChatMetadata === 'function') client.warmChatMetadata();
+    syncActivityObserver();
+    void loadHomeData(state, client, render, { skipIdentity });
+    void refreshActivity();
+    warmTuiWorkspaceLists(client);
+  };
+  const admitWorkspace = async (retry = false): Promise<void> => {
+    if (closed || !workspaceReady) return;
+    if (!state.signedIn || typeof client.admitInteractiveSession !== 'function') {
+      startRemoteWorkspace(); return;
+    }
+    const scope = workspaceScope;
+    if (admissionPending) return admissionPending;
+    if (!retry && admissionAttemptedScope === scope) return;
+    admissionAttemptedScope = scope;
+    // Local ciphertext renders independently of a slow or unavailable network.
+    void loadHomeData(state, client, render, { cachedOnly: true });
+    const pending = (async () => {
+      const admission = await client.admitInteractiveSession();
+      if (closed || workspaceScope !== scope) return;
+      if (admission.status === 'ready') {
+        state.username = typeof admission.user?.username === 'string' ? terminalText(admission.user.username) : null;
+        if (state.status === 'Offline. Showing saved work; /refresh retries sign-in.' ||
+          state.status === 'Sign in again to reopen your work.') state.status = null;
+        startRemoteWorkspace(true);
+      } else if (admission.status === 'offline') {
+        state.status = 'Offline. Showing saved work; /refresh retries sign-in.';
+      } else if (admission.status === 'reauth') {
+        state.status = 'Sign in again to reopen your work.';
+      }
+      render();
+    })();
+    admissionPending = pending;
+    try { await pending; }
+    finally {
+      if (admissionPending === pending) admissionPending = null;
+      if (!closed && state.signedIn && workspaceScope !== scope) void admitWorkspace();
+    }
+  };
   const scopedDrafts = new Map<string, Record<string,string>>();
   let teamChatRefresh: ReturnType<typeof createTuiTeamChatRefresh> | null = null;
   let modelShell:TuiModelSelectorShell|null=null;
@@ -114,6 +161,7 @@ export async function runTui(
   const modelPreferences=createChatModelPreferences(client);
   const refreshActivity = async () => {
     if (closed || state.startup || refreshingActivity || !state.signedIn) return;
+    if (!remoteReady()) { await admitWorkspace(true); return; }
     refreshingActivity = true;
     teamChatRefresh?.request();
     try { await refreshTuiChatSidebar(state, client, render); }
@@ -153,7 +201,7 @@ export async function runTui(
     }
   };
   const syncActivityObserver = () => {
-    if (!workspaceReady || closed) return;
+    if (!remoteReady() || closed) return;
     const session = state.signedIn && client.hasSession() && typeof client.getSession === 'function' ? client.getSession() : null;
     const owner = session ? JSON.stringify([session.apiUrl, session.hashedEmail, session.sessionId,
       session.createdAt, session.masterKeyExportedB64]) : null;
@@ -176,7 +224,7 @@ export async function runTui(
     syncSessionView();
     const teamId = state.signedIn ? client.getActiveTeamId?.() ?? null : null;
     const session = state.signedIn && typeof client.getSession === 'function' ? client.getSession() : null;
-    const nextScope = session ? JSON.stringify([session.apiUrl,session.hashedEmail,session.createdAt,session.masterKeyExportedB64,teamId]) : null;
+    const nextScope = session ? JSON.stringify([session.apiUrl,session.hashedEmail,session.sessionId,session.createdAt,session.masterKeyExportedB64,teamId]) : null;
     if (workspaceScope !== null && nextScope !== workspaceScope) {
       const endedStatus = !session && state.status===TUI_SESSION_ENDED_STATUS ? TUI_SESSION_ENDED_STATUS : null;
       identityEpoch++;
@@ -196,15 +244,14 @@ export async function runTui(
       if (!session) hydrateExamples(state);
       if (session) queueMicrotask(() => {
         if (closed || workspaceScope!==nextScope) return;
-        void loadHomeData(state,client,render);
-        void refreshTuiChatSidebar(state,client,render,true).catch(()=>{});
+        void admitWorkspace();
       });
     }
     workspaceScope=nextScope;
     state.activeTeamId = teamId;
     syncActivityObserver();
-    if (workspaceReady && state.signedIn && typeof client.warmChatMetadata === 'function') client.warmChatMetadata();
-    if (teamId && state.signedIn && nextScope) {
+    if (remoteReady() && state.signedIn && typeof client.warmChatMetadata === 'function') client.warmChatMetadata();
+    if (remoteReady() && teamId && state.signedIn && nextScope) {
       if (nextScope !== identityScope) {
         identityScope=nextScope;
         const epoch=++identityEpoch;
@@ -224,8 +271,10 @@ export async function runTui(
       if (identityRetryTimer) clearTimeout(identityRetryTimer);
       identityRetryTimer=null;
     }
-    modelShell?.sync();
-    mentionShell?.sync();
+    if (remoteReady() || !state.signedIn) {
+      modelShell?.sync();
+      mentionShell?.sync();
+    }
     if (state.screen !== "chat") client.clearInteractiveChatViewer();
     if (renderTimer) return;
     renderTimer = setTimeout(() => {
@@ -276,11 +325,7 @@ export async function runTui(
     updated: () => finish({ action: "restart" }),
     ready: () => {
       workspaceReady = true;
-      if (state.signedIn && typeof client.warmChatMetadata === 'function') client.warmChatMetadata();
-      syncActivityObserver();
-      void loadHomeData(state, client, render);
-      void refreshActivity();
-      warmTuiWorkspaceLists(client);
+      void admitWorkspace();
     },
   });
   terminal.enter();
@@ -295,6 +340,10 @@ export async function runTui(
     void (async () => {
       if(key.name==='mouseclick'){await handleKey({chunk,key,state,client,terminal,render,finish,modelShell:modelShell!,mentionShell:mentionShell!});return;}
       if (await startup.handleKey(chunk, key)) return;
+      if (key.name === 'return' && state.input.trim() === '/refresh') {
+        await admitWorkspace(true);
+        if (!remoteReady()) return;
+      }
       await handleKey({ chunk, key, state, client, terminal, render, finish, modelShell:modelShell!,mentionShell:mentionShell! });
     })().catch((error) => {
       state.status = error instanceof Error ? error.message : String(error);
@@ -1023,7 +1072,8 @@ const workflowVersionCacheKey = (id: string, version: string) => `workflow:${id}
 
 function warmTuiWorkspaceLists(client: OpenMatesClient): void {
   // Fake clients and unauthenticated startup never access a personal disk cache.
-  if (typeof client.getSession !== "function" || !client.hasSession()) return;
+  if (typeof client.getSession !== "function" || !client.hasSession()
+    || client.canRefreshInteractiveWorkspace?.() === false) return;
   void Promise.allSettled([
     loadCachedTuiWorkspace(client, "projects:list", () => loadTuiProjects(client), () => {}),
     loadTuiTaskList(client, tasksListCacheKey, {}, () => {}),

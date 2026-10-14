@@ -7,6 +7,7 @@ import { join } from "node:path";
 import {
   invalidateCachedTuiWorkspace,
   loadCachedTuiWorkspace,
+  loadProgressiveCachedTuiWorkspace,
   writeCachedTuiWorkspace,
   captureTuiWorkspaceOwner,
   readCachedTuiWorkspace,
@@ -71,6 +72,24 @@ describe("cached TUI workspace loading", () => {
     refresh.resolve(["fresh"]);
     await synced.promise;
     assert.deepEqual(shown, [[ ["saved"], "cache" ], [ ["fresh"], "sync" ]]);
+  });
+
+  // contract-test: supporting surface=cli assertions=terminal-ui.offline.cache-first,auth.session.authoritative-enforcement
+  it("retains encrypted cached workspace navigation without refreshing before admission", async () => {
+    live={...original}; saveSession(live,{replace:true});
+    const key = "tasks:admission-offline";
+    await writeCachedTuiWorkspace(client, key, ["saved"]);
+    let admitted = false, requests = 0;
+    const gated = { ...client, canRefreshInteractiveWorkspace: () => admitted };
+    const shown: string[] = [];
+    const fetch = async () => { requests++; return ["fresh"]; };
+    assert.deepEqual(await loadCachedTuiWorkspace(gated, key, fetch, rows => { shown.push(...rows); }), ["saved"]);
+    assert.deepEqual(await loadProgressiveCachedTuiWorkspace(gated, key, fetch, () => {}), ["saved"]);
+    assert.equal(await loadCachedTuiWorkspace(gated, "projects:absent-admission", fetch, () => {}), null);
+    assert.equal(requests, 0); assert.deepEqual(shown, ["saved"]);
+    admitted = true;
+    await loadCachedTuiWorkspace(gated, "projects:fresh-admission", fetch, () => {});
+    assert.equal(requests, 1);
   });
 
   // contract-test: infrastructure

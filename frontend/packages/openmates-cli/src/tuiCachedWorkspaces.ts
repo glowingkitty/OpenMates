@@ -8,6 +8,7 @@ export interface TuiCacheClient {
   apiUrl?: string;
   hasSession?: () => boolean;
   getSession?: () => OpenMatesSession;
+  canRefreshInteractiveWorkspace?: () => boolean;
 }
 
 export type TuiWorkspaceSource = "cache" | "sync";
@@ -175,6 +176,7 @@ export async function loadCachedTuiWorkspace<T>(
     catch (error) { reportError(onError, error, true); }
   }
 
+  if (client.canRefreshInteractiveWorkspace?.() === false) return cached;
   const { promise, isCurrent } = pendingFor(client, key, context, fetch);
   const deliver = async (): Promise<T | null> => {
     try {
@@ -216,6 +218,7 @@ export async function loadProgressiveCachedTuiWorkspace<T>(
     catch (error) { reportError(onError, error, true); }
   }
 
+  if (client.canRefreshInteractiveWorkspace?.() === false) return cached;
   const generation = state.generations.get(key) ?? 0;
   const globalGeneration = state.globalGeneration;
   const token = `${context.token}\0${key}`;

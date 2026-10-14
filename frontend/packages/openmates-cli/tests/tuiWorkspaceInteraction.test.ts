@@ -78,6 +78,99 @@ test("TUI admits metadata warmup after startup and replaces its activity observe
   terminal.press('\u0003', {ctrl:true,name:'c'}); await run;
 });
 
+for (const result of ['ready', 'ended', 'offline', 'reauth'] as const) {
+  // contract-test: supporting surface=cli assertions=auth.session.authoritative-enforcement,auth.session.risk-reauth,terminal-ui.offline.cache-first
+  test(`TUI awaits ${result} admission before Team identity and workspace warmup`, async () => {
+    const terminal = new FakeTerminal(), gate = deferred<{status: typeof result; user?: Record<string, unknown>}>();
+    const session = {apiUrl:'https://admission.example',hashedEmail:'member',sessionId:'session',activeTeamId:'team',createdAt:1,masterKeyExportedB64:'key'};
+    let signedIn=true, admitted=false, validations=0;
+    const requests: string[] = [];
+    const read = async (name: string, value: unknown) => { requests.push(name); return value; };
+    const {client} = fakeClient({apiUrl:session.apiUrl,hasSession:()=>signedIn,getSession:()=>session,
+      getActiveTeamId:()=>session.activeTeamId,
+      canRefreshInteractiveWorkspace:()=>admitted,
+      admitInteractiveSession:async()=>{validations++;const value=await gate.promise;admitted=value.status==='ready';if(value.status==='ended')signedIn=false;return value;},
+      listCachedChats:async()=>({chats:[chat('cached','Cached before admission')]}),
+      getCachedContinueItems:async()=>({memories:[],reminders:[]}),
+      whoAmI:()=>read('identity',{id:'member',username:'Member'}),
+      getTeamDetails:()=>read('team',{name:'Admitted Team'}),
+      observeChatActivity:()=>read('observe',()=>{}),
+      warmChatMetadata:()=>{requests.push('warm');},
+      getChatActivity:()=>read('activity',{ids:[],chats:[]}),
+      getDailyInspirations:()=>read('inspirations',[]),
+      getContinueItems:()=>read('continue',{memories:[],reminders:[]}),
+      listProjects:()=>read('projects',[]),listUserTasks:()=>read('tasks',[]),listWorkflows:()=>read('workflows',[]),
+    });
+    const run=runTui(client as never,terminal);
+    await tick();await tick();
+    assert.equal(validations,1);assert.deepEqual(requests,[]);
+    assert.match(terminal.latest(),/Cached before admission/);
+    gate.resolve({status:result,user:{username:'Member'}});await tick();await tick();
+    if(result==='ready') {
+      assert.ok(requests.includes('warm'));assert.ok(requests.includes('observe'));
+      assert.ok(requests.includes('identity'));assert.ok(requests.includes('team'));
+      assert.ok(requests.includes('projects'));assert.ok(requests.includes('tasks'));assert.ok(requests.includes('workflows'));
+    } else {
+      assert.deepEqual(requests,[]);
+      assert.match(terminal.latest(),result==='ended'?/Session ended/:result==='offline'?/Offline/:/Sign in again/);
+      if(result==='ended')assert.doesNotMatch(terminal.latest(),/Cached before admission/);
+    }
+    if(result==='offline') {
+      terminal.type('/refresh');await tick();terminal.enterKey();await tick();
+      assert.equal(validations,2);assert.deepEqual(requests,[]);
+    }
+    terminal.press('\u0003',{ctrl:true,name:'c'});await run;
+  });
+}
+
+// contract-test: supporting surface=cli assertions=chats.send.immediate-admission,auth.session.authoritative-enforcement,terminal-ui.offline.cache-first
+test("early Return paints one optimistic row while startup admission and SDK authority remain pending", async () => {
+  const terminal=new FakeTerminal(), gate=deferred<{status:'ready';user:Record<string,unknown>}>();
+  const session={apiUrl:'https://early-send.example',hashedEmail:'owner',sessionId:'session',activeTeamId:null,createdAt:1,masterKeyExportedB64:'key'};
+  let admitted=false, sent=0;
+  const requests:string[]=[];
+  const {client}=fakeClient({getSession:()=>session,getActiveTeamId:()=>null,
+    resolveTeamContext:()=>null,
+    getChatModelCatalogSources:async()=>({all:{},available:{},routes:{},health:null}),
+    getChatModelPreference:async()=>null,
+    canRefreshInteractiveWorkspace:()=>admitted,
+    admitInteractiveSession:async()=>{const result=await gate.promise;admitted=true;return result;},
+    warmChatMetadata:()=>requests.push('warm'),
+    getDailyInspirations:async()=>{requests.push('inspirations');return [];},
+    sendMessage:async()=>{sent++;await gate.promise;return {chatId:'early-chat',assistant:'Authorized answer',followUpSuggestions:[]};},
+  });
+  const run=runTui(client as never,terminal);await tick();
+  terminal.type('Submitted during startup');terminal.enterKey();await tick();await tick();
+  assert.equal(sent,1);assert.deepEqual(requests,[]);
+  assert.equal((terminal.latest().match(/Submitted during startup/g)||[]).length,1);
+  assert.doesNotMatch(terminal.latest(),/Authorized answer|Sign-in validation is required/);
+  // A second draft must start from an empty composer while the first send waits.
+  terminal.type('Second draft');await tick();assert.match(terminal.latest(),/Second draft/);
+  gate.resolve({status:'ready',user:{username:'Owner'}});await tick();await tick();
+  assert.equal(sent,1);assert.match(terminal.latest(),/Authorized answer/);
+  terminal.press('\u0003',{ctrl:true,name:'c'});await run;
+});
+
+// contract-test: supporting surface=cli assertions=auth.session.isolation,terminal-ui.offline.cache-first
+test("TUI ignores stale admission and validates the replacement owner before warmup", async () => {
+  const terminal=new FakeTerminal(), first=deferred<{status:'stale'}>(), second=deferred<{status:'ready'}>();
+  let session={apiUrl:'https://admission.example',hashedEmail:'first',sessionId:'first',activeTeamId:null,createdAt:1,masterKeyExportedB64:'key'};
+  let admittedOwner:string|null=null;
+  const validated:string[]=[], warmed:string[]=[];
+  const {client}=fakeClient({getSession:()=>session,getActiveTeamId:()=>null,
+    canRefreshInteractiveWorkspace:()=>admittedOwner===session.hashedEmail,
+    admitInteractiveSession:async()=>{const owner=session.hashedEmail;validated.push(owner);const answer=await(owner==='first'?first.promise:second.promise);if(answer.status==='ready')admittedOwner=owner;return answer;},
+    warmChatMetadata:()=>warmed.push(session.hashedEmail),
+  });
+  const run=runTui(client as never,terminal);await tick();
+  session={...session,hashedEmail:'second',sessionId:'second',createdAt:2};
+  terminal.press('\u0002',{ctrl:true,name:'b'});await tick();
+  assert.deepEqual(warmed,[]);first.resolve({status:'stale'});await tick();
+  assert.deepEqual(validated,['first','second']);assert.deepEqual(warmed,[]);
+  second.resolve({status:'ready'});await tick();assert.ok(warmed.length>0);assert.ok(warmed.every(owner=>owner==='second'));
+  terminal.press('\u0003',{ctrl:true,name:'c'});await run;
+});
+
 // contract-test: supporting surface=cli assertions=workflows.chat.metadata-warmup
 test("TUI starts metadata warmup when a guest signs in after startup", async () => {
   const terminal = new FakeTerminal();

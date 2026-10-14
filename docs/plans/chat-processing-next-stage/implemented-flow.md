@@ -36,6 +36,19 @@ flowchart TD
 
 Warm-up sends neither draft text nor inference. Protected information is filtered locally before request content is transmitted. The paired cleartext-processing/encrypted-durability admission already existed; this increment removes avoidable preparation and completion dependencies rather than introducing unencrypted durable storage.
 
+TUI startup publishes cached encrypted work independently, then validates the current account/session/Team before optional remote workspace reads and warm-up. Rotated cookies are persisted before fanout. Invalid credentials end the session; temporary outages retain cached work, and risk reauthentication stays distinct. Ordinary Send keeps its immediate optimistic row/composer clear and existing SDK authority checks, including when startup validation is still pending.
+
+```mermaid
+flowchart LR
+  Start[TUI opens] --> Cached[Render encrypted local cached work]
+  Start --> Auth[One serialized current-owner session validation]
+  Auth -- valid --> Rotated[Persist current credentials]
+  Rotated --> Fanout[Parallel warm-up, activity and workspace discovery]
+  Auth -- temporary outage --> Offline[Retain cached work and retry admission]
+  Auth -- invalid --> Ended[End expired session]
+  Auth -- risk reauthentication --> Reauth[Require reauthentication before remote fanout]
+```
+
 ## Preprocessor wrapper input
 
 ```mermaid
@@ -126,4 +139,4 @@ Directus development schema freezing removes repeated schema cloning while prese
 
 ## Verification status
 
-Focused backend, CLI and web correctness checks pass. The scoped CLI privacy/terminal-streaming and web processing/PII integration checks pass; matching auth and first-admission recovery results are retained. Later annotation/formatting fixes preserve executable test logic, and the merged CLI passes focused units and its configured build. Deployment and new real-Gemini latency/error acceptance are pending. The WebSocket delivery-state repair is held separately for its owner and is excluded from this timing candidate. The reported CMS transport retries and signed-out activity requests are not established as one shared cause.
+The main increment was published at `b946173b492c564c37bb7608ef13ddfb68a8930a`, activated on development through descendant `d8bef5a14b7a8b3a7fe4ff601d4683a7ffb70f98`, and both web deployments passed. Focused backend, CLI and web correctness checks pass. The scoped CLI privacy/terminal-streaming and web processing/PII integration checks pass; matching auth and first-admission recovery results are retained. The additional TUI startup repair passes 188 focused unit checks and its configured build. Its expired-session integration case passes; the retained-chat fixture required a canonical encrypted chat shell and normal PageDown interaction before its final integration retry. New real-Gemini latency/error acceptance remains blocked by unavailable disposable-account credentials. The separately owned WebSocket delivery-state repair is excluded from this timing candidate. The reported CMS transport retries and signed-out activity requests are not established as one shared cause. See [validation-2026-10-14.md](validation-2026-10-14.md) for measured boundaries and evidence limits.
