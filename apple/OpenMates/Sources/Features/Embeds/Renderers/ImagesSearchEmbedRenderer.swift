@@ -34,16 +34,24 @@ struct ImagesSearchEmbedPreviewDetails: View {
     @State private var loadedThumbnailURLs = Set<String>()
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            if !model.imageResults.isEmpty {
-                imageStrip
-                footer
-            } else {
-                textOnlyContent
+        SearchPreviewIdentityLayout(horizontalInset: .spacing10) {
+            if !model.imageResults.isEmpty { imageStrip }
+        } inputs: {
+            VStack(alignment: .leading, spacing: .spacing2) {
+                Text(model.query).font(.omP).fontWeight(.semibold).foregroundStyle(Color.grey90)
+                    .lineLimit(3).fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("images-search-query")
+                Text(viaProvider).font(.omSmall).foregroundStyle(Color.grey70).lineLimit(1)
+                    .accessibilityIdentifier("images-search-provider")
             }
-            Spacer(minLength: 61)
+        } summary: {
+            if model.status == .error {
+                Text(AppStrings.searchFailed).font(.omXs).foregroundStyle(Color.error)
+            } else if model.status == .finished {
+                SearchResultSourceSummary(favicons: model.imageResults.compactMap(\.faviconURL),
+                                          totalCount: model.previewResultCount)
+            }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     private var imageStrip: some View {
@@ -74,50 +82,6 @@ struct ImagesSearchEmbedPreviewDetails: View {
         .accessibilityValue(model.imageResults.contains {
             $0.thumbnailURL.map(loadedThumbnailURLs.contains) ?? false
         } ? "loaded" : "loading")
-    }
-
-    private var footer: some View {
-        VStack(alignment: .leading, spacing: .spacing2) {
-            Text(model.query)
-                .font(.omSmall)
-                .fontWeight(.semibold)
-                .foregroundStyle(Color.grey90)
-                .lineLimit(2)
-                .accessibilityIdentifier("images-search-query")
-
-            Text(viaProvider)
-                .font(.omXxs)
-                .foregroundStyle(Color.grey70)
-                .lineLimit(1)
-                .accessibilityIdentifier("images-search-provider")
-
-            if !model.imageResults.compactMap(\.faviconURL).isEmpty {
-                SearchResultSourceSummary(
-                    favicons: model.imageResults.compactMap(\.faviconURL),
-                    totalCount: model.previewResultCount
-                )
-                .padding(.top, .spacing1)
-            }
-        }
-        .padding(.top, .spacing5)
-        .padding(.horizontal, .spacing10)
-        .padding(.bottom, .spacing4)
-    }
-
-    private var textOnlyContent: some View {
-        VStack(alignment: .leading, spacing: .spacing2) {
-            Text(model.query)
-                .font(.omP)
-                .fontWeight(.semibold)
-                .foregroundStyle(Color.grey90)
-                .lineLimit(3)
-            Text(viaProvider)
-                .font(.omSmall)
-                .foregroundStyle(Color.grey70)
-                .lineLimit(1)
-        }
-        .padding(.vertical, .spacing8)
-        .padding(.horizontal, .spacing10)
     }
 
     private var viaProvider: String {

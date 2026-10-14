@@ -127,6 +127,16 @@ For local CLI verification, select the installed Xcode with `DEVELOPER_DIR`,
 inspect project schemes and simulator destinations, and use repository-local
 DerivedData and result bundles. Missing MCP tools do not block this route.
 
+For reproducible runtime bugs, follow the required LLDB investigation in
+`apple/AGENTS.md`: use Xcode or `xcrun lldb` against a source-matched authorized
+Debug process, inspect a targeted breakpoint/backtrace, and retain a sanitized
+observation before choosing the fix. Resume and detach promptly so debugger
+stops do not create misleading connection failures or latency results. Record
+an actual attachment limitation for protected TestFlight/device processes and
+continue with crash reports and diagnostics without re-signing installed apps,
+exposing private values, mutating state, or bypassing resource/security guards.
+Compilation-only checks and static audits do not need LLDB.
+
 For remote Mac verification mode, use only local runtime configuration supplied by the operator, such as `~/.ssh/config`, environment variables, or the current chat. Before building, verify key-based SSH access, check the Mac checkout with `git status --short`, and avoid overwriting local user changes. Use generic placeholders in notes and committed docs.
 
 ### Step 4: Identify affected Swift files or parity surface
@@ -248,6 +258,15 @@ simulator screenshot artifact, a UI test artifact, or an explicit blocker/skip
 reason. For composer, header, settings, auth, upload, audio, and navigation
 controls, tests must prove rendered visibility and clickability, not only that
 an accessibility element exists.
+
+The successful core relevant Apple E2E runs must also produce retained,
+reviewable videos, as required by `apple/AGENTS.md`. Use the focused
+`OpenMates_Core_UI_Evidence` scheme/test plan for its covered flows, or an
+equivalent scoped plan configured to keep video on success. Export and show
+the playable clips in the final response with their source/build/test identity;
+keep personal-account clips private. A missing successful-run recording is a
+remaining visual-proof gap. Do not record unrelated tests or rerun a passing
+test solely to repair an export/upload.
 
 ### Step 8: Remote Mac CLI verification loop
 

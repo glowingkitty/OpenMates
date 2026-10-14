@@ -154,7 +154,7 @@ struct ProjectWorkspaceSettings: Sendable {
     let focusInstruction: String?
 }
 
-struct ProjectWorkspaceReadme: Hashable {
+struct ProjectWorkspaceReadme: Hashable, Sendable {
     /// A reload must reset lazy media even when Markdown/source paths are unchanged.
     let renderID = UUID()
     let markdown: String

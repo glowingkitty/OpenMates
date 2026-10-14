@@ -144,7 +144,7 @@ enum DevPreviewComponentRegistry {
         case .storage:
             return .init(component: component, webComponentPath: "settings/SettingsTeams", nativeRendererNames: ["StoragePersonalSummaryView", "TeamStorageStatusView", "StorageNoticeView"], variants: ["default", "personal", "current", "unpaid", "disabled", "manual-review", "selection-fencing"], hostSupport: .componentHost)
         case .notification:
-            return .init(component: component, webComponentPath: "Notification", nativeRendererNames: ["InAppNotificationCard"], variants: ["default", "connection", "progress", "stack", "offline-offer", "offline-reduced"], hostSupport: .componentHost)
+            return .init(component: component, webComponentPath: "Notification", nativeRendererNames: ["InAppNotificationCard"], variants: ["default", "connection", "progress", "stack", "offline-offer", "offline-reduced", "offline-ready"], hostSupport: .componentHost)
         case .sharedRecipient:
             return .init(component: component, webComponentPath: "chats/SharedChatRecipientPreviewHarness", nativeRendererNames: ["SharedChatRecipientView"], variants: ["default", "loading", "password", "invalidPassword", "error", "ready", "target", "embed", "imageSiblings"], hostSupport: .componentHost)
         case .workflows:

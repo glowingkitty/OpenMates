@@ -1,3 +1,5 @@
+// Specification: specifications/features/apple-notifications/specification.yml
+// Assertions: apple-notifications.delivery.confirmed-action-haptics
 // Web source: frontend/packages/ui/src/components/settings/SettingsTeams.svelte
 // Specification: specifications/features/teams/specification.yml
 // Assertions: teams.lifecycle.encrypted-profiled, teams.membership.role-gated, teams.context.full-switch-local
@@ -240,7 +242,10 @@ final class SettingsTeamsController: ObservableObject {
             teams.removeAll { $0.id == team.id }; teams.insert(team, at: 0)
             createdForDraft = nil; approvedCreationName = nil; creating = false
             await select(team.id)
-            return generation == token
+            try await fence.check()
+            guard generation == token else { return false }
+            NativeHaptics.shared.confirmed(.teamCreated, id: team.id, scope: token.uuidString)
+            return true
         } catch {
             guard generation == token else { return false }
             if case TeamWorkspaceError.staleContext = error { reset(); return false }

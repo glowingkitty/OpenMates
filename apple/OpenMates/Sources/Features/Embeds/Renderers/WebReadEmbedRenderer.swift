@@ -18,7 +18,16 @@ struct WebReadEmbedRenderer: View {
     let mode: EmbedDisplayMode
 
     private var title: String { data?["title"]?.value as? String ?? "Article" }
-    private var url: String { data?["url"]?.value as? String ?? "" }
+    private var url: String { Self.inputURL(in: data) ?? "" }
+
+    static func inputURL(in data: [String: AnyCodable]?) -> String? {
+        let raw = data ?? [:]
+        if let input = EmbedFieldReader.string(raw, keys: ["url"]) { return input }
+        let results = raw["results"]?.value as? [[String: Any]] ?? []
+        return results.lazy.compactMap {
+            EmbedFieldReader.string($0.mapValues(AnyCodable.init), keys: ["url"])
+        }.first
+    }
     private var content: String? {
         Self.sourceContent(in: data)
     }
@@ -40,28 +49,27 @@ struct WebReadEmbedRenderer: View {
     var body: some View {
         switch mode {
         case .preview:
-            VStack(alignment: .leading, spacing: .spacing3) {
-                Text(title)
-                    .font(.omSmall)
-                    .fontWeight(.medium)
-                    .foregroundStyle(Color.fontPrimary)
-                    .lineLimit(2)
-
-                if let wordCount {
-                    Text("\(wordCount) words")
-                        .font(.omXs)
-                        .foregroundStyle(Color.fontTertiary)
+            SearchPreviewIdentityLayout(horizontalInset: .spacing4, summaryHeight: 44) {
+                EmptyView()
+            } inputs: {
+                if !url.isEmpty {
+                    Text(url).font(.omSmall).foregroundStyle(Color.fontPrimary).lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("web-read-input-url")
                 }
-
-                if let content {
-                    Text(content)
-                        .font(.omXs)
-                        .foregroundStyle(Color.fontSecondary)
-                        .lineLimit(4)
+            } summary: {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(title).font(.omXs).foregroundStyle(Color.fontSecondary).lineLimit(1)
+                        .accessibilityIdentifier("web-read-result-title")
+                    if let content {
+                        Text(content).font(.omXs).foregroundStyle(Color.fontSecondary).lineLimit(1)
+                            .accessibilityIdentifier("web-read-result-excerpt")
+                    }
+                    if let wordCount {
+                        Text("\(wordCount) words").font(.omXs).foregroundStyle(Color.fontTertiary).lineLimit(1)
+                    }
                 }
             }
-            .padding(.spacing4)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 
         case .fullscreen:
             VStack(alignment: .leading, spacing: .spacing4) {

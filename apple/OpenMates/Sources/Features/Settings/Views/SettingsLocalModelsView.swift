@@ -364,10 +364,21 @@ struct SettingsLocalModelsView: View {
 struct SettingsOfflineModelsView: View {
     @ObservedObject private var pack = OfflineAIModelPack.shared
     @ObservedObject private var store = LocalModelStore.shared
+    @State private var changingModels: Set<LocalModelID> = []
     var body: some View {
         OfflineAIModelsSettingsContent(snapshot: pack.snapshot,
             readyModels: Set(OfflineAIModelPack.order.filter { store.state(for: $0) == .ready }),
-            onDownload: { pack.download() }, onPause: { pack.pause() }, onCancel: { pack.cancel() })
+            enabledModels: Set(OfflineAIModelPack.order.filter { store.isCapabilityEnabled($0) }),
+            busyModels: changingModels.union(store.removingModels),
+            onDownload: { pack.download() }, onPause: { pack.pause() }, onCancel: { pack.cancel() },
+            onSetEnabled: { id, enabled in
+                guard changingModels.insert(id).inserted else { return }
+                Task { await store.setCapabilityEnabled(id, enabled: enabled); changingModels.remove(id) }
+            }, onRemove: { id in
+                guard changingModels.insert(id).inserted else { return }
+                Task { await store.remove(id); changingModels.remove(id) }
+            })
+            .task { await pack.waitUntilRestored() }
     }
 }
 
@@ -376,9 +387,13 @@ struct SettingsOfflineModelsView: View {
 struct OfflineAIModelsSettingsContent: View {
     let snapshot: OfflineAIModelPackSnapshot
     var readyModels: Set<LocalModelID> = []
+    var enabledModels: Set<LocalModelID> = Set(OfflineAIModelPack.order)
+    var busyModels: Set<LocalModelID> = []
     let onDownload: () -> Void
     let onPause: () -> Void
     let onCancel: () -> Void
+    var onSetEnabled: (LocalModelID, Bool) -> Void = { _, _ in }
+    var onRemove: (LocalModelID) -> Void = { _ in }
 
     private var status: String {
         switch snapshot.phase {
@@ -398,48 +413,70 @@ struct OfflineAIModelsSettingsContent: View {
     private var fraction: Double {
         snapshot.totalBytes > 0 ? min(1, max(0, Double(snapshot.transferredBytes) / Double(snapshot.totalBytes))) : 0
     }
+    private var showsProgress: Bool { snapshot.phase == .downloading || snapshot.phase == .paused }
     var body: some View {
         VStack(alignment: .leading, spacing: .spacing6) {
             OMSettingsSection(AppStrings.offlineAIModelsSettingsTitle) {
-                OMSettingsCard {
-                    VStack(alignment: .leading, spacing: .spacing6) {
-                        Text(AppStrings.offlineAIModelsProgress(
-                            model: snapshot.currentModel.map(AppStrings.offlineAIModelCapability) ?? AppStrings.offlineAIModelsSettingsTitle,
-                            status: status,
-                            downloaded: ByteCountFormatter.string(fromByteCount: snapshot.transferredBytes, countStyle: .file),
-                            total: ByteCountFormatter.string(fromByteCount: snapshot.totalBytes, countStyle: .file)))
-                            .font(.omSmall).foregroundStyle(Color.fontSecondary)
-                            .accessibilityIdentifier("offline-ai-settings-progress-summary")
-                        GeometryReader { geometry in
-                            Color.buttonPrimary.frame(width: geometry.size.width * fraction)
-                        }
-                        .frame(height: .spacing2).background(Color.grey20)
-                        .accessibilityElement(children: .ignore)
-                        .accessibilityLabel(AppStrings.offlineAIModelsSettingsTitle)
-                        .accessibilityValue("\(Int(fraction * 100))%")
-                        .accessibilityIdentifier("offline-ai-download-progress")
-                        if snapshot.phase != .complete {
-                            HStack(spacing: .spacing4) {
-                                Button(snapshot.phase == .downloading ? AppStrings.pause : snapshot.phase == .paused ? AppStrings.offlineAIModelsResume : AppStrings.download,
-                                       action: snapshot.phase == .downloading ? onPause : onDownload)
-                                    .buttonStyle(OMSettingsButtonStyle())
-                                    .accessibilityIdentifier(snapshot.phase == .downloading ? "offline-ai-pause" : snapshot.phase == .paused ? "offline-ai-resume" : "offline-ai-settings-download")
-                                if snapshot.phase == .downloading || snapshot.phase == .paused || snapshot.phase == .failed {
-                                    Button(AppStrings.cancel, action: onCancel)
-                                        .buttonStyle(OMSettingsButtonStyle())
-                                        .accessibilityIdentifier("offline-ai-cancel")
+                if showsProgress || readyModels.count < OfflineAIModelPack.order.count {
+                    OMSettingsCard {
+                        VStack(alignment: .leading, spacing: .spacing6) {
+                            if showsProgress {
+                                Text(AppStrings.offlineAIModelsProgress(
+                                    model: snapshot.currentModel.map(AppStrings.offlineAIModelCapability) ?? AppStrings.offlineAIModelsSettingsTitle,
+                                    status: status,
+                                    downloaded: ByteCountFormatter.string(fromByteCount: snapshot.transferredBytes, countStyle: .file),
+                                    total: ByteCountFormatter.string(fromByteCount: snapshot.totalBytes, countStyle: .file)))
+                                    .font(.omSmall).foregroundStyle(Color.fontSecondary)
+                                    .accessibilityIdentifier("offline-ai-settings-progress-summary")
+                                GeometryReader { geometry in
+                                    Color.buttonPrimary.frame(width: geometry.size.width * fraction)
                                 }
+                                .frame(height: .spacing2).background(Color.grey20)
+                                .accessibilityElement(children: .ignore)
+                                .accessibilityLabel(AppStrings.offlineAIModelsSettingsTitle)
+                                .accessibilityValue("\(Int(fraction * 100))%")
+                                .accessibilityIdentifier("offline-ai-download-progress")
                             }
-                            .accessibilityElement(children: .contain)
+                            if readyModels.count < OfflineAIModelPack.order.count {
+                                HStack(spacing: .spacing4) {
+                                    Button(snapshot.phase == .downloading ? AppStrings.pause : snapshot.phase == .paused ? AppStrings.offlineAIModelsResume : AppStrings.download,
+                                           action: snapshot.phase == .downloading ? onPause : onDownload)
+                                        .buttonStyle(OMSettingsButtonStyle())
+                                        .accessibilityIdentifier(snapshot.phase == .downloading ? "offline-ai-pause" : snapshot.phase == .paused ? "offline-ai-resume" : "offline-ai-settings-download")
+                                    if snapshot.phase == .downloading || snapshot.phase == .paused || snapshot.phase == .failed {
+                                        Button(AppStrings.cancel, action: onCancel)
+                                            .buttonStyle(OMSettingsButtonStyle())
+                                            .accessibilityIdentifier("offline-ai-cancel")
+                                    }
+                                }
+                                .accessibilityElement(children: .contain)
+                                .disabled(!busyModels.isEmpty)
+                            }
                         }
                     }
                 }
             }
             OMSettingsSection {
                 ForEach(OfflineAIModelPack.order) { id in
-                    OMSettingsDetailRow(label: AppStrings.offlineAIModelCapability(id),
-                        value: readyModels.contains(id) ? AppStrings.offlineAIModelsReady : snapshot.currentModel == id ? status : AppStrings.localLabNotDownloaded)
-                        .accessibilityIdentifier("offline-ai-capability-\(id.rawValue)")
+                    HStack(spacing: .spacing2) {
+                        OMSettingsToggleRow(title: AppStrings.offlineAIModelCapability(id),
+                            subtitle: readyModels.contains(id) ? AppStrings.offlineAIModelsReady : snapshot.currentModel == id ? status : AppStrings.localLabNotDownloaded,
+                            isOn: Binding(get: { readyModels.contains(id) && enabledModels.contains(id) },
+                                set: { onSetEnabled(id, $0) }),
+                            disabled: !readyModels.contains(id) || busyModels.contains(id))
+                            .accessibilityElement(children: .contain)
+                            .accessibilityIdentifier("offline-ai-capability-\(id.rawValue)")
+                        if readyModels.contains(id) {
+                            Button { onRemove(id) } label: {
+                                Icon("delete", size: 20).foregroundStyle(Color.error)
+                                    .frame(width: 40, height: 40)
+                            }
+                            .buttonStyle(.plain).disabled(busyModels.contains(id))
+                            .accessibilityLabel(AppStrings.remove + " " + AppStrings.offlineAIModelCapability(id))
+                            .accessibilityIdentifier("offline-ai-remove-\(id.rawValue)")
+                        }
+                    }
+                    .padding(.trailing, .spacing5)
                 }
             }
         }

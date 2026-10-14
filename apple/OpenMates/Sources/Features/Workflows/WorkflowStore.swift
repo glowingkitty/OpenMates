@@ -1,3 +1,5 @@
+// Specification: specifications/features/apple-notifications/specification.yml
+// Assertions: apple-notifications.delivery.confirmed-action-haptics
 // Specification: specifications/features/apple-offline-workspaces/specification.yml
 // Assertions: apple-workspaces.offline-complete, apple-workspaces.local-first, apple-workspaces.isolation, apple-workspaces.maintenance
 // Owner-scoped native Workflow workspace state.
@@ -137,8 +139,12 @@ final class WorkflowStore: ObservableObject {
         guard !isLoading else { return }
         isLoading = true
         errorMessage = nil
+        var hasCachedList = false
         if let cached = try? await api.cachedWorkflows(scope: scope),
-           isCurrent(requestGeneration, account: owner, scope: scope) { workflows = cached }
+           isCurrent(requestGeneration, account: owner, scope: scope) {
+            workflows = cached
+            hasCachedList = true
+        }
         do {
             let loaded = try await api.listWorkflows(scope: scope)
             guard isCurrent(requestGeneration, account: owner, scope: scope) else { return }
@@ -149,8 +155,11 @@ final class WorkflowStore: ObservableObject {
             }
         } catch {
             guard isCurrent(requestGeneration, account: owner, scope: scope) else { return }
-            errorMessage = error.localizedDescription
-            NativeDiagnostics.warning("request_failed", category: "workflow_load_failed")
+            if !NativeWorkspaceReadFailure.isCancellation(error),
+               !(hasCachedList && NativeWorkspaceReadFailure.isTransient(error)) {
+                errorMessage = error.localizedDescription
+                NativeDiagnostics.warning("request_failed", category: "workflow_load_failed")
+            }
         }
         if isCurrent(requestGeneration, account: owner, scope: scope) { isLoading = false }
     }
@@ -209,8 +218,11 @@ final class WorkflowStore: ObservableObject {
             await WorkflowsWidgetBridge.refresh()
         } catch {
             guard isCurrent(requestGeneration, account: owner, scope: scope), selection == selectionGeneration else { return }
-            errorMessage = error.localizedDescription
-            NativeDiagnostics.warning("request_failed", category: "workflow_select_failed")
+            if !NativeWorkspaceReadFailure.isCancellation(error),
+               !(selectedWorkflow != nil && NativeWorkspaceReadFailure.isTransient(error)) {
+                errorMessage = error.localizedDescription
+                NativeDiagnostics.warning("request_failed", category: "workflow_select_failed")
+            }
         }
         if isCurrent(requestGeneration, account: owner, scope: scope), selection == selectionGeneration { isLoading = false }
         await history
@@ -287,6 +299,7 @@ final class WorkflowStore: ObservableObject {
             selectedWorkflowId = workflow.id
             selectedWorkflow = workflow
             runs = []
+            NativeHaptics.shared.confirmed(.workflowCreated, id: workflow.id, scope: "\(owner)|\(requestGeneration)")
         } catch {
             guard isCurrent(requestGeneration, account: owner, scope: scope) else { return }
             errorMessage = error.localizedDescription
@@ -330,7 +343,10 @@ final class WorkflowStore: ObservableObject {
         } else if session.status == "draft", let first = committed.first {
             await select(id: first.id)
         }
-        return isCurrent(requestGeneration, account: owner, scope: scope)
+        guard isCurrent(requestGeneration, account: owner, scope: scope) else { return false }
+        NativeHaptics.shared.confirmed(targetId == nil ? .workflowCreated : .workflowUpdated,
+            id: UUID().uuidString, scope: "\(owner)|\(requestGeneration)")
+        return true
     }
 
     func undoInstruction() async {
@@ -361,6 +377,7 @@ final class WorkflowStore: ObservableObject {
             upsert(updated)
             selectedWorkflow = updated
             isLoading = false
+            NativeHaptics.shared.confirmed(.workflowUpdated, id: UUID().uuidString, scope: "\(owner)|\(requestGeneration)")
             return true
         } catch {
             guard isCurrent(requestGeneration, account: owner, scope: scope) else { return false }
@@ -383,6 +400,7 @@ final class WorkflowStore: ObservableObject {
             upsert(updated)
             selectedWorkflow = updated
             isLoading = false
+            NativeHaptics.shared.confirmed(.workflowUpdated, id: UUID().uuidString, scope: "\(owner)|\(requestGeneration)")
             return true
         } catch {
             guard isCurrent(requestGeneration, account: owner, scope: scope) else { return false }
@@ -432,6 +450,7 @@ final class WorkflowStore: ObservableObject {
             guard isCurrent(requestGeneration, account: owner, scope: scope), selectedWorkflowId == workflowId else { return }
             upsert(restored)
             selectedWorkflow = restored
+            NativeHaptics.shared.confirmed(.workflowUpdated, id: UUID().uuidString, scope: "\(owner)|\(requestGeneration)")
             await loadVersions()
         } catch {
             guard isCurrent(requestGeneration, account: owner, scope: scope) else { return }

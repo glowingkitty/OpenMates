@@ -6,6 +6,58 @@ import CryptoKit
 import Foundation
 import CoreFoundation
 
+enum NativeWorkspaceReadFailure {
+    static func isCancellation(_ error: Error) -> Bool {
+        error is CancellationError || (error as? URLError)?.code == .cancelled
+    }
+
+    static func isTransient(_ error: Error) -> Bool {
+        if let error = error as? URLError {
+            return [.notConnectedToInternet, .networkConnectionLost, .timedOut,
+                    .cannotFindHost, .cannotConnectToHost, .dnsLookupFailed].contains(error.code)
+        }
+        if case APIError.httpError(let status, _) = error { return status == 408 || status == 429 || status >= 500 }
+        return false
+    }
+}
+
+/// A fetched README is the only Project file body retained offline. Source sessions
+/// are intentionally absent: cached bytes never authorize a live remote read.
+struct ProjectReadmeOfflineSnapshot: Codable, Sendable {
+    let binding: String
+    let markdown: String
+    let truncated: Bool
+    let origin: String
+    let sourceID: String?
+    let sourceKeyEpoch: Int?
+    var images: [String: Data]
+
+    var document: ProjectWorkspaceReadme {
+        .init(markdown: markdown, truncated: truncated, origin: origin,
+              sourceID: sourceID, sourceKeyEpoch: sourceKeyEpoch)
+    }
+
+    func isCompatible(with contents: ProjectWorkspaceContents) -> Bool {
+        guard origin == "connected" else { return true }
+        guard let source = contents.sources.first(where: { $0.id == sourceID && $0.capabilities.contains("read") }) else { return false }
+        // The server omits an offline host's epoch; absence is not a rotation.
+        return source.keyEpoch == nil || source.keyEpoch == sourceKeyEpoch
+    }
+
+    static func binding(project: ProjectWorkspaceProject, contents: ProjectWorkspaceContents) throws -> String {
+        let keyHash = project.key.withUnsafeBytes { SHA256.hash(data: Data($0)).map { String(format: "%02x", $0) }.joined() }
+        let items = contents.items.filter { $0.kind == "embed" }.sorted { $0.id < $1.id }.map {
+            ["id": $0.id, "target": $0.targetID, "metadata": $0.metadata, "name": $0.name,
+             "folder": $0.folderHash as Any? ?? NSNull(), "created": $0.createdAt] as [String: Any]
+        }
+        let sources = contents.sources.filter { $0.capabilities.contains("read") }.sorted { $0.id < $1.id }.map {
+            ["id": $0.id, "metadata": $0.metadata] as [String: Any]
+        }
+        let bytes = try JSONSerialization.data(withJSONObject: ["key": keyHash, "items": items, "sources": sources], options: .sortedKeys)
+        return SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined()
+    }
+}
+
 struct NativeWorkspaceOfflineScope: Hashable, Sendable, Codable {
     let accountID: String
     let server: String
@@ -133,12 +185,41 @@ actor NativeWorkspaceOfflineCache {
             authenticating: Data((scope.directoryID + namespace).utf8))
         let loaded = try JSONDecoder().decode(Snapshot.self, from: plaintext)
         guard loaded.identity == scope.directoryID else { throw CancellationError() }
-        snapshots[namespace] = loaded
+        if !namespace.hasPrefix("project-readme:") { snapshots[namespace] = loaded }
         return loaded
     }
 
     func read(namespace: String, path: String, scope: NativeWorkspaceOfflineScope) throws -> Data? {
         try snapshot(namespace, scope: scope).responses[path]
+    }
+
+    func projectReadme(projectID: String, binding: String, scope: NativeWorkspaceOfflineScope) throws -> ProjectReadmeOfflineSnapshot? {
+        guard let data = try read(namespace: "project-readme:" + projectID, path: "document", scope: scope) else { return nil }
+        let value = try JSONDecoder().decode(ProjectReadmeOfflineSnapshot.self, from: data)
+        return value.binding == binding ? value : nil
+    }
+
+    func retainProjectReadme(_ document: ProjectWorkspaceReadme, projectID: String, binding: String,
+                             scope: NativeWorkspaceOfflineScope) throws {
+        guard document.markdown.utf8.count <= 2 * 1_024 * 1_024 else { throw URLError(.dataLengthExceedsMaximum) }
+        let previous = try projectReadme(projectID: projectID, binding: binding, scope: scope)
+        let keepImages = previous?.markdown == document.markdown && previous?.origin == document.origin &&
+            previous?.sourceID == document.sourceID && previous?.sourceKeyEpoch == document.sourceKeyEpoch
+        let value = ProjectReadmeOfflineSnapshot(binding: binding, markdown: document.markdown,
+            truncated: document.truncated, origin: document.origin, sourceID: document.sourceID,
+            sourceKeyEpoch: document.sourceKeyEpoch, images: keepImages ? previous?.images ?? [:] : [:])
+        try retain(namespace: "project-readme:" + projectID, path: "document", data: JSONEncoder().encode(value), scope: scope)
+    }
+
+    func retainProjectReadmeImage(_ data: Data, source: String, document: ProjectWorkspaceReadme,
+                                  projectID: String, binding: String, scope: NativeWorkspaceOfflineScope) throws {
+        guard !data.isEmpty, data.count <= 2 * 1_024 * 1_024 else { throw URLError(.dataLengthExceedsMaximum) }
+        guard var value = try projectReadme(projectID: projectID, binding: binding, scope: scope),
+              value.markdown == document.markdown, value.origin == document.origin,
+              value.sourceID == document.sourceID, value.sourceKeyEpoch == document.sourceKeyEpoch,
+              value.images[source] != nil || value.images.count < 8 else { return }
+        value.images[source] = data
+        try retain(namespace: "project-readme:" + projectID, path: "document", data: JSONEncoder().encode(value), scope: scope)
     }
 
     func hasCompleteSnapshot(namespace: String, scope: NativeWorkspaceOfflineScope) throws -> Bool {
@@ -184,7 +265,7 @@ actor NativeWorkspaceOfflineCache {
         var values = URLResourceValues()
         values.isExcludedFromBackup = true
         try? excluded.setResourceValues(values)
-        snapshots[namespace] = snapshot
+        if !namespace.hasPrefix("project-readme:") { snapshots[namespace] = snapshot }
     }
 }
 
@@ -238,8 +319,13 @@ struct NativeWorkspaceMaintenancePolicy {
         var lastAdmission: TimeInterval?
     }
     let cooldown: TimeInterval
+    let requiredNamespaces: Set<String>
     private var states: [NativeWorkspaceOfflineScope: State] = [:]
-    init(cooldown: TimeInterval = 300) { self.cooldown = cooldown }
+    init(cooldown: TimeInterval = 300,
+         requiredNamespaces: Set<String> = ["workflows", "user-tasks", "user-plans", "projects"]) {
+        self.cooldown = cooldown
+        self.requiredNamespaces = requiredNamespaces
+    }
 
     mutating func markDirty(scope: NativeWorkspaceOfflineScope, force: Bool = false) {
         var state = states[scope] ?? State()
@@ -269,13 +355,27 @@ struct NativeWorkspaceMaintenancePolicy {
             return nil
         }
         if !forced, let last = state.lastSuccess, now - last < cooldown { return nil }
-        if forced || state.completedNamespaces.count == 4 { state.completedNamespaces.removeAll() }
+        if forced || state.completedNamespaces.isSuperset(of: requiredNamespaces) { state.completedNamespaces.removeAll() }
         let ticket = Ticket(scope: scope, id: UUID(), dirtyGeneration: state.dirtyGeneration)
+        // Admission supersedes the settled inventory. A failed or paused forced
+        // replacement must not inherit that inventory's remaining cooldown.
+        state.lastSuccess = nil
         state.active = ticket
         state.lastAdmission = now
         state.forcePending = false
         states[scope] = state
         return ticket
+    }
+
+    func isCurrent(_ ticket: Ticket) -> Bool {
+        guard let state = states[ticket.scope] else { return false }
+        return state.active?.id == ticket.id && state.dirtyGeneration == ticket.dirtyGeneration
+    }
+
+    mutating func requestRefresh(scope: NativeWorkspaceOfflineScope) {
+        // A reconnect/dirty burst queues one replacement generation.
+        guard states[scope]?.forcePending != true else { return }
+        markDirty(scope: scope, force: true)
     }
 
     func needsNamespace(_ namespace: String, ticket: Ticket) -> Bool {
@@ -294,7 +394,7 @@ struct NativeWorkspaceMaintenancePolicy {
     mutating func finish(_ ticket: Ticket, now: TimeInterval, successful: Bool, interrupted: Bool = false) {
         guard var state = states[ticket.scope], state.active?.id == ticket.id else { return }
         state.active = nil
-        if successful, state.dirtyGeneration == ticket.dirtyGeneration, state.completedNamespaces.count == 4 {
+        if successful, state.dirtyGeneration == ticket.dirtyGeneration, state.completedNamespaces.isSuperset(of: requiredNamespaces) {
             state.lastSuccess = now
             state.completedGeneration = ticket.dirtyGeneration
             state.retryAfter = 0
@@ -314,6 +414,108 @@ struct NativeWorkspaceMaintenancePolicy {
     }
 
     mutating func reset() { states.removeAll() }
+}
+
+/// All-context progress belongs to account/server/Team, not the selected Team's
+/// navigation epoch. Live operation fences still guard every read and commit.
+struct NativeWorkspaceAllContextMaintenancePolicy {
+    struct Cohort {
+        let scope: NativeWorkspaceOfflineScope
+        let membershipRevision: String
+    }
+    private var policies: [NativeWorkspaceOfflineScope: NativeWorkspaceMaintenancePolicy] = [:]
+    private var revisions: [NativeWorkspaceOfflineScope: String] = [:]
+    private var rosterRevisions: [NativeWorkspaceOfflineScope: String] = [:]
+    private var namespaceCursors: [NativeWorkspaceOfflineScope: Int] = [:]
+    private var order: [NativeWorkspaceOfflineScope] = []
+    private var cursor = 0
+    var count: Int { order.count }
+
+    static func namespaces(teamID: String?) -> [String] {
+        ["chat-metadata", "workflows", "user-tasks", "user-plans", "projects"] +
+            (teamID == nil ? [] : ["team-management", "team-summary", "team-images"])
+    }
+
+    mutating func update(_ cohorts: [Cohort], force: Bool = false) {
+        let next = order.isEmpty ? nil : order[cursor % order.count]
+        let valid = Set(cohorts.map(\.scope))
+        policies = policies.filter { valid.contains($0.key) }
+        revisions = revisions.filter { valid.contains($0.key) }
+        rosterRevisions = rosterRevisions.filter { valid.contains($0.key) }
+        namespaceCursors = namespaceCursors.filter { valid.contains($0.key) }
+        order = cohorts.map(\.scope)
+        cursor = next.flatMap { order.firstIndex(of: $0) } ?? 0
+        for cohort in cohorts {
+            let previous = rosterRevisions[cohort.scope]
+            if policies[cohort.scope] == nil {
+                policies[cohort.scope] = NativeWorkspaceMaintenancePolicy(
+                    requiredNamespaces: Set(Self.namespaces(teamID: cohort.scope.teamID)))
+            }
+            if previous.map({ $0 != cohort.membershipRevision }) == true,
+               revisions[cohort.scope] != cohort.membershipRevision {
+                policies[cohort.scope]?.markDirty(scope: cohort.scope, force: true)
+                namespaceCursors[cohort.scope] = 0
+            }
+            if force { policies[cohort.scope]?.requestRefresh(scope: cohort.scope) }
+            // An unchanged cached roster must not replace a newer authoritative
+            // membership revision observed while resuming a Team.
+            if previous == nil || previous != cohort.membershipRevision { revisions[cohort.scope] = cohort.membershipRevision }
+            rosterRevisions[cohort.scope] = cohort.membershipRevision
+        }
+    }
+
+    mutating func markDirty(_ scope: NativeWorkspaceOfflineScope) {
+        policies[scope]?.requestRefresh(scope: scope)
+    }
+
+    mutating func revalidate(scope: NativeWorkspaceOfflineScope, membershipRevision: String) {
+        guard let previous = revisions[scope], previous != membershipRevision else { return }
+        revisions[scope] = membershipRevision
+        policies[scope]?.markDirty(scope: scope, force: true)
+        namespaceCursors[scope] = 0
+    }
+
+    func isCurrent(_ ticket: NativeWorkspaceMaintenancePolicy.Ticket) -> Bool {
+        policies[ticket.scope]?.isCurrent(ticket) == true
+    }
+
+    mutating func beginNext(now: TimeInterval, excluding visited: Set<NativeWorkspaceOfflineScope> = []) -> NativeWorkspaceMaintenancePolicy.Ticket? {
+        for _ in 0..<order.count {
+            let scope = order[cursor % order.count]
+            cursor = (cursor + 1) % order.count
+            guard !visited.contains(scope) else { continue }
+            if let ticket = policies[scope]?.begin(scope: scope, now: now) { return ticket }
+        }
+        return nil
+    }
+
+    func namespaces(ticket: NativeWorkspaceMaintenancePolicy.Ticket) -> [String] {
+        guard policies[ticket.scope]?.isCurrent(ticket) == true else { return [] }
+        let names = Self.namespaces(teamID: ticket.scope.teamID)
+        let start = namespaceCursors[ticket.scope, default: 0] % names.count
+        return Array(names[start...] + names[..<start]).filter {
+            policies[ticket.scope]?.needsNamespace($0, ticket: ticket) == true
+        }
+    }
+
+    mutating func beganNamespace(_ name: String, ticket: NativeWorkspaceMaintenancePolicy.Ticket) {
+        guard policies[ticket.scope]?.isCurrent(ticket) == true else { return }
+        let names = Self.namespaces(teamID: ticket.scope.teamID)
+        if let index = names.firstIndex(of: name) { namespaceCursors[ticket.scope] = (index + 1) % names.count }
+    }
+
+    mutating func completedNamespace(_ name: String, ticket: NativeWorkspaceMaintenancePolicy.Ticket) {
+        policies[ticket.scope]?.completedNamespace(name, ticket: ticket)
+    }
+
+    mutating func finish(_ ticket: NativeWorkspaceMaintenancePolicy.Ticket, now: TimeInterval,
+                         successful: Bool, interrupted: Bool = false) {
+        policies[ticket.scope]?.finish(ticket, now: now, successful: successful, interrupted: interrupted)
+    }
+
+    func delay(now: TimeInterval) -> TimeInterval? {
+        order.map { policies[$0]?.delay(scope: $0, now: now) ?? 0 }.min()
+    }
 }
 
 @MainActor
@@ -448,6 +650,7 @@ enum NativeWorkspaceOfflineRuntime {
     static func markDirty(accountID: String, teamID: String?, force: Bool = false) {
         let scope = capturedScope(accountID: accountID, teamID: teamID)
         maintenancePolicy.markDirty(scope: scope, force: force)
+        TeamWorkspaceOfflineRetention.markDirty(accountID: accountID, teamID: teamID)
     }
 
     private static func capturedScope(accountID: String, teamID: String?) -> NativeWorkspaceOfflineScope {
@@ -555,55 +758,181 @@ enum TeamWorkspaceOfflineRetention {
 
     typealias Transport = @MainActor (String, TeamWorkspaceFence) async throws -> Data
     typealias Membership = @MainActor (String, TeamWorkspaceFence) async throws -> TeamWorkspaceTeam
+    typealias OverviewRetention = @MainActor ([String: Data], NativeWorkspaceOfflineScope, NativeWorkspaceOfflineCache) async throws -> Void
 
-    static func refresh(fence: TeamWorkspaceFence, teams: [TeamWorkspaceTeam], removedIDs: Set<String>) {
-        task?.cancel()
+    private static var scheduler = NativeWorkspaceAllContextMaintenancePolicy()
+    private static var activeTicket: NativeWorkspaceMaintenancePolicy.Ticket?
+    private static var wake: Task<Void, Never>?
+    private static var configuration: (fence: TeamWorkspaceFence, teams: [TeamWorkspaceTeam])?
+    private static var identity: NativeWorkspaceOfflineScope?
+    private static var pendingRemovals: Set<String> = []
+
+    private static func schedulerScope(teamID: String?, fence: TeamWorkspaceFence) -> NativeWorkspaceOfflineScope {
+        .init(accountID: fence.accountID, server: fence.server.apiBaseURL.absoluteString,
+              teamID: teamID, accountGeneration: fence.scope, teamEpoch: 0)
+    }
+
+    private static func membershipRevision(_ team: TeamWorkspaceTeam) -> String {
+        let key = team.key.withUnsafeBytes { SHA256.hash(data: Data($0)).map { String(format: "%02x", $0) }.joined() }
+        return "\(team.role.rawValue)|\(team.status)|\(team.updatedAt)|\(key)"
+    }
+
+    static func markDirty(accountID: String, teamID: String?) {
+        scheduler.markDirty(schedulerScope(teamID: teamID, fence: .init(accountID: accountID)))
+        if task == nil { scheduleWake() }
+    }
+
+    static func pause() {
+        wake?.cancel(); wake = nil
+        task?.cancel(); task = nil
+        operation = UUID()
+        if let ticket = activeTicket {
+            scheduler.finish(ticket, now: ProcessInfo.processInfo.systemUptime, successful: false, interrupted: true)
+        }
+        activeTicket = nil
+        // A dirty event while paused cannot start work behind navigation/auth.
+        configuration = nil
+    }
+
+    static func refresh(fence: TeamWorkspaceFence, teams: [TeamWorkspaceTeam], removedIDs: Set<String>, force: Bool = false) {
+        let newIdentity = schedulerScope(teamID: nil, fence: fence)
+        if identity != newIdentity { pendingRemovals.removeAll() }
+        if identity != newIdentity || !removedIDs.isEmpty { pause() }
+        identity = newIdentity
+        pendingRemovals.formUnion(removedIDs)
+        let readable = teams.filter { $0.canRead && !pendingRemovals.contains($0.id) }
+        configuration = (fence, readable)
+        let cohorts = [NativeWorkspaceAllContextMaintenancePolicy.Cohort(
+            scope: newIdentity, membershipRevision: "personal")] + readable.sorted { $0.id < $1.id }.map { team in
+                return NativeWorkspaceAllContextMaintenancePolicy.Cohort(scope: schedulerScope(teamID: team.id, fence: fence),
+                    membershipRevision: membershipRevision(team))
+            }
+        // Roster/force changes invalidate the relevant generation, while repeated
+        // resumes coalesce with admitted work. Every Team read still reauthorizes.
+        scheduler.update(cohorts, force: force)
+        wake?.cancel(); wake = nil
+        guard task == nil else { return }
+        guard !pendingRemovals.isEmpty || scheduler.delay(now: ProcessInfo.processInfo.systemUptime) == 0 else {
+            scheduleWake(); return
+        }
         let token = UUID(); operation = token
         task = Task(priority: .utility) {
+            var shouldScheduleWake = true
+            defer {
+                if operation == token {
+                    if let ticket = activeTicket {
+                        scheduler.finish(ticket, now: ProcessInfo.processInfo.systemUptime,
+                                         successful: false, interrupted: Task.isCancelled)
+                    }
+                    task = nil; activeTicket = nil
+                    if shouldScheduleWake { scheduleWake() }
+                }
+            }
             do {
-                try await fence.check()
-                guard let key = try await CryptoManager.shared.loadMasterKey(for: fence.accountID) else { return }
-                try await retain(fence: fence, teams: teams, removedIDs: removedIDs, masterKey: key,
-                    cache: NativeWorkspaceOfflineCache(), transport: { path, fence in
-                        try await APIClient.shared.request(.get, path: path, serverProfile: fence.server,
-                            expectedAccountID: fence.accountID, expectedScope: fence.scope)
-                    }, membership: { id, fence in try await TeamWorkspaceService().getTeam(id, fence: fence) },
-                    isCurrent: { operation == token }, revoke: { id, fence in
-                        await TeamWorkspaceContext.shared.revokeCachedTeam(id, fence: fence)
-                    }, publishChats: { rows, fence in
-                        try await fence.check()
-                        OfflineStore.shared.persistChats(rows)
-                        NotificationCenter.default.post(name: chatMetadataChanged, object: nil,
-                            userInfo: ["accountID": fence.accountID, "scope": fence.scope, "server": fence.server])
-                    })
-            } catch { /* Offline or scope changed: previous ciphertext remains intact. */ }
-            if operation == token { task = nil }
+                try await fence.check(); try Task.checkCancellation()
+                let cache = NativeWorkspaceOfflineCache()
+                // Authoritative removals run before any admission/cooldown gate.
+                for id in pendingRemovals.sorted() {
+                    try await fence.check(); try Task.checkCancellation()
+                    try await cache.purge(scope: scope(teamID: id, fence: fence))
+                    guard operation == token else { throw CancellationError() }
+                    pendingRemovals.remove(id)
+                }
+                guard let key = try await CryptoManager.shared.loadMasterKey(for: fence.accountID) else {
+                    shouldScheduleWake = false; return
+                }
+                var visited: Set<NativeWorkspaceOfflineScope> = []
+                for _ in 0..<scheduler.count {
+                    try await fence.check(); try Task.checkCancellation()
+                    guard operation == token,
+                          let ticket = scheduler.beginNext(now: ProcessInfo.processInfo.systemUptime, excluding: visited) else { break }
+                    visited.insert(ticket.scope)
+                    activeTicket = ticket
+                    let currentTeams = configuration?.teams ?? readable
+                    let complete = try await retain(fence: fence, teams: currentTeams, removedIDs: [], masterKey: key,
+                        cache: cache, transport: { path, fence in
+                            try await APIClient.shared.request(.get, path: path, serverProfile: fence.server,
+                                expectedAccountID: fence.accountID, expectedScope: fence.scope)
+                        }, membership: { id, fence in
+                            let team = try await TeamWorkspaceService().getTeam(id, fence: fence)
+                            if team.canRead { scheduler.revalidate(scope: ticket.scope, membershipRevision: membershipRevision(team)) }
+                            return team
+                        }, isCurrent: { operation == token && scheduler.isCurrent(ticket) }, revoke: { id, fence in
+                            await TeamWorkspaceContext.shared.revokeCachedTeam(id, fence: fence)
+                        }, publishChats: { rows, fence in
+                            try await fence.check()
+                            OfflineStore.shared.persistChats(rows)
+                            NotificationCenter.default.post(name: chatMetadataChanged, object: nil,
+                                userInfo: ["accountID": fence.accountID, "scope": fence.scope, "server": fence.server])
+                        }, retainOverviews: { responses, scope, cache in
+                            guard scope.teamID != TeamWorkspaceContext.shared.teamID else { return }
+                            try await ProjectsWorkspaceService().maintainReadmes(responses: responses, scope: scope,
+                                cache: cache, masterKey: key, validate: {
+                                    try await fence.check(); try Task.checkCancellation()
+                                    guard operation == token, scheduler.isCurrent(ticket) else { throw CancellationError() }
+                                })
+                        }, contextIDs: [ticket.scope.teamID], namespaces: scheduler.namespaces(ticket: ticket),
+                        beganNamespace: { name in scheduler.beganNamespace(name, ticket: ticket) },
+                        completedNamespace: { name in scheduler.completedNamespace(name, ticket: ticket) })
+                    scheduler.finish(ticket, now: ProcessInfo.processInfo.systemUptime, successful: complete)
+                    if activeTicket?.id == ticket.id { activeTicket = nil }
+                }
+            } catch {
+                // Key availability/auth transitions resume through their owner;
+                // they must not create a two-second keychain polling loop.
+                if activeTicket == nil { shouldScheduleWake = false }
+                // Keep encrypted snapshots and completed progress for a fenced resume.
+            }
+        }
+    }
+
+    private static func scheduleWake() {
+        wake?.cancel(); wake = nil
+        guard task == nil, let configuration,
+              let delay = scheduler.delay(now: ProcessInfo.processInfo.systemUptime) else { return }
+        let token = operation
+        wake = Task(priority: .utility) {
+            do {
+                try await Task.sleep(for: .seconds(max(2, delay)))
+                try await configuration.fence.check(); try Task.checkCancellation()
+                guard operation == token else { return }
+                wake = nil
+                refresh(fence: configuration.fence, teams: configuration.teams, removedIDs: [])
+            } catch { }
         }
     }
 
     /// Injectable reader; tests use private directories and transports only. The
     /// foreground singleton is never reconfigured by the all-context traversal.
+    @discardableResult
     static func retain(fence: TeamWorkspaceFence, teams: [TeamWorkspaceTeam], removedIDs: Set<String>,
                        masterKey: SymmetricKey, cache: NativeWorkspaceOfflineCache,
                        transport: @escaping Transport, membership: @escaping Membership,
                        isCurrent: @escaping @MainActor () -> Bool = { true },
                        revoke: @escaping @MainActor (String, TeamWorkspaceFence) async -> Void = { _, _ in },
-                       publishChats: @escaping @MainActor ([Chat], TeamWorkspaceFence) async throws -> Void = { _, _ in }) async throws {
+                       publishChats: @escaping @MainActor ([Chat], TeamWorkspaceFence) async throws -> Void = { _, _ in },
+                       retainOverviews: OverviewRetention? = nil,
+                       contextIDs: [String?]? = nil, namespaces requestedNamespaces: [String]? = nil,
+                       beganNamespace: @MainActor (String) -> Void = { _ in },
+                       completedNamespace: @MainActor (String) -> Void = { _ in }) async throws -> Bool {
+        var complete = true
         let readable = Set(teams.filter(\.canRead).map(\.id))
         func check() async throws {
             try await fence.check(); try Task.checkCancellation()
             guard isCurrent() else { throw CancellationError() }
         }
         for id in removedIDs { try await check(); try await cache.purge(scope: scope(teamID: id, fence: fence)) }
-        for id in [String?.none] + readable.sorted().map(Optional.some) {
+        for id in contextIDs ?? ([String?.none] + readable.sorted().map(Optional.some)) {
+            guard id == nil || readable.contains(id!) else { throw TeamWorkspaceError.unavailableTeam }
             try await check()
             let captured = scope(teamID: id, fence: fence)
             do {
                 if let id { guard try await membership(id, fence).canRead else { throw TeamWorkspaceError.unavailableTeam } }
                 await cache.configure(scope: captured, masterKey: masterKey)
-                let namespaces = ["chat-metadata", "workflows", "user-tasks", "user-plans", "projects"] + (id == nil ? [] : ["team-management", "team-summary", "team-images"])
+                let namespaces = requestedNamespaces ?? NativeWorkspaceAllContextMaintenancePolicy.namespaces(teamID: id)
                 for namespace in namespaces {
                     try await check()
+                    beganNamespace(namespace)
                     do {
                         let currentTeam: TeamWorkspaceTeam?
                         if let id { currentTeam = try await membership(id, fence) } else { currentTeam = nil }
@@ -615,13 +944,25 @@ enum TeamWorkspaceOfflineRetention {
                             guard authorized.canRead else { throw TeamWorkspaceError.unavailableTeam }
                             if ["team-management", "team-summary"].contains(namespace), authorized.role != currentTeam?.role { throw CancellationError() }
                         }
-                        try await cache.commit(namespace: namespace, responses: responses, scope: captured, revision: revision,
+                        // The authoritative membership read may invalidate this
+                        // scheduler generation even while membership stays readable.
+                        try await check()
+                        let retained = namespace == "projects" ? try responses.mapValues(NativeWorkspaceOfflineRuntime.sanitizedResponse) : responses
+                        try await cache.commit(namespace: namespace, responses: retained, scope: captured, revision: revision,
                             complete: namespace != "chat-metadata")
+                        if namespace == "projects", let retainOverviews {
+                            try await retainOverviews(responses, captured, cache)
+                            try await check()
+                            if let id { guard try await membership(id, fence).canRead else { throw TeamWorkspaceError.unavailableTeam } }
+                        }
                         if namespace == "chat-metadata", let data = responses.values.first {
                             try await check()
                             try await publishChats(decodeChatMetadata(data, teamID: id), fence)
                         }
+                        try await check()
+                        completedNamespace(namespace)
                     } catch {
+                        complete = false
                         try await check()
                         if isRevocation(error), let id {
                             // A role-only endpoint denial does not revoke readable
@@ -640,12 +981,14 @@ enum TeamWorkspaceOfflineRetention {
                     await Task.yield()
                 }
             } catch {
+                complete = false
                 try await check()
                 if isRevocation(error), let id {
                     try await cache.purge(scope: captured); await revoke(id, fence)
                 }
             }
         }
+        return complete
     }
 
     /// The native REST chat list is a bounded authorized metadata page, not a
@@ -783,7 +1126,7 @@ enum TeamWorkspaceOfflineRetention {
             } else if namespace == "projects" {
                 for suffix in ["items", "sources", "settings"] {
                     let route = path + "/" + suffix
-                    responses[UserTasksPaths.scoped(route, teamID: teamID)] = try NativeWorkspaceOfflineRuntime.sanitizedResponse(await get(route, teamID: teamID, fence: fence, transport: transport))
+                    responses[UserTasksPaths.scoped(route, teamID: teamID)] = try await get(route, teamID: teamID, fence: fence, transport: transport)
                 }
             } else if namespace == "user-plans" {
                 for (suffix, name) in [("assumptions", "assumptions"), ("criteria", "criteria"), ("verification", "verifications"), ("reference-patterns", "reference_patterns")] {

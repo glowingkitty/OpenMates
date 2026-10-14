@@ -1,3 +1,5 @@
+// Specification: specifications/features/apple-notifications/specification.yml
+// Assertions: apple-notifications.delivery.confirmed-action-haptics
 // Shared in-app notifications using the rendered web notification card.
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte: frontend/packages/ui/src/components/Notification.svelte
@@ -28,6 +30,7 @@ final class ToastManager: ObservableObject {
         let title: String
         let isProcessing: Bool
         let dedupeKey: String?
+        let hapticScope: UUID
     }
 
     enum ToastType: Equatable {
@@ -62,7 +65,8 @@ final class ToastManager: ObservableObject {
         dismissTasks[id]?.cancel()
         dismissTasks[id] = nil
         let notification = Toast(id: id, message: message, type: type, duration: duration,
-                                 title: title, isProcessing: isProcessing, dedupeKey: dedupeKey)
+                                 title: title, isProcessing: isProcessing, dedupeKey: dedupeKey,
+                                 hapticScope: existing?.hapticScope ?? OfflineStore.shared.scopeGeneration)
         if let index = notifications.firstIndex(where: { $0.id == id }) {
             notifications[index] = notification
         } else {
@@ -322,6 +326,11 @@ struct ToastOverlay: View {
                     }
                     ForEach(Array(manager.visibleNotifications.prefix(1)), id: \.id) { toast in
                         notificationCard(toast, depth: 0, width: geometry.size.width)
+                            .onAppear {
+                                guard toast.hapticScope == OfflineStore.shared.scopeGeneration else { return }
+                                NativeHaptics.shared.confirmed(.notification, id: toast.id.uuidString,
+                                    scope: OfflineStore.shared.scopeGeneration.uuidString)
+                            }
                     }
                 }
                 .accessibilityElement(children: .contain)

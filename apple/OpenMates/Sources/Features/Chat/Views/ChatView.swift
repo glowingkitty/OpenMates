@@ -1,3 +1,5 @@
+// Specification: specifications/features/apple-notifications/specification.yml
+// Assertions: apple-notifications.delivery.confirmed-action-haptics
 // Single chat view — message list with input field and streaming responses.
 // Supports block-level markdown rendering (code blocks, tables, blockquotes),
 // inline embed previews, and fullscreen embed sheets. Advertises the current
@@ -505,6 +507,7 @@ struct ChatView: View {
     @State private var recordDragOffsetX: CGFloat = 0
     @State private var recordAttemptActive = false
     @State private var recordStartedFromKeyboard = false
+    @State private var recordingKeyboardDismissalGeneration = 0
     @State private var recordStartTask: Task<Void, Never>?
     @State private var recordHintTask: Task<Void, Never>?
     @State private var recordingUploadTasks: [String: Task<Void, Never>] = [:]
@@ -1664,6 +1667,7 @@ struct ChatView: View {
                                         onInteractiveQuestionSubmit: { content in
                                             Task { await viewModel.sendMessage(content) }
                                         },
+                                        interactiveQuestionAnswers: viewModel.interactiveQuestionAnswers,
                                         onOpenMateSettings: onOpenMateSettings,
                                         onOpenModelSettings: onOpenModelSettings,
                                         onSpeak: canSpeakAssistantMessage(message) ? {
@@ -3224,6 +3228,12 @@ struct ChatView: View {
 
     private func inputField(compact: Bool, placeholder: String, expandedMinHeight: CGFloat = 100) -> some View {
         let overlayActive = composerOverlay != nil || isUITestRecordingOverlayForced
+        let draftPreview = MessageComposerPresentation.showsDraftPreview(
+            document: composerSession.controller.document,
+            isFocused: isInputFocused,
+            isExpanded: isComposerExpanded,
+            hasActiveOverlay: overlayActive || editingContextMessage != nil || recordAttemptActive
+        )
         let activePIIMatches = detectedPIIMatches.filter { !piiExclusions.contains($0.id) && !piiExcludedValues.contains($0.value) }
         let maximumViewportFieldHeight = max(0, chatViewportHeight - MessageComposerMetric.expandedTopReservedHeight)
         let recordingOverlayActive = composerOverlay == .recording || isUITestRecordingOverlayForced
@@ -3232,6 +3242,12 @@ struct ChatView: View {
             : min(400, maximumViewportFieldHeight)
         return VStack(spacing: .spacing2) {
             #if DEBUG
+            if isUITestCompactDraftRecording {
+                let nodes = composerSession.controller.document.nodes
+                Text("embed-types=\(nodes.filter { $0.kind == "embed" }.compactMap(\.embedType).joined(separator: ","));last-content-kind=\(nodes.last(where: { $0.kind != "hardBreak" })?.kind ?? "empty")")
+                    .font(.system(size: 1)).opacity(0.01).allowsHitTesting(false)
+                    .accessibilityIdentifier("compact-draft-recording-probe")
+            }
             if ProcessInfo.processInfo.arguments.contains("--ui-test-composer-send"), chatId == "dev-chat-opening-large" {
                 Text(viewModel.error == nil ? "ready" : "rejected")
                     .font(.omMicro)
@@ -3282,7 +3298,10 @@ struct ChatView: View {
                 onExcludePII: { id in excludeComposerPII(id) },
                 onSubmit: sendMessage,
                 inlineFieldContent: nil,
-                idleFieldContent: compact && !overlayActive ? idleFieldControls : nil
+                idleFieldContent: compact && !overlayActive ? idleFieldControls : nil,
+                showsDraftPreview: draftPreview,
+                draftPreviewMicrophone: AnyView(recordGestureButton),
+                onRestoreDraft: { isInputFocused = true }
             ) {
                 if isVerifyingPIISend {
                     ProgressView(AppStrings.enhancedPIIModelVerifying).font(.omXs)
@@ -3449,14 +3468,14 @@ struct ChatView: View {
                     self.recordAttemptActive = false
                     self.recordStartedFromKeyboard = false
                     self.recordDragOffsetX = 0
-                    dismissChatKeyboardForRecording(afterCurrentGesture: true)
-                    enqueueRecordingUpload(
+                    let inserted = enqueueRecordingUpload(
                         url: url,
                         duration: duration,
                         waveform: uploadContext.waveform,
                         realtimeResult: uploadContext.realtimeResult,
                         realtimeSession: uploadContext.realtimeSession
                     )
+                    restoreChatEditorAfterRecording(inserted: inserted)
                 },
                 onCancel: {
                     composerRecorder.cancelRecording()
@@ -3626,20 +3645,21 @@ struct ChatView: View {
         }
     }
 
+    @discardableResult
     private func enqueueRecordingUpload(
         url: URL,
         duration: TimeInterval,
         waveform: AudioRecordingWaveform? = nil,
         realtimeResult: AudioRecordingRealtimeResultProvider? = nil,
         realtimeSession: AudioRecordingRealtimeSession? = nil
-    ) {
+    ) -> Bool {
         let uploadChatID = chatId
         let uploadScope = AudioRecordingUploadScope.capture()
         let localTranscription = realtimeSession?.usesLocalTranscription == true
         let nodeID = "composer:embed:\(UUID().uuidString.lowercased())"
         recordingTemporaryFiles[nodeID] = url
         do {
-            try composerSession.insertPendingEmbed(
+            try composerSession.appendPendingEmbed(
                 nodeID: nodeID,
                 embedType: "recording",
                 title: AppStrings.audioRecording,
@@ -3670,18 +3690,32 @@ struct ChatView: View {
                 to: .transcribing
             ) != nil else {
                 removeRecordingTemporaryFile(nodeID: nodeID)
-                return
+                return false
             }
         } catch {
             removeRecordingTemporaryFile(nodeID: nodeID)
             NativeDiagnostics.error("Composer recording insertion failed: \(type(of: error))", category: "apple_composer")
-            return
+            return false
         }
 
         guard let generation = composerEmbedLifecycle.record(nodeId: nodeID)?.generation else {
             removeRecordingTemporaryFile(nodeID: nodeID)
-            return
+            return false
         }
+        #if DEBUG
+        if isUITestCompactDraftRecording {
+            // Synthetic preview exercises the real append/focus path without uploads or inference.
+            do {
+                try composerSession.resolveEmbed(nodeID: nodeID, durableEmbedID: "ui-test-appended-audio",
+                    referenceType: "audio-recording", status: AppleComposerEmbedLifecycleState.finished.rawValue)
+                removeRecordingTemporaryFile(nodeID: nodeID)
+                return true
+            } catch {
+                removeRecordingTemporaryFile(nodeID: nodeID)
+                return false
+            }
+        }
+        #endif
         realtimeSession?.observeRawTranscript { transcript in
             guard uploadScope.isCurrent, chatId == uploadChatID,
                   transitionComposerEmbed(
@@ -3717,6 +3751,7 @@ struct ChatView: View {
             resolveComposerEmbed(nodeID: nodeID, generation: generation, embed: embed)
             removeRecordingTemporaryFile(nodeID: nodeID)
         }
+        return true
     }
 
     private func retryRecordingUpload(nodeID: String, url: URL, duration: TimeInterval,
@@ -4166,7 +4201,23 @@ struct ChatView: View {
         beginRecordAttempt(startLocation: startLocation)
     }
 
+    #if DEBUG
+    private var isUITestCompactDraftRecording: Bool {
+        chatId == "dev-chat-opening-large"
+            && ProcessInfo.processInfo.environment["DEV_PREVIEW"] == "chat-opening"
+            && ProcessInfo.processInfo.arguments.contains("--ui-test-compact-draft-recording")
+            && ProcessInfo.processInfo.arguments.contains("--ui-test-simulated-recording")
+    }
+    #endif
+
     private func prepareRealtimeRecording() {
+        #if DEBUG
+        if isUITestCompactDraftRecording {
+            activeRecordingRealtimeSession = nil
+            composerRecorder.setPCMHandler(nil)
+            return
+        }
+        #endif
         recordingLiveTranscript = ""
         recordingRealtimeConnecting = false
         composerRecorder.setPCMHandler(nil)
@@ -4270,14 +4321,14 @@ struct ChatView: View {
             recordAttemptActive = false
             recordStartedFromKeyboard = false
             recordDragOffsetX = 0
-            dismissChatKeyboardForRecording(afterCurrentGesture: true)
-            enqueueRecordingUpload(
+            let inserted = enqueueRecordingUpload(
                 url: url,
                 duration: duration,
                 waveform: uploadContext.waveform,
                 realtimeResult: uploadContext.realtimeResult,
                 realtimeSession: uploadContext.realtimeSession
             )
+            restoreChatEditorAfterRecording(inserted: inserted)
             return
         }
 
@@ -4345,7 +4396,16 @@ struct ChatView: View {
         dismissChatKeyboardForRecording(afterCurrentGesture: true)
     }
 
+    private func restoreChatEditorAfterRecording(inserted: Bool) {
+        recordingKeyboardDismissalGeneration += 1
+        guard inserted else { return }
+        isComposerExpanded = false
+        isInputFocused = true
+    }
+
     private func dismissChatKeyboardForRecording(afterCurrentGesture: Bool = false) {
+        recordingKeyboardDismissalGeneration += 1
+        let generation = recordingKeyboardDismissalGeneration
         isInputFocused = false
         #if os(iOS)
         UIApplication.shared.sendAction(
@@ -4358,6 +4418,7 @@ struct ChatView: View {
         guard afterCurrentGesture else { return }
         Task { @MainActor in
             await Task.yield()
+            guard generation == recordingKeyboardDismissalGeneration, !isInputFocused else { return }
             isInputFocused = false
             #if os(iOS)
             UIApplication.shared.sendAction(
@@ -4681,7 +4742,8 @@ struct ChatView: View {
                     existingMessages: [],
                     wsManager: wsManager,
                     chatStore: chatStore,
-                    waitForRemoteSend: false
+                    waitForRemoteSend: false,
+                    confirmHaptic: true
                 )
                 onOpenChat?(result.chat.id)
             } catch {
@@ -5329,6 +5391,7 @@ struct MessageBubble: View {
     var completedSubChatIDs: Set<String> = []
     var onOpenSubChat: ((String) -> Void)? = nil
     let onInteractiveQuestionSubmit: ((String) -> Void)?
+    var interactiveQuestionAnswers: [String: AppleInteractiveQuestionAnswer] = [:]
     var onOpenMateSettings: ((String) -> Void)? = nil
     var onOpenModelSettings: ((String) -> Void)? = nil
     var onSpeak: (() -> Void)? = nil
@@ -5400,6 +5463,7 @@ struct MessageBubble: View {
             hiddenEmbedIds: presentation.hiddenInlineEmbedIds,
             onEmbedTap: onEmbedTap,
             onInteractiveQuestionSubmit: viewAllowsInteractiveQuestionSubmit ? onInteractiveQuestionSubmit : nil,
+            interactiveQuestionAnswers: interactiveQuestionAnswers,
             searchHighlightQuery: searchHighlightQuery
         )
     }

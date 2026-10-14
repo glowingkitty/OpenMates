@@ -9,6 +9,8 @@
 // ────────────────────────────────────────────────────────────────────
 // Specification: specifications/features/chats/specification.yml
 // Assertions: chats.surface.semantic-parity
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.surface.semantic-parity, chats.rendering.assistant-document-convergence
 
 import SwiftUI
 
@@ -36,7 +38,7 @@ struct MapsEmbedRenderer: View {
 
     var body: some View {
         if mode == .preview {
-            MapsLocationPreview(model: model)
+            MapsLocationPreview(model: model, isPlace: isPlace)
         } else {
             EmbedMapDetailTemplate(mapConfiguration: model.mapConfiguration,
                 wideMapHeight: max(150, mapHeight), narrowDetailInset: .spacing8,
@@ -49,6 +51,7 @@ struct MapsEmbedRenderer: View {
 
 private struct MapsLocationPreview: View {
     let model: MapsEmbedModel
+    let isPlace: Bool
     @State private var failedImageURL: URL?
     @State private var loadedImageURL: URL?
 
@@ -85,7 +88,7 @@ private struct MapsLocationPreview: View {
                 .accessibilityLabel(model.name ?? AppStrings.domainLocation)
             } else {
                 VStack(alignment: .leading, spacing: .spacing2) {
-                    if model.locationType == nil || model.isNearby {
+                    if !isPlace && (model.locationType == nil || model.isNearby) {
                         Text(AppStrings.locationNearby.uppercased())
                             .font(.omTiny.weight(.medium)).foregroundStyle(Color.grey60)
                     }
@@ -98,6 +101,14 @@ private struct MapsLocationPreview: View {
                                 .accessibilityIdentifier("maps-preview-name")
                         }
                     }
+                    if isPlace, let rating = model.ratingText {
+                        HStack(spacing: .spacing2) {
+                            Icon("rating", size: 14).foregroundStyle(MapsFullscreenWebStyle.ratingStar)
+                            Text(rating).font(.omXs.weight(.semibold))
+                            if let count = model.reviewCount { Text("(\(count.formatted()))").font(.omXs) }
+                        }
+                        .accessibilityIdentifier("maps-place-rating")
+                    }
                     if let placeType = model.placeType {
                         Text(placeType.uppercased()).font(.omXxs.weight(.medium))
                             .foregroundStyle(Color.grey60).lineLimit(1)
@@ -105,7 +116,9 @@ private struct MapsLocationPreview: View {
                     if model.primaryName != nil, let address = model.address {
                         Text(address).font(.omXs).foregroundStyle(Color.grey70).lineLimit(2)
                     }
+                    MapsPlaceMetadata(model: model, actionableSource: false)
                 }
+                .accessibilityIdentifier(isPlace ? "maps-place-card" : "maps-location-preview")
                 .padding(.spacing4)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             }
@@ -177,6 +190,7 @@ private struct MapsLocationDetails: View {
                         .accessibilityIdentifier("maps-location-address")
                 }
             }
+            if isPlace { MapsPlaceMetadata(model: model, actionableSource: true) }
             if isPlace, let url = model.websiteURL, let label = model.websiteLabel {
                 Button { openURL(url) } label: {
                     Text(label).font(.omSmall).underline().foregroundStyle(Color.fontPrimary)
@@ -190,5 +204,34 @@ private struct MapsLocationDetails: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("map-location-fullscreen")
+    }
+}
+
+// Source actions are confined to details; preview cards retain one opening action.
+private struct MapsPlaceMetadata: View {
+    let model: MapsEmbedModel
+    let actionableSource: Bool
+    @Environment(\.openURL) private var openURL
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: .spacing2) {
+            if let distance = model.distanceText {
+                Text(distance).font(.omXs).foregroundStyle(Color.fontSecondary)
+                    .accessibilityIdentifier("maps-place-distance")
+            }
+            if let source = model.dataSource {
+                Text(source).font(.omXs).foregroundStyle(Color.fontSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("maps-place-source")
+            }
+            if actionableSource, let url = model.sourceURL {
+                Button { openURL(url) } label: {
+                    Text(AppStrings.imageSearchViewSource).font(.omSmall).underline()
+                        .frame(minHeight: 44).contentShape(Rectangle())
+                }
+                .buttonStyle(.plain).foregroundStyle(Color.fontPrimary)
+                .accessibilityIdentifier("maps-place-source-link")
+            }
+        }
     }
 }

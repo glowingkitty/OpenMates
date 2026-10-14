@@ -11,6 +11,8 @@
 //          TypographyTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
 
+// Specification: specifications/features/app-skills/maps-search/specification.yml
+// Assertions: maps-search.gui.place-rendering
 import SwiftUI
 #if canImport(MapKit)
 import MapKit
@@ -210,6 +212,7 @@ struct EmbedMapConfiguration {
 
 struct EmbedMapMarker: Identifiable {
     let id = UUID()
+    var resultID: String? = nil
     let coordinate: CLLocationCoordinate2D
     let title: String
 }
@@ -346,16 +349,18 @@ struct EmbedMapDetailTemplate<Content: View>: View {
 }
 
 #if canImport(MapKit)
-private struct EmbedFullscreenMapView: View {
+struct EmbedFullscreenMapView: View {
     let configuration: EmbedMapConfiguration
+    let onMarkerSelection: ((String) -> Void)?
     @State private var position: MapCameraPosition
     @State private var currentRegion: MKCoordinateRegion
     @State private var mapRefreshID = UUID()
     @State private var mapViewportWidth: CGFloat = 0
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
-    init(configuration: EmbedMapConfiguration) {
+    init(configuration: EmbedMapConfiguration, onMarkerSelection: ((String) -> Void)? = nil) {
         self.configuration = configuration
+        self.onMarkerSelection = onMarkerSelection
         let initialRegion = Self.region(for: configuration)
         _position = State(initialValue: .region(initialRegion))
         _currentRegion = State(initialValue: initialRegion)
@@ -364,7 +369,7 @@ private struct EmbedFullscreenMapView: View {
     var body: some View {
         ZStack(alignment: zoomControlAlignment) {
             #if os(iOS)
-            EmbedMKMapView(configuration: configuration, region: $currentRegion, viewportWidth: mapViewportWidth)
+            EmbedMKMapView(configuration: configuration, region: $currentRegion, viewportWidth: mapViewportWidth, onMarkerSelection: onMarkerSelection)
                 .zIndex(0)
             #else
             Map(position: $position, interactionModes: .all) {
@@ -374,12 +379,24 @@ private struct EmbedFullscreenMapView: View {
                 }
                 ForEach(configuration.markers) { marker in
                     Annotation(marker.title, coordinate: marker.coordinate) {
+                        if let resultID = marker.resultID, let onMarkerSelection {
+                            Button { onMarkerSelection(resultID) } label: {
+                                Icon("maps", size: 40)
+                                    .foregroundStyle(AppGradientPalette.colors(for: "maps").start)
+                                    .shadow(color: .black.opacity(0.28), radius: 7, x: 0, y: 3)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("embed-location-marker")
+                            .accessibilityLabel(marker.title)
+                            .offset(y: -20)
+                        } else {
                         Icon("maps", size: 40)
                             .accessibilityIdentifier("embed-location-marker")
                             .accessibilityLabel(marker.title)
                             .foregroundStyle(AppGradientPalette.colors(for: "maps").start)
                             .shadow(color: .black.opacity(0.28), radius: 7, x: 0, y: 3)
                             .offset(y: -20)
+                        }
                     }
                 }
             }
@@ -503,10 +520,23 @@ private struct EmbedFullscreenMapView: View {
 }
 
 #if os(iOS)
+private final class EmbedResultPointAnnotation: MKPointAnnotation {
+    var resultID: String?
+}
+private final class EmbedMarkerAnnotationView: MKAnnotationView {
+    var onActivate: (() -> Void)?
+    override func accessibilityActivate() -> Bool {
+        guard let onActivate else { return super.accessibilityActivate() }
+        onActivate()
+        return true
+    }
+}
+
 private struct EmbedMKMapView: UIViewRepresentable {
     let configuration: EmbedMapConfiguration
     @Binding var region: MKCoordinateRegion
     let viewportWidth: CGFloat
+    var onMarkerSelection: ((String) -> Void)? = nil
 
     func makeCoordinator() -> Coordinator {
         Coordinator(region: $region)
@@ -572,8 +602,15 @@ private struct EmbedMKMapView: UIViewRepresentable {
             guard !(annotation is MKUserLocation) else { return nil }
             let identifier = "embed-map-pin"
             let annotationView = mapView.dequeueReusableAnnotationView(withIdentifier: identifier)
-                ?? MKAnnotationView(annotation: annotation, reuseIdentifier: identifier)
+                ?? EmbedMarkerAnnotationView(annotation: annotation, reuseIdentifier: identifier)
             annotationView.annotation = annotation
+            if let actionable = annotationView as? EmbedMarkerAnnotationView {
+                let resultID = (annotation as? EmbedResultPointAnnotation)?.resultID
+                actionable.onActivate = parent?.onMarkerSelection != nil && resultID != nil ? { [weak self] in
+                    guard let resultID else { return }
+                    self?.parent?.onMarkerSelection?(resultID)
+                } : nil
+            }
             // MKAnnotationView draws its image directly; a template image does
             // not reliably inherit the annotation view's tint. Bake the shared
             // web maps-start token into the SVG raster before assigning it.
@@ -600,6 +637,13 @@ private struct EmbedMKMapView: UIViewRepresentable {
             return annotationView
         }
 
+        func mapView(_ mapView: MKMapView, didSelect view: MKAnnotationView) {
+            guard let annotation = view.annotation as? EmbedResultPointAnnotation,
+                  let resultID = annotation.resultID, let callback = parent?.onMarkerSelection else { return }
+            callback(resultID)
+            mapView.deselectAnnotation(annotation, animated: false)
+        }
+
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
             if let polyline = overlay as? MKPolyline {
                 let renderer = MKPolylineRenderer(polyline: polyline)
@@ -614,7 +658,8 @@ private struct EmbedMKMapView: UIViewRepresentable {
             guard let parent else { return }
             mapView.removeAnnotations(mapView.annotations.filter { !($0 is MKUserLocation) })
             let annotations = parent.configuration.markers.map { marker in
-                let annotation = MKPointAnnotation()
+                let annotation = EmbedResultPointAnnotation()
+                annotation.resultID = marker.resultID
                 annotation.coordinate = marker.coordinate
                 annotation.title = marker.title
                 return annotation

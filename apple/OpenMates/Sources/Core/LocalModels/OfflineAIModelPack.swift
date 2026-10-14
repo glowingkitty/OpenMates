@@ -56,6 +56,7 @@ final class OfflineAIModelPack: ObservableObject {
     private var generation = UUID()
     private var offerRequested = false
     private var restored = false
+    private var explicitDownloadRequested = false
 
     init(store: LocalModelStore, defaults: UserDefaults = .standard, clock: @escaping () -> Date = Date.init,
          packActivity: @escaping @MainActor (Bool) -> Void = { _ in }) {
@@ -72,6 +73,9 @@ final class OfflineAIModelPack: ObservableObject {
         store.$progressByModel.sink { [weak self] _ in
             Task { @MainActor [weak self] in self?.refreshProgress() }
         }.store(in: &observers)
+        store.$removedFromDevice.dropFirst().sink { [weak self] removed in
+            if !removed.isEmpty { self?.pause() }
+        }.store(in: &observers)
         if saved.phase == .downloading { beginBootstrap() }
     }
 
@@ -84,6 +88,16 @@ final class OfflineAIModelPack: ObservableObject {
             // files off the main actor before skipping a model in this pack.
             await store.restoreExisting(validateInstalled: true)
             restored = true
+            if explicitDownloadRequested {
+                explicitDownloadRequested = false
+                store.acknowledgeExplicitDownload(Self.order)
+                snapshot.phase = .downloading
+                persist()
+            }
+            if snapshot.phase == .downloading && !store.removedFromDevice.isEmpty {
+                pause()
+                return
+            }
             if snapshot.phase == .downloading { startDownload() }
             else if Self.order.allSatisfy({ store.state(for: $0) == .ready }) {
                 snapshot.phase = .complete; snapshot.currentModel = nil
@@ -123,6 +137,8 @@ final class OfflineAIModelPack: ObservableObject {
     /// phase follows the previous explicit consent; Later never grants it.
     func download() {
         guard job == nil else { return }
+        explicitDownloadRequested = !restored
+        if restored { store.acknowledgeExplicitDownload(Self.order) }
         if snapshot.phase == .cancelled || snapshot.phase == .failed {
             snapshot.transferredBytes = 0; snapshot.verifiedBytes = 0; snapshot.modelFraction = 0
         }

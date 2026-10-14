@@ -8,6 +8,7 @@ scope:
   includes:
   - Current full workflow definitions, encrypted task/plan inventories and encrypted project metadata.
   - Device-first workspace entry and scope-safe connected maintenance.
+  - Background retention of each accessible Project README Markdown and up to eight referenced images of at most two megabytes each, encrypted on device.
   excludes:
   - Downloading all connected project file bodies and fabricating remote source presence.
   - Changes to task lifecycle rules or server encryption ownership.
@@ -24,7 +25,12 @@ assertions:
     pages on iPhone and macOS and retains every current workflow definition and all project metadata exposed by complete first-party
     snapshots. Workflow graphs and any client-decoded data are encrypted before persistence; encrypted records retain
     their required scoped wrappers and permissions. Cached availability never fabricates connected-source liveness
-    or remote file content.
+    or remote file content. Connected background maintenance fills each accessible Project README Markdown and all its
+    safe referenced images, capped at two megabytes per document or image, without requiring the user to visit Projects.
+    Unavailable hosts preserve prior cached bytes and retry after connection repair; partial or cancelled reads cannot prove
+    an empty overview. Their encrypted cache is bound to the Project key and current stored-file metadata or readable source
+    identity and any known source key epoch, without retaining live source session authority. An offline host's omitted epoch
+    does not prove key rotation. Unrelated embed and connected file bodies are not downloaded for offline retention.
   depends_on:
   - examples.complete
 - id: apple-workspaces.watch-retention
@@ -46,9 +52,9 @@ assertions:
   must: Opening Workflows, Tasks or Projects and a cached detail renders available device data before remote refresh.
     Cached data remains visible during refresh or transient connection failure; task board publication does not
     wait for supplementary plans or project labels. Workflow selection does not clear an available cached graph
-    while requesting newer data.
-  depends_on:
-  - examples.opening
+    while requesting newer data. Project folder and item metadata render independently of cached settings availability.
+    A transient detail refresh failure preserves a compatible cached README and its images; cancellation finishes loading
+    without exposing an internal cancellation error as a workspace failure.
 - id: apple-workspaces.isolation
   type: privacy
   must: Cache identity includes account, server and explicit personal or team context. Runtime scope and operation

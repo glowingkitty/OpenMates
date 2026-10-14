@@ -1885,13 +1885,117 @@ final class ChatSendPipelineParityTests: XCTestCase {
         XCTAssertEqual(history?.first?["content"] as? String, "Private prompt")
         XCTAssertNil(history?.first?["encrypted_content"])
     }
+    // contract-test: supporting surface=gui.apple assertions=chats.message.confirmed-haptic
+    func testMessageHapticRequiresBothDurableProofsInEitherOrder() {
+        for storedFirst in [false, true] {
+            var events: [NativeHaptics.Event] = []
+            let output = NativeHaptics(enabled: { true }, render: { events.append($0) })
+            let gate = NativeMessageHapticGate(haptics: output)
+            gate.begin(turnID: "turn", chatID: "chat", messageID: "user", preflightState: "LEGACY", scope: "scope")
+            let admission: [String: Any] = ["chat_id": "chat", "user_message_id": "user", "ai_task_id": "task"]
+            let storage: [String: Any] = ["chat_id": "chat", "message_id": "user", "versions": ["messages_v": 1]]
+            if storedFirst { gate.confirmedDurability(chatID: "chat", messageID: "user", version: 1, scope: "scope") }
+            else { gate.consume(type: "ai_task_initiated", fields: admission, scope: "scope") }
+            XCTAssertTrue(events.isEmpty)
+            // This production legacy ACK is only queued, even with a version.
+            gate.consume(type: "encrypted_metadata_stored", fields: storage, scope: "scope")
+            XCTAssertTrue(events.isEmpty)
+            if storedFirst { gate.consume(type: "ai_task_initiated", fields: admission, scope: "scope") }
+            else { gate.confirmedDurability(chatID: "chat", messageID: "user", version: 1, scope: "scope") }
+            gate.consume(type: "ai_task_initiated", fields: admission, scope: "scope")
+            XCTAssertEqual(events, [.messageAccepted])
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.message.confirmed-haptic
+    func testMessageHapticRejectsTypingFailuresReplayAndChangedScope() {
+        var events: [NativeHaptics.Event] = []
+        let gate = NativeMessageHapticGate(haptics: NativeHaptics(enabled: { true }, render: { events.append($0) }))
+        let admission: [String: Any] = ["chat_id": "chat", "user_message_id": "user", "ai_task_id": "task"]
+        gate.begin(turnID: "turn", chatID: "chat", messageID: "user", preflightState: "RUNNING", scope: "scope")
+        gate.consume(type: "ai_task_initiated", fields: admission, scope: "scope")
+        XCTAssertTrue(events.isEmpty)
+        gate.begin(turnID: "turn", chatID: "chat", messageID: "user", preflightState: "PREPARED", scope: "scope")
+        gate.consume(type: "ai_typing_started", fields: admission, scope: "scope")
+        var failed = admission; failed["code"] = "rejected"
+        gate.consume(type: "ai_task_initiated", fields: failed, scope: "scope")
+        XCTAssertTrue(events.isEmpty)
+        gate.consume(type: "ai_task_initiated", fields: admission, scope: "new-scope")
+        XCTAssertTrue(events.isEmpty)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.message.confirmed-haptic,apple-notifications.delivery.confirmed-action-haptics
+    func testConfirmedHapticsDeduplicateAndNeverReplaySuppressedFeedback() {
+        var enabled = false
+        var events: [NativeHaptics.Event] = []
+        let output = NativeHaptics(enabled: { enabled }, render: { events.append($0) })
+        output.confirmed(.notification, id: "notice", scope: "owner")
+        enabled = true
+        output.confirmed(.notification, id: "notice", scope: "owner")
+        XCTAssertTrue(events.isEmpty)
+        for event in NativeHaptics.Event.allCases {
+            output.confirmed(event, id: "operation", scope: "owner")
+            output.confirmed(event, id: "operation", scope: "owner")
+        }
+        XCTAssertEqual(events, NativeHaptics.Event.allCases)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.message.confirmed-haptic
+    func testMessageHapticCancelsFailedWritesAndNeverRearmsRetries() {
+        var events: [NativeHaptics.Event] = []
+        let gate = NativeMessageHapticGate(haptics: NativeHaptics(enabled: { true }, render: { events.append($0) }))
+        let fields: [String: Any] = ["chat_id": "chat", "user_message_id": "user", "ai_task_id": "task"]
+        gate.begin(turnID: "failed-turn", chatID: "chat", messageID: "user", preflightState: "PREPARED", scope: "first")
+        gate.cancel(messageID: "user", scope: "first")
+        gate.consume(type: "ai_task_initiated", fields: fields, scope: "first")
+        gate.begin(turnID: "failed-turn", chatID: "chat", messageID: "user", preflightState: "PREPARED", scope: "reconnect", committedVersion: 1)
+        gate.consume(type: "ai_task_initiated", fields: fields, scope: "reconnect")
+        XCTAssertTrue(events.isEmpty)
+        gate.begin(turnID: "fresh-turn", chatID: "chat", messageID: "user", preflightState: "PREPARED", scope: "reconnect", committedVersion: 1)
+        gate.consume(type: "ai_task_initiated", fields: fields, scope: "reconnect")
+        XCTAssertEqual(events, [.messageAccepted])
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.message.confirmed-haptic
+    func testProductionSendWiresOnlyFreshConfirmedProcessingToHapticGate() async throws {
+        for (state, optedIn, expectedCount) in [("PREPARED", true, 1), ("PREPARED", false, 0), ("LEGACY", true, 0)] {
+            var events: [NativeHaptics.Event] = []
+            let gate = NativeMessageHapticGate(haptics: NativeHaptics(enabled: { true }, render: { events.append($0) }))
+            let transport = NotificationReceiptTransport(state: state)
+            let payloads = Self.notificationTurnPayloads()
+            let send = Task { @MainActor in
+                try await ChatSendPipeline().sendSavedChatTurn(turnId: "turn-a",
+                    preflightPayload: payloads.preflight, outboundPayload: payloads.outbound,
+                    transport: transport, waitForInferenceReceipt: true, confirmHaptic: optedIn,
+                    hapticConfirmation: gate, suppliedHapticScope: "synthetic-scope")
+            }
+            for _ in 0..<1_000 where transport.receiptPredicate == nil { await Task.yield() }
+            XCTAssertNotNil(transport.receiptPredicate)
+            XCTAssertTrue(events.isEmpty, "Preflight persistence and socket write alone cannot vibrate")
+            transport.deliver(["chat_id": "chat-a", "user_message_id": "message-a", "ai_task_id": "task-a"])
+            try await send.value
+            XCTAssertEqual(events.count, expectedCount)
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.message.confirmed-haptic
+    func testStorageProofRejectsQueueAcknowledgementsAndInvalidVersions() {
+        XCTAssertEqual(NativeMessageHapticGate.preparedStorageVersion(["state": "PREPARED", "committed_messages_v": 3], expected: 2), 3)
+        let invalidVersions: [Any] = [true, 3.0, -1, "3", 4]
+        for version in invalidVersions {
+            XCTAssertNil(NativeMessageHapticGate.preparedStorageVersion(["state": "PREPARED", "committed_messages_v": version], expected: 2))
+        }
+        XCTAssertNil(NativeMessageHapticGate.preparedStorageVersion(["state": "LEGACY", "committed_messages_v": 3], expected: 2))
+        XCTAssertNil(NativeMessageHapticGate.preparedStorageVersion(["status": "queued_for_storage", "versions": ["messages_v": 3]], expected: 2))
+    }
+
 }
 
 private extension ChatSendPipelineParityTests {
     static func notificationTurnPayloads() -> (preflight: [String: Any], outbound: [String: Any]) {
         let outbound: [String: Any] = ["turn_id": "turn-a", "chat_id": "chat-a",
             "message": ["message_id": "message-a", "content": "Which city?"]]
-        return (["turn_id": "turn-a", "inference_request": outbound], outbound)
+        return (["turn_id": "turn-a", "inference_request": outbound, "expected_messages_v": 0], outbound)
     }
 
     static func userMessage(id: String, mappings: [PIIMapping]) -> Message {
@@ -1928,7 +2032,7 @@ private final class NotificationReceiptTransport: ChatWebSocketTransport {
                      matching predicate: @escaping ([String: Any]) -> Bool) async throws -> WebSocketResponse {
         waitedTypes.append(responseType)
         if responseType == "chat_turn_preflight_ack" {
-            let fields: [String: Any] = ["turn_id": "turn-a", "preflight_id": "preflight-a", "state": state]
+            let fields: [String: Any] = ["turn_id": "turn-a", "preflight_id": "preflight-a", "state": state, "committed_messages_v": 1]
             guard message.type == "chat_turn_preflight", predicate(fields) else { throw ReceiptError.unexpectedOperation }
             return WebSocketResponse(fields: fields)
         }

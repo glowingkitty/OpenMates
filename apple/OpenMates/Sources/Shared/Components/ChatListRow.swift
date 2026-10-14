@@ -3,6 +3,8 @@
 // Chat list row — single row in the chat sidebar.
 // Specification: specifications/features/message-input/specification.yml
 // Assertions: message-input.drafts.preview-persistence
+// Specification: specifications/architecture/drafts/specification.yml
+// Assertions: drafts.draft-only.presentation
 
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/chats/Chat.svelte
@@ -32,7 +34,7 @@ struct ChatListRow: View {
         self.chat = chat; self.suppliedDraftPreview = suppliedDraftPreview
         self.processing = processing; self.activeSubChatCount = activeSubChatCount
         let preview = ChatDraftPreviewFormatter.format(suppliedDraftPreview)
-        formattedDraftPreview = preview.isEmpty ? nil : preview
+        formattedDraftPreview = chat.hasNonEmptyDraft == false || preview.isEmpty ? nil : preview
     }
 
     private struct PublicIconDescriptor {
@@ -93,7 +95,6 @@ struct ChatListRow: View {
     }
 
     private var draftPreview: String? {
-        guard (chat.draftV ?? 0) > 0 else { return nil }
         return formattedDraftPreview
     }
 

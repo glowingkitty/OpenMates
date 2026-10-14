@@ -7,6 +7,74 @@ import UIKit
 
 @MainActor
 final class AppDeepLinkRoutingTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=notifications.workflow-run.chat-target,apple-notifications.action.routing-coherent
+    func testWorkflowCompletionInvalidationDuringClaimStopsWritesAndResumesSameDestination() async throws {
+        try await verifyWorkflowCompletionInvalidation(stage: "workflow_chat_delivery_claim")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=notifications.workflow-run.chat-target,apple-notifications.action.routing-coherent
+    func testWorkflowCompletionInvalidationDuringPersistStopsAckAndResumesPersistedDestination() async throws {
+        try await verifyWorkflowCompletionInvalidation(stage: "workflow_chat_delivery_persist")
+    }
+
+    private func verifyWorkflowCompletionInvalidation(stage: String) async throws {
+        let route = WorkflowCompletionRoute(workflowID: UUID().uuidString, runID: UUID().uuidString,
+            chatID: UUID().uuidString, messageID: UUID().uuidString, deliveryID: UUID().uuidString)
+        let started = expectation(description: stage + " suspended")
+        let gate = WorkflowCompletionExchangeGate(started: started)
+        var authorized = true
+        var exchanges: [String] = []
+        var encrypted = 0
+        func check() throws {
+            guard authorized else { throw WorkflowCompletionDeliveryError.changedContext }
+        }
+        func claim(persisted: Bool) -> [String: Any] {
+            ["chat_id": route.chatID!, "message_id": route.messageID!, "workflow_id": route.workflowID,
+             "run_id": route.runID, "claim_token": "synthetic-token", "claim_generation": 1,
+             "claim_issued_at": Int(Date().timeIntervalSince1970),
+             "claim_expires_at": Int(Date().timeIntervalSince1970) + 300, "client_persisted": persisted]
+        }
+        let pending = Task {
+            try await WorkflowCompletionDelivery.persist(route, exchange: { type, payload, _, validate in
+                try validate()
+                XCTAssertEqual(payload["delivery_id"] as? String, route.deliveryID)
+                exchanges.append(type)
+                if type == stage { await gate.suspend() }
+                return type == "workflow_chat_delivery_claim" ? claim(persisted: false) : [:]
+            }, encryptClaim: { _ in
+                encrypted += 1
+                return (metadata: "synthetic-encrypted-metadata", message: "synthetic-encrypted-message")
+            }, check: check)
+        }
+        await fulfillment(of: [started], timeout: 2)
+        authorized = false
+        await gate.resume()
+        do { try await pending.value; XCTFail("Invalidated delivery must stop before its next exchange") }
+        catch WorkflowCompletionDeliveryError.changedContext { }
+        let persistedBeforeInvalidation = stage == "workflow_chat_delivery_persist"
+        XCTAssertEqual(exchanges, persistedBeforeInvalidation
+            ? ["workflow_chat_delivery_claim", "workflow_chat_delivery_persist"] : ["workflow_chat_delivery_claim"])
+        XCTAssertEqual(encrypted, persistedBeforeInvalidation ? 1 : 0)
+        let encryptionBeforeResume = encrypted
+        authorized = true
+        exchanges.removeAll()
+        try await WorkflowCompletionDelivery.persist(route, exchange: { type, payload, _, validate in
+            try validate()
+            XCTAssertEqual(payload["delivery_id"] as? String, route.deliveryID)
+            XCTAssertNotNil(payload["request_id"] as? String)
+            exchanges.append(type)
+            return type == "workflow_chat_delivery_claim" ? claim(persisted: persistedBeforeInvalidation) : [:]
+        }, encryptClaim: { _ in
+            encrypted += 1
+            return (metadata: "synthetic-encrypted-metadata", message: "synthetic-encrypted-message")
+        }, check: check)
+        XCTAssertEqual(exchanges, persistedBeforeInvalidation
+            ? ["workflow_chat_delivery_claim", "workflow_chat_delivery_ack"]
+            : ["workflow_chat_delivery_claim", "workflow_chat_delivery_persist", "workflow_chat_delivery_ack"])
+        XCTAssertEqual(encrypted, encryptionBeforeResume + (persistedBeforeInvalidation ? 0 : 1),
+                       "An already persisted delivery must reuse the winning ciphertext")
+    }
+
     // contract-test: direct surface=gui.apple assertions=notifications.workflow-run.run-target
     func testWorkflowCompletionCategoryOpensWithoutInlineReply() throws {
         let categories = PushNotificationManager.notificationCategories()
@@ -472,5 +540,24 @@ final class AppDeepLinkRoutingTests: XCTestCase {
                 XCTAssertFalse(handler.pendingWorkflowsWorkspace)
             }
         }
+    }
+}
+
+/// Holds a single synthetic exchange so authority changes precede its response.
+/// Values remain on MainActor; the gate transfers no response or private data.
+private actor WorkflowCompletionExchangeGate {
+    private let started: XCTestExpectation
+    private var continuation: CheckedContinuation<Void, Never>?
+
+    init(started: XCTestExpectation) { self.started = started }
+    func suspend() async {
+        await withCheckedContinuation {
+            continuation = $0
+            started.fulfill()
+        }
+    }
+    func resume() {
+        continuation?.resume()
+        continuation = nil
     }
 }

@@ -59,3 +59,13 @@ delivery_idempotency:
   - id: repeated-reply-action-one-message
     given: {notification_id: notif-apple-6, reply_message_id: message-reply-2, action_deliveries: 2}
     expect: {durable_encrypted_user_messages: 1, stable_message_id: message-reply-2}
+  - id: confirmed-actions-and-fresh-visible-notification
+    assertion_ids: [apple-notifications.delivery.confirmed-action-haptics]
+    given: Alice is using a supported active Apple device in the current account scope with native haptics enabled.
+    when: A Task or Workflow creation or update is confirmed, Team creation completes, login or signup fully unlocks the account, an API key's one-time secret becomes available, or a fresh in-app notification becomes visible.
+    then: Each confirmed operation provides native haptic confirmation; the newly visible notification emits exactly once for its notification identity. Native system settings apply, unsupported hardware does nothing, and OS notification vibration follows the operating system settings.
+  - id: failed-stale-and-replayed-actions-stay-silent
+    assertion_ids: [apple-notifications.delivery.confirmed-action-haptics]
+    given: Alice has a pending Task, Workflow, Team, login, signup or API-key operation, or an in-app notification already presented once.
+    when: An operation fails, its account scope becomes stale, its confirmation is duplicated or replayed, or the existing notification's content is updated or delivered again.
+    then: No haptic cue is emitted for those failures, stale operations, duplicate or replayed confirmations, notification content updates or repeated notification identities.

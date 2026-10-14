@@ -395,6 +395,52 @@ struct AppleResultsViewDescriptor: Codable, Equatable, Sendable {
     }
 }
 
+struct AppleInteractiveQuestionAnswer: Decodable, Equatable {
+    let id: String
+    let type: String?
+    let selection: [String]?
+    let customAnswer: String?
+    let inputs: [String: String]?
+    let value: Double?
+    let swipes: [String: String]?
+    let rating: Int?
+    let comment: String?
+    private enum CodingKeys: String, CodingKey {
+        case id, type, selection, inputs, value, swipes, rating, comment
+        case customAnswer = "custom_answer"
+    }
+}
+
+/// Web questionState.ts: only subsequent user responses lock a question; a
+/// later assistant question reusing the same ID starts a new answer lifecycle.
+/// Called when loaded message state changes, outside SwiftUI body evaluation.
+enum AppleInteractiveQuestionHistory {
+    private static let fences = try! NSRegularExpression(
+        pattern: #"```interactive_(question|response)\s*([\s\S]*?)\s*```"#)
+    static func answers(in messages: [Message]) -> [String: AppleInteractiveQuestionAnswer] {
+        var answers: [String: AppleInteractiveQuestionAnswer] = [:]
+        for message in messages {
+            guard let content = message.content, content.contains("```interactive_") else { continue }
+            let range = NSRange(content.startIndex..., in: content)
+            for match in fences.matches(in: content, range: range) {
+                guard let kindRange = Range(match.range(at: 1), in: content),
+                      let jsonRange = Range(match.range(at: 2), in: content),
+                      let data = String(content[jsonRange]).data(using: .utf8) else { continue }
+                let kind = String(content[kindRange])
+                if message.role == .assistant, kind == "question",
+                   let question = try? JSONDecoder().decode(AppleInteractiveQuestionPayload.self, from: data) {
+                    answers.removeValue(forKey: question.id)
+                } else if message.role == .user, kind == "response",
+                          let answer = try? JSONDecoder().decode(AppleInteractiveQuestionAnswer.self, from: data),
+                          !answer.id.isEmpty {
+                    answers[answer.id] = answer
+                }
+            }
+        }
+        return answers
+    }
+}
+
 struct AppleInteractiveQuestionPayload: Decodable, Equatable {
     struct Option: Decodable, Equatable, Identifiable {
         let id: String
@@ -945,6 +991,7 @@ struct RichMarkdownView: View {
     let hiddenEmbedIds: Set<String>
     let onEmbedTap: ((EmbedRecord) -> Void)?
     let onInteractiveQuestionSubmit: ((String) -> Void)?
+    let interactiveQuestionAnswers: [String: AppleInteractiveQuestionAnswer]
     let searchHighlightQuery: String?
     private let blocks: [MarkdownBlock]
 
@@ -966,6 +1013,7 @@ struct RichMarkdownView: View {
         hiddenEmbedIds: Set<String> = [],
         onEmbedTap: ((EmbedRecord) -> Void)? = nil,
         onInteractiveQuestionSubmit: ((String) -> Void)? = nil,
+        interactiveQuestionAnswers: [String: AppleInteractiveQuestionAnswer] = [:],
         searchHighlightQuery: String? = nil
     ) {
         self.content = content
@@ -985,6 +1033,7 @@ struct RichMarkdownView: View {
         self.hiddenEmbedIds = hiddenEmbedIds
         self.onEmbedTap = onEmbedTap
         self.onInteractiveQuestionSubmit = onInteractiveQuestionSubmit
+        self.interactiveQuestionAnswers = interactiveQuestionAnswers
         self.searchHighlightQuery = searchHighlightQuery
         self.blocks = renderDocument == nil && progressiveRequest == nil ? MarkdownParser.parse(content) : []
     }
@@ -1194,7 +1243,8 @@ struct RichMarkdownView: View {
                 onOpenChat: onOpenSubChat)
 
         case .interactiveQuestion(let payload):
-            AppleInteractiveQuestionCard(payload: payload, onSubmit: onInteractiveQuestionSubmit)
+            AppleInteractiveQuestionCard(payload: payload, answeredResponse: interactiveQuestionAnswers[payload.id],
+                onSubmit: onInteractiveQuestionSubmit).id(payload.id)
 
         case .interactiveQuestionFallback:
             interactiveQuestionFallback
@@ -2477,6 +2527,7 @@ struct AppleResultsViewEntry: Identifiable {
 
 private struct AppleInteractiveQuestionCard: View {
     let payload: AppleInteractiveQuestionPayload
+    let answeredResponse: AppleInteractiveQuestionAnswer?
     let onSubmit: ((String) -> Void)?
     @State private var selectedOptionIds: Set<String>
     @State private var customAnswer: String
@@ -2485,17 +2536,20 @@ private struct AppleInteractiveQuestionCard: View {
     @State private var swipeValues: [String: String]
     @State private var rating: Int
     @State private var comment: String
+    @State private var submitted = false
+    private var isAnswered: Bool { submitted || answeredResponse != nil }
 
-    init(payload: AppleInteractiveQuestionPayload, onSubmit: ((String) -> Void)? = nil) {
+    init(payload: AppleInteractiveQuestionPayload, answeredResponse: AppleInteractiveQuestionAnswer? = nil, onSubmit: ((String) -> Void)? = nil) {
         self.payload = payload
+        self.answeredResponse = answeredResponse
         self.onSubmit = onSubmit
-        _selectedOptionIds = State(initialValue: [])
-        _customAnswer = State(initialValue: "")
-        _inputValues = State(initialValue: [:])
-        _sliderValue = State(initialValue: payload.defaultValue ?? payload.sliderLowerBound)
-        _swipeValues = State(initialValue: [:])
-        _rating = State(initialValue: 0)
-        _comment = State(initialValue: "")
+        _selectedOptionIds = State(initialValue: Set(answeredResponse?.selection ?? []))
+        _customAnswer = State(initialValue: answeredResponse?.customAnswer ?? "")
+        _inputValues = State(initialValue: answeredResponse?.inputs ?? [:])
+        _sliderValue = State(initialValue: answeredResponse?.value ?? payload.defaultValue ?? payload.sliderLowerBound)
+        _swipeValues = State(initialValue: answeredResponse?.swipes ?? [:])
+        _rating = State(initialValue: answeredResponse?.rating ?? 0)
+        _comment = State(initialValue: answeredResponse?.comment ?? "")
     }
 
     private var questionBadgeColors: (foreground: Color, background: Color) {
@@ -2586,9 +2640,9 @@ private struct AppleInteractiveQuestionCard: View {
                 .fontWeight(.bold)
                 .foregroundStyle(Color.fontTertiary)
 
-            if onSubmit != nil {
-                interactiveControls
-                questionFooter
+            if onSubmit != nil || isAnswered {
+                interactiveControls.disabled(isAnswered)
+                if !isAnswered { questionFooter }
             } else if !rows.isEmpty {
                 VStack(alignment: .leading, spacing: .spacing8) {
                     ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
@@ -2608,6 +2662,17 @@ private struct AppleInteractiveQuestionCard: View {
         .clipShape(RoundedRectangle(cornerRadius: .radius5))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("interactive-question-card")
+        .accessibilityValue(isAnswered ? "answered" : "unanswered")
+        .onChange(of: answeredResponse) { _, answer in
+            guard let answer else { return }
+            selectedOptionIds = Set(answer.selection ?? [])
+            customAnswer = answer.customAnswer ?? ""
+            inputValues = answer.inputs ?? [:]
+            sliderValue = answer.value ?? payload.defaultValue ?? payload.sliderLowerBound
+            swipeValues = answer.swipes ?? [:]
+            rating = answer.rating ?? 0
+            comment = answer.comment ?? ""
+        }
     }
 
     @ViewBuilder
@@ -2723,7 +2788,7 @@ private struct AppleInteractiveQuestionCard: View {
                 rating = 0
                 comment = ""
             } label: {
-                Text(AppStrings.sketchClear)
+                Text(AppStrings.interactiveQuestionClear)
                     .font(.omSmall).fontWeight(.semibold)
                     .foregroundStyle(Color.fontPrimary)
                     .padding(.horizontal, .spacing16)
@@ -2743,7 +2808,10 @@ private struct AppleInteractiveQuestionCard: View {
 
     private var submitButton: some View {
         Button {
-            onSubmit?(payload.responseContent(response: responsePayload()))
+            guard canSubmit, !isAnswered, let onSubmit else { return }
+            let content = payload.responseContent(response: responsePayload())
+            submitted = true
+            onSubmit(content)
         } label: {
             Text(AppStrings.sendAction)
                 .font(.omSmall)
@@ -2752,13 +2820,14 @@ private struct AppleInteractiveQuestionCard: View {
                 .padding(.horizontal, .spacing16)
                 .frame(minHeight: 41)
                 .background {
-                    if canSubmit { LinearGradient.primary } else { Color.grey30 }
+                    if canSubmit { Color.buttonPrimary } else { Color.grey30 }
                 }
                 .clipShape(RoundedRectangle(cornerRadius: .radius8))
         }
         .buttonStyle(.plain)
-        .disabled(!canSubmit)
+        .disabled(!canSubmit || isAnswered)
         .accessibilityIdentifier("interactive-question-submit")
+        .accessibilityValue(canSubmit ? "cta" : "disabled")
     }
 
     private func answerButton(text: String, isSelected: Bool, action: @escaping () -> Void) -> some View {

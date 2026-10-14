@@ -1,3 +1,5 @@
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.message.confirmed-haptic
 // WebSocket connection manager for real-time sync with the backend.
 // Routes AI streaming events to StreamingClient, sync events to SyncManager,
 // and chat updates to ChatStore. Uses native URLSessionWebSocketTask.
@@ -41,6 +43,11 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
     private var reconnectTask: Task<Void, Never>?
     private var reconnectAttempts = 0
     private var connectionGeneration = 0
+    let messageHapticGate = NativeMessageHapticGate()
+    var messageHapticScope: String {
+        let team = TeamWorkspaceContext.shared.snapshot
+        return "\(OfflineStore.shared.scopeGeneration)|\(ServerProfile.current().apiBaseURL.absoluteString)|\(team.epoch)|\(connectionGeneration)"
+    }
     private var activeConnectionKey: ConnectionKey?
     private var didOpenCurrentSocket = false
     private var messageWaiters: [UUID: MessageWaiter] = [:]
@@ -277,6 +284,33 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             await embedStreamCoordinator?.transportConnected()
             await CodeRunOutputStore.shared.flushPendingUploads()
             await retryPendingCompressionCheckpoints()
+        }
+    }
+
+    /// Validation temporarily removes protected IO authority. Keep the single
+    /// bounded retry owner for this identity; terminal disconnect would cancel
+    /// the very recovery task awaiting the validation result.
+    func suspendNetworkAuthority(for previous: AuthSessionRecoveryContext,
+                                 currentContext: AuthSessionRecoveryContext?) {
+        guard let currentContext,
+              currentContext.accountID == previous.accountID,
+              currentContext.profile == previous.profile,
+              currentContext.sessionID == previous.sessionID,
+              canonicalStorageProfile == previous.profile,
+              sessionId == previous.sessionID else {
+            disconnect()
+            return
+        }
+        guard shouldReconnect else { return }
+        switch connectionState {
+        case .reconnecting:
+            // handleDisconnect already closed the socket and fenced waiters.
+            // Preserve its task, generation, attempt count and backoff.
+            break
+        case .connected, .connecting:
+            handleDisconnect()
+        case .disconnected:
+            break // Deliberate disconnect/exhaustion must not create a budget.
         }
     }
 
@@ -700,6 +734,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             }
             rejectWaiters(with: msg.fields)
         }
+        messageHapticGate.consume(type: msg.type, fields: msg.fields, scope: messageHapticScope)
         resolveWaiters(type: msg.type, payload: msg.fields)
         if ["chat_model_preference", "chat_model_preference_updated", "chat_model_preference_synced"].contains(msg.type) {
             modelPreferenceInbound?(msg.type, msg.fields, connectionGeneration)
@@ -1855,11 +1890,26 @@ final class ChatEmbedStreamCoordinator {
             contentHash: fields["content_hash"] as? String,
             createdAt: String(Self.timestamp(fields["createdAt"] ?? fields["created_at"]))
         )
-        let record = base.decryptedCopy(content: content, type: type)
+        let record = base.decryptedCopy(content: Self.processingEmbedContent(content, fields: fields), type: type)
         guard isCurrent(expectedGeneration, expectedScope) else { throw LiveEmbedError.staleContext }
         chatStore.performWithoutPersistence {
             chatStore.upsertEmbeds([record], for: rawChatId)
         }
+    }
+
+    /// Match web's volatile processing store: top-level preview metadata is a
+    /// fallback when older/minimal placeholder content omits it. Parsed content
+    /// wins, and this plaintext still never crosses the persistence boundary.
+    static func processingEmbedContent(_ content: String, fields: [String: Any]) -> String {
+        var parsed = EmbedRecord.parseContent(content)
+        for key in ["query", "provider", "providers", "results", "preview_results", "preview_thumbnails",
+                    "location", "start_date", "end_date", "time_range"] where parsed[key] == nil {
+            parsed[key] = fields[key]
+        }
+        guard JSONSerialization.isValidJSONObject(parsed),
+              let encoded = try? JSONSerialization.data(withJSONObject: parsed, options: [.sortedKeys]),
+              let result = String(data: encoded, encoding: .utf8) else { return content }
+        return result
     }
 
     static func embedReferences(in content: String) -> [String] {

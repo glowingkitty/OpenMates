@@ -47,6 +47,45 @@ final class MessageComposerConfigurationTests: XCTestCase {
         XCTAssertFalse(MessageComposerPresentation.showsPlaceholder(markdown: "Draft", isFocused: false))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.drafts.preview-persistence,message-input.actions.visibility
+    @MainActor
+    func testInactiveDraftSummaryIncludesOrderedLocalizedMediaWithoutMutatingDocument() {
+        let document = ComposerDocumentV1(version: 1, nodes: [
+            .text(id: "text", source: "Before\n"),
+            .embed(id: "image", embedType: "image", canonicalSource: "", referenceOnly: true,
+                   display: ComposerEmbedDisplayV1(title: "private-filename", mediaKind: "image")),
+            .text(id: "later", source: " after "),
+            .embed(id: "audio", embedType: "recording", canonicalSource: "", referenceOnly: true,
+                   display: ComposerEmbedDisplayV1(title: "private-transcript", mediaKind: "recording"))
+        ])
+        let original = document
+        XCTAssertEqual(MessageComposerPresentation.draftPreviewSummary(document: document),
+            "Before " + AppStrings.draftEmbedPreviewLabel(type: "image") + " after "
+                + AppStrings.draftEmbedPreviewLabel(type: "audio"))
+        XCTAssertEqual(document, original)
+        XCTAssertTrue(MessageComposerPresentation.showsDraftPreview(document: document,
+            isFocused: false, isExpanded: false, hasActiveOverlay: false))
+        XCTAssertFalse(MessageComposerPresentation.showsDraftPreview(document: document,
+            isFocused: true, isExpanded: false, hasActiveOverlay: false))
+        XCTAssertFalse(MessageComposerPresentation.showsDraftPreview(document: document,
+            isFocused: false, isExpanded: true, hasActiveOverlay: false))
+        XCTAssertFalse(MessageComposerPresentation.showsDraftPreview(document: document,
+            isFocused: false, isExpanded: false, hasActiveOverlay: true))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.drafts.preview-persistence
+    @MainActor
+    func testEmbedOnlyPendingDraftHasPreviewButWhitespaceOnlyDraftDoesNot() {
+        let attachment = ComposerDocumentV1(version: 1, nodes: [
+            ComposerNodeV1(kind: "embed", id: "pending", embedType: "image", status: "draft", canonicalSource: "")
+        ])
+        XCTAssertTrue(MessageComposerPresentation.showsDraftPreview(document: attachment,
+            isFocused: false, isExpanded: false, hasActiveOverlay: false))
+        let empty = ComposerDocumentV1(version: 1, nodes: [.text(id: "empty", source: " \n ")])
+        XCTAssertFalse(MessageComposerPresentation.showsDraftPreview(document: empty,
+            isFocused: false, isExpanded: false, hasActiveOverlay: false))
+    }
+
     // contract-test: supporting surface=gui.apple assertions=message-input.layout.responsive-parity
     func testFullscreenControlTracksInlineOverflowAndStaysReachableInFullscreen() {
         let handler = ComposerFullscreenControlHandler()

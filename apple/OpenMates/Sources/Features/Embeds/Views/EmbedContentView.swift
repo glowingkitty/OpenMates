@@ -71,6 +71,7 @@ struct EmbedContentView: View {
 
     private var shouldUseCompositeRenderer: Bool {
         embed.isAppSkillUse || embedType?.isComposite == true
+            || AppSkillInputPreviewModel.isRegisteredSkill(embed)
     }
 
     private var rawData: [String: AnyCodable]? {
@@ -80,7 +81,9 @@ struct EmbedContentView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: .spacing3) {
-            if HostingEmbedKind.isSearch(embed) {
+            if ProjectReferenceEmbedModel.isReference(embed) {
+                ProjectReferenceEmbedRenderer(embed: embed, mode: mode, onOpenEmbed: onOpenEmbed)
+            } else if HostingEmbedKind.isSearch(embed) {
                 HostingSearchEmbedRenderer(embed: embed, mode: mode, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
             } else if HostingEmbedKind.isDomain(embed) {
                 HostingDomainEmbedRenderer(embed: embed, mode: mode)
@@ -219,7 +222,7 @@ struct EmbedContentView: View {
 
             // Maps
             case .mapsSearch:
-                SearchResultsRenderer(data: rawData, mode: mode, resultLabel: "places")
+                MapsSearchEmbedRenderer(embed: embed, mode: mode, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
             case .mapsPlace:
                 MapsPlaceRenderer(data: rawData, mode: mode)
             case .maps:

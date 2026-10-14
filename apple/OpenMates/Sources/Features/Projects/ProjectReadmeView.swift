@@ -9,6 +9,8 @@
 // ────────────────────────────────────────────────────────────────────
 // Specification: specifications/features/projects/specification.yml
 // Assertions: projects.access.explicit-context, projects.surface.semantic-parity
+// Specification: specifications/features/apple-offline-workspaces/specification.yml
+// Assertions: apple-workspaces.offline-complete, apple-workspaces.local-first
 import SwiftUI
 import ImageIO
 #if os(iOS)
@@ -289,8 +291,7 @@ struct ProjectReadmeView: View {
                     let content = ProjectReadmeDocument.inlineParts(text)
                     parsedInline[text] = content
                     for inline in content {
-                        if case .image(let image) = inline, ProjectReadmeDocument.publicImageURL(image.source) == nil,
-                           !sources.contains(image.source) { sources.append(image.source) }
+                        if case .image(let image) = inline, !sources.contains(image.source) { sources.append(image.source) }
                     }
                 }
             }
@@ -349,7 +350,7 @@ struct ProjectReadmeView: View {
                 switch part {
                 case .text(let attributed): Text(attributed)
                 case .image(let image):
-                    ProjectReadmeImageView(image: image, permitsLoad: ProjectReadmeDocument.publicImageURL(image.source) != nil || allowedImageSources.contains(image.source), load: loadImage)
+                    ProjectReadmeImageView(image: image, permitsLoad: allowedImageSources.contains(image.source), load: loadImage)
                 }
             }
         }
@@ -385,8 +386,7 @@ private struct ProjectReadmeImageView: View {
         .accessibilityLabel(image.alt)
         .task(id: "\(permitsLoad):\(image.source)") {
             decoded = nil
-            guard permitsLoad, ProjectReadmeDocument.publicImageURL(image.source) == nil,
-                  ProjectReadmeDocument.relativePath(image.source) != nil else { return }
+            guard permitsLoad else { return }
             let result = try? await load(image.source)
             guard !Task.isCancelled else { return }
             decoded = result.flatMap(decode)
@@ -394,10 +394,7 @@ private struct ProjectReadmeImageView: View {
     }
     private var imageContent: some View {
         Group {
-            if permitsLoad, let publicURL = ProjectReadmeDocument.publicImageURL(image.source) {
-                CachedRemoteImage(url: publicURL) { image in image.resizable().scaledToFit().accessibilityIdentifier("project-readme-image-rendered") }
-                    placeholder: { placeholder }
-            } else if let decoded {
+            if let decoded {
                 decoded.resizable().scaledToFit().accessibilityIdentifier("project-readme-image-rendered")
             } else { placeholder }
         }

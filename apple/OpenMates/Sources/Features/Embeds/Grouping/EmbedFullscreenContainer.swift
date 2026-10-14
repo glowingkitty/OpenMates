@@ -205,7 +205,8 @@ struct EmbedFullscreenContainer: View {
     }
 
     private var usesEdgeToEdgeContent: Bool {
-        if currentEmbedType == .mailEmail || currentEmbed.map(HostingEmbedKind.isSearch) == true || currentEmbedType == .hostingDomain { return true }
+        if currentEmbed.map(ProjectReferenceEmbedModel.isReference) == true { return true }
+        if currentEmbedType == .mailEmail || currentEmbed.map(HostingEmbedKind.isSearch) == true || currentEmbedType == .hostingDomain || currentEmbed.map(MapsSearchEmbedKind.isSearch) == true { return true }
         switch currentEmbedType {
         // These renderers own their responsive content gutters. Adding generic
         // fullscreen padding shifts the web grid and shrinks website snippets.
@@ -497,6 +498,15 @@ struct EmbedFullscreenContainer: View {
 
     /// Travel parents need the same hydrated child graph as their results renderer.
     private func travelHeaderPresentation(for embed: EmbedRecord) -> EmbedFullscreenHeaderPresentation? {
+        if ProjectReferenceEmbedModel.isReference(embed) {
+            let model = ProjectReferenceEmbedModel(embed: embed)
+            return .init(title: model.title, subtitle: AppStrings.localized("embeds.projects.references.subtitle"),
+                         icon: model.skillID == "read" ? "project" : "search")
+        }
+        if MapsSearchEmbedKind.isSearch(embed) {
+            let model = MapsSearchEmbedModel(embed: embed, allEmbedRecords: allEmbedRecords)
+            return .init(title: model.query, subtitle: "\(AppStrings.via) \(model.provider)", icon: "search")
+        }
         guard TravelSearchPresentation.isSearch(embed) else { return nil }
         let model = TravelSearchPresentation(embed: embed, allEmbedRecords: allEmbedRecords)
         return .init(title: model.fullscreenTitle, subtitle: model.fullscreenSubtitle, icon: "search")

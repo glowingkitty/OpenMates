@@ -11,6 +11,8 @@ struct DevWorkspaceSwitcherFixture: View {
     @State private var narrow = true
     @State private var action = "ready"
     @State private var syncActive = false
+    @State private var forcedWidth: CGFloat?
+    @StateObject private var connectionManager = WebSocketManager()
 
     init(viewport: CGSize, reducedMotion: Bool, shortViewport: Bool = false, startsWide: Bool = false) {
         self.viewport = viewport
@@ -18,7 +20,7 @@ struct DevWorkspaceSwitcherFixture: View {
         self.shortViewport = shortViewport
         _narrow = State(initialValue: !startsWide)
     }
-    private var width: CGFloat { narrow ? min(320, viewport.width) : viewport.width }
+    private var width: CGFloat { min(forcedWidth ?? (narrow ? 320 : viewport.width), viewport.width) }
 
     private var height: CGFloat { shortViewport ? min(320, viewport.height) : viewport.height }
 
@@ -32,7 +34,9 @@ struct DevWorkspaceSwitcherFixture: View {
                 },
                 onNewChat: { action = "new-chat" }, showWorkspaceSwitcher: true,
                 onShareChat: {}, canShareChat: false, onOpenSettings: { action = "settings" },
-                onOpenReferral: { action = "referral" }, onOpenAuth: {}, isSyncing: syncActive)
+                onOpenReferral: { action = "referral" }, onOpenAuth: {}, isSyncing: syncActive,
+                connectionManager: ProcessInfo.processInfo.arguments.contains("--ui-test-connection-status") ? connectionManager : nil,
+                connectionAuthenticated: true, onReconnect: { action = "reconnect" })
                 .zIndex(2)
             HStack {
                 Button { syncActive.toggle() } label: {
@@ -47,7 +51,14 @@ struct DevWorkspaceSwitcherFixture: View {
             .padding(.horizontal, .spacing8)
             Spacer()
             HStack {
-                Button("Resize workspace") { narrow.toggle() }.accessibilityIdentifier("workspace-picker-fixture-resize")
+                ForEach([320, 350, 390], id: \.self) { value in
+                    Button("\(value)") { forcedWidth = CGFloat(value) }
+                        .accessibilityIdentifier("workspace-picker-fixture-width-\(value)")
+                }
+            }
+            .buttonStyle(.plain)
+            HStack {
+                Button("Resize workspace") { forcedWidth = nil; narrow.toggle() }.accessibilityIdentifier("workspace-picker-fixture-resize")
                 Button("Open Tasks externally") { selected = .tasks; action = "external-tasks" }
                     .accessibilityIdentifier("workspace-picker-fixture-external")
             }

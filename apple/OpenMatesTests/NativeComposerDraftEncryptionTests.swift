@@ -69,6 +69,47 @@ final class NativeComposerDraftEncryptionTests: XCTestCase {
         XCTAssertNil(tombstones[chatId])
     }
 
+    // contract-test: supporting surface=gui.apple assertions=drafts.draft-only.presentation,drafts.sync.version-authoritative
+    func testReconnectHydratesSavedPreviewAfterMasterKeyBecomesAvailable() async throws {
+        let key = try masterKey(loadFixture())
+        let gate = DraftPreviewUnlockKey()
+        let repository = RecordingComposerDraftRepository()
+        let markdown = try await CryptoManager.shared.encryptWithMasterKey("Saved synthetic draft", masterKey: key)
+        let preview = try await CryptoManager.shared.encryptWithMasterKey("Saved synthetic preview", masterKey: key)
+        try await repository.upsert(.init(chatId: chatId, encryptedMarkdown: markdown,
+            encryptedPreview: preview, revision: 2, draftVersion: 5))
+        let service = DraftService(repository: repository, legacyStore: RecordingLegacyComposerDraftStore(),
+            masterKeyProvider: { await gate.current() })
+        do { _ = try await service.loadDraft(chatId: chatId); XCTFail("Locked draft must stay encrypted") }
+        catch ComposerDraftError.masterKeyUnavailable { }
+        XCTAssertNil(service.draftPreview(chatId: chatId))
+        await gate.unlock(key)
+        await service.reconcileAfterReconnect()
+        XCTAssertEqual(service.draftPreview(chatId: chatId), "Saved synthetic preview")
+        let stored = try await repository.record(chatId: chatId)
+        XCTAssertEqual(stored?.encryptedMarkdown, markdown)
+        XCTAssertEqual(stored?.draftVersion, 5)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=drafts.draft-only.presentation,message-input.drafts.preview-persistence
+    func testBlankAttachmentPreviewIsFormattedBeforeLegacyPreviewTruncation() async throws {
+        let key = try masterKey(loadFixture())
+        let repository = RecordingComposerDraftRepository()
+        let source = "```json\n{\"embed_id\":\"" + String(repeating: "a", count: 180) + "\",\"type\":\"image\"}\n```"
+        let markdown = try await CryptoManager.shared.encryptWithMasterKey(source, masterKey: key)
+        let preview = try await CryptoManager.shared.encryptWithMasterKey(" ", masterKey: key)
+        try await repository.upsert(.init(chatId: chatId, encryptedMarkdown: markdown,
+            encryptedPreview: preview, revision: 1, draftVersion: 2))
+        let service = DraftService(repository: repository, legacyStore: RecordingLegacyComposerDraftStore(),
+            masterKeyProvider: { key })
+        let loaded = try await service.loadDraft(chatId: chatId)
+        XCTAssertEqual(loaded?.canonicalMarkdown, source)
+        XCTAssertEqual(loaded?.preview, AppStrings.draftEmbedPreviewLabel(type: "image"))
+        let stored = try await repository.record(chatId: chatId)
+        XCTAssertEqual(stored?.encryptedMarkdown, markdown)
+        XCTAssertEqual(stored?.encryptedPreview, preview)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=drafts.persistence.local-first-encrypted,drafts.sync.version-authoritative
     func testFailedDecryptNeverDeletesStoredDraft() async throws {
         let key = try masterKey(loadFixture())
@@ -283,6 +324,10 @@ final class NativeComposerDraftEncryptionTests: XCTestCase {
 
         let loadedDraft = try await service.loadDraft(chatId: chatId)
         let loaded = try XCTUnwrap(loadedDraft)
+        XCTAssertEqual(loaded.attachments.map(\.embedRecord.id), ["recording-referenced"],
+                       "Decryption must retain only the attachment referenced by canonical markdown")
+        XCTAssertEqual(loaded.attachments.map(\.embedRecord.type), ["audio-recording"],
+                       "Encrypted snapshot round trips preserve the public recording type")
         XCTAssertEqual(loaded.recordings.map(\.id), ["recording-referenced"])
         XCTAssertEqual(loaded.recordings.first?.rawData?["aes_key"]?.value as? String,
                        "synthetic-private-aes-key")
@@ -1032,4 +1077,10 @@ private actor SuspendedDraftMasterKey {
         keyContinuation?.resume(returning: key)
         keyContinuation = nil
     }
+}
+
+private actor DraftPreviewUnlockKey {
+    private var key: SymmetricKey?
+    func current() -> SymmetricKey? { key }
+    func unlock(_ key: SymmetricKey) { self.key = key }
 }

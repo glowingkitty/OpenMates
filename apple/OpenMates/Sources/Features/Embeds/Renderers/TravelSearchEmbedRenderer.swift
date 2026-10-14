@@ -60,23 +60,26 @@ struct TravelSearchPresentation {
         connections = childEmbeds.isEmpty
             ? resultRows.enumerated().map { TravelConnectionSummary(embedId: "\(embed.id)-result-\($0.offset)", data: $0.element) }
             : childEmbeds.map { TravelConnectionSummary(embedId: $0.id, data: $0.rawData ?? [:]) }
+        // Keep request identity stable when result children hydrate later.
+        let request = EmbedFieldReader.dictionaryArray(raw, key: "requests").first?.mapValues(AnyCodable.init) ?? [:]
+        let requestFields = request.merging(raw) { _, root in root }
         let groupLegs = groups.first.map { Self.rows($0, key: "legs") } ?? []
-        let legs = groupLegs.isEmpty ? Self.rows(raw, key: "legs") : groupLegs
-        if let resultRoute = connections.first?.routeFull {
-            route = resultRoute
+        let requestLegs = Self.rows(requestFields, key: "legs")
+        let legs = requestLegs.isEmpty ? groupLegs : requestLegs
+        if let origin = TravelValue.string(requestFields, ["origin"]),
+           let destination = TravelValue.string(requestFields, ["destination"]) {
+            route = "\(origin) → \(destination)"
         } else if let origin = TravelValue.string(legs.first, ["origin"]),
                   let destination = TravelValue.string(legs.last, ["destination"]) {
             route = "\(origin) → \(destination)"
-        } else if let query = TravelValue.string(groups.first, ["query"]) {
+        } else if let query = TravelValue.string(requestFields, ["query"])
+            ?? TravelValue.string(groups.first, ["query"]) {
             route = query
-        } else if let origin = TravelValue.string(raw, ["origin"]),
-                  let destination = TravelValue.string(raw, ["destination"]) {
-            route = "\(origin) → \(destination)"
         } else {
-            route = TravelValue.string(raw, ["query"]) ?? ""
+            route = TravelValue.string(requestFields, ["query"]) ?? connections.first?.routeFull ?? ""
         }
-        let date = connections.first?.departure ?? TravelValue.string(legs.first, ["date"])
-            ?? TravelValue.string(raw, ["date"])
+        let date = TravelValue.string(legs.first, ["date"])
+            ?? TravelValue.string(requestFields, ["date"]) ?? connections.first?.departure
         previewDate = date.map { TravelValue.formatDate($0, locale: locale, timeZone: timeZone) }
         fullscreenDate = date.map { TravelValue.formatDate($0, locale: locale, timeZone: timeZone, includesYear: true) }
         let topProviders = Self.rows(raw, key: "providers")
@@ -157,31 +160,36 @@ private struct TravelSearchPreview: View {
     let model: TravelSearchPresentation
 
     var body: some View {
-        VStack(alignment: .leading, spacing: .spacing2) {
-            Text(model.route)
-                .font(.omP).fontWeight(.bold).foregroundStyle(Color.fontPrimary).lineLimit(3)
-                .accessibilityIdentifier("travel-search-route")
-            if let departure = model.previewDate {
-                Text(departure).font(.omSmall).fontWeight(.medium).foregroundStyle(Color.grey80)
-                    .accessibilityIdentifier("travel-search-date")
-            }
-            if !model.providers.isEmpty {
-                HStack(spacing: .spacing2) {
-                    Text(AppStrings.localized("embeds.via")).foregroundStyle(Color.grey60)
-                    ForEach(model.providers) { provider in
-                        if let iconURL = provider.iconURL, let url = URL(string: iconURL) {
-                            AsyncImage(url: url) { image in image.resizable().scaledToFit() } placeholder: { Color.clear }
-                                .frame(width: 16, height: 16).clipShape(Circle()).accessibilityHidden(true)
-                        }
-                        Text(provider.name).fontWeight(.semibold).foregroundStyle(Color.grey80)
-                    }
+        SearchPreviewIdentityLayout(horizontalInset: .spacing6) {
+            Color.clear
+        } inputs: {
+            VStack(alignment: .leading, spacing: .spacing2) {
+                Text(model.route)
+                    .font(.omP).fontWeight(.bold).foregroundStyle(Color.fontPrimary).lineLimit(3)
+                    .accessibilityIdentifier("travel-search-route")
+                if let departure = model.previewDate {
+                    Text(departure).font(.omSmall).fontWeight(.medium).foregroundStyle(Color.grey80)
+                        .accessibilityIdentifier("travel-search-date")
                 }
-                .font(.omSmall)
-                .accessibilityIdentifier("travel-search-provider")
-            } else if let provider = model.previewProviderText {
-                Text(provider).font(.omSmall).fontWeight(.medium).foregroundStyle(Color.grey70)
+                if !model.providers.isEmpty {
+                    HStack(spacing: .spacing2) {
+                        Text(AppStrings.localized("embeds.via")).foregroundStyle(Color.grey60)
+                        ForEach(model.providers) { provider in
+                            if let iconURL = provider.iconURL, let url = URL(string: iconURL) {
+                                AsyncImage(url: url) { image in image.resizable().scaledToFit() } placeholder: { Color.clear }
+                                    .frame(width: 16, height: 16).clipShape(Circle()).accessibilityHidden(true)
+                            }
+                            Text(provider.name).fontWeight(.semibold).foregroundStyle(Color.grey80)
+                        }
+                    }
+                    .font(.omSmall)
                     .accessibilityIdentifier("travel-search-provider")
+                } else if let provider = model.previewProviderText {
+                    Text(provider).font(.omSmall).fontWeight(.medium).foregroundStyle(Color.grey70)
+                        .accessibilityIdentifier("travel-search-provider")
+                }
             }
+        } summary: {
             if model.status == .finished {
                 HStack(spacing: .spacing2) {
                     Text(model.countText).fontWeight(.medium).foregroundStyle(Color.grey70)
@@ -193,8 +201,6 @@ private struct TravelSearchPreview: View {
                 .font(.omSmall)
             }
         }
-        .padding(.spacing6)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
 }
 

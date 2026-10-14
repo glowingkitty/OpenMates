@@ -7,7 +7,7 @@
 import Combine
 import CryptoKit
 import Foundation
-#if DEBUG && os(iOS)
+#if os(iOS)
 import UIKit
 #endif
 
@@ -15,6 +15,59 @@ enum LocalModelID: String, Codable, CaseIterable, Identifiable, Sendable {
     case whisper, privacyFilter, supertonic3
     var isSpeechSynthesis: Bool { self == .supertonic3 }
     var id: String { rawValue }
+}
+
+/// Only completed, user-managed assets belong in exposed Documents. Journals,
+/// resumable transfers and replacement backups remain in Application Support.
+enum LocalModelDocumentStorage {
+    struct FileStamp: Equatable, Sendable {
+        let path: String
+        let bytes: Int64
+        let modifiedAt: Date
+        let fileNumber: UInt64
+    }
+
+    static func name(for id: LocalModelID) -> String {
+        switch id {
+        case .whisper: "Speech to text.offline-model"
+        case .supertonic3: "Text to speech.offline-model"
+        case .privacyFilter: "Enhanced anonymization.offline-model"
+        }
+    }
+
+    @discardableResult
+    static func migrate(_ manifest: LocalModelManifest, privateRoot: URL, documentsRoot: URL) throws -> Bool {
+        let manager = FileManager.default
+        let old = privateRoot.appendingPathComponent(manifest.id.rawValue, isDirectory: true)
+        let destination = documentsRoot.appendingPathComponent(name(for: manifest.id), isDirectory: true)
+        guard manager.fileExists(atPath: old.path), !manager.fileExists(atPath: destination.path) else { return false }
+        // Moving a matching installation does not grant runtime trust: normal
+        // checksum verification is still required before the store becomes ready.
+        let receipt = try JSONDecoder().decode(LocalModelManifest.self,
+            from: Data(contentsOf: old.appendingPathComponent(".installed.json")))
+        guard receipt == manifest else { throw LocalModelInstallError.invalidCatalog }
+        try manager.createDirectory(at: documentsRoot, withIntermediateDirectories: true)
+        try manager.moveItem(at: old, to: destination)
+        var installed = destination
+        var values = URLResourceValues(); values.isExcludedFromBackup = true
+        try installed.setResourceValues(values)
+        return true
+    }
+
+    static func stamp(_ manifest: LocalModelManifest, at directory: URL) -> [FileStamp]? {
+        var stamps: [FileStamp] = []
+        for file in manifest.files {
+            let url = directory.appendingPathComponent(file.path)
+            guard let values = try? url.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey]),
+                  values.isRegularFile == true, values.isSymbolicLink != true,
+                  Int64(values.fileSize ?? -1) == file.sizeBytes,
+                  let attributes = try? FileManager.default.attributesOfItem(atPath: url.path),
+                  let date = attributes[.modificationDate] as? Date,
+                  let number = attributes[.systemFileNumber] as? NSNumber else { return nil }
+            stamps.append(.init(path: file.path, bytes: file.sizeBytes, modifiedAt: date, fileNumber: number.uint64Value))
+        }
+        return stamps
+    }
 }
 
 struct LocalModelFile: Codable, Equatable, Sendable {
@@ -338,7 +391,8 @@ enum LocalModelDisk {
                         beforeVerification: @escaping @Sendable () async throws -> Void = {},
                         operation: UUID = UUID(), recoverExistingStaging: Bool = false,
                         preserveStaging: @escaping @Sendable () -> Bool = { false },
-                        storageReserveBytes: Int64 = LocalModelStoragePolicy.reserveBytes) async throws -> URL {
+                        storageReserveBytes: Int64 = LocalModelStoragePolicy.reserveBytes,
+                        completedDirectory: URL? = nil) async throws -> URL {
         let reporter = LocalModelInstallReporter(total: manifest.estimatedSizeBytes) { value in
             detailedProgress(value)
             progress(min(0.99, Double(value.transferredBytes + value.verifiedBytes) / Double(value.totalBytes * 2)))
@@ -402,7 +456,8 @@ enum LocalModelDisk {
         try Task.checkCancellation()
         try LocalModelStoragePolicy.check(at: root, remainingBytes: 0, largestFile: 0, reserveBytes: storageReserveBytes)
         try JSONEncoder().encode(manifest).write(to: staging.appendingPathComponent(".installed.json"), options: .atomic)
-        let installed = root.appendingPathComponent(manifest.id.rawValue, isDirectory: true)
+        let installed = completedDirectory ?? root.appendingPathComponent(manifest.id.rawValue, isDirectory: true)
+        try manager.createDirectory(at: installed.deletingLastPathComponent(), withIntermediateDirectories: true)
         // Existing assets remain available until every replacement asset has passed validation.
         if manager.fileExists(atPath: installed.path) {
             let backup = root.appendingPathComponent("replacement-\(manifest.id.rawValue)-\(UUID().uuidString)", isDirectory: true)
@@ -416,6 +471,8 @@ enum LocalModelDisk {
         } else { try manager.moveItem(at: staging, to: installed) }
         try? manager.removeItem(at: installed.appendingPathComponent(".pending-install.json"))
         progress(1)
+        var completedDocument = installed
+        try completedDocument.setResourceValues(resourceValues)
         return installed
     }
 }
@@ -429,17 +486,25 @@ final class LocalModelStore: ObservableObject {
         }
         #endif
         #if os(iOS)
-        return LocalModelStore(downloader: LocalModelBackgroundDownloader(), verifyExisting: false, recoverBackgroundDownloads: true,
+        return LocalModelStore(downloader: LocalModelBackgroundDownloader(), verifyExisting: false, recoverBackgroundDownloads: true, preferences: .standard,
             activityEvents: { LocalModelLiveActivityCoordinator.shared.handle($0) })
         #else
-        return LocalModelStore(verifyExisting: false, recoverBackgroundDownloads: true, activityEvents: { LocalModelLiveActivityCoordinator.shared.handle($0) })
+        return LocalModelStore(verifyExisting: false, recoverBackgroundDownloads: true, preferences: .standard, activityEvents: { LocalModelLiveActivityCoordinator.shared.handle($0) })
         #endif
     }()
     let models: [LocalModelManifest]
     @Published private(set) var states: [LocalModelID: LocalModelInstallState] = [:]
     @Published private(set) var catalogError: String?
     @Published private(set) var progressByModel: [LocalModelID: LocalModelInstallProgress] = [:]
+    @Published private(set) var capabilityPreferences: [LocalModelID: Bool] = [:]
+    @Published private(set) var removingModels: Set<LocalModelID> = []
+    @Published private(set) var removedFromDevice: Set<LocalModelID> = []
+    private let preferences: UserDefaults?
+    private var runtimeOwners: [LocalModelID: [UUID: @MainActor () async -> Void]] = [:]
     private let root: URL
+    private let completedDocumentsRoot: URL?
+    private var foregroundStorageObserver: AnyCancellable?
+    private var documentStamps: [LocalModelID: [LocalModelDocumentStorage.FileStamp]] = [:]
     private let storageReserveBytes: Int64
     private let downloader: any LocalModelFileDownloading
     private let beforeVerification: @Sendable () async throws -> Void
@@ -453,17 +518,26 @@ final class LocalModelStore: ObservableObject {
     private var activityOperations: Set<UUID> = []
     private let activityEvents: @MainActor (LocalModelDownloadActivityEvent) -> Void
 
-    init(catalog: Data? = nil, root: URL? = nil,
+    init(catalog: Data? = nil, root: URL? = nil, completedDocumentsRoot: URL? = nil,
          storageReserveBytes: Int64 = LocalModelStoragePolicy.reserveBytes, downloader: any LocalModelFileDownloading = LocalModelHTTPDownloader(),
          verifyExisting: Bool = true, recoverBackgroundDownloads: Bool = false,
+         preferences: UserDefaults? = nil,
          activityEvents: @escaping @MainActor (LocalModelDownloadActivityEvent) -> Void = { _ in },
          beforeVerification: @escaping @Sendable () async throws -> Void = {}) {
         self.storageReserveBytes = storageReserveBytes
+        self.preferences = preferences
         self.recoverBackgroundDownloads = recoverBackgroundDownloads
         self.activityEvents = activityEvents
         self.beforeVerification = beforeVerification
         self.root = root ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("LocalModels", isDirectory: true)
+        #if os(iOS)
+        self.completedDocumentsRoot = completedDocumentsRoot ?? (root == nil
+            ? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            : nil)
+        #else
+        self.completedDocumentsRoot = completedDocumentsRoot
+        #endif
         self.downloader = downloader
         do {
             let bundled = Bundle.main.url(forResource: "catalog", withExtension: "json", subdirectory: "LocalModels")
@@ -476,15 +550,66 @@ final class LocalModelStore: ObservableObject {
             models = []
             catalogError = AppStrings.localLabDownloadFailed
         }
-        for id in LocalModelID.allCases { states[id] = .notDownloaded }
+        for id in LocalModelID.allCases {
+            states[id] = .notDownloaded
+            capabilityPreferences[id] = preferences?.object(forKey: Self.preferenceKey(id)) as? Bool ?? true
+            if preferences?.bool(forKey: Self.removalKey(id)) == true { removedFromDevice.insert(id) }
+        }
         if verifyExisting || recoverBackgroundDownloads {
             restoreJob = Task { await restoreExisting(validateInstalled: verifyExisting) }
         }
+        #if os(iOS)
+        if self.completedDocumentsRoot != nil {
+            foregroundStorageObserver = NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)
+                .sink { [weak self] _ in
+                    Task { @MainActor [weak self] in await self?.reconcileExternalDocumentDeletion() }
+                }
+        }
+        #endif
     }
     func setSequentialPackActive(_ active: Bool) { downloader.setSequentialPackActive(active) }
     func state(for id: LocalModelID) -> LocalModelInstallState { states[id] ?? .notDownloaded }
     func progress(for id: LocalModelID) -> LocalModelInstallProgress? { progressByModel[id] }
     func manifest(for id: LocalModelID) -> LocalModelManifest? { models.first { $0.id == id } }
+    private static func preferenceKey(_ id: LocalModelID) -> String { "openmates.offline-capability.\(id.rawValue).enabled" }
+    private static func removalKey(_ id: LocalModelID) -> String { "openmates.offline-document.\(id.rawValue).removed" }
+    private static func installedDocumentKey(_ id: LocalModelID) -> String { "openmates.offline-document.\(id.rawValue).installed" }
+
+    func acknowledgeExplicitDownload(_ ids: [LocalModelID]) {
+        for id in ids {
+            removedFromDevice.remove(id)
+            preferences?.set(false, forKey: Self.removalKey(id))
+        }
+    }
+
+    private func rememberDeviceRemoval(_ id: LocalModelID) {
+        preferences?.set(true, forKey: Self.removalKey(id))
+        preferences?.set(false, forKey: Self.installedDocumentKey(id))
+        removedFromDevice.insert(id)
+    }
+    func isCapabilityEnabled(_ id: LocalModelID) -> Bool { capabilityPreferences[id] ?? true }
+    func canUseCapability(_ id: LocalModelID) -> Bool {
+        isCapabilityEnabled(id) && state(for: id) == .ready && !removingModels.contains(id)
+    }
+    /// Owners retain their registration through native cleanup, including kernels
+    /// that cannot stop immediately. Disabling never deletes their mapped files.
+    @discardableResult func registerRuntime(_ id: LocalModelID, owner: UUID,
+                                            drain: @escaping @MainActor () async -> Void) -> Bool {
+        guard !removingModels.contains(id) else { return false }
+        runtimeOwners[id, default: [:]][owner] = drain
+        return true
+    }
+    func unregisterRuntime(_ id: LocalModelID, owner: UUID) { runtimeOwners[id]?.removeValue(forKey: owner) }
+    func setCapabilityEnabled(_ id: LocalModelID, enabled: Bool) async {
+        guard !enabled || !removingModels.contains(id) else { return }
+        capabilityPreferences[id] = enabled
+        preferences?.set(enabled, forKey: Self.preferenceKey(id))
+        if !enabled { await drainRuntimes(id) }
+    }
+    private func drainRuntimes(_ id: LocalModelID) async {
+        let owners = runtimeOwners[id] ?? [:]
+        for drain in owners.values { await drain() }
+    }
     func checkSpaceForDownloads(_ ids: [LocalModelID]) throws {
         let pending = ids.compactMap { state(for: $0) == .ready ? nil : manifest(for: $0) }
         guard !pending.isEmpty else { return }
@@ -507,10 +632,54 @@ final class LocalModelStore: ObservableObject {
             reserveBytes: storageReserveBytes)
     }
     func installedDirectory(_ id: LocalModelID) throws -> URL {
-        guard state(for: id) == .ready else { throw LocalModelInstallError.notInstalled }
-        return root.appendingPathComponent(id.rawValue, isDirectory: true)
+        guard state(for: id) == .ready, !removingModels.contains(id) else { throw LocalModelInstallError.notInstalled }
+        let directory = installedLocation(id)
+        guard FileManager.default.fileExists(atPath: directory.path) else { throw LocalModelInstallError.notInstalled }
+        return directory
+    }
+    private func installedLocation(_ id: LocalModelID) -> URL {
+        completedDocumentsRoot?.appendingPathComponent(LocalModelDocumentStorage.name(for: id), isDirectory: true)
+            ?? root.appendingPathComponent(id.rawValue, isDirectory: true)
+    }
+
+    /// Settings can remove documents while the app is suspended. Close native
+    /// admission and drain registered owners before publishing an uninstalled state.
+    func reconcileExternalDocumentDeletion() async {
+        await waitUntilRestored()
+        guard completedDocumentsRoot != nil else { return }
+        for manifest in models where state(for: manifest.id) == .ready && jobs[manifest.id] == nil {
+            let id = manifest.id, directory = installedLocation(id)
+            let stamp = await Task.detached(priority: .utility) {
+                LocalModelDocumentStorage.stamp(manifest, at: directory)
+            }.value
+            guard stamp == nil || stamp != documentStamps[id], state(for: id) == .ready, jobs[id] == nil,
+                  removingModels.insert(id).inserted else { continue }
+            rememberDeviceRemoval(id)
+            await setCapabilityEnabled(id, enabled: false)
+            states[id] = .notDownloaded
+            progressByModel[id] = nil
+            documentStamps[id] = nil
+            removingModels.remove(id)
+        }
+    }
+
+    private func markVerifiedReady(_ manifest: LocalModelManifest, directory: URL, generation: UUID) async {
+        let id = manifest.id
+        if completedDocumentsRoot != nil {
+            let stamp = await Task.detached(priority: .utility) {
+                LocalModelDocumentStorage.stamp(manifest, at: directory)
+            }.value
+            guard generations[id] == generation else { return }
+            guard let stamp else { states[id] = .failed(AppStrings.localLabDownloadFailed); return }
+            documentStamps[id] = stamp
+        }
+        guard generations[id] == generation else { return }
+        if completedDocumentsRoot != nil { preferences?.set(true, forKey: Self.installedDocumentKey(id)) }
+        acknowledgeExplicitDownload([id])
+        states[id] = .ready
     }
     func download(_ id: LocalModelID) async {
+        guard !removingModels.contains(id) else { return }
         // Join recovered/laboratory ownership, then retry a paused operation only
         // after its cancellation has drained and registered retained staging.
         if jobs[id] != nil {
@@ -520,10 +689,12 @@ final class LocalModelStore: ObservableObject {
             guard pendingOperations[id] != nil else { return }
         }
         guard !Task.isCancelled else { return }
+        acknowledgeExplicitDownload([id])
         await download(id, operation: pendingOperations[id] ?? UUID())
     }
     private func download(_ id: LocalModelID, operation: UUID,
                           onStarted: @MainActor () -> Void = {}) async {
+        guard !removingModels.contains(id) else { onStarted(); return }
         if jobs[id] != nil {
             onStarted()
             await withCheckedContinuation { downloadWaiters[id, default: []].append($0) }
@@ -538,6 +709,7 @@ final class LocalModelStore: ObservableObject {
         states[id] = .downloading(0)
         progressByModel[id] = nil
         let root = root, downloader = downloader, beforeVerification = beforeVerification, storageReserveBytes = storageReserveBytes
+        let completedDirectory = installedLocation(id)
         let recoverExistingStaging = recoverBackgroundDownloads || pendingOperations[id] != nil
         // An immutable MainActor reference is Sendable; a nested capture of an
         // outer weak variable would race under Swift 6. Progress tasks stay weak
@@ -550,14 +722,15 @@ final class LocalModelStore: ObservableObject {
                         progressStore?.acceptProgress(value, id: id, generation: generation)
                     }
                 }, beforeVerification: beforeVerification, operation: operation, recoverExistingStaging: recoverExistingStaging,
-                preserveStaging: { pauseIntent.shouldPreserve }, storageReserveBytes: storageReserveBytes)
+                preserveStaging: { pauseIntent.shouldPreserve }, storageReserveBytes: storageReserveBytes,
+                completedDirectory: completedDirectory)
         }
         jobs[id] = job
         pendingOperations[id] = nil
         onStarted()
         do {
-            _ = try await job.value
-            if generations[id] == generation { states[id] = .ready }
+            let directory = try await job.value
+            if generations[id] == generation { await markVerifiedReady(manifest, directory: directory, generation: generation) }
         } catch {
             if generations[id] == generation {
                 if job.isCancelled || error is CancellationError { states[id] = .notDownloaded }
@@ -618,6 +791,12 @@ final class LocalModelStore: ObservableObject {
         }
     }
     func remove(_ id: LocalModelID) async {
+        guard removingModels.insert(id).inserted else { return }
+        defer { removingModels.remove(id) }
+        rememberDeviceRemoval(id)
+        // Close admission before yielding. Explicit removal waits for every
+        // registered runtime to finish and unload before touching its assets.
+        await setCapabilityEnabled(id, enabled: false)
         let running = jobs[id]
         if let pending = pendingOperations.removeValue(forKey: id), let manifest = manifest(for: id) {
             let staging = root.appendingPathComponent(LocalModelPendingInstall(operation: pending, manifest: manifest).directoryName)
@@ -637,9 +816,12 @@ final class LocalModelStore: ObservableObject {
         resumeDownloadWaiters(id)
         progressByModel[id] = nil
         do {
-            let directory = root.appendingPathComponent(id.rawValue, isDirectory: true)
-            if FileManager.default.fileExists(atPath: directory.path) { try FileManager.default.removeItem(at: directory) }
+            let directory = installedLocation(id)
+            try await Task.detached(priority: .utility) {
+                if FileManager.default.fileExists(atPath: directory.path) { try FileManager.default.removeItem(at: directory) }
+            }.value
             states[id] = .notDownloaded
+            documentStamps[id] = nil
         } catch { states[id] = .failed(AppStrings.localLabDownloadFailed) }
     }
     /// Initial disk restoration and recovered operation registration, not full downloads.
@@ -662,6 +844,28 @@ final class LocalModelStore: ObservableObject {
         await restoreExisting(validateInstalled: true)
     }
     func restoreExisting(validateInstalled: Bool = true) async {
+        if let documentsRoot = completedDocumentsRoot {
+            for manifest in models where jobs[manifest.id] == nil && runtimeOwners[manifest.id]?.isEmpty != false {
+                let privateRoot = root
+                let id = manifest.id
+                if preferences?.bool(forKey: Self.installedDocumentKey(id)) == true,
+                   !FileManager.default.fileExists(atPath: installedLocation(id).path),
+                   !FileManager.default.fileExists(atPath: privateRoot.appendingPathComponent(id.rawValue).path) {
+                    rememberDeviceRemoval(id)
+                    await setCapabilityEnabled(id, enabled: false)
+                    states[id] = .notDownloaded
+                    continue
+                }
+                do {
+                    let moved = try await Task.detached(priority: .utility) {
+                        try LocalModelDocumentStorage.migrate(manifest, privateRoot: privateRoot, documentsRoot: documentsRoot)
+                    }.value
+                    if moved { preferences?.set(true, forKey: Self.installedDocumentKey(id)) }
+                } catch {
+                    NativeDiagnostics.failure("model_document_migration_failed", category: "local_models", level: .warning, error: error)
+                }
+            }
+        }
         if FileManager.default.fileExists(atPath: root.path) {
             var excluded = root
             var values = URLResourceValues(); values.isExcludedFromBackup = true
@@ -686,7 +890,7 @@ final class LocalModelStore: ObservableObject {
         if validateInstalled {
             for manifest in models {
                 let id = manifest.id
-                let directory = root.appendingPathComponent(id.rawValue, isDirectory: true)
+                let directory = installedLocation(id)
                 guard FileManager.default.fileExists(atPath: directory.path), jobs[id] == nil, state(for: id) != .ready else { continue }
                 let generation = UUID(); generations[id] = generation
                 states[id] = .verifying(0)
@@ -703,8 +907,8 @@ final class LocalModelStore: ObservableObject {
                 }
                 jobs[id] = job
                 do {
-                    _ = try await job.value
-                    if generations[id] == generation { states[id] = .ready }
+                    let verified = try await job.value
+                    if generations[id] == generation { await markVerifiedReady(manifest, directory: verified, generation: generation) }
                 } catch {
                     if generations[id] == generation {
                         states[id] = job.isCancelled || error is CancellationError ? .notDownloaded : .failed(AppStrings.localLabDownloadFailed)

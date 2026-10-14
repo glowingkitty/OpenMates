@@ -1,3 +1,5 @@
+// Specification: specifications/features/apple-notifications/specification.yml
+// Assertions: apple-notifications.delivery.confirmed-action-haptics
 // Specification: specifications/architecture/storage-lifecycle/specification.yml
 // Assertions: storage.versions.metadata-and-payload, storage.versions.bounded-reconstruction
 // Specification: specifications/features/apple-controls/specification.yml
@@ -1032,6 +1034,7 @@ struct MainAppView: View {
             projectTasksStore.reset(accountID: authManager.currentUser?.id)
             appsStore.reset(accountId: authManager.currentUser?.id)
             NativeWorkspaceOfflineRuntime.pauseMaintenance()
+            TeamWorkspaceOfflineRetention.pause()
             configureMemoryActivities()
             maintainOfflineWorkspaces()
             Task {
@@ -1625,6 +1628,7 @@ struct MainAppView: View {
             workspaceMaintenanceGeneration = UUID()
             workspaceMaintenanceResume?.cancel()
             NativeWorkspaceOfflineRuntime.pauseMaintenance()
+            TeamWorkspaceOfflineRetention.pause()
             guard !isReauthenticatingCachedSession else { return }
             // Keep cached history available while refreshing the server session.
             isReauthenticatingCachedSession = true
@@ -1650,11 +1654,17 @@ struct MainAppView: View {
     private func networkAuthorityDidChange(_ oldValue: AuthSessionRecoveryContext?,
                                            _ authority: AuthSessionRecoveryContext?) {
         if authority == nil, oldValue != nil {
-            wsManager.disconnect()
+            if case .requiresReauthentication = authManager.sessionValidationState {
+                wsManager.disconnect()
+            } else if let oldValue {
+                wsManager.suspendNetworkAuthority(for: oldValue,
+                    currentContext: authManager.sessionRecoveryContext)
+            }
             pushManager.invalidateRegistration()
             workspaceMaintenanceGeneration = UUID()
             workspaceMaintenanceResume?.cancel()
             NativeWorkspaceOfflineRuntime.pauseMaintenance()
+            TeamWorkspaceOfflineRetention.pause()
             return
         }
         guard authority != nil, oldValue == nil, authManager.hasNetworkAuthority,
@@ -1760,9 +1770,17 @@ struct MainAppView: View {
         }
     }
 
+    private var canOpenWorkflowCompletion: Bool {
+        #if os(macOS)
+        NativeClientLifecyclePolicy.isMacForeground(scenePhase, appIsActive: NSApp.isActive) && isKeyChatWindow
+        #else
+        NativeClientLifecyclePolicy.isCompletionCapable(scenePhase)
+        #endif
+    }
+
     private func openPendingWorkflowCompletion() {
         guard let route = pushManager.pendingWorkflowCompletion ?? deepLinkHandler.pendingWorkflowCompletion,
-              isAuthenticated, didBootstrapAuthenticatedSession, authManager.hasNetworkAuthority,
+              canOpenWorkflowCompletion, isAuthenticated, didBootstrapAuthenticatedSession, authManager.hasNetworkAuthority,
               let accountID = authManager.currentUser?.id else { return }
         let authorityGeneration = authManager.networkAuthority?.generation
         if route.chatID == nil {
@@ -1774,14 +1792,14 @@ struct MainAppView: View {
             Task {
                 defer { if workflowCompletionInFlight == route { workflowCompletionInFlight = nil } }
                 await workflowStore.load(accountId: accountID)
-                guard isAuthenticated, authManager.hasNetworkAuthority,
+                guard canOpenWorkflowCompletion, isAuthenticated, authManager.hasNetworkAuthority,
                       authManager.networkAuthority?.generation == authorityGeneration,
                       authManager.currentUser?.id == accountID,
                       OfflineStore.shared.scopeGeneration == scope,
                       ServerProfile.current() == profile,
                       selectedWorkspace == .workflows else { return }
                 await workflowStore.select(id: route.workflowID)
-                guard isAuthenticated, authManager.hasNetworkAuthority,
+                guard canOpenWorkflowCompletion, isAuthenticated, authManager.hasNetworkAuthority,
                       authManager.networkAuthority?.generation == authorityGeneration,
                       authManager.currentUser?.id == accountID,
                       OfflineStore.shared.scopeGeneration == scope,
@@ -1789,7 +1807,7 @@ struct MainAppView: View {
                       selectedWorkspace == .workflows,
                       workflowStore.selectedWorkflow?.id == route.workflowID else { return }
                 await workflowStore.selectRun(route.runID)
-                guard isAuthenticated, authManager.hasNetworkAuthority,
+                guard canOpenWorkflowCompletion, isAuthenticated, authManager.hasNetworkAuthority,
                       authManager.networkAuthority?.generation == authorityGeneration,
                       authManager.currentUser?.id == accountID,
                       OfflineStore.shared.scopeGeneration == scope,
@@ -1810,16 +1828,18 @@ struct MainAppView: View {
         Task {
             defer { if workflowCompletionInFlight == route { workflowCompletionInFlight = nil } }
             do {
-                try await WorkflowCompletionDelivery.persistIfNeeded(route, accountID: accountID, socket: wsManager)
-                guard isAuthenticated, authManager.hasNetworkAuthority,
+                try await WorkflowCompletionDelivery.persistIfNeeded(route, accountID: accountID, socket: wsManager,
+                                                                    isCurrent: { canOpenWorkflowCompletion })
+                guard canOpenWorkflowCompletion, isAuthenticated, authManager.hasNetworkAuthority,
                       authManager.networkAuthority?.generation == authorityGeneration,
                       authManager.currentUser?.id == accountID,
                       OfflineStore.shared.scopeGeneration == scope,
                       ServerProfile.current() == profile,
                       pushManager.pendingWorkflowCompletion == route || deepLinkHandler.pendingWorkflowCompletion == route,
                       let chatID = route.chatID, let messageID = route.messageID else { return }
-                _ = try await pushManager.workflowMessageForNotification(chatId: chatID, messageId: messageID)
-                guard isAuthenticated, authManager.hasNetworkAuthority,
+                _ = try await pushManager.workflowMessageForNotification(chatId: chatID, messageId: messageID,
+                                                                                   isCurrent: { canOpenWorkflowCompletion })
+                guard canOpenWorkflowCompletion, isAuthenticated, authManager.hasNetworkAuthority,
                       authManager.networkAuthority?.generation == authorityGeneration,
                       authManager.currentUser?.id == accountID,
                       OfflineStore.shared.scopeGeneration == scope,
@@ -1834,7 +1854,7 @@ struct MainAppView: View {
             } catch {
                 NativeDiagnostics.warning("Workflow completion destination remains pending: \(type(of: error))",
                                           category: "push_notifications")
-                guard isAuthenticated, authManager.hasNetworkAuthority,
+                guard canOpenWorkflowCompletion, isAuthenticated, authManager.hasNetworkAuthority,
                       authManager.networkAuthority?.generation == authorityGeneration,
                       authManager.currentUser?.id == accountID,
                       OfflineStore.shared.scopeGeneration == scope,
@@ -1842,8 +1862,9 @@ struct MainAppView: View {
                       pushManager.pendingWorkflowCompletion == route || deepLinkHandler.pendingWorkflowCompletion == route else { return }
                 if let chatID = route.chatID, let messageID = route.messageID,
                    await WorkflowCompletionDelivery.authorizesPersistedTarget(route, accountID: accountID),
-                   (try? await pushManager.workflowMessageForNotification(chatId: chatID, messageId: messageID)) != nil {
-                    guard isAuthenticated, authManager.hasNetworkAuthority,
+                   (try? await pushManager.workflowMessageForNotification(chatId: chatID, messageId: messageID,
+                                                                                   isCurrent: { canOpenWorkflowCompletion })) != nil {
+                    guard canOpenWorkflowCompletion, isAuthenticated, authManager.hasNetworkAuthority,
                           authManager.networkAuthority?.generation == authorityGeneration,
                           authManager.currentUser?.id == accountID,
                           OfflineStore.shared.scopeGeneration == scope,
@@ -1857,6 +1878,12 @@ struct MainAppView: View {
                     if deepLinkHandler.pendingWorkflowCompletion == route { deepLinkHandler.pendingWorkflowCompletion = nil }
                     return
                 }
+                guard canOpenWorkflowCompletion, isAuthenticated, authManager.hasNetworkAuthority,
+                      authManager.networkAuthority?.generation == authorityGeneration,
+                      authManager.currentUser?.id == accountID,
+                      OfflineStore.shared.scopeGeneration == scope,
+                      ServerProfile.current() == profile,
+                      pushManager.pendingWorkflowCompletion == route || deepLinkHandler.pendingWorkflowCompletion == route else { return }
                 workflowCompletionRetryCount += 1
                 if workflowCompletionRetryCount >= 12 {
                     ToastManager.shared.show(AppStrings.error, type: .error)
@@ -1968,12 +1995,14 @@ struct MainAppView: View {
             }
             ActiveChatsCoordinator.shared.foreground()
             foregroundWorkspaceDidNavigate()
+            openPendingWorkflowCompletion()
         } else {
             WelcomeContinueService.shared.becameInactive()
             UpcomingMemoryLiveActivityBridge.shared.background()
             workspaceMaintenanceGeneration = UUID()
             workspaceMaintenanceResume?.cancel()
             NativeWorkspaceOfflineRuntime.pauseMaintenance()
+            TeamWorkspaceOfflineRetention.pause()
         }
 
         syncBridge?.setForegroundActive(newValue == .active)
@@ -2252,6 +2281,7 @@ struct MainAppView: View {
         workspaceMaintenanceGeneration = UUID()
         workspaceMaintenanceResume?.cancel()
         NativeWorkspaceOfflineRuntime.pauseMaintenance()
+        TeamWorkspaceOfflineRetention.pause()
         guard isAuthenticated, scenePhase == .active else { return }
         workspaceMaintenanceResume = Task(priority: .utility) {
             do { try await Task.sleep(for: .seconds(2)) } catch { return }
@@ -2272,6 +2302,8 @@ struct MainAppView: View {
                       teamContext.isCurrent(context), scenePhase == .active,
                       wsManager.connectionState == .connected else { return }
                 NativeWorkspaceOfflineRuntime.startMaintenance(accountID: accountID, teamID: context.teamID, force: force)
+                TeamWorkspaceOfflineRetention.refresh(fence: .init(accountID: accountID),
+                    teams: teamContext.teams, removedIDs: [], force: force)
             } catch {
                 NativeDiagnostics.event("workspace_cache_unavailable", category: "offline", level: .warning)
             }
@@ -3501,6 +3533,7 @@ struct MainAppView: View {
                             chatStore: chatStore,
                             waitForRemoteSend: true,
                             waitForInferenceReceipt: true,
+                            confirmHaptic: true,
                             composerEmbeds: composerEmbeds,
                             piiMappings: ChatSendPipeline().combinedPIIMappings(
                                 textMappings: piiMappings,
@@ -3929,7 +3962,7 @@ struct MainAppView: View {
 
     private var chatProjectNavigation: ChatProjectNavigationContext {
         .init(projects: projectsStore.chatNavigationProjects, location: chatProjectLocation,
-            runningIDs: sidebarActivity.processingAncestorIDs(chats: chatStore.chats), activeSubChatCounts: sidebarActivity.activeSubChatCounts(chats: chatStore.chats), isOrganizing: projectsStore.isOrganizingChats, errorMessage: projectsStore.errorMessage,
+            runningIDs: sidebarActivity.processingAncestorIDs(chats: chatStore.chats), activeSubChatCounts: sidebarActivity.activeSubChatCounts(chats: chatStore.chats), isOrganizing: projectsStore.isOrganizingChats, errorMessage: projectsStore.chatOrganizationErrorMessage,
             navigate: { location in
                 chatProjectLocation = location
                 if let project = projectsStore.chatNavigationProjects.first(where: { $0.id == location?.projectID }) {
@@ -4085,7 +4118,7 @@ struct MainAppView: View {
                         createFolder: { at, name in Task { await projectsStore.createChatFolder(at: at, name: name) } },
                         openProject: { id in projectPickerChatID = nil; openWorkspaceProject(id) }))
                 }
-                if let error = projectsStore.errorMessage { Text(error).font(.omSmall).foregroundStyle(Color.error).accessibilityIdentifier("chat-project-picker-error") }
+                if let error = projectsStore.chatOrganizationErrorMessage { Text(error).font(.omSmall).foregroundStyle(Color.error).accessibilityIdentifier("chat-project-picker-error") }
                 HStack(spacing: .spacing4) {
                     Button(AppStrings.localized("chats.projects.create")) { submitChatProjectPicker(create: true) }
                         .buttonStyle(OMSecondaryButtonStyle()).accessibilityIdentifier("chat-project-create")
@@ -4108,7 +4141,7 @@ struct MainAppView: View {
                 }
             } else if let location {
                 await projectsStore.moveChats([chat], to: location, removeOtherLinks: moves)
-                if projectsStore.errorMessage == nil { projectPickerChatID = nil }
+                if projectsStore.chatOrganizationErrorMessage == nil { projectPickerChatID = nil }
             }
         }
     }
@@ -7221,21 +7254,40 @@ struct OpenMatesWebHeader: View {
     private static let compactHeaderMaxWidth: CGFloat = 894
     @State private var leadingControlsWidth: CGFloat = 0
     @State private var trailingControlsWidth: CGFloat = 0
+    @State private var intrinsicLogoWidth: CGFloat = 38
+    @State private var intrinsicGiftWidth: CGFloat = 38
+    @State private var requiredTrailingWidth: CGFloat = 38
     private static let githubURL = URL(string: "https://github.com/glowingkitty/OpenMates")!
 
     private var isCompact: Bool {
         horizontalSizeClass == .compact || viewportWidth <= Self.compactHeaderMaxWidth
     }
 
-    private var isCompactWorkspace: Bool {
-        WorkspaceSwitcherLayoutPolicy.isCompact(headerWidth: viewportWidth,
+    private var controlsLayout: NativeHeaderControlsLayoutPolicy.Presentation {
+        NativeHeaderControlsLayoutPolicy.presentation(headerWidth: viewportWidth,
+            leadingRequiredWidth: isChatsPanelOpen ? 0 : 44,
+            logoWidth: intrinsicLogoWidth, trailingRequiredWidth: requiredTrailingWidth,
+            giftWidth: isAuthenticated ? intrinsicGiftWidth : 0)
+    }
+    private var centerWidth: CGFloat {
+        if isAuthenticated, showWorkspaceSwitcher { return controlsLayout.centerWidth }
+        return WorkspaceSwitcherLayoutPolicy.availableWidth(headerWidth: viewportWidth,
             leadingWidth: leadingControlsWidth, trailingWidth: trailingControlsWidth)
+    }
+    private var showsHeaderLogo: Bool {
+        !isAuthenticated || !showWorkspaceSwitcher || controlsLayout.showsLogo
+    }
+    private var showsHeaderGift: Bool {
+        !showWorkspaceSwitcher || controlsLayout.showsGift
+    }
+    private var isCompactWorkspace: Bool {
+        centerWidth < WorkspaceSwitcherLayoutPolicy.tabsWidth
     }
 
     var body: some View {
         ZStack {
             HStack(alignment: .center, spacing: .spacing4) {
-                HStack(spacing: .spacing4) {
+                HStack(spacing: 0) {
                     if !isChatsPanelOpen {
                         Button(action: onToggleChats) {
                             Icon("menu", size: 25)
@@ -7251,12 +7303,20 @@ struct OpenMatesWebHeader: View {
                     }
 
                     headerLogo
+                        .fixedSize()
+                        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { intrinsicLogoWidth = $0 }
+                        .padding(.leading, isChatsPanelOpen ? 0 : .spacing4)
+                        .frame(width: showsHeaderLogo ? nil : 0)
+                        .clipped()
+                        .opacity(showsHeaderLogo ? 1 : 0)
+                        .allowsHitTesting(showsHeaderLogo)
+                        .accessibilityHidden(!showsHeaderLogo)
                 }
                 .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { leadingControlsWidth = $0 }
 
                 Spacer(minLength: .spacing4)
 
-                HStack(spacing: .spacing4) {
+                HStack(spacing: 0) {
                     if !isAuthenticated {
                         Button {
                             openURL(Self.githubURL)
@@ -7269,6 +7329,7 @@ struct OpenMatesWebHeader: View {
                         .accessibilityIdentifier("github-repo-button")
                         .help(Text(LocalizationManager.shared.text("signup.view_on_github")))
                         .accessibilityLabel(LocalizationManager.shared.text("signup.view_on_github"))
+                        .padding(.trailing, .spacing4)
 
                         Button(action: onOpenAuth) {
                             Text(isCompact ? AppStrings.login : AppStrings.loginSignup)
@@ -7285,6 +7346,7 @@ struct OpenMatesWebHeader: View {
                         .accessibilityIdentifier("header-login-signup-btn")
                         .help(Text(isCompact ? AppStrings.login : AppStrings.loginSignup))
                         .accessibilityLabel(isCompact ? AppStrings.login : AppStrings.loginSignup)
+                        .padding(.trailing, .spacing4)
                     }
 
                     if isAuthenticated {
@@ -7309,6 +7371,14 @@ struct OpenMatesWebHeader: View {
                         .accessibilityIdentifier("referral-cta")
                         .help(Text(AppStrings.getFreeCredits))
                         .accessibilityLabel(AppStrings.getFreeCredits)
+                        .fixedSize()
+                        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { intrinsicGiftWidth = $0 }
+                        .padding(.trailing, .spacing4)
+                        .frame(width: showsHeaderGift ? nil : 0)
+                        .clipped()
+                        .opacity(showsHeaderGift ? 1 : 0)
+                        .allowsHitTesting(showsHeaderGift)
+                        .accessibilityHidden(!showsHeaderGift)
                     }
 
                     HStack(spacing: 0) {
@@ -7332,6 +7402,8 @@ struct OpenMatesWebHeader: View {
                     .help(Text(isSettingsOpen ? AppStrings.close : AppStrings.settings))
                     .accessibilityLabel(isSettingsOpen ? AppStrings.close : AppStrings.settings)
                     }
+                    .fixedSize()
+                    .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { requiredTrailingWidth = $0 }
                 }
                 .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { trailingControlsWidth = $0 }
             }
@@ -7343,10 +7415,9 @@ struct OpenMatesWebHeader: View {
                     onSelectWorkspace: onSelectWorkspace,
                     onNewChat: onNewChat,
                     viewportSize: CGSize(width: viewportWidth, height: viewportHeight),
-                    availableCenterWidth: WorkspaceSwitcherLayoutPolicy.availableWidth(
-                        headerWidth: viewportWidth, leadingWidth: leadingControlsWidth,
-                        trailingWidth: trailingControlsWidth)
+                    availableCenterWidth: centerWidth
                 )
+                    .offset(x: isAuthenticated ? controlsLayout.centerOffset : 0)
                     .zIndex(1)
             }
         }
@@ -8110,7 +8181,7 @@ struct NewChatWelcomeView: View {
     @State private var isComposerExpanded = false
     @State private var guestSelectedInterestTagIds: [InterestTagId] = []
     @State private var appliedGuestInterestTagIds: [InterestTagId] = []
-    @State private var isGuestInterestSelectionActive = true
+    @State private var isGuestInterestSelectionActive = false
     @State private var handledFocusRequest = 0
     @State private var handledPrefillRequest = 0
     @State private var handledRecordRequest = 0
@@ -8137,6 +8208,7 @@ struct NewChatWelcomeView: View {
     @State private var recordDragOffsetX: CGFloat = 0
     @State private var recordAttemptActive = false
     @State private var recordGestureCancelled = false
+    @State private var recordingKeyboardDismissalGeneration = 0
     @State private var recordStartedFromKeyboard = false
     @State private var collapseComposerAfterRecordingCancel = false
     @State private var recordStartTask: Task<Void, Never>?
@@ -8356,15 +8428,24 @@ struct NewChatWelcomeView: View {
         isAuthenticated ? accountInterestTagIds : appliedGuestInterestTagIds
     }
 
-    // Draft content keeps its inline previews/actions, but only active editing
-    // suppresses the surrounding workspace. Dismissal preserves the draft.
+    private var isWelcomeDraftPreview: Bool {
+        MessageComposerPresentation.showsDraftPreview(
+            document: composerSession.controller.document, isFocused: isFocused,
+            isExpanded: isComposerExpanded,
+            hasActiveOverlay: composerOverlay != nil || recordAttemptActive || showAttachmentMenu
+        )
+    }
+
+    // Inactive drafts retain a compact summary while the workspace becomes usable.
     private var isWelcomeWorkspaceSuppressed: Bool {
-        isFocused || isComposerActivated || isComposerExpanded || recordAttemptActive
+        guard !isWelcomeDraftPreview else { return false }
+        return isFocused || isComposerActivated || isComposerExpanded || recordAttemptActive
             || anonymousAttachmentPending || composerOverlay != nil || showAttachmentMenu
     }
 
     private var isComposerActive: Bool {
-        isFocused ||
+        guard !isWelcomeDraftPreview else { return false }
+        return isFocused ||
         isComposerActivated ||
         isComposerExpanded ||
         anonymousAttachmentPending ||
@@ -8511,13 +8592,21 @@ struct NewChatWelcomeView: View {
                         } else if !shownChatCards.isEmpty {
                             welcomeCardsCarousel(containerSize: CGSize(width: proxy.size.width, height: continuation.availableHeight))
                             HStack(spacing: .spacing5) {
+                                if !isAuthenticated {
+                                    WorkspaceContinuationLink(title: AppStrings.interestsSelect, icon: "heart",
+                                        identifier: "guest-interest-select-interests") {
+                                        isGuestInterestSelectionActive = true
+                                    }
+                                }
                                 WorkspaceContinuationLink(title: AppStrings.welcomeShowAllChats, icon: "message-square",
-                                    identifier: "welcome-show-all-chats", action: showAllChatGrid)
-                                WorkspaceContinuationLink(title: AppStrings.search, icon: "search",
-                                    identifier: "welcome-search-chats", action: onSearchChats)
+                                    identifier: isAuthenticated ? "welcome-show-all-chats" : "guest-show-all-examples", action: showAllChatGrid)
+                                if isAuthenticated {
+                                    WorkspaceContinuationLink(title: AppStrings.search, icon: "search",
+                                        identifier: "welcome-search-chats", action: onSearchChats)
+                                }
                             }
                             .accessibilityElement(children: .contain)
-                            .accessibilityIdentifier("welcome-workspace-link-row")
+                            .accessibilityIdentifier(isAuthenticated ? "welcome-workspace-link-row" : "guest-example-link-row")
                         }
                     }
                     .fixedSize(horizontal: false, vertical: true)
@@ -8689,7 +8778,6 @@ struct NewChatWelcomeView: View {
             if isReadyForRequestedAction { startLivePhotoUploadFixtureIfNeeded() }
         }
         .onAppear {
-            isGuestInterestSelectionActive = !isAuthenticated && appliedGuestInterestTagIds.isEmpty
             applyWelcomeComposerUITestFlagsIfNeeded()
         }
         .onChange(of: isFocused) { _, focused in
@@ -8970,17 +9058,18 @@ struct NewChatWelcomeView: View {
     }
     #endif
 
-    private func addPendingComposerEmbed(filename: String, kind: WelcomeComposerPendingKind, data: Data? = nil, duration: TimeInterval? = nil) {
+    @discardableResult
+    private func addPendingComposerEmbed(filename: String, kind: WelcomeComposerPendingKind, data: Data? = nil, duration: TimeInterval? = nil, appendAtEnd: Bool = false) -> Bool {
         let embed = makePendingComposerEmbed(filename: filename, kind: kind, data: data, duration: duration)
-        pendingComposerEmbeds.append(embed)
         let nodeID = "composer:embed:\(UUID().uuidString.lowercased())"
         do {
-            try composerSession.insertPendingEmbed(
-                nodeID: nodeID,
-                embedType: nativePreviewType(for: kind),
-                title: filename,
-                localPreviewData: data
-            )
+            if appendAtEnd {
+                try composerSession.appendPendingEmbed(nodeID: nodeID, embedType: nativePreviewType(for: kind),
+                                                       title: filename, localPreviewData: data)
+            } else {
+                try composerSession.insertPendingEmbed(nodeID: nodeID, embedType: nativePreviewType(for: kind),
+                                                       title: filename, localPreviewData: data)
+            }
             try composerSession.resolveEmbed(
                 nodeID: nodeID,
                 durableEmbedID: embed.id,
@@ -8997,8 +9086,11 @@ struct NewChatWelcomeView: View {
             )
         } catch {
             NativeDiagnostics.error("Welcome composer attachment insertion failed: \(type(of: error))", category: "apple_composer")
+            return false
         }
+        pendingComposerEmbeds.append(embed)
         anonymousAttachmentPending = false
+        return true
     }
 
     private func removePendingComposerEmbed(_ embed: ComposerPendingEmbed) {
@@ -9221,18 +9313,18 @@ struct NewChatWelcomeView: View {
         Task { await session.cancel() }
     }
 
+    @discardableResult
     private func enqueueWelcomeRecordingUpload(url: URL, duration: TimeInterval,
                                                retryNodeID: String? = nil,
                                                retryWaveform: AudioRecordingWaveform? = nil,
-                                               retryRealtimeResult: AudioRecordingRealtimeResultProvider? = nil) {
+                                               retryRealtimeResult: AudioRecordingRealtimeResultProvider? = nil) -> Bool {
         guard isAuthenticated, authManager.state == .authenticated else {
             if retryNodeID != nil {
                 ToastManager.shared.show(AppStrings.localized("settings.app_settings_memories.authentication_required"), type: .error)
-                return
+                return false
             }
             cancelWelcomeRealtimeRecording()
-            addGuestRecordingPreview(url: url, duration: duration)
-            return
+            return addGuestRecordingPreview(url: url, duration: duration)
         }
         let context = retryNodeID == nil ? finishWelcomeRealtimeRecording(duration: duration)
             : (waveform: retryWaveform, realtimeResult: retryRealtimeResult, realtimeSession: nil)
@@ -9241,10 +9333,10 @@ struct NewChatWelcomeView: View {
         let uploadDraftID = modelDraftID
         do {
             if retryNodeID != nil {
-                guard composerSession.controller.document.nodes.contains(where: { $0.id == nodeID }) else { return }
+                guard composerSession.controller.document.nodes.contains(where: { $0.id == nodeID }) else { return false }
                 try composerSession.updateEmbed(nodeID: nodeID, status: AppleComposerEmbedLifecycleState.transcribing.rawValue)
             } else {
-                try composerSession.insertPendingEmbed(nodeID: nodeID, embedType: "recording",
+                try composerSession.appendPendingEmbed(nodeID: nodeID, embedType: "recording",
                     title: AppStrings.audioRecording, localPreviewData: try? Data(contentsOf: url))
             }
             try composerSession.configureEmbedActions(nodeID: nodeID,
@@ -9266,7 +9358,7 @@ struct NewChatWelcomeView: View {
             try? FileManager.default.removeItem(at: url)
             NativeDiagnostics.error("Welcome recording insertion failed: \(type(of: error))", category: "apple_composer")
             showRecordHint(duration: 0)
-            return
+            return false
         }
         NativeDiagnostics.event(
             "recording_pending_embed_inserted",
@@ -9281,7 +9373,6 @@ struct NewChatWelcomeView: View {
         recordingTemporaryURL = url
         isRecordingUploadPending = true
         isComposerActivated = true
-        isFocused = false
         context.realtimeSession?.observeRawTranscript { transcript in
             guard welcomeRecordingUploadIDs[nodeID] == uploadID, uploadScope.isCurrent, modelDraftID == uploadDraftID,
                   composerSession.controller.document.nodes.contains(where: { $0.id == nodeID }) else { return }
@@ -9380,17 +9471,19 @@ struct NewChatWelcomeView: View {
         }
         welcomeRecordingUploadTasks[nodeID] = task
         recordingUploadTask = task
+        return true
     }
 
-    private func addGuestRecordingPreview(url: URL, duration: TimeInterval) {
+    @discardableResult
+    private func addGuestRecordingPreview(url: URL, duration: TimeInterval) -> Bool {
         defer { try? FileManager.default.removeItem(at: url) }
         guard let data = try? Data(contentsOf: url), !data.isEmpty else {
             showRecordHint(duration: 0)
-            return
+            return false
         }
         let nodeID = "composer:embed:\(UUID().uuidString.lowercased())"
         do {
-            try composerSession.insertPendingEmbed(
+            try composerSession.appendPendingEmbed(
                 nodeID: nodeID,
                 embedType: "recording",
                 title: url.lastPathComponent,
@@ -9409,10 +9502,11 @@ struct NewChatWelcomeView: View {
             guestRecordingNodeIDs.insert(nodeID)
             anonymousAttachmentPending = true
             isComposerActivated = true
-            isFocused = false
+            return true
         } catch {
             try? composerSession.removeEmbed(nodeID: nodeID)
             showRecordHint(duration: 0)
+            return false
         }
     }
 
@@ -9465,7 +9559,17 @@ struct NewChatWelcomeView: View {
         dismissWelcomeKeyboardForRecording(afterCurrentGesture: true)
     }
 
+    private func restoreWelcomeEditorAfterRecording(inserted: Bool) {
+        recordingKeyboardDismissalGeneration += 1
+        guard inserted else { return }
+        isComposerExpanded = false
+        isComposerActivated = true
+        isFocused = true
+    }
+
     private func dismissWelcomeKeyboardForRecording(afterCurrentGesture: Bool = false) {
+        recordingKeyboardDismissalGeneration += 1
+        let generation = recordingKeyboardDismissalGeneration
         isFocused = false
         #if os(iOS)
         UIApplication.shared.sendAction(
@@ -9478,6 +9582,7 @@ struct NewChatWelcomeView: View {
         guard afterCurrentGesture else { return }
         Task { @MainActor in
             await Task.yield()
+            guard generation == recordingKeyboardDismissalGeneration, !isFocused else { return }
             isFocused = false
             #if os(iOS)
             UIApplication.shared.sendAction(
@@ -9501,15 +9606,17 @@ struct NewChatWelcomeView: View {
 
         if composerOverlay == .recording {
             let duration = max(composerRecorder.duration, 1)
+            let inserted: Bool
             if isUITestWelcomeSimulatedRecording && !isUITestWelcomeGuestLocalRecording {
                 _ = composerRecorder.stopRecording()
                 cancelWelcomeRealtimeRecording()
-                addPendingComposerEmbed(filename: "recording-ui-test.m4a", kind: .audio, duration: duration)
+                inserted = addPendingComposerEmbed(filename: "recording-ui-test.m4a", kind: .audio, duration: duration, appendAtEnd: true)
             } else if let url = composerRecorder.stopRecording() {
-                enqueueWelcomeRecordingUpload(url: url, duration: duration)
+                inserted = enqueueWelcomeRecordingUpload(url: url, duration: duration)
             } else {
                 cancelWelcomeRealtimeRecording()
                 showRecordHint(duration: 0)
+                inserted = false
             }
             composerOverlay = nil
             recordAttemptActive = false
@@ -9517,7 +9624,7 @@ struct NewChatWelcomeView: View {
             recordStartedFromKeyboard = false
             collapseComposerAfterRecordingCancel = false
             recordDragOffsetX = 0
-            dismissWelcomeKeyboardForRecording(afterCurrentGesture: true)
+            restoreWelcomeEditorAfterRecording(inserted: inserted)
             return
         }
 
@@ -9803,22 +9910,24 @@ struct NewChatWelcomeView: View {
                     isRealtimeConnecting: recordingRealtimeConnecting,
                     onStop: { url in
                         let duration = max(composerRecorder.duration, 1)
+                        let inserted: Bool
                         if isUITestWelcomeSimulatedRecording && !isUITestWelcomeGuestLocalRecording {
                             cancelWelcomeRealtimeRecording()
-                            addPendingComposerEmbed(
+                            inserted = addPendingComposerEmbed(
                                 filename: url.lastPathComponent,
                                 kind: .audio,
-                                duration: duration
+                                duration: duration,
+                                appendAtEnd: true
                             )
                         } else {
-                            enqueueWelcomeRecordingUpload(url: url, duration: duration)
+                            inserted = enqueueWelcomeRecordingUpload(url: url, duration: duration)
                         }
                         self.composerOverlay = nil
                         self.recordAttemptActive = false
                         self.recordStartedFromKeyboard = false
                         self.collapseComposerAfterRecordingCancel = false
                         self.recordDragOffsetX = 0
-                        dismissWelcomeKeyboardForRecording(afterCurrentGesture: true)
+                        restoreWelcomeEditorAfterRecording(inserted: inserted)
                     },
                     onCancel: { cancelWelcomeRecording() },
                     onFailure: {
@@ -9834,11 +9943,13 @@ struct NewChatWelcomeView: View {
         let backgroundIconSize = max(76, min(128, containerSize.width * 0.11))
 
         return VStack(spacing: .spacing3) {
-            Text(isAuthenticated ? AppStrings.welcomeHeyUser(displayName) : AppStrings.welcomeHeyGuest)
-                .font(.custom("Lexend Deca", size: 30).weight(.semibold))
-                .foregroundStyle(Color.fontPrimary)
-                .multilineTextAlignment(.center)
-                .lineLimit(2)
+            if isAuthenticated {
+                Text(AppStrings.welcomeHeyUser(displayName))
+                    .font(.custom("Lexend Deca", size: 30).weight(.semibold))
+                    .foregroundStyle(Color.fontPrimary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+            }
 
             if isAuthenticated && activeChatCount > 0 {
                 Button(action: onRevealRunningChats) {
@@ -9852,24 +9963,15 @@ struct NewChatWelcomeView: View {
                 .foregroundStyle(Color.fontSecondary)
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
-
-            if !isAuthenticated && !shouldShowGuestInterestTags {
-                Button {
-                    isGuestInterestSelectionActive = true
-                } label: {
-                    Text(AppStrings.interestsSelect)
-                        .font(.omSmall.weight(.semibold))
-                        .foregroundStyle(Color.grey60)
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("guest-interest-select-interests")
-            }
+                .accessibilityIdentifier(isAuthenticated ? "welcome-workspace-subtitle" : "guest-interest-prompt")
         }
         .background {
-            Icon("chat", size: backgroundIconSize)
-                .foregroundStyle(Color.grey30)
-                .offset(y: -2)
-                .accessibilityHidden(true)
+            if isAuthenticated {
+                Icon("chat", size: backgroundIconSize)
+                    .foregroundStyle(Color.grey30)
+                    .offset(y: -2)
+                    .accessibilityHidden(true)
+            }
         }
         .padding(.horizontal, .spacing6)
     }
@@ -11885,8 +11987,10 @@ private struct WelcomeComposer: View {
     }
 
     private var isDraftPreview: Bool {
-        hasContent && !isFocused && !isExpanded && !isOverlayActive
-            && !hasPendingComposerEmbeds && !hasComposerEmbedNodes
+        MessageComposerPresentation.showsDraftPreview(
+            document: session.controller.document, isFocused: isFocused,
+            isExpanded: isExpanded, hasActiveOverlay: isOverlayActive || recordAttemptActive || isAttachmentMenuPresented
+        )
     }
 
     private var isSubmitBlocked: Bool {
@@ -11958,6 +12062,9 @@ private struct WelcomeComposer: View {
                 },
                 inlineFieldContent: nil,
                 idleFieldContent: !isOpen && !isDraftPreview ? idleFieldControls : nil,
+                showsDraftPreview: isDraftPreview,
+                draftPreviewMicrophone: AnyView(recordGestureButton),
+                onRestoreDraft: { isActivated = true; isFocused = true },
                 preFieldContent: { EmptyView() },
                 overlayContent: {
                     if let overlayContent {
@@ -11992,7 +12099,7 @@ private struct WelcomeComposer: View {
             .environment(\.composerFullscreen, isExpanded)
             .simultaneousGesture(
                 TapGesture().onEnded {
-                    guard !isOverlayActive else { return }
+                    guard !isOverlayActive, !isDraftPreview, !recordAttemptActive else { return }
                     isActivated = true
                     isFocused = true
                 }
@@ -12007,7 +12114,7 @@ private struct WelcomeComposer: View {
                         isFocused = true
                     }
                 }))
-            if (isFocused || isActivated || isExpanded) && !isOverlayActive {
+            if (isFocused || isActivated || isExpanded) && !isOverlayActive && !isDraftPreview {
                 Button {
                     onDismiss()
                 } label: {
@@ -12038,28 +12145,32 @@ private struct WelcomeComposer: View {
                     .accessibilityIdentifier("press-hold-label")
             }
 
-            Button(action: onRecordStart) {
-                Icon("recordaudio", size: 25)
-                    .foregroundStyle(recordAttemptActive ? AnyShapeStyle(Color.error) : AnyShapeStyle(LinearGradient.primary))
-                    .frame(width: 25, height: 25)
-            }
-            .buttonStyle(.plain)
-            .contentShape(Circle())
-            .simultaneousGesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged(onRecordChanged)
-                    .onEnded { _ in }
-            )
-            .help(Text(AppStrings.recordAudio))
-            .accessibilityLabel(AppStrings.recordAudio)
-            .accessibilityIdentifier("record-audio-button")
+            recordGestureButton
         }
+    }
+
+    private var recordGestureButton: some View {
+        Button(action: onRecordStart) {
+            Icon("recordaudio", size: 25)
+                .foregroundStyle(recordAttemptActive ? AnyShapeStyle(Color.error) : AnyShapeStyle(LinearGradient.primary))
+                .frame(width: 25, height: 25)
+        }
+        .buttonStyle(.plain)
+        .contentShape(Circle())
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged(onRecordChanged)
+                .onEnded { _ in }
+        )
+        .help(Text(AppStrings.recordAudio))
+        .accessibilityLabel(AppStrings.recordAudio)
+        .accessibilityIdentifier("record-audio-button")
     }
 
     // Web MessageInput.svelte shows these controls while its empty action row is hidden.
     // Spec: specifications/features/message-input/specification.yml (message-input.actions.visibility).
     private var idleFieldControls: AnyView {
-        AnyView(ComposerIdleFieldControls { recordActionControls })
+        AnyView(ComposerIdleFieldControls { recordGestureButton })
     }
 }
 

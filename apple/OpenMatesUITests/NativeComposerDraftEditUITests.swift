@@ -68,6 +68,10 @@ final class NativeComposerDraftEditUITests: XCTestCase {
         app.launchEnvironment["DEV_PREVIEW"] = "chat-opening"
         app.launch()
 
+        let summary = app.buttons["message-draft-summary"]
+        XCTAssertTrue(summary.waitForExistence(timeout: 12))
+        XCTAssertFalse(app.buttons["send-button"].exists)
+        summary.tap()
         let atomIdentifier = "native-composer-embed-composer:embed:ui-test"
         let atom = element(in: app, identifier: atomIdentifier)
         XCTAssertTrue(atom.waitForExistence(timeout: 12))
@@ -83,7 +87,7 @@ final class NativeComposerDraftEditUITests: XCTestCase {
     // contract-test: supporting surface=gui.apple assertions=message-input.drafts.preview-persistence,message-input.embeds.gated-send,drafts.draft-only.presentation,message-input.focus.workspace-suppression
     func testWelcomeImageAudioAutosaveKeepsSameComposerAndPreviews() {
         let app = XCUIApplication()
-        app.launchArguments = ["--ui-test-window-drafts", "--ui-test-welcome-draft-attachments"]
+        app.launchArguments = ["--ui-test-window-drafts", "--ui-test-welcome-draft-attachments", "--ui-test-welcome-mic-granted", "--ui-test-welcome-simulated-recording", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
         app.launch()
         let probe = app.staticTexts["welcome-draft-attachment-probe"]
         XCTAssertTrue(probe.waitForExistence(timeout: 15))
@@ -93,7 +97,7 @@ final class NativeComposerDraftEditUITests: XCTestCase {
         XCTAssertTrue(input.waitForExistence(timeout: 5))
         guard RealAccountUITestSupport.focusForTextEntry(input, in: app, identifier: "message-editor") else { return }
         input.typeText("Synthetic attachment draft text")
-        func assertSaved() {
+        func assertSaved(expectsExpandedEditor: Bool = true) {
             let saved = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
                 let values = Dictionary(probe.label.split(separator: ";").compactMap { part in
                     let pair = part.split(separator: "=", maxSplits: 1)
@@ -105,8 +109,20 @@ final class NativeComposerDraftEditUITests: XCTestCase {
             XCTAssertEqual(XCTWaiter.wait(for: [saved], timeout: 12), .completed)
             XCTAssertTrue(app.descendants(matching: .any)["chat-workspace-welcome"].exists)
             XCTAssertFalse(app.staticTexts["chat-header-title"].exists)
-            XCTAssertGreaterThanOrEqual(app.descendants(matching: .any).matching(NSPredicate(format:
-                "identifier BEGINSWITH %@", "native-composer-embed-")).count, 2)
+            if expectsExpandedEditor {
+                XCTAssertGreaterThanOrEqual(app.descendants(matching: .any).matching(NSPredicate(format:
+                    "identifier BEGINSWITH %@", "native-composer-embed-")).count, 2)
+            } else {
+                let summary = app.buttons["message-draft-summary"]
+                XCTAssertTrue(summary.waitForExistence(timeout: 5))
+                XCTAssertTrue(summary.label.contains("Synthetic attachment draft text"))
+                XCTAssertTrue(summary.label.contains("[Image]"))
+                XCTAssertTrue(summary.label.contains("[Audio]"))
+                XCTAssertFalse(app.buttons["send-button"].exists)
+                XCTAssertFalse(app.buttons["composer-attachment-toggle"].exists)
+                XCTAssertTrue(app.buttons["record-audio-button"].isHittable)
+                XCTAssertLessThanOrEqual(summary.frame.height, 60)
+            }
         }
         assertSaved()
         input.typeText(" and later text")
@@ -119,8 +135,11 @@ final class NativeComposerDraftEditUITests: XCTestCase {
         XCTAssertTrue(backdrop.waitForNonExistence(timeout: 12))
         XCTAssertTrue(greeting.waitForExistence(timeout: 5))
         XCTAssertFalse(app.keyboards.firstMatch.exists)
-        assertSaved()
+        assertSaved(expectsExpandedEditor: false)
+        app.buttons["message-draft-summary"].tap()
         guard RealAccountUITestSupport.focusForTextEntry(input, in: app, identifier: "message-editor") else { return }
+        XCTAssertTrue((input.value as? String ?? "").contains("Synthetic attachment draft text and later text"))
+        assertSaved()
         XCTAssertFalse(greeting.exists)
         // The attachment editor covers the backdrop's central region.
         // Resolve its actual exposed gutter before sending an outside tap.
@@ -136,7 +155,33 @@ final class NativeComposerDraftEditUITests: XCTestCase {
         XCTAssertTrue(backdrop.waitForNonExistence(timeout: 12))
         XCTAssertTrue(greeting.waitForExistence(timeout: 5))
         XCTAssertFalse(app.keyboards.firstMatch.exists)
+        assertSaved(expectsExpandedEditor: false)
+        app.buttons["message-draft-summary"].tap()
+        guard RealAccountUITestSupport.focusForTextEntry(input, in: app, identifier: "message-editor") else { return }
+        XCTAssertTrue((input.value as? String ?? "").contains("Synthetic attachment draft text and later text"))
         assertSaved()
+        let longSuffix = String(repeating: " synthetic long draft", count: 12)
+        input.typeText(longSuffix)
+        assertSaved()
+        app.buttons["new-chat-draft-dismiss-button"].tap()
+        let compactSummary = app.buttons["message-draft-summary"]
+        XCTAssertTrue(compactSummary.waitForExistence(timeout: 5))
+        XCTAssertLessThanOrEqual(compactSummary.frame.height, 60)
+        app.buttons["record-audio-button"].tap()
+        let recording = app.descendants(matching: .any)["record-overlay"].firstMatch
+        XCTAssertTrue(recording.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.keyboards.firstMatch.exists)
+        assertRecordingPanelBounds(in: app)
+        app.buttons["record-finish-button"].tap()
+        XCTAssertTrue(recording.waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+        XCTAssertFalse(compactSummary.exists)
+        XCTAssertTrue((input.value as? String ?? "").contains("Synthetic attachment draft text and later text" + longSuffix))
+        let appended = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            probe.label.contains("nodes=3;") && probe.label.contains("resolved=3;")
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [appended], timeout: 12), .completed,
+                       "Finishing must preserve the existing two attachments and append one recording")
     }
 
     // contract-test: supporting surface=gui.apple assertions=message-input.focus.workspace-suppression,message-input.layout.responsive-parity,message-input.drafts.preview-persistence
@@ -181,14 +226,81 @@ final class NativeComposerDraftEditUITests: XCTestCase {
         XCTAssertTrue(backdrop.waitForNonExistence(timeout: 5))
         XCTAssertTrue(history.waitForExistence(timeout: 5)); XCTAssertTrue(history.isEnabled)
         XCTAssertFalse(app.keyboards.firstMatch.exists)
-        XCTAssertEqual(editor.value as? String, draft)
+        let summary = app.buttons["message-draft-summary"]
+        XCTAssertTrue(summary.waitForExistence(timeout: 5))
+        XCTAssertTrue(summary.label.contains(shortDraft))
+        XCTAssertFalse(editor.exists, "The retained editor is hidden from accessibility while its summary is visible")
+        XCTAssertFalse(app.buttons["send-button"].exists)
+        XCTAssertFalse(app.buttons["composer-attachment-toggle"].exists)
+        XCTAssertTrue(app.buttons["record-audio-button"].isHittable)
+        XCTAssertEqual(field.frame.height, 60, accuracy: 1)
+        summary.tap()
         guard RealAccountUITestSupport.focusForTextEntry(editor, in: app, identifier: "message-editor") else { return }
+        XCTAssertEqual(editor.value as? String, draft, "Summary restore retains every original line")
         app.buttons["chat-composer-cancel"].tap()
         XCTAssertTrue(backdrop.waitForNonExistence(timeout: 5))
         XCTAssertTrue(history.isEnabled)
         XCTAssertFalse(app.keyboards.firstMatch.exists)
-        XCTAssertEqual(editor.value as? String, draft)
+        XCTAssertTrue(summary.waitForExistence(timeout: 5))
+        XCTAssertFalse(editor.exists)
+        XCTAssertFalse(app.buttons["send-button"].exists)
+        summary.tap()
+        guard RealAccountUITestSupport.focusForTextEntry(editor, in: app, identifier: "message-editor") else { return }
+        XCTAssertEqual(editor.value as? String, draft, "Cancel also retains the complete draft through compact restoration")
         attachScreenshot(name: "Chat outside Cancel restores transcript with draft intact")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.drafts.preview-persistence,message-input.recording.lifecycle,message-input.embeds.gated-send,message-input.layout.responsive-parity
+    func testChatMixedDraftCompactMicrophoneAppendsAudioAndRestoresFullEditor() {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "--dev-preview", "chat-opening", "--ui-test-disable-auth-cache",
+            "--ui-test-seed-pending-composer-embed", "--ui-test-chat-mic-granted",
+            "--ui-test-simulated-recording", "--ui-test-compact-draft-recording",
+            "-AppleLanguages", "(en)", "-AppleLocale", "en_US"
+        ]
+        app.launchEnvironment["DEV_PREVIEW"] = "chat-opening"
+        app.launch()
+        let summary = app.buttons["message-draft-summary"]
+        XCTAssertTrue(summary.waitForExistence(timeout: 12))
+        summary.tap()
+        let input = editor(in: app)
+        guard RealAccountUITestSupport.focusForTextEntry(input, in: app, identifier: "message-editor") else { return }
+        let draft = "Synthetic chat image draft" + String(repeating: " complete original text", count: 10)
+        XCTAssertTrue(element(in: app, identifier: "native-composer-preview-image-finished").exists)
+        input.typeText(draft)
+        XCTAssertTrue((input.value as? String ?? "").contains(draft))
+        app.buttons["chat-composer-cancel"].tap()
+        XCTAssertTrue(summary.waitForExistence(timeout: 5))
+        XCTAssertTrue(summary.label.contains("[Image]"))
+        XCTAssertTrue(summary.label.contains("Synthetic chat image draft"))
+        XCTAssertFalse(app.buttons["send-button"].exists)
+        XCTAssertFalse(app.buttons["composer-attachment-toggle"].exists)
+        XCTAssertFalse(app.keyboards.firstMatch.exists)
+        app.buttons["record-audio-button"].tap()
+        let recording = element(in: app, identifier: "record-overlay")
+        XCTAssertTrue(recording.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.keyboards.firstMatch.exists)
+        assertRecordingPanelBounds(in: app)
+        app.buttons["record-finish-button"].tap()
+        XCTAssertTrue(recording.waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+        XCTAssertFalse(summary.exists)
+        XCTAssertTrue((input.value as? String ?? "").contains(draft))
+        XCTAssertTrue(element(in: app, identifier: "native-composer-preview-recording-finished").exists)
+        let probe = app.staticTexts["compact-draft-recording-probe"]
+        XCTAssertEqual(probe.label, "embed-types=image,recording;last-content-kind=embed",
+                       "The original image remains first and new audio is the last semantic content")
+        let restoredValue = input.value as? String
+        app.buttons["chat-composer-cancel"].tap()
+        XCTAssertTrue(summary.waitForExistence(timeout: 5))
+        XCTAssertTrue(summary.label.contains("[Image]"))
+        XCTAssertTrue(summary.label.contains("[Audio]"))
+        XCTAssertFalse(app.buttons["send-button"].exists)
+        summary.tap()
+        guard RealAccountUITestSupport.focusForTextEntry(input, in: app, identifier: "message-editor") else { return }
+        XCTAssertEqual(input.value as? String, restoredValue)
+        attachScreenshot(name: "Chat mixed draft compact restore and appended recording")
     }
 
     // contract-test: supporting surface=gui.apple assertions=message-input.send.ownership,message-input.layout.responsive-parity
@@ -443,6 +555,25 @@ final class NativeComposerDraftEditUITests: XCTestCase {
         XCTAssertFalse(banner.exists)
         XCTAssertFalse(stop.exists)
         attachScreenshot(name: "Authoritative processing completion restores composer after stale replay")
+    }
+
+    private func assertRecordingPanelBounds(in app: XCUIApplication,
+                                            file: StaticString = #filePath, line: UInt = #line) {
+        let panel = element(in: app, identifier: "record-overlay")
+        let field = element(in: app, identifier: "message-field")
+        let controls = element(in: app, identifier: "record-controls")
+        XCTAssertEqual(panel.frame.minX, field.frame.minX, accuracy: 1, file: file, line: line)
+        XCTAssertEqual(panel.frame.maxX, field.frame.maxX, accuracy: 1, file: file, line: line)
+        XCTAssertEqual(controls.frame.minX - panel.frame.minX,
+                       panel.frame.maxX - controls.frame.maxX, accuracy: 1,
+                       "Recording controls retain equal horizontal inset", file: file, line: line)
+        for identifier in ["timer-pill", "record-cancel-button", "record-finish-button"] {
+            let control = element(in: app, identifier: identifier)
+            XCTAssertTrue(panel.frame.insetBy(dx: -1, dy: -1).contains(control.frame),
+                          "Recording control is fully inside the panel: \(identifier)", file: file, line: line)
+        }
+        XCTAssertTrue(app.buttons["record-cancel-button"].isHittable, file: file, line: line)
+        XCTAssertTrue(app.buttons["record-finish-button"].isHittable, file: file, line: line)
     }
 
     private func launchComposerSendFixture(outcome: String) -> XCUIApplication {

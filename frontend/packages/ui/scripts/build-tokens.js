@@ -670,9 +670,16 @@ function generateSwiftGradients() {
   lines.push("}");
   lines.push("");
 
-  lines.push("enum AppGradientPalette {", "    static func colors(for appID: String) -> (start: Color, end: Color) {", "        switch appID {");
+  lines.push("enum AppGradientPalette {", "    static func colors(for appID: String, colorScheme: ColorScheme = .light) -> (start: Color, end: Color) {", "        switch appID {");
   for (const [name, grad] of Object.entries(gradients.apps || {})) {
-    if (grad.start && !grad.start_ref) lines.push(`        case "${name}": return (Color(hex: 0x${grad.start.replace("#", "").toUpperCase()}), Color(hex: 0x${grad.end.replace("#", "").toUpperCase()}))`);
+    if (grad.start && !grad.start_ref) {
+      // Keep existing callers on the light palette; theme-aware surfaces opt in.
+      // Use the same dark overrides emitted into theme.generated.css above.
+      const swiftColor = (light, dark) => dark
+        ? `Color(hex: colorScheme == .dark ? 0x${dark.replace("#", "").toUpperCase()} : 0x${light.replace("#", "").toUpperCase()})`
+        : `Color(hex: 0x${light.replace("#", "").toUpperCase()})`;
+      lines.push(`        case "${name}": return (${swiftColor(grad.start, grad.dark_start)}, ${swiftColor(grad.end, grad.dark_end)})`);
+    }
   }
   lines.push(`        default: return (Color(hex: 0x${primary.start.replace("#", "").toUpperCase()}), Color(hex: 0x${primary.end.replace("#", "").toUpperCase()}))`, "        }", "    }", "}", "");
   return lines.join("\n");

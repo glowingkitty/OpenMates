@@ -1,5 +1,7 @@
 // Display-only counterpart for chats/Chats.svelte and utils/chatGroupUtils.ts.
 // Sorting, hidden/subchat filtering and static sections remain with the caller.
+// Specification: specifications/architecture/drafts/specification.yml
+// Assertions: drafts.draft-only.presentation, drafts.sync.version-authoritative
 import Foundation
 
 enum ChatSidebarDisplayPolicy {
@@ -15,7 +17,8 @@ enum ChatSidebarDisplayPolicy {
     static func isDraftOnly(_ chat: Chat, preview: String?) -> Bool {
         let title = chat.title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let hasTitle = !title.isEmpty && title.lowercased() != "untitled chat"
-        let hasDraft = chat.hasNonEmptyDraft == true || (chat.draftV ?? 0) > 0 || preview?.isEmpty == false
+        let hasDraft = chat.hasNonEmptyDraft
+            ?? (preview?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false)
         return hasDraft && !hasTitle && (chat.messagesV ?? 0) == 0 && chat.lastVisibleMessageId == nil
     }
 

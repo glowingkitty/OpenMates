@@ -30,11 +30,30 @@ struct ComposerPIIDispatchFence: Sendable {
     }
 }
 
+/// Regex preview always runs. This policy changes only enhanced preview admission;
+/// final Send still verifies the exact immutable snapshot against the local engine.
+enum ComposerEnhancedPreviewCadence: String, CaseIterable, Sendable {
+    case baseline, separators, sendOnly
+
+    func permits(_ text: String) -> Bool {
+        switch self {
+        case .baseline: return true
+        case .sendOnly: return false
+        case .separators:
+            guard let last = text.last else { return false }
+            return last.unicodeScalars.allSatisfy {
+                CharacterSet.whitespacesAndNewlines.contains($0) || CharacterSet.punctuationCharacters.contains($0)
+            }
+        }
+    }
+}
+
 @MainActor
 final class ComposerPIIDetectionCoordinator: ObservableObject {
     @Published private(set) var publication: ComposerPIIDetectionPublication?
     private let service: EnhancedPIIDetectionService
     private let debounceNanoseconds: UInt64
+    private let previewCadence: ComposerEnhancedPreviewCadence
     private var current: ComposerPIIDetectionSnapshot?
     private var pending: ComposerPIIDetectionSnapshot?
     private var epoch = UUID()
@@ -49,8 +68,10 @@ final class ComposerPIIDetectionCoordinator: ObservableObject {
     private var verifying = 0
     private var observation: AnyCancellable?
 
-    init(service: EnhancedPIIDetectionService = .shared, debounceNanoseconds: UInt64 = 500_000_000) {
+    init(service: EnhancedPIIDetectionService = .shared, debounceNanoseconds: UInt64 = 500_000_000,
+         previewCadence: ComposerEnhancedPreviewCadence = .sendOnly) {
         self.service = service; self.debounceNanoseconds = debounceNanoseconds
+        self.previewCadence = previewCadence
         observation = service.$revision.dropFirst().sink { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self, let current else { return }
@@ -75,6 +96,7 @@ final class ComposerPIIDetectionCoordinator: ObservableObject {
         guard foreground, enabled else { service.deactivate(context); return }
         service.activate(context, enabled: true)
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        guard previewCadence.permits(text) else { return }
         let expected = epoch
         debounce = Task { [weak self] in
             guard let self else { return }

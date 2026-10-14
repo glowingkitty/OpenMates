@@ -1,3 +1,5 @@
+// Specification: specifications/features/apple-notifications/specification.yml
+// Assertions: apple-notifications.delivery.confirmed-action-haptics
 // Central auth state manager — mirrors the web app's authStore.ts.
 // Handles login flows (password, passkey, recovery key, backup code),
 // session persistence, and device verification state.
@@ -536,6 +538,7 @@ final class AuthManager: ObservableObject {
         signupProof: NativeSignupLoginProof? = nil
     ) async throws {
         validationGeneration = UUID()
+        let hapticGeneration = validationGeneration
         let signupSessionId = signupProof?.sessionId
         if let signupProof, let signupSessionId {
             try validateSignupContext(signupProof, sessionId: signupSessionId)
@@ -663,6 +666,11 @@ final class AuthManager: ObservableObject {
                 migrationBaseline = nil
             }
             try await handleSuccessfulLogin(response: response, password: password, signupProof: signupProof, signupSessionId: signupSessionId)
+            if validationGeneration == hapticGeneration, state == .authenticated,
+               sessionValidationState == .onlineAuthenticated, currentUser?.id == response.user?.id {
+                NativeHaptics.shared.confirmed(.authenticated, id: hapticGeneration.uuidString,
+                    scope: OfflineStore.shared.scopeGeneration.uuidString)
+            }
             if signupProof == nil, let user = response.user {
                 if user.credentialVersion == 2, let migrationBaseline,
                    PasswordV2MigrationPendingStore.contains(user.id) {
@@ -689,6 +697,7 @@ final class AuthManager: ObservableObject {
 
     func loginWithRecoveryKey(email: String, recoveryKey: String, userEmailSalt: String?) async throws {
         validationGeneration = UUID()
+        let hapticGeneration = validationGeneration
         guard let userEmailSalt,
               let saltData = Data(base64Encoded: userEmailSalt) else {
             print("[Auth] Missing user_email_salt from lookup; cannot compute recovery-key lookup_hash")
@@ -720,6 +729,11 @@ final class AuthManager: ObservableObject {
         if response.success, response.user != nil {
             // Recovery key uses same PBKDF2 derivation as password
             try await handleSuccessfulLogin(response: response, password: recoveryKey, wrapperVersion: 1)
+            if validationGeneration == hapticGeneration, state == .authenticated,
+               sessionValidationState == .onlineAuthenticated, currentUser?.id == response.user?.id {
+                NativeHaptics.shared.confirmed(.authenticated, id: hapticGeneration.uuidString,
+                    scope: OfflineStore.shared.scopeGeneration.uuidString)
+            }
             return
         }
 
@@ -756,6 +770,7 @@ final class AuthManager: ObservableObject {
 
     func completePasskeyLogin(response: LoginResponse, masterKey: SymmetricKey) async throws {
         validationGeneration = UUID()
+        let hapticGeneration = validationGeneration
         if response.needsDeviceVerification == true,
            let type = response.deviceVerificationType {
             state = .needsDeviceVerification(type: type)
@@ -776,6 +791,10 @@ final class AuthManager: ObservableObject {
         schedulePairDeadline(for: user.id)
         sessionValidationState = .onlineAuthenticated
         state = .authenticated
+        if validationGeneration == hapticGeneration, currentUser?.id == user.id {
+            NativeHaptics.shared.confirmed(.authenticated, id: hapticGeneration.uuidString,
+                scope: OfflineStore.shared.scopeGeneration.uuidString)
+        }
     }
 
     // Signup publishes only after a fresh assertion unwraps the same newly
@@ -799,11 +818,14 @@ final class AuthManager: ObservableObject {
         cacheAuthenticatedUser(user)
         sessionValidationState = .onlineAuthenticated
         state = .authenticated
+        NativeHaptics.shared.confirmed(.authenticated, id: owner.uuidString,
+            scope: OfflineStore.shared.scopeGeneration.uuidString)
     }
 
     func completePairLogin(response: LoginResponse, masterKey: SymmetricKey,
                            acknowledge: () async throws -> Void) async throws {
         validationGeneration = UUID()
+        let hapticGeneration = validationGeneration
         if response.needsDeviceVerification == true,
            let type = response.deviceVerificationType {
             state = .needsDeviceVerification(type: type)
@@ -834,6 +856,10 @@ final class AuthManager: ObservableObject {
         schedulePairDeadline(for: user.id)
         sessionValidationState = .onlineAuthenticated
         state = .authenticated
+        if validationGeneration == hapticGeneration, currentUser?.id == user.id {
+            NativeHaptics.shared.confirmed(.authenticated, id: hapticGeneration.uuidString,
+                scope: OfflineStore.shared.scopeGeneration.uuidString)
+        }
     }
 
     // MARK: - Logout

@@ -5,6 +5,148 @@ import XCTest
 
 @MainActor
 final class LocalModelStoreTests: XCTestCase {
+    // contract-test: direct surface=gui.apple assertions=apple-local-model-lab.optional-downloads,apple-local-model-lab.local-execution
+    func testCapabilityPreferencesPersistIndependentlyWithoutRemovingVerifiedAssets() async throws {
+        let directory = root(), suite = "capability-preferences-" + UUID().uuidString
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite); try? FileManager.default.removeItem(at: directory) }
+        let store = LocalModelStore(catalog: try packCatalog(), root: directory, storageReserveBytes: 0,
+            downloader: PackFixtureDownloader(bytes: fixture), verifyExisting: false, preferences: defaults)
+        await store.download(.whisper)
+        XCTAssertTrue(store.canUseCapability(.whisper))
+        await store.setCapabilityEnabled(.whisper, enabled: false)
+        XCTAssertFalse(store.canUseCapability(.whisper))
+        XCTAssertEqual(store.state(for: .whisper), .ready)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: try store.installedDirectory(.whisper).path))
+        XCTAssertTrue(store.isCapabilityEnabled(.supertonic3))
+        XCTAssertTrue(store.isCapabilityEnabled(.privacyFilter))
+        let reopened = LocalModelStore(catalog: try packCatalog(), root: directory, verifyExisting: false, preferences: defaults)
+        XCTAssertFalse(reopened.isCapabilityEnabled(.whisper))
+        await store.setCapabilityEnabled(.whisper, enabled: true)
+        XCTAssertTrue(store.canUseCapability(.whisper))
+    }
+
+    // contract-test: direct surface=gui.apple assertions=apple-local-model-lab.optional-downloads,apple-local-model-lab.ephemeral-state
+    func testExplicitRemovalClosesAdmissionAndRetainsFilesUntilNativeOwnerDrains() async throws {
+        let directory = root(), suite = "capability-removal-" + UUID().uuidString
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite); try? FileManager.default.removeItem(at: directory) }
+        let store = LocalModelStore(catalog: try catalog(manifest()), root: directory, storageReserveBytes: 0,
+            downloader: PackFixtureDownloader(bytes: fixture), verifyExisting: false, preferences: defaults)
+        await store.download(.whisper)
+        let installed = try store.installedDirectory(.whisper)
+        let draining = expectation(description: "native owner entered cleanup")
+        var release: CheckedContinuation<Void, Never>?
+        store.registerRuntime(.whisper, owner: UUID()) {
+            await withCheckedContinuation { release = $0; draining.fulfill() }
+        }
+        let removal = Task { await store.remove(.whisper) }
+        await fulfillment(of: [draining], timeout: 1)
+        XCTAssertTrue(store.removingModels.contains(.whisper))
+        XCTAssertFalse(store.canUseCapability(.whisper))
+        XCTAssertThrowsError(try store.installedDirectory(.whisper))
+        XCTAssertFalse(store.registerRuntime(.whisper, owner: UUID(), drain: {}))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: installed.path))
+        await store.download(.whisper)
+        release?.resume()
+        await removal.value
+        XCTAssertFalse(FileManager.default.fileExists(atPath: installed.path))
+        XCTAssertEqual(store.state(for: .whisper), .notDownloaded)
+        XCTAssertFalse(store.removingModels.contains(.whisper))
+        XCTAssertFalse(store.isCapabilityEnabled(.whisper))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-local-model-lab.optional-downloads
+    func testCompletedModelUsesCapabilityDocumentAndActualBytesWithPrivateStaging() async throws {
+        let base = root(), model = manifest()
+        defer { try? FileManager.default.removeItem(at: base) }
+        let privateRoot = base.appendingPathComponent("private"), documents = base.appendingPathComponent("Documents")
+        let transport = FixtureDownloader(bytes: fixture)
+        let store = LocalModelStore(catalog: try catalog(model), root: privateRoot, completedDocumentsRoot: documents,
+            storageReserveBytes: 0, downloader: transport, verifyExisting: false)
+        await store.download(.whisper)
+        let installed = try store.installedDirectory(.whisper)
+        XCTAssertEqual(installed, documents.appendingPathComponent("Speech to text.offline-model", isDirectory: true))
+        XCTAssertEqual(try Data(contentsOf: installed.appendingPathComponent("model.bin")), fixture)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: privateRoot.appendingPathComponent("whisper").path))
+        XCTAssertTrue(try installed.resourceValues(forKeys: [.isExcludedFromBackupKey]).isExcludedFromBackup == true)
+        XCTAssertEqual(LocalModelDocumentStorage.name(for: .privacyFilter), "Enhanced anonymization.offline-model")
+        XCTAssertEqual(LocalModelDocumentStorage.name(for: .supertonic3), "Text to speech.offline-model")
+        let reopened = LocalModelStore(catalog: try catalog(model), root: privateRoot, completedDocumentsRoot: documents,
+            storageReserveBytes: 0, downloader: transport, verifyExisting: false)
+        await reopened.restoreExisting()
+        XCTAssertEqual(reopened.state(for: .whisper), .ready)
+        let requests = await transport.requestCount
+        XCTAssertEqual(requests, 1)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-local-model-lab.optional-downloads
+    func testLegacyModelMigrationMovesActualAssetsAndLeavesPrivateJournalUntouched() async throws {
+        let base = root(), model = manifest()
+        defer { try? FileManager.default.removeItem(at: base) }
+        let privateRoot = base.appendingPathComponent("private"), documents = base.appendingPathComponent("Documents")
+        let transport = FixtureDownloader(bytes: fixture)
+        let old = try await LocalModelDisk.install(model, root: privateRoot, downloader: transport,
+            progress: { _ in }, storageReserveBytes: 0)
+        let journal = privateRoot.appendingPathComponent("partial-owned-operation", isDirectory: true)
+        try FileManager.default.createDirectory(at: journal, withIntermediateDirectories: true)
+        try fixture.write(to: journal.appendingPathComponent("resume-receipt"))
+        try LocalModelDocumentStorage.migrate(model, privateRoot: privateRoot, documentsRoot: documents)
+        let target = documents.appendingPathComponent(LocalModelDocumentStorage.name(for: .whisper), isDirectory: true)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: old.path))
+        XCTAssertEqual(try Data(contentsOf: target.appendingPathComponent("model.bin")), fixture)
+        XCTAssertEqual(try Data(contentsOf: journal.appendingPathComponent("resume-receipt")), fixture)
+        try LocalModelDocumentStorage.migrate(model, privateRoot: privateRoot, documentsRoot: documents)
+        let requests = await transport.requestCount
+        XCTAssertEqual(requests, 1, "Migration never redownloads or duplicates the installed payload")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-local-model-lab.optional-downloads
+    func testExternalDocumentDeletionClosesAdmissionAndDrainsWithoutRedownloading() async throws {
+        let base = root(), model = manifest()
+        defer { try? FileManager.default.removeItem(at: base) }
+        let transport = FixtureDownloader(bytes: fixture)
+        let store = LocalModelStore(catalog: try catalog(model), root: base.appendingPathComponent("private"),
+            completedDocumentsRoot: base.appendingPathComponent("Documents"), storageReserveBytes: 0,
+            downloader: transport, verifyExisting: false)
+        await store.download(.whisper)
+        let started = AsyncStream<Void>.makeStream(), release = AsyncStream<Void>.makeStream()
+        store.registerRuntime(.whisper, owner: UUID()) {
+            started.continuation.yield(())
+            for await _ in release.stream { break }
+        }
+        try FileManager.default.removeItem(at: store.installedDirectory(.whisper))
+        let reconciliation = Task { await store.reconcileExternalDocumentDeletion() }
+        var iterator = started.stream.makeAsyncIterator()
+        await iterator.next()
+        XCTAssertTrue(store.removingModels.contains(.whisper))
+        XCTAssertFalse(store.canUseCapability(.whisper))
+        XCTAssertThrowsError(try store.installedDirectory(.whisper))
+        release.continuation.yield(()); release.continuation.finish()
+        await reconciliation.value
+        XCTAssertEqual(store.state(for: .whisper), .notDownloaded)
+        XCTAssertFalse(store.isCapabilityEnabled(.whisper))
+        let requests = await transport.requestCount
+        XCTAssertEqual(requests, 1)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-local-model-lab.optional-downloads
+    func testExternallyReplacedSameLengthModelCannotRetainReadyTrust() async throws {
+        let base = root(), model = manifest()
+        defer { try? FileManager.default.removeItem(at: base) }
+        let store = LocalModelStore(catalog: try catalog(model), root: base.appendingPathComponent("private"),
+            completedDocumentsRoot: base.appendingPathComponent("Documents"), storageReserveBytes: 0,
+            downloader: FixtureDownloader(bytes: fixture), verifyExisting: false)
+        await store.download(.whisper)
+        let file = try store.installedDirectory(.whisper).appendingPathComponent("model.bin")
+        let date = try XCTUnwrap(FileManager.default.attributesOfItem(atPath: file.path)[.modificationDate] as? Date)
+        try Data(repeating: 1, count: fixture.count).write(to: file, options: .atomic)
+        try FileManager.default.setAttributes([.modificationDate: date], ofItemAtPath: file.path)
+        await store.reconcileExternalDocumentDeletion()
+        XCTAssertEqual(store.state(for: .whisper), .notDownloaded)
+        XCTAssertFalse(store.canUseCapability(.whisper))
+    }
+
     private let fixture = Data("verified local fixture".utf8)
     private func root() -> URL {
         FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
@@ -20,12 +162,12 @@ final class LocalModelStoreTests: XCTestCase {
         try JSONEncoder().encode(LocalModelCatalog(models: [manifest]))
     }
 
-    private func packCatalog() throws -> Data {
+    private func packCatalog(paths: [LocalModelID: String] = [:]) throws -> Data {
         let digest = SHA256.hash(data: fixture).map { String(format: "%02x", $0) }.joined()
         let revision = String(repeating: "a", count: 40)
         let models = LocalModelID.allCases.map { id in
             LocalModelManifest(id: id, revision: revision, estimatedSizeBytes: Int64(fixture.count), files: [
-                LocalModelFile(path: id.rawValue + ".bin",
+                LocalModelFile(path: paths[id] ?? id.rawValue + ".bin",
                     url: URL(string: "https://huggingface.co/fixture/resolve/\(revision)/\(id.rawValue).bin")!,
                     sha256: digest, sizeBytes: Int64(fixture.count))
             ])
@@ -138,6 +280,85 @@ final class LocalModelStoreTests: XCTestCase {
         relaunch.cancel()
         XCTAssertEqual(relaunch.snapshot.phase, .cancelled)
         XCTAssertEqual(OfflineAIModelPackPersistence.read(defaults)?.phase, .cancelled)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-local-model-lab.optional-downloads
+    func testColdDocumentDeletionPausesConsentedPackUntilExplicitDownload() async throws {
+        let directory = root(), documents = root(), suite = "deleted-model-pack-" + UUID().uuidString
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer {
+            defaults.removePersistentDomain(forName: suite)
+            try? FileManager.default.removeItem(at: directory)
+            try? FileManager.default.removeItem(at: documents)
+        }
+        let transport = PackFixtureDownloader(bytes: fixture)
+        let catalog = try packCatalog()
+        let initial = LocalModelStore(catalog: catalog, root: directory, completedDocumentsRoot: documents,
+            storageReserveBytes: 0, downloader: transport, verifyExisting: false, preferences: defaults)
+        for id in OfflineAIModelPack.order { await initial.download(id) }
+        try FileManager.default.removeItem(at: initial.installedDirectory(.whisper))
+        let interrupted = OfflineAIModelPackSnapshot(phase: .downloading, currentModel: .whisper)
+        defaults.set(try JSONEncoder().encode(interrupted), forKey: OfflineAIModelPackPersistence.key)
+        let reopened = LocalModelStore(catalog: catalog, root: directory, completedDocumentsRoot: documents,
+            storageReserveBytes: 0, downloader: transport, verifyExisting: false, preferences: defaults)
+        let pack = OfflineAIModelPack(store: reopened, defaults: defaults)
+        await pack.waitUntilRestored()
+        XCTAssertEqual(pack.snapshot.phase, .paused)
+        XCTAssertEqual(reopened.removedFromDevice, [.whisper])
+        XCTAssertFalse(reopened.isCapabilityEnabled(.whisper))
+        XCTAssertEqual(reopened.state(for: .supertonic3), .ready)
+        let before = await transport.paths
+        XCTAssertEqual(before, ["whisper.bin", "supertonic3.bin", "privacyFilter.bin"])
+        XCTAssertEqual(OfflineAIModelPackPersistence.read(defaults)?.phase, .paused)
+
+        let completed = expectation(description: "explicit download may restore deleted model")
+        let observer = pack.$snapshot.map(\.phase).removeDuplicates().sink {
+            if $0 == .complete { completed.fulfill() }
+        }
+        pack.download()
+        await fulfillment(of: [completed], timeout: 5)
+        observer.cancel()
+        let after = await transport.paths
+        XCTAssertEqual(after, before + ["whisper.bin"])
+        XCTAssertTrue(reopened.removedFromDevice.isEmpty)
+        XCTAssertFalse(reopened.isCapabilityEnabled(.whisper), "Downloading cannot silently enable a disabled capability")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-local-model-lab.optional-downloads,apple-local-model-lab.serialized-cancellation
+    func testExternalDeletionDuringPackStopsQueueAndExplicitResumeRestoresOnlyMissingAssets() async throws {
+        let directory = root(), documents = root(), suite = "active-model-pack-" + UUID().uuidString
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer {
+            defaults.removePersistentDomain(forName: suite)
+            try? FileManager.default.removeItem(at: directory)
+            try? FileManager.default.removeItem(at: documents)
+        }
+        let started = AsyncStream<Void>.makeStream()
+        let transport = PausingPackFixtureDownloader(bytes: fixture, started: started.continuation)
+        let store = LocalModelStore(catalog: try packCatalog(paths: [.whisper: "first.bin", .supertonic3: "second.bin", .privacyFilter: "third.bin"]),
+            root: directory, completedDocumentsRoot: documents, storageReserveBytes: 0,
+            downloader: transport, verifyExisting: false, preferences: defaults)
+        let pack = OfflineAIModelPack(store: store, defaults: defaults)
+        await pack.waitUntilRestored()
+        pack.download()
+        for await _ in started.stream { break }
+        try FileManager.default.removeItem(at: store.installedDirectory(.whisper))
+        await store.reconcileExternalDocumentDeletion()
+        XCTAssertEqual(pack.snapshot.phase, .paused)
+        XCTAssertNil(pack.snapshot.failureMessage)
+        XCTAssertEqual(store.state(for: .whisper), .notDownloaded)
+        let before = await transport.paths
+        XCTAssertEqual(before, ["first.bin", "second.bin"], "Deleted assets cannot trigger an automatic download or queue advance")
+        let completed = expectation(description: "explicit resume completes remaining assets")
+        let observer = pack.$snapshot.map(\.phase).removeDuplicates().sink {
+            if $0 == .complete { completed.fulfill() }
+        }
+        pack.download()
+        await fulfillment(of: [completed], timeout: 5)
+        observer.cancel()
+        let after = await transport.paths
+        XCTAssertEqual(after, ["first.bin", "second.bin", "first.bin", "second.bin", "third.bin"])
+        XCTAssertTrue(store.removedFromDevice.isEmpty)
     }
 
     // contract-test: direct surface=gui.apple assertions=apple-local-model-lab.optional-downloads

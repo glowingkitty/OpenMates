@@ -2,6 +2,8 @@
 // Product UI must use OpenMates primitives instead of default platform List/Form chrome.
 // ALL navigation targets are native SwiftUI views — no web redirects.
 // ALL strings go through AppStrings (i18n) — no hardcoded English.
+// Specification: specifications/features/teams/specification.yml
+// Assertions: teams.context.full-switch-local, teams.membership.role-gated
 // Specification: specifications/features/chats/specification.yml
 // Assertions: chats.surface.semantic-parity
 // Specification: specifications/features/settings-ui/specification.yml
@@ -421,7 +423,11 @@ struct SettingsView: View {
         onOpenMemoryEmbed: ((EmbedRecord) -> Void)? = nil
     ) {
         self.projectID = projectID
+        #if DEBUG
+        self.teamContext = TeamWorkspaceContext.homeRosterUIFixtureIfRequested() ?? teamContext
+        #else
         self.teamContext = teamContext
+        #endif
         self.deepLinkPath = deepLinkPath
         self.deepLinkRequest = deepLinkRequest
         self.viewportWidth = viewportWidth
@@ -2828,6 +2834,7 @@ private struct SettingsTeamQuickAction: View {
     @State private var pickerOpen = false
     @State private var expanded = false
     @State private var recentTeamID: String?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var readableTeams: [TeamWorkspaceTeam] {
         let values = context.teams.filter(\.canRead)
@@ -2846,20 +2853,32 @@ private struct SettingsTeamQuickAction: View {
                     Spacer(minLength: 0)
                 }.contentShape(Rectangle())
             }.buttonStyle(.plain).accessibilityIdentifier("team-quick-open")
-            Button { pickerOpen.toggle(); expanded = false } label: {
-                HStack(spacing: .spacing2) {
-                    SettingsTeamContextAvatar(team: context.selectedTeam, size: 24, context: context)
-                    Icon("chevron-down", size: 10).foregroundStyle(Color.fontButton)
-                }.padding(.spacing1).frame(minWidth: .spacing24, minHeight: .spacing16)
-                    .background(LinearGradient.primary).clipShape(Capsule())
-            }.buttonStyle(.plain).disabled(context.isLoading && context.teams.isEmpty)
-                .accessibilityLabel(AppStrings.settingsQuickSwitchTeam)
-                .accessibilityValue(context.selectedTeam?.name ?? AppStrings.settingsQuickPersonal)
-                .accessibilityIdentifier("team-quick-context-dropdown")
-            OMToggle(isOn: Binding(get: { context.teamID != nil }, set: { _ in toggleContext() }),
-                disabled: context.isLoading && context.teams.isEmpty,
-                accessibilityIdentifier: "team-quick-toggle")
-                .accessibilityLabel(AppStrings.teamsTitle)
+            if !readableTeams.isEmpty {
+                Button { setPickerOpen(!pickerOpen); expanded = false } label: {
+                    HStack(spacing: .spacing2) {
+                        SettingsTeamContextAvatar(team: context.selectedTeam, size: 24, context: context)
+                        Icon("chevron-down", size: 10).foregroundStyle(Color.fontButton)
+                    }.padding(.spacing1).frame(minWidth: .spacing24, minHeight: 41)
+                        .background(LinearGradient.primary).clipShape(Capsule())
+                }.buttonStyle(.plain).disabled(context.isLoading && context.teams.isEmpty)
+                    .accessibilityLabel(AppStrings.settingsQuickSwitchTeam)
+                    .accessibilityValue(context.selectedTeam?.name ?? AppStrings.settingsQuickPersonal)
+                    .accessibilityIdentifier("team-quick-context-dropdown")
+                OMToggle(isOn: Binding(get: { context.teamID != nil }, set: { _ in toggleContext() }),
+                    disabled: context.isLoading && context.teams.isEmpty,
+                    accessibilityIdentifier: "team-quick-toggle")
+                    .accessibilityLabel(AppStrings.teamsTitle)
+            } else if context.showsTeamCreation {
+                Button(action: createTeam) {
+                    Icon("create", size: 22).foregroundStyle(Color.fontButton)
+                        .padding(.horizontal, .spacing12).padding(.vertical, .spacing5)
+                        // SettingsButton size=sm: 22px icon, 10/24px padding, 15px radius.
+                        .background(Color.buttonPrimary, in: RoundedRectangle(cornerRadius: 15))
+                }.buttonStyle(.plain)
+                    .accessibilityLabel(AppStrings.teamsNewTeam)
+                    .accessibilityIdentifier("team-quick-create")
+                    .disabled(!context.canOfferTeamCreation)
+            }
         }
         .padding(.horizontal, .spacing5).padding(.vertical, .spacing2)
         .overlay(alignment: .topTrailing) {
@@ -2871,27 +2890,32 @@ private struct SettingsTeamQuickAction: View {
                     }
                     contextOption(nil, label: AppStrings.settingsQuickPersonal, team: nil)
                     if readableTeams.count > 5 && !expanded {
-                        Button(AppStrings.settingsQuickMoreTeams) { expanded = true }.buttonStyle(.plain)
+                        Button(AppStrings.settingsQuickMoreTeams) { expanded = true }.frame(height: 39).buttonStyle(.plain)
                             .accessibilityIdentifier("team-context-show-more")
                     }
-                    Button { pickerOpen = false; createTeam() } label: {
-                        HStack(spacing: .spacing4) { Icon("create", size: 22).frame(width: 39, height: 39); Text(AppStrings.teamsNewTeam) }
-                    }.buttonStyle(.plain).accessibilityIdentifier("team-context-new-team")
+                    Button { setPickerOpen(false); createTeam() } label: {
+                        HStack(spacing: .spacing8) { Icon("create", size: 22); Text(AppStrings.teamsNewTeam) }
+                            .padding(.leading, .spacing4).frame(height: 22)
+                            .foregroundStyle(Color.fontButton.opacity(0.7))
+                    }.buttonStyle(.plain).padding(.top, 3).accessibilityIdentifier("team-context-new-team")
                 }
                 .font(.omP).fontWeight(.bold).foregroundStyle(Color.fontButton)
-                .padding(.spacing6)
+                // TeamContextPicker computed padding: 13px 13px 17px (no token).
+                .padding(.horizontal, 13).padding(.top, 13).padding(.bottom, 17)
                 }
-                .frame(width: 185, height: SettingsTeamMenuBounds.maximumHeight(viewportHeight: viewportHeight))
+                .frame(width: 185, height: SettingsTeamMenuBounds.height(teamCount: readableTeams.count,
+                    expanded: expanded, viewportHeight: viewportHeight))
                 .accessibilityIdentifier("team-context-menu-scroll")
-                .background(LinearGradient.primary).clipShape(RoundedRectangle(cornerRadius: .radius8))
-                .shadow(color: .black.opacity(0.2), radius: 8, y: 4)
-                .padding(.trailing, .spacing5).offset(y: 52)
+                .background(LinearGradient.primary).clipShape(RoundedRectangle(cornerRadius: 22))
+                .shadow(color: .black.opacity(0.25), radius: 4, y: 4)
+                .transition(.opacity.combined(with: .offset(y: -4)).combined(with: .scale(scale: 0.98, anchor: .top)))
+                .offset(x: -CGFloat.spacing5, y: 52)
                 .accessibilityIdentifier("team-context-menu")
             }
         }
         .onAppear { recentTeamID = context.teamID }
-        .onChange(of: context.teamID) { _, id in if let id { recentTeamID = id }; pickerOpen = false }
-        .onChange(of: context.loadedAccountID) { _, _ in recentTeamID = nil; pickerOpen = false }
+        .onChange(of: context.teamID) { _, id in if let id { recentTeamID = id }; setPickerOpen(false) }
+        .onChange(of: context.loadedAccountID) { _, _ in recentTeamID = nil; setPickerOpen(false) }
         .onChange(of: context.rosterEpoch) { _, _ in
             if let recentTeamID, !context.teams.contains(where: { $0.id == recentTeamID && $0.canRead }) { self.recentTeamID = nil }
         }
@@ -2899,20 +2923,26 @@ private struct SettingsTeamQuickAction: View {
 
     private func contextOption(_ id: String?, label: String, team: TeamWorkspaceTeam?) -> some View {
         Button {
-            pickerOpen = false
+            setPickerOpen(false)
             if let id { recentTeamID = id }
             Task { await context.selectTeam(id) }
         } label: {
-            HStack(spacing: .spacing4) {
+            HStack(spacing: 7) {
                 SettingsTeamContextAvatar(team: team, size: 39, context: context)
                 Text(label).lineLimit(1)
-            }.frame(maxWidth: .infinity, alignment: .leading)
+            }.frame(height: 39).frame(maxWidth: .infinity, alignment: .leading)
         }.buttonStyle(.plain)
             .accessibilityIdentifier(id.map { "team-context-option-" + $0 } ?? "team-context-personal")
     }
 
+    private func setPickerOpen(_ open: Bool) {
+        withAnimation(reduceMotion ? nil : open ? .easeOut(duration: 0.18) : .easeIn(duration: 0.18)) {
+            pickerOpen = open
+        }
+    }
+
     private func toggleContext() {
-        pickerOpen = false
+        setPickerOpen(false)
         if context.teamID != nil { Task { await context.selectTeam(nil) } }
         else if let team = readableTeams.first { recentTeamID = team.id; Task { await context.selectTeam(team.id) } }
         else { createTeam() }
@@ -2938,6 +2968,9 @@ struct SettingsTeamContextAvatar: View {
             .accessibilityHidden(true)
             .task(id: "\(team?.id ?? "")|\(team?.updatedAt ?? 0)|\(context.contextEpoch)") {
                 data = nil
+                #if DEBUG
+                if context.isHomeRosterUIFixture { return }
+                #endif
                 guard let team, let accountID = context.loadedAccountID else { return }
                 let snapshot = context.snapshot
                 let loaded = try? await SettingsTeamsService().avatar(team: team, fence: TeamWorkspaceFence(accountID: accountID))
@@ -2977,6 +3010,19 @@ private extension AppStrings {
 // Web: max-height:min(30rem,calc(100vh - 1rem)); native additionally reserves
 // the52pt trigger row so its below-trigger overlay fits inside the scroll canvas.
 enum SettingsTeamMenuBounds {
+    // Browser: 39px team/Personal rows, 12px gaps, 22px New team plus 3px
+    // top margin; padding 13+17. A cap bounds scrolling, never adds empty space.
+    static func contentHeight(teamCount: Int, expanded: Bool) -> CGFloat {
+        let visible = expanded ? max(0, teamCount) : min(5, max(0, teamCount))
+        let showMore = teamCount > 5 && !expanded
+        let rows = visible + 1 + (showMore ? 1 : 0)
+        return 30 + CGFloat(rows) * 39 + CGFloat(rows) * 12 + 3 + 22
+    }
+
+    static func height(teamCount: Int, expanded: Bool, viewportHeight: CGFloat) -> CGFloat {
+        min(contentHeight(teamCount: teamCount, expanded: expanded), maximumHeight(viewportHeight: viewportHeight))
+    }
+
     static func maximumHeight(viewportHeight: CGFloat) -> CGFloat {
         min(CGFloat.spacing24 * 10, max(0, viewportHeight - 52 - CGFloat.spacing8))
     }

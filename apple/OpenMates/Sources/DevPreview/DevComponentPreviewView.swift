@@ -57,7 +57,7 @@ struct DevComponentPreviewView: View {
             }
         case .composer: allowedKeys = ["text", "placeholder"]
         case .chatHeader: allowedKeys = ["title", "summary", "appId"]
-        case .message: allowedKeys = configuration.variant.hasPrefix("streaming") ? [] : ["content", "thinkingContent"]
+        case .message: allowedKeys = configuration.variant.hasPrefix("streaming") ? [] : ["content", "thinkingContent", "interactiveResponse"]
         case .embedPreview, .embedFullscreen:
             allowedKeys = []
             guard configuration.appSlug == .web else {
@@ -87,6 +87,8 @@ private struct DevComponentPreviewCanvas: View {
     @State private var offlinePackFixtureSettingsRoute = ""
     @State private var offlinePackFixtureActivity = LocalModelLiveActivityPolicy()
     @State private var offlinePackFixtureOperation = UUID()
+    @State private var offlinePackFixtureReadyModels: Set<LocalModelID> = []
+    @State private var offlinePackFixtureEnabledModels = Set(OfflineAIModelPack.order)
     @Environment(\.accessibilityReduceMotion) private var notificationReduceMotion
     @State private var embedRoute: [EmbedRecord] = []
     @State private var sourceQuoteTarget: SourceQuoteTarget?
@@ -565,12 +567,20 @@ private struct DevComponentPreviewCanvas: View {
                     }
                     if offlinePackFixtureSettingsRoute == "ai/localmodels" {
                         OfflineAIModelsSettingsContent(snapshot: offlinePackFixture,
+                            readyModels: offlinePackFixtureReadyModels,
+                            enabledModels: offlinePackFixtureEnabledModels,
                             onDownload: startOfflinePackFixture,
                             onPause: { offlinePackFixture.phase = .paused },
                             onCancel: {
                                 offlinePackFixture.phase = .cancelled
                                 _ = offlinePackFixtureActivity.consume(.finished(model: .whisper,
                                     operation: offlinePackFixtureOperation, outcome: .cancelled))
+                            }, onSetEnabled: { id, enabled in
+                                if enabled { offlinePackFixtureEnabledModels.insert(id) }
+                                else { offlinePackFixtureEnabledModels.remove(id) }
+                            }, onRemove: { id in
+                                offlinePackFixtureReadyModels.remove(id)
+                                offlinePackFixtureEnabledModels.remove(id)
                             })
                     }
                     Text("downloads=\(offlinePackFixtureDownloads);later=\(offlinePackFixtureDeferrals);phase=\(offlinePackFixture.phase.rawValue)")
@@ -579,6 +589,17 @@ private struct DevComponentPreviewCanvas: View {
                         .font(.omMicro).accessibilityIdentifier("offline-ai-fixture-settings-route")
                     Text(verbatim: "items=\(offlinePackFixtureActivity.items.count);bytes=\(offlinePackFixtureActivity.transferredBytes)/\(offlinePackFixtureActivity.totalBytes)")
                         .font(.omMicro).accessibilityIdentifier("offline-ai-fixture-live-activity")
+                    Text(verbatim: "enabled=\(offlinePackFixtureEnabledModels.map(\.rawValue).sorted().joined(separator: ","));ready=\(offlinePackFixtureReadyModels.map(\.rawValue).sorted().joined(separator: ","))")
+                        .font(.omMicro).accessibilityIdentifier("offline-ai-fixture-capabilities")
+                }
+                .onAppear {
+                    if configuration.variant == "offline-ready" {
+                        offlinePackFixture.phase = .complete
+                        offlinePackFixture.currentModel = nil
+                        offlinePackFixture.transferredBytes = offlinePackFixture.totalBytes
+                        offlinePackFixtureReadyModels = Set(OfflineAIModelPack.order)
+                        offlinePackFixtureSettingsRoute = "ai/localmodels"
+                    }
                 }
                 .embedProcessingReducedMotionFixture(configuration.variant == "offline-reduced")
             } else if configuration.variant == "stack" {
@@ -674,6 +695,7 @@ private struct DevComponentPreviewCanvas: View {
                               onEmbedTap: { open($0) },
                               onOpenPublicChat: { _ in lastAction = "public-chat-intercepted" },
                               onInteractiveQuestionSubmit: { _ in lastAction = "question-submitted-locally" },
+                              interactiveQuestionAnswers: interactiveQuestionFixtureAnswers,
                               onShowActions: { lastAction = "message-actions-requested" })
                     .padding(.spacing5)
                     .environment(\.sourceQuoteOpenAction, { embed, quote in
@@ -747,6 +769,14 @@ private struct DevComponentPreviewCanvas: View {
                            appId: configuration.props["appId"]?.string ?? "travel",
                            summary: configuration.props["summary"]?.string ?? "Restaurants, museums, and a relaxed itinerary.")
         }
+    }
+
+    private var interactiveQuestionFixtureAnswers: [String: AppleInteractiveQuestionAnswer] {
+        guard let json = configuration.props["interactiveResponse"]?.string,
+              let data = json.data(using: .utf8),
+              let answer = try? JSONDecoder().decode(AppleInteractiveQuestionAnswer.self, from: data),
+              !answer.id.isEmpty else { return [:] }
+        return [answer.id: answer]
     }
 
     private var message: Message {

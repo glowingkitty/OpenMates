@@ -83,6 +83,8 @@ enum EmbedVisualSkillIcon {
         switch registryKey {
         case "recording": return "microphone"
         case "app:audio:generate", "app:audio:speak": return "audio"
+        case "app:projects:search": return "search"
+        case "app:projects:read": return "project"
         case "app:business:company_financials", "business-company-financial-result": return "business"
         case "app:calendar:list-calendars", "app:calendar:get-events", "app:calendar:create-event",
              "app:calendar:update-event", "app:calendar:delete-event",
@@ -464,7 +466,7 @@ struct EmbedPreviewCard: View {
             // terminal status. Generic loading/error placeholders hide that
             // information and must not replace its registered renderer.
             if HostingEmbedKind.isSearch(embed) || HostingEmbedKind.isDomain(embed)
-                || (embed.status == .processing && embed.isAppSkillUse) {
+                || AppSkillInputPreviewModel.isRegisteredSkill(embed) {
                 EmbedContentView(
                     embed: embed,
                     mode: .preview,
@@ -475,7 +477,7 @@ struct EmbedPreviewCard: View {
                     isPIIRevealed: embedPIIRevealed,
                     previewVariant: variant
                 )
-                .padding(.horizontal, .spacing10)
+                .padding(.horizontal, hasFullWidthDetails || embedType == .recording ? 0 : .spacing10)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             } else if embed.status == .processing && embedType != .mindmapsMindmap && embedType != .codeCode {
                 processingView
@@ -643,6 +645,9 @@ struct EmbedPreviewCard: View {
     }
 
     private var statusTitle: String {
+        if ProjectReferenceEmbedModel.isReference(embed) {
+            return AppStrings.localized("app_skills.projects.skills.\(ProjectReferenceEmbedModel(embed: embed).skillID)")
+        }
         if HostingEmbedKind.isDomain(embed) { return HostingDomainModel(embed).name }
         if HostingEmbedKind.isSearch(embed) { return AppStrings.hosting(.title) }
         if embedType == .mindmapsMindmap {

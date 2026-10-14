@@ -7,6 +7,39 @@ final class MapsEmbedParityUITests: XCTestCase {
     override func setUpWithError() throws { continueAfterFailure = false }
 
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testBackendPlaceWireTypeShowsVenueCardAndTypedFullscreenActions() {
+        let app = launch(key: "maps-place", surface: "preview", orientation: .portrait, variant: "wire-place")
+        XCTAssertTrue(app.staticTexts["maps-preview-name"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Synthetic sports venue"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["maps-place-rating"].exists)
+        let card = app.buttons["embed-preview"]
+        XCTAssertTrue(card.isHittable)
+        attach("Backend place wire type uses venue preview")
+        card.tap()
+        waitForFullscreenReady(app)
+        XCTAssertTrue(app.staticTexts["maps-location-address"].exists)
+        XCTAssertTrue(app.buttons["maps-open-google-maps"].isHittable)
+        attach("Backend place wire type uses typed fullscreen")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chats.rendering.assistant-document-convergence
+    func testGenericMapsParentShowsHydratedPlaceAndMarkerOpensChild() {
+        let app = launch(key: "app:maps:search", surface: "fullscreen", orientation: .portrait, variant: "wire-search")
+        waitForFullscreenReady(app)
+        XCTAssertTrue(app.descendants(matching: .any)["maps-search-fullscreen"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["maps-search-result-count"].label.contains("1 place"))
+        XCTAssertTrue(app.staticTexts["Synthetic sports venue"].exists)
+        let marker = app.descendants(matching: .any)["embed-location-marker"].firstMatch
+        XCTAssertTrue(marker.waitForExistence(timeout: 15))
+        XCTAssertTrue(marker.isHittable)
+        attach("Generic Maps parent with hydrated backend place and map marker")
+        marker.tap()
+        XCTAssertTrue(app.staticTexts["maps-location-address"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["maps-open-google-maps"].isHittable)
+        attach("Maps marker opens the typed hydrated child")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testStaticSVGLocationPreviewIsLoadedAndBoundedWithoutLiveMap() {
         let app = launch(key: "maps-place", surface: "preview", orientation: .portrait)
         defer { XCUIDevice.shared.orientation = .portrait }

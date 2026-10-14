@@ -83,12 +83,28 @@ final class ChatSidebarDisplayPolicyTests: XCTestCase {
                  messagesV: messages, draftV: draft, lastVisibleMessageId: visible)
         }
         XCTAssertTrue(ChatSidebarDisplayPolicy.isDraftOnly(row(title: nil), preview: "A local draft"))
-        XCTAssertTrue(ChatSidebarDisplayPolicy.isDraftOnly(row(title: " Untitled Chat "), preview: nil), "Pending decryption still shows Draft, never New Chat")
+        XCTAssertFalse(ChatSidebarDisplayPolicy.isDraftOnly(row(title: " Untitled Chat "), preview: nil), "A version alone does not prove a draft exists")
         XCTAssertTrue(ChatSidebarDisplayPolicy.isDraftOnly(row(title: nil, draft: 0), preview: "Local draft"))
         XCTAssertFalse(ChatSidebarDisplayPolicy.isDraftOnly(row(title: "Real conversation"), preview: "Unsent followup"))
         XCTAssertFalse(ChatSidebarDisplayPolicy.isDraftOnly(row(title: nil, messages: 2), preview: "Unsent followup"))
         XCTAssertFalse(ChatSidebarDisplayPolicy.isDraftOnly(row(title: nil, visible: "sent-message"), preview: "Unsent followup"))
         XCTAssertFalse(ChatSidebarDisplayPolicy.isDraftOnly(row(title: nil, draft: 0), preview: nil))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=drafts.draft-only.presentation,drafts.sync.version-authoritative
+    func testDraftOnlyPresentationUsesContentPresenceRatherThanVersion() {
+        func row(_ presence: Bool?) -> Chat {
+            Chat(id: "synthetic-draft-presence", title: nil, lastMessageAt: nil,
+                 createdAt: "2026-10-09T12:00:00Z", updatedAt: nil, isArchived: false, isPinned: false,
+                 appId: nil, encryptedTitle: nil, encryptedChatKey: nil,
+                 messagesV: 0, draftV: 19, hasNonEmptyDraft: presence)
+        }
+        XCTAssertFalse(ChatSidebarDisplayPolicy.isDraftOnly(row(false), preview: nil))
+        XCTAssertFalse(ChatSidebarDisplayPolicy.isDraftOnly(row(false), preview: "Stale saved preview"),
+                       "Explicit cleared presence wins over a pending preview refresh")
+        XCTAssertFalse(ChatSidebarDisplayPolicy.isDraftOnly(row(nil), preview: " \n "))
+        XCTAssertTrue(ChatSidebarDisplayPolicy.isDraftOnly(row(true), preview: nil), "Ciphertext presence survives pending decryption")
+        XCTAssertTrue(ChatSidebarDisplayPolicy.isDraftOnly(row(nil), preview: "[Image]"))
     }
 
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity

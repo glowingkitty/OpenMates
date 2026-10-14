@@ -288,6 +288,7 @@ struct AuthEntryHeader: View {
 // User-requested tile backgrounds use web opacity0.2; white glyphs stay
 // fully opaque. Decorative icons never receive input or VoiceOver focus.
 private struct AuthAppIconGrid: View {
+    @Environment(\.colorScheme) private var colorScheme
     enum Side { case leading, trailing, mobile }
     let side: Side
     private let left = [["videos", "health", "web"], ["calendar", "nutrition", "language"],
@@ -297,6 +298,14 @@ private struct AuthAppIconGrid: View {
         ["mail", "socialmedia", "messages"], ["hosting", "diagrams", "news"],
         ["notes", "whiteboards", "projectmanagement"], ["design", "publishing", "pdfeditor"],
         ["slides", "sheets", "docs"]]
+    // Icon.svelte decorative aliases differ from result/app badge identities.
+    private func iconName(for app: String) -> String {
+        switch app {
+        case "finance": return IconAlias.finance
+        case "pdfeditor": return IconAlias.pdfeditor
+        default: return AppIconView.iconName(forAppId: app)
+        }
+    }
     var body: some View {
         let mobile = side == .mobile
         let rows = mobile ? [left.prefix(4).flatMap { $0 }, right.prefix(4).flatMap { $0 }] : (side == .leading ? left : right)
@@ -306,13 +315,13 @@ private struct AuthAppIconGrid: View {
                 HStack(spacing: mobile ? 2 : 30) {
                     ForEach(rows[row].indices, id: \.self) { column in
                         let app = rows[row][column]
-                        let colors = AppGradientPalette.colors(for: app)
+                        let colors = AppGradientPalette.colors(for: app, colorScheme: colorScheme)
                         RoundedRectangle(cornerRadius: mobile ? 9 : 17)
                             .fill(LinearGradient.omGradient(start: colors.start, end: colors.end))
                             .opacity(0.2)
                             .frame(width: size, height: size)
                             .overlay {
-                                Icon(AppIconView.iconName(forAppId: app), size: mobile ? 18 : 33.5)
+                                Icon(iconName(for: app), size: mobile ? 18 : 33.5)
                                     .foregroundStyle(.white)
                             }
                             .overlay {

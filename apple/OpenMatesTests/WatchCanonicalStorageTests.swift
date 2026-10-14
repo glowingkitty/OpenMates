@@ -17,6 +17,41 @@ final class WatchCanonicalStorageTests: XCTestCase {
             inferenceJSON: try JSONSerialization.data(withJSONObject: inference))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.message.confirmed-haptic
+    func testHapticConfirmationRequiresFreshAdmissionAndDurableStorage() async throws {
+        for state in ["PREPARED", "LEGACY", "ENQUEUED", "RUNNING", "TERMINAL"] {
+            var storageConfirmed = state == "PREPARED"
+            var count = 0
+            try await WatchCanonicalStorage.sendTurn(turn(), request: { type, _, _, _ in
+                switch type {
+                case "chat_turn_preflight": return ["preflight_id": "preflight", "state": state, "committed_messages_v": 1]
+                case "chat_message_added": return ["ai_task_id": "task"]
+                case "": return [:]
+                default:
+                    storageConfirmed = true
+                    return ["versions": ["messages_v": 1]]
+                }
+            }, encryptMetadata: { "cipher-" + $0 }, validate: {}, confirmed: {
+                XCTAssertTrue(storageConfirmed)
+                count += 1
+            })
+            XCTAssertEqual(count, state == "PREPARED" ? 1 : 0, "Legacy queued storage is not durable proof")
+        }
+        var count = 0
+        do {
+            try await WatchCanonicalStorage.sendTurn(turn(), request: { type, _, _, _ in
+                switch type {
+                case "chat_turn_preflight": return ["preflight_id": "preflight", "state": "LEGACY"]
+                case "chat_message_added": return ["ai_task_id": "task"]
+                case "": return [:]
+                default: throw WatchChatRuntimeError.socketUnavailable
+                }
+            }, encryptMetadata: { "cipher-" + $0 }, validate: {}, confirmed: { count += 1 })
+            XCTFail("Failed storage cannot confirm a haptic")
+        } catch { }
+        XCTAssertEqual(count, 0)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.new-text-reply
     func testLegacyAdmissionMustStoreEncryptedUserPackageBeforeRetiringTurn() async throws {
         var calls: [String] = []

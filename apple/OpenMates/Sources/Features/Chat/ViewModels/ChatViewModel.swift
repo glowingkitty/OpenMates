@@ -1,3 +1,5 @@
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.message.confirmed-haptic
 // Chat view model — manages messages, streaming, and embeds for a single chat.
 // Mirrors the web app's dual-phase send protocol: WebSocket plaintext for AI
 // processing, then client-encrypted metadata/messages for permanent storage.
@@ -601,7 +603,10 @@ final class ChatViewModel: ObservableObject {
     }
 
     @Published var chat: Chat?
-    @Published var messages: [Message] = []
+    @Published var messages: [Message] = [] {
+        didSet { interactiveQuestionAnswers = AppleInteractiveQuestionHistory.answers(in: messages) }
+    }
+    @Published private(set) var interactiveQuestionAnswers: [String: AppleInteractiveQuestionAnswer] = [:]
     @Published var embedRecords: [String: EmbedRecord] = [:]
     @Published var isLoading = false
     @Published var isStreaming = false
@@ -2062,6 +2067,7 @@ final class ChatViewModel: ObservableObject {
                 wsManager: wsManager,
                 chatStore: chatStore,
                 waitForInferenceReceipt: messageId != nil,
+                confirmHaptic: messageId == nil,
                 composerEmbeds: composerEmbeds,
                 piiMappings: mergedPIIMappings,
                 excludedPIIOriginals: excludedPIIOriginals,
@@ -5979,6 +5985,7 @@ final class ChatSendPipeline {
         activateChat: Bool = true,
         waitForRemoteSend: Bool = true,
         waitForInferenceReceipt: Bool = false,
+        confirmHaptic: Bool = false,
         composerEmbeds: [ComposerPendingEmbed] = [],
         piiMappings: [PIIMapping] = [],
         excludedPIIOriginals: Set<String> = [],
@@ -6301,6 +6308,7 @@ final class ChatSendPipeline {
                 preflightPayload: preflightPayload,
                 outboundPayload: outboundPayload,
                 waitForInferenceReceipt: waitForInferenceReceipt,
+                confirmHaptic: confirmHaptic,
                 validateRemoteSend: validateSendContext
             )
             try validateSendContext()
@@ -6317,6 +6325,7 @@ final class ChatSendPipeline {
                         preflightPayload: preflightPayload,
                         outboundPayload: outboundPayload,
                         waitForInferenceReceipt: waitForInferenceReceipt,
+                        confirmHaptic: confirmHaptic,
                         validateRemoteSend: validateSendContext
                     )
                     try validateSendContext()
@@ -6553,6 +6562,7 @@ final class ChatSendPipeline {
         preflightPayload: [String: Any],
         outboundPayload: [String: Any],
         waitForInferenceReceipt: Bool = false,
+        confirmHaptic: Bool = false,
         validateRemoteSend: (() throws -> Void)? = nil
     ) async throws {
         let scope = OfflineStore.shared.scopeGeneration
@@ -6568,6 +6578,7 @@ final class ChatSendPipeline {
                     outboundPayload: outboundPayload,
                     transport: wsManager,
                     waitForInferenceReceipt: waitForInferenceReceipt,
+                    confirmHaptic: confirmHaptic && attempt == 0,
                     validateRemoteSend: validateRemoteSend
                 )
                 return
@@ -6601,6 +6612,9 @@ final class ChatSendPipeline {
         outboundPayload: [String: Any],
         transport: ChatWebSocketTransport,
         waitForInferenceReceipt: Bool = false,
+        confirmHaptic: Bool = false,
+        hapticConfirmation: NativeMessageHapticGate? = nil,
+        suppliedHapticScope: String? = nil,
         validateRemoteSend: (() throws -> Void)? = nil
     ) async throws {
         // Capture ownership before the preflight await. A replaced account/team
@@ -6668,6 +6682,16 @@ final class ChatSendPipeline {
         committedPayload["protocol_version"] = ChatCompletionRecoveryCoordinator.protocolVersion
         committedPayload["preflight_id"] = preflightId
         let commit = WSOutboundMessage(type: "chat_message_added", payload: committedPayload)
+        let hapticSocket = transport as? WebSocketManager
+        let hapticGate = hapticConfirmation ?? hapticSocket?.messageHapticGate
+        let hapticScope = suppliedHapticScope ?? hapticSocket?.messageHapticScope
+        if confirmHaptic, let hapticGate, let hapticScope, let processingChatID, let processingMessageID,
+           let version = NativeMessageHapticGate.preparedStorageVersion(acknowledgement,
+                expected: preflightPayload["expected_messages_v"]) {
+            hapticGate.begin(turnID: turnId, chatID: processingChatID,
+                messageID: processingMessageID, preflightState: state, scope: hapticScope,
+                expectedVersion: version, committedVersion: version)
+        }
         processingStarted()
         do {
             if waitForInferenceReceipt {
@@ -6679,7 +6703,7 @@ final class ChatSendPipeline {
                 // Socket-write completion only means bytes left this client. Keep a
                 // background reply pending until AI admission is acknowledged. Register
                 // the waiter before sending so a fast server cannot outrun it.
-                _ = try await transport.sendAndWait(commit, responseType: "ai_task_initiated") { fields in
+                let receipt = try await transport.sendAndWait(commit, responseType: "ai_task_initiated") { fields in
                     if fields["code"] as? String != nil {
                         return fields["turn_id"] as? String == turnId ||
                             (fields["chat_id"] as? String == chatId &&
@@ -6689,10 +6713,17 @@ final class ChatSendPipeline {
                         fields["user_message_id"] as? String == messageId &&
                         ((fields["ai_task_id"] ?? fields["task_id"]) as? String)?.isEmpty == false
                 }
+                try validateRemoteSend?()
+                if let hapticGate, let hapticScope {
+                    hapticGate.consume(type: "ai_task_initiated", fields: receipt.fields, scope: hapticScope)
+                }
             } else {
                 try await transport.send(commit)
             }
         } catch {
+            if let hapticGate, let hapticScope, let processingMessageID {
+                hapticGate.cancel(messageID: processingMessageID, scope: hapticScope)
+            }
             // A transport timeout may follow server admission. Keep the stale,
             // time-bounded state until an exact terminal receipt proves completion.
             if let sendError = error as? ChatSendError, case .inferenceFailed = sendError { processingFailed() }

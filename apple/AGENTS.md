@@ -140,6 +140,46 @@ Performance matters. Avoid expensive work in SwiftUI `body`, including markdown 
 
 ## Native Diagnostics And Logging
 
+### Core UI test recordings
+
+For material Apple UI and interaction changes, retain and deliver video of the
+successful core relevant end-to-end tests. Use a focused Xcode test plan with
+Automatic Screen Capture set to “On, and keep all” and video as the preferred
+format; do not record the entire suite by default. Preserve failure/retry clips
+when present. Export the recordings from the original result bundle and bind
+each clip to its test, result, source identity and app version/build.
+
+Show the playable recordings in the final Codex response for user inspection.
+Keep personal-account evidence private. A passing test without a usable video
+leaves the requested visual proof pending; report capture/export limitations
+accurately. Retry an export or upload from retained artifacts without rerunning
+an otherwise passing test. Screenshots supplement the required core videos.
+
+### LLDB runtime investigation
+
+Use LLDB for reproducible native crashes, hangs, unexpected state transitions,
+and runtime failures on iOS, iPadOS, macOS, and watchOS. After reading existing
+evidence, inspect the smallest relevant failure with a source-matched Debug
+Simulator build or another already-authorized debuggable process. Capture a
+targeted breakpoint/backtrace or exception stop before selecting a runtime fix;
+use Instruments and phase timings for performance measurements as appropriate.
+Compiler errors and purely static reviews do not require a debugger session.
+
+Use Xcode's debugger or the installed Xcode's `xcrun lldb`. Record the source,
+binary version/build, target, breakpoint or stack observation, and sanitized
+conclusion. Keep attachments bounded: a stopped process cannot serve normal
+network traffic. Resume and detach promptly, and do not treat a disconnect or
+latency measurement produced while stopped as an independent product failure.
+
+Preserve the user's delivery route and installed app/account data. If TestFlight
+signing, device permissions, tooling, or a resource guard prevents attachment,
+record that actual limitation and continue with symbols, crash reports and
+privacy-safe diagnostics; never re-sign an installed app or bypass a guard.
+LLDB output must not contain message/draft plaintext, keys, credentials, tokens,
+cookies, private payloads, or share fragments. Prefer stacks, counts and control
+state; do not mutate application state or invoke side-effecting expressions to
+bypass authentication, privacy checks, or persistence protocols.
+
 Use `NativeDiagnostics` for Apple product diagnostics instead of adding new ad-hoc `print` calls or isolated `Logger` calls. Use `NativeSyncPerfLog` for sync/chat-opening/embed-hydration phase timings so those entries continue to reach unified logging and issue/debug buffers.
 
 Diagnostics must remain privacy-safe: never log message plaintext, encryption keys, auth/session tokens, cookies, push tokens, full share URL fragments, request/response bodies, private file paths, or raw typed text. For performance instrumentation, use the approved diagnostics helpers (`NativePerformanceMonitor`, MetricKit summaries, or signpost-style phase logs) and keep payloads to counts, durations, sanitized categories, and hashed/prefixed identifiers only.

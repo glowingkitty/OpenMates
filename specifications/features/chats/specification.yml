@@ -446,6 +446,20 @@ assertions:
   depends_on:
   - models.ResponsiveChatHistory
   - examples.web_history_entrance
+- id: chats.message.confirmed-haptic
+  type: behavior
+  must: 'On supported active Apple devices, a locally initiated saved message emits one native haptic
+    only after both encrypted user-message durability and matching server processing admission are proven,
+    in either arrival order. Local sends, socket writes, typing, failed or stale receipts, retries, recovery
+    and synchronization replay never produce this cue. Account, server, team and transport generation
+    changes invalidate pending cues. Legacy storage acknowledgements that only queue persistence remain
+    silent when no authoritative durability proof is available; feedback introduces no polling, inference
+    or background network work.
+
+    '
+  depends_on:
+  - models.ChatMessage
+
 applies_to:
   rest_api:
     required: false

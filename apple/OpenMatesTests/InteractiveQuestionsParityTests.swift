@@ -7,6 +7,95 @@ import XCTest
 @testable import OpenMates
 
 final class InteractiveQuestionsParityTests: XCTestCase {
+    private func historyMessage(_ id: String, role: MessageRole, content: String?) -> Message {
+        Message(id: id, chatId: "synthetic-chat", role: role, content: content,
+                encryptedContent: nil, createdAt: "2026-01-01T00:00:00Z", updatedAt: nil,
+                appId: nil, isStreaming: false, embedRefs: nil, piiMappings: nil)
+    }
+
+    private func question(_ id: String = "followup") -> String {
+        """
+        ```interactive_question
+        {"type":"choice","id":"\(id)","question":"Choose the next step","options":[{"id":"math","text":"Mathematics"},{"id":"design","text":"Design"}]}
+        ```
+        """
+    }
+
+    private func response(_ selection: String, id: String = "followup") -> String {
+        """
+        ```interactive_response
+        {"id":"\(id)","selection":["\(selection)"]}
+        ```
+        """
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testAnswerHistoryLocksOnlyTheQuestionBeforeItsSubsequentUserResponse() {
+        let prompt = historyMessage("question", role: .assistant, content: question())
+        let answer = historyMessage("answer", role: .user, content: response("math"))
+        XCTAssertNil(AppleInteractiveQuestionHistory.answers(in: [answer, prompt])["followup"],
+                     "An earlier answer cannot lock a later question with the same ID")
+        XCTAssertEqual(AppleInteractiveQuestionHistory.answers(in: [prompt, answer])["followup"]?.selection, ["math"])
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testAnswerHistoryIgnoresResponsesAndQuestionsFromTheWrongRole() {
+        let prompt = historyMessage("question", role: .assistant, content: question())
+        for role in [MessageRole.assistant, .system] {
+            let foreign = historyMessage("wrong-role", role: role, content: response("design"))
+            XCTAssertNil(AppleInteractiveQuestionHistory.answers(in: [prompt, foreign])["followup"])
+        }
+        let answer = historyMessage("answer", role: .user, content: response("math"))
+        let userQuotedQuestion = historyMessage("quoted-question", role: .user, content: question())
+        XCTAssertEqual(AppleInteractiveQuestionHistory.answers(in: [prompt, answer, userQuotedQuestion])["followup"]?.selection,
+                       ["math"], "A user quoting a question cannot reset the assistant's answered state")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testAnswerHistoryIgnoresMalformedAndEmptyResponsesWithoutErasingAnAnswer() {
+        let valid = historyMessage("answer", role: .user, content: response("math"))
+        let malformed = [
+            "```interactive_response\n{\"id\":\"followup\",\"selection\":[\n```",
+            "```interactive_response\n{\"selection\":[\"design\"]}\n```",
+            "```interactive_response\n{\"id\":\"\",\"selection\":[\"design\"]}\n```",
+            "```interactive_response\n{\"id\":\"followup\",\"selection\":\"design\"}\n```"
+        ]
+        for (index, content) in malformed.enumerated() {
+            let invalid = historyMessage("invalid-\(index)", role: .user, content: content)
+            XCTAssertTrue(AppleInteractiveQuestionHistory.answers(in: [invalid]).isEmpty)
+            XCTAssertEqual(AppleInteractiveQuestionHistory.answers(in: [valid, invalid])["followup"]?.selection, ["math"])
+        }
+        let noContent = historyMessage("no-content", role: .user, content: nil)
+        XCTAssertTrue(AppleInteractiveQuestionHistory.answers(in: [noContent]).isEmpty)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testReusedQuestionIDStartsANewAnswerLifecycleAndKeepsOtherQuestionsAnswered() {
+        let history = [
+            historyMessage("question-1", role: .assistant, content: question()),
+            historyMessage("answer-1", role: .user, content: response("math")),
+            historyMessage("other-answer", role: .user, content: response("design", id: "other")),
+            historyMessage("question-2", role: .assistant, content: question())
+        ]
+        let reopened = AppleInteractiveQuestionHistory.answers(in: history)
+        XCTAssertNil(reopened["followup"])
+        XCTAssertEqual(reopened["other"]?.selection, ["design"])
+        let nextAnswer = historyMessage("answer-2", role: .user, content: response("design"))
+        XCTAssertEqual(AppleInteractiveQuestionHistory.answers(in: history + [nextAnswer])["followup"]?.selection, ["design"])
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testAnswerHistoryUsesTheLastValidResponseIncludingMultipleFencesInOneMessage() {
+        let prompt = historyMessage("question", role: .assistant, content: question())
+        let combined = historyMessage("answers", role: .user,
+                                      content: response("math") + "\n\n" + response("design"))
+        XCTAssertEqual(AppleInteractiveQuestionHistory.answers(in: [prompt, combined])["followup"]?.selection, ["design"])
+        let malformedQuestion = historyMessage("bad-question", role: .assistant,
+                                              content: "```interactive_question\n{\"id\":\"followup\"\n```")
+        XCTAssertEqual(AppleInteractiveQuestionHistory.answers(in: [prompt, combined, malformedQuestion])["followup"]?.selection,
+                       ["design"], "A malformed question cannot erase a valid submitted answer")
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testValidChoiceQuestionParsesAsInteractiveQuestionBlock() {
         let markdown = """

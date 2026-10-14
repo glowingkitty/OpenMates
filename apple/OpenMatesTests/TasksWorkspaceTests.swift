@@ -4,6 +4,23 @@ import XCTest
 
 @MainActor
 final class TasksWorkspaceTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=apple-workspaces.local-first
+    func testCancelledWorkspaceReadsDoNotPublishTaskOrSupplementaryFailures() {
+        let store = TasksWorkspaceStore()
+        store.installPreview()
+        let generation = store.debugLoadGeneration
+        for stage in ["tasks", "plans", "project_names"] {
+            store.debugApplyLoadFailure(CancellationError(), stage: stage, generation: generation)
+            store.debugApplyLoadFailure(URLError(.cancelled), stage: stage, generation: generation)
+        }
+        XCTAssertNil(store.errorMessage)
+        XCTAssertNil(store.plansLoadErrorMessage)
+        XCTAssertNil(store.projectNamesLoadErrorMessage)
+        store.debugApplyLoadFailure(UserTasksError.invalidResponse, stage: "tasks", generation: generation)
+        XCTAssertNotNil(store.errorMessage, "Substantive response failures must remain visible")
+        XCTAssertFalse(NativeWorkspaceReadFailure.isTransient(APIError.httpError(status: 403, message: "denied")))
+    }
+
     // contract-test: supporting surface=gui.apple assertions=apple-task-board.drag-move,tasks.surface.semantic-parity
     func testTaskPointerHighlightRequiresAnEnabledHoveredDraggableCard() {
         XCTAssertEqual(TaskCardHoverPolicy.scale(isHovered: true, isDraggable: true, isDragging: false, isEnabled: true), 1.1)

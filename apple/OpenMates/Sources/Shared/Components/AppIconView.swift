@@ -106,6 +106,7 @@ struct AppIconView: View {
         case "file": return "files"
         case "models3d": return "3dmodels"
         case "tasks": return "task"
+        case "projects": return "project"
         case "workflows": return "workflow"
         default: return appId
         }

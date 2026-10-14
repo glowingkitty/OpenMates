@@ -1,3 +1,5 @@
+// Specification: specifications/features/apple-notifications/specification.yml
+// Assertions: apple-notifications.delivery.confirmed-action-haptics
 // Watch Tasks and read-only Workflows data. Tasks use the same per-task key
 // wrapping as the web client. Ciphertext is never used as display text.
 // Specification: specifications/features/apple-watch/specification.yml
@@ -482,6 +484,7 @@ final class WatchHubDataService: ObservableObject {
             try? await offlineCache.save(cacheData, key: "tasks-" + group.status, scope: offlineScope(userId), masterKey: masterKey)
         }
         try checkTaskAccount()
+        NativeHaptics.shared.confirmed(.taskUpdated, id: "\(item.id)|\(returnedVersion)", scope: "\(userId)|\(ServerProfile.current().apiBaseURL.absoluteString)")
         return returned
     }
 

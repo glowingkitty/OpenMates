@@ -845,10 +845,10 @@ struct ComposerRecordingOverlay: View {
                     .font(.omSmall.weight(.bold))
                     .foregroundStyle(Color.white)
                     .monospacedDigit()
-                    .frame(minWidth: 60)
-                    // RecordAudio.svelte: .timer-pill padding 6px 14px.
+                    // Web min-width includes the timer's horizontal padding.
                     .padding(.horizontal, 14)
                     .padding(.vertical, .spacing3)
+                    .frame(minWidth: 60)
                     .background(Color.recordingTimer)
                     .clipShape(RoundedRectangle(cornerRadius: .radius8))
                     .accessibilityIdentifier("timer-pill")
@@ -858,11 +858,12 @@ struct ComposerRecordingOverlay: View {
                     Button(action: onCancel) {
                         Text(AppStrings.cancelRecording)
                             .font(.omSmall.weight(.bold))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.85)
                             .foregroundStyle(Color.white)
-                            .padding(.horizontal, .spacing8)
+                            .padding(.horizontal, .spacing6)
                             .padding(.vertical, .spacing4)
                             .frame(minHeight: 41)
-                            .frame(minWidth: 112)
                             .background(Color.white.opacity(0.18))
                             .clipShape(RoundedRectangle(cornerRadius: .radius8))
                     }
@@ -881,11 +882,12 @@ struct ComposerRecordingOverlay: View {
                     } label: {
                         Text(AppStrings.finishRecording)
                             .font(.omSmall.weight(.bold))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.85)
                             .foregroundStyle(Color.white)
-                            .padding(.horizontal, .spacing8)
+                            .padding(.horizontal, .spacing6)
                             .padding(.vertical, .spacing4)
                             .frame(minHeight: 41)
-                            .frame(minWidth: 112)
                             .background(Color.buttonPrimary)
                             .clipShape(RoundedRectangle(cornerRadius: .radius8))
                     }

@@ -4,6 +4,260 @@ import XCTest
 
 @MainActor
 final class ProjectsWorkspaceTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=apple-workspaces.maintenance,apple-workspaces.isolation
+    func testAllContextMaintenanceResumeSkipsCompletedPersonalAndTeamInventories() throws {
+        var scheduler = NativeWorkspaceAllContextMaintenancePolicy()
+        let personal = maintenanceScope()
+        let team = maintenanceScope(teamID: "team-a")
+        let cohorts = [maintenanceCohort(personal), maintenanceCohort(team)]
+        scheduler.update(cohorts)
+        var admitted: [NativeWorkspaceOfflineScope] = []
+        while let ticket = scheduler.beginNext(now: 100) {
+            admitted.append(ticket.scope)
+            for name in scheduler.namespaces(ticket: ticket) {
+                scheduler.beganNamespace(name, ticket: ticket)
+                scheduler.completedNamespace(name, ticket: ticket)
+            }
+            scheduler.finish(ticket, now: 100, successful: true)
+        }
+        XCTAssertEqual(admitted, [personal, team])
+        scheduler.update(cohorts)
+        XCTAssertNil(scheduler.beginNext(now: 102), "Settled chat navigation must issue zero inventory reads during cooldown")
+        XCTAssertEqual(try XCTUnwrap(scheduler.delay(now: 102)), 298)
+        XCTAssertNotNil(scheduler.beginNext(now: 400))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-workspaces.maintenance,apple-workspaces.isolation
+    func testAllContextMaintenancePausePreservesProgressAndRotatesTeamsAndNamespaces() throws {
+        var scheduler = NativeWorkspaceAllContextMaintenancePolicy()
+        let personal = maintenanceScope()
+        let team = maintenanceScope(teamID: "team-a")
+        let cohorts = [maintenanceCohort(personal), maintenanceCohort(team)]
+        scheduler.update(cohorts)
+        let first = try XCTUnwrap(scheduler.beginNext(now: 100))
+        scheduler.beganNamespace("chat-metadata", ticket: first)
+        scheduler.completedNamespace("chat-metadata", ticket: first)
+        scheduler.beganNamespace("workflows", ticket: first)
+        scheduler.finish(first, now: 101, successful: false, interrupted: true)
+        scheduler.update(cohorts)
+        let second = try XCTUnwrap(scheduler.beginNext(now: 102))
+        XCTAssertEqual(second.scope, team, "Repeated pauses must not starve Teams behind personal inventories")
+        scheduler.beganNamespace("chat-metadata", ticket: second)
+        scheduler.finish(second, now: 103, successful: false, interrupted: true)
+        let resumed = try XCTUnwrap(scheduler.beginNext(now: 104))
+        XCTAssertEqual(resumed.scope, personal)
+        XCTAssertEqual(scheduler.namespaces(ticket: resumed), ["user-tasks", "user-plans", "projects", "workflows"])
+        scheduler.finish(resumed, now: 105, successful: false, interrupted: true)
+        let resumedTeam = try XCTUnwrap(scheduler.beginNext(now: 106))
+        XCTAssertEqual(scheduler.namespaces(ticket: resumedTeam).first, "workflows")
+        // Late cancellation callbacks from a superseded task cannot rewind progress.
+        scheduler.beganNamespace("projects", ticket: second)
+        XCTAssertEqual(scheduler.namespaces(ticket: resumedTeam).first, "workflows")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-workspaces.maintenance,apple-workspaces.isolation
+    func testAllContextMaintenanceForceCoalescesAndRetainsFailureBackoff() throws {
+        var scheduler = NativeWorkspaceAllContextMaintenancePolicy()
+        let personal = maintenanceScope()
+        let cohorts = [maintenanceCohort(personal)]
+        scheduler.update(cohorts)
+        let first = try XCTUnwrap(scheduler.beginNext(now: 100))
+        scheduler.completedNamespace("chat-metadata", ticket: first)
+        scheduler.update(cohorts, force: true)
+        scheduler.update(cohorts, force: true)
+        XCTAssertTrue(scheduler.namespaces(ticket: first).isEmpty, "Invalidated tickets cannot publish completion")
+        scheduler.finish(first, now: 101, successful: false, interrupted: true)
+        XCTAssertNil(scheduler.beginNext(now: 129))
+        let replacement = try XCTUnwrap(scheduler.beginNext(now: 130))
+        scheduler.completedNamespace("chat-metadata", ticket: replacement)
+        scheduler.finish(first, now: 131, successful: true)
+        XCTAssertFalse(scheduler.namespaces(ticket: replacement).contains("chat-metadata"))
+        scheduler.finish(replacement, now: 131, successful: false)
+        XCTAssertNil(scheduler.beginNext(now: 160))
+        let retry = try XCTUnwrap(scheduler.beginNext(now: 161))
+        XCTAssertFalse(scheduler.namespaces(ticket: retry).contains("chat-metadata"), "A failed namespace must not repeat successful inventories")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-workspaces.maintenance,apple-workspaces.isolation
+    func testAllContextMaintenanceFailedForcedReplacementUsesRetryBackoffAfterPriorSuccess() throws {
+        var scheduler = NativeWorkspaceAllContextMaintenancePolicy()
+        let scope = maintenanceScope()
+        let cohorts = [maintenanceCohort(scope)]
+        scheduler.update(cohorts)
+        let settled = try XCTUnwrap(scheduler.beginNext(now: 100))
+        for name in scheduler.namespaces(ticket: settled) { scheduler.completedNamespace(name, ticket: settled) }
+        scheduler.finish(settled, now: 100, successful: true)
+        scheduler.update(cohorts, force: true)
+        let forced = try XCTUnwrap(scheduler.beginNext(now: 130))
+        scheduler.completedNamespace("chat-metadata", ticket: forced)
+        scheduler.finish(forced, now: 131, successful: false)
+        XCTAssertEqual(try XCTUnwrap(scheduler.delay(now: 131)), 30)
+        XCTAssertNil(scheduler.beginNext(now: 160))
+        let retry = try XCTUnwrap(scheduler.beginNext(now: 161))
+        XCTAssertFalse(scheduler.namespaces(ticket: retry).contains("chat-metadata"))
+        for name in scheduler.namespaces(ticket: retry) { scheduler.completedNamespace(name, ticket: retry) }
+        scheduler.finish(retry, now: 162, successful: true)
+        XCTAssertEqual(try XCTUnwrap(scheduler.delay(now: 163)), 299,
+                       "A completed replacement must restore the full success cooldown")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-workspaces.maintenance,apple-workspaces.isolation
+    func testAllContextMaintenancePausedForcedReplacementResumesAfterPriorSuccess() throws {
+        var scheduler = NativeWorkspaceAllContextMaintenancePolicy()
+        let scope = maintenanceScope()
+        let cohorts = [maintenanceCohort(scope)]
+        scheduler.update(cohorts)
+        let settled = try XCTUnwrap(scheduler.beginNext(now: 100))
+        for name in scheduler.namespaces(ticket: settled) { scheduler.completedNamespace(name, ticket: settled) }
+        scheduler.finish(settled, now: 100, successful: true)
+        scheduler.update(cohorts, force: true)
+        let forced = try XCTUnwrap(scheduler.beginNext(now: 130))
+        scheduler.completedNamespace("chat-metadata", ticket: forced)
+        scheduler.finish(forced, now: 131, successful: false, interrupted: true)
+        scheduler.update(cohorts)
+        let resumed = try XCTUnwrap(scheduler.beginNext(now: 132))
+        XCTAssertFalse(scheduler.namespaces(ticket: resumed).contains("chat-metadata"))
+        scheduler.update(cohorts, force: true)
+        scheduler.update(cohorts, force: true)
+        scheduler.finish(resumed, now: 133, successful: false, interrupted: true)
+        XCTAssertNil(scheduler.beginNext(now: 161), "Socket flaps must retain the 30-second forced admission bound")
+        XCTAssertNotNil(scheduler.beginNext(now: 162))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-workspaces.maintenance,apple-workspaces.isolation
+    func testAllContextMaintenanceMembershipChangesOnlyInvalidateAffectedCohort() throws {
+        var scheduler = NativeWorkspaceAllContextMaintenancePolicy()
+        let personal = maintenanceScope()
+        let team = maintenanceScope(teamID: "team-a")
+        scheduler.update([maintenanceCohort(personal), maintenanceCohort(team)])
+        for _ in 0..<2 {
+            let ticket = try XCTUnwrap(scheduler.beginNext(now: 100))
+            for name in scheduler.namespaces(ticket: ticket) { scheduler.completedNamespace(name, ticket: ticket) }
+            scheduler.finish(ticket, now: 100, successful: true)
+        }
+        scheduler.update([maintenanceCohort(personal), maintenanceCohort(team, revision: "changed-role-and-key")])
+        XCTAssertNil(scheduler.beginNext(now: 120))
+        let changed = try XCTUnwrap(scheduler.beginNext(now: 130))
+        XCTAssertEqual(changed.scope, team)
+        XCTAssertEqual(scheduler.namespaces(ticket: changed).count, 8)
+        scheduler.update([maintenanceCohort(personal)])
+        scheduler.completedNamespace("projects", ticket: changed)
+        scheduler.finish(changed, now: 131, successful: true)
+        XCTAssertEqual(scheduler.count, 1, "Removed membership progress must be discarded rather than reused")
+        XCTAssertNil(scheduler.beginNext(now: 131))
+        let added = maintenanceScope(teamID: "team-b")
+        scheduler.update([maintenanceCohort(personal), maintenanceCohort(added)])
+        XCTAssertEqual(scheduler.beginNext(now: 132)?.scope, added)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-workspaces.maintenance,apple-workspaces.isolation
+    func testAllContextMaintenanceDoesNotReuseProgressAcrossAccountServerOrGeneration() throws {
+        for changed in [maintenanceScope(accountID: "other-owner"), maintenanceScope(server: "https://other.example"),
+                        maintenanceScope(generation: UUID())] {
+            var scheduler = NativeWorkspaceAllContextMaintenancePolicy()
+            let original = maintenanceScope()
+            scheduler.update([maintenanceCohort(original)])
+            let first = try XCTUnwrap(scheduler.beginNext(now: 100))
+            for name in scheduler.namespaces(ticket: first) { scheduler.completedNamespace(name, ticket: first) }
+            scheduler.finish(first, now: 100, successful: true)
+            scheduler.update([maintenanceCohort(changed)])
+            let replacement = try XCTUnwrap(scheduler.beginNext(now: 101))
+            XCTAssertEqual(replacement.scope, changed)
+            XCTAssertEqual(scheduler.namespaces(ticket: replacement).count, 5)
+            scheduler.completedNamespace("projects", ticket: first)
+            XCTAssertTrue(scheduler.namespaces(ticket: replacement).contains("projects"))
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-workspaces.maintenance,apple-workspaces.isolation
+    func testAllContextMaintenanceAuthoritativeMembershipChangeRejectsResumedTicket() throws {
+        var scheduler = NativeWorkspaceAllContextMaintenancePolicy()
+        let team = maintenanceScope(teamID: "team-a")
+        scheduler.update([maintenanceCohort(team)])
+        let initial = try XCTUnwrap(scheduler.beginNext(now: 100))
+        scheduler.completedNamespace("team-management", ticket: initial)
+        scheduler.finish(initial, now: 101, successful: false, interrupted: true)
+        let resumed = try XCTUnwrap(scheduler.beginNext(now: 102))
+        XCTAssertFalse(scheduler.namespaces(ticket: resumed).contains("team-management"))
+        scheduler.revalidate(scope: team, membershipRevision: "authoritative-viewer-new-key")
+        XCTAssertFalse(scheduler.isCurrent(resumed), "A stale roster cannot authorize reuse of completed Team namespaces")
+        scheduler.completedNamespace("projects", ticket: resumed)
+        scheduler.finish(resumed, now: 103, successful: false, interrupted: true)
+        XCTAssertNil(scheduler.beginNext(now: 131))
+        let authorized = try XCTUnwrap(scheduler.beginNext(now: 132))
+        XCTAssertEqual(scheduler.namespaces(ticket: authorized).count, 8)
+        scheduler.update([maintenanceCohort(team)])
+        scheduler.revalidate(scope: team, membershipRevision: "authoritative-viewer-new-key")
+        XCTAssertTrue(scheduler.isCurrent(authorized), "An unchanged cached roster must not repeatedly invalidate newer authoritative membership")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-workspaces.maintenance,apple-workspaces.isolation
+    func testAllContextMaintenanceFinalMembershipChangePreservesPreviousCiphertext() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let accountID = "retention-owner"
+        let server = ServerProfile.custom(domain: "retention.example.invalid")
+        let generation = UUID()
+        let fence = TeamWorkspaceFence(accountID: accountID, environment: .init(
+            currentAccountID: { accountID }, scopeGeneration: { generation }, serverProfile: { server }))
+        let key = SymmetricKey(size: .bits256)
+        let team = TeamWorkspaceTeam(id: "team-a", name: "Synthetic", description: "", role: .member,
+            status: "active", profileImageMetadata: .generated, zeroBalance: 0, createdAt: 1, updatedAt: 1, key: key)
+        let rotatedTeam = TeamWorkspaceTeam(id: team.id, name: team.name, description: "", role: team.role,
+            status: team.status, profileImageMetadata: .generated, zeroBalance: 0, createdAt: 1, updatedAt: 2,
+            key: SymmetricKey(size: .bits256))
+        let scope = NativeWorkspaceOfflineScope(accountID: accountID, server: server.apiBaseURL.absoluteString,
+            teamID: team.id, accountGeneration: generation, teamEpoch: TeamWorkspaceContext.shared.contextEpoch)
+        let schedulerScope = NativeWorkspaceOfflineScope(accountID: accountID, server: scope.server,
+            teamID: team.id, accountGeneration: generation, teamEpoch: 0)
+        let cache = NativeWorkspaceOfflineCache(directory: directory)
+        await cache.configure(scope: scope, masterKey: key)
+        let path = UserTasksPaths.scoped("/v1/workflows", teamID: team.id)
+        let previous = Data("previous-complete-inventory".utf8)
+        let revision = try await cache.beginRefresh(namespace: "workflows", scope: scope)
+        try await cache.commit(namespace: "workflows", responses: [path: previous], scope: scope, revision: revision)
+        let files = FileManager.default.enumerator(at: directory, includingPropertiesForKeys: nil)!
+            .allObjects.compactMap { $0 as? URL }.filter { $0.pathExtension == "aesgcm" }
+        let ciphertextFile = try XCTUnwrap(files.first)
+        let previousCiphertext = try Data(contentsOf: ciphertextFile)
+        var scheduler = NativeWorkspaceAllContextMaintenancePolicy()
+        scheduler.update([.init(scope: schedulerScope, membershipRevision: "original-key")])
+        let ticket = try XCTUnwrap(scheduler.beginNext(now: 100))
+        var membershipReads = 0
+        do {
+            try await TeamWorkspaceOfflineRetention.retain(fence: fence, teams: [team], removedIDs: [],
+                masterKey: key, cache: cache, transport: { route, _ in
+                    XCTAssertEqual(route, path)
+                    return Data("{\"workflows\":[]}".utf8)
+                }, membership: { _, _ in
+                    membershipReads += 1
+                    if membershipReads == 3 {
+                        scheduler.revalidate(scope: schedulerScope, membershipRevision: "rotated-key")
+                        return rotatedTeam
+                    }
+                    return team
+                }, isCurrent: { scheduler.isCurrent(ticket) }, contextIDs: [team.id], namespaces: ["workflows"])
+            XCTFail("The final authoritative membership change must reject the collected inventory")
+        } catch is CancellationError { }
+        XCTAssertEqual(membershipReads, 3)
+        XCTAssertEqual(try Data(contentsOf: ciphertextFile), previousCiphertext,
+                       "An invalidated ticket must not replace the previous encrypted snapshot")
+        let reopened = NativeWorkspaceOfflineCache(directory: directory)
+        await reopened.configure(scope: scope, masterKey: key)
+        let restored = try await reopened.read(namespace: "workflows", path: path, scope: scope)
+        XCTAssertEqual(restored, previous)
+    }
+
+    private func maintenanceScope(teamID: String? = nil, accountID: String = "fixture-owner",
+                                  server: String = "https://fixture.example",
+                                  generation: UUID = UUID(uuidString: "11111111-1111-1111-1111-111111111111")!) -> NativeWorkspaceOfflineScope {
+        .init(accountID: accountID, server: server, teamID: teamID, accountGeneration: generation, teamEpoch: 0)
+    }
+
+    private func maintenanceCohort(_ scope: NativeWorkspaceOfflineScope, revision: String = "readable-v1") -> NativeWorkspaceAllContextMaintenancePolicy.Cohort {
+        .init(scope: scope, membershipRevision: revision)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chat-navigation.projects.nested-readable,projects.access.explicit-context
     func testNavigationDecryptsOnlyFoldersAndChatMembership() async throws {
         let service = ProjectsWorkspaceService()
@@ -124,7 +378,8 @@ final class ProjectsWorkspaceTests: XCTestCase {
         service.organizationReceipts = []; service.failsCopy = true
         await store.moveChats(chats, to: .init(projectID: "destination", folderID: nil))
         XCTAssertEqual(service.organizationReceipts, ["copy:destination:chat-a"])
-        XCTAssertNotNil(store.errorMessage)
+        XCTAssertNotNil(store.chatOrganizationErrorMessage)
+        XCTAssertNil(store.errorMessage, "Chat organization failures belong to their own surface")
     }
 
     // contract-test: supporting surface=gui.apple assertions=chat-navigation.projects.organize,projects.access.explicit-context
@@ -1519,6 +1774,203 @@ final class ProjectsWorkspaceTests: XCTestCase {
         await select.value
     }
 
+    // contract-test: supporting surface=gui.apple assertions=apple-workspaces.offline-complete,apple-workspaces.local-first,apple-workspaces.isolation
+    func testReadmeSnapshotReopensEncryptedImagesWithoutSourceSessionAuthority() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let scope = NativeWorkspaceOfflineScope(accountID: "readme-owner", server: "https://example.invalid",
+            teamID: "readme-team", accountGeneration: UUID(), teamEpoch: 1)
+        let masterKey = SymmetricKey(size: .bits256)
+        let project = makeProject(id: "readme-project", name: "Project")
+        let connected = ProjectWorkspaceSource(id: "source", kind: "folder", name: "Files", metadata: [:],
+            capabilities: ["read"], status: "connected", sessionID: "live-authority", keyEpoch: 3)
+        let disconnected = ProjectWorkspaceSource(id: connected.id, kind: connected.kind, name: connected.name,
+            metadata: [:], capabilities: ["read"], status: "disconnected", sessionID: nil, keyEpoch: 3)
+        let contents = ProjectWorkspaceContents(folders: [], items: [], sources: [connected])
+        let binding = try ProjectReadmeOfflineSnapshot.binding(project: project, contents: contents)
+        XCTAssertEqual(binding, try ProjectReadmeOfflineSnapshot.binding(project: project,
+            contents: .init(folders: [], items: [], sources: [disconnected])), "Presence changes cannot invalidate retained bytes")
+        let cache = NativeWorkspaceOfflineCache(directory: directory)
+        await cache.configure(scope: scope, masterKey: masterKey)
+        let document = ProjectWorkspaceReadme(markdown: "# Private README\n![Logo](logo.png)", truncated: false,
+            origin: "connected", sourceID: connected.id, sourceSessionID: connected.sessionID, sourceKeyEpoch: connected.keyEpoch)
+        try await cache.retainProjectReadme(document, projectID: project.id, binding: binding, scope: scope)
+        let image = ProjectsWorkspacePreviewFixture.readmeImageData
+        try await cache.retainProjectReadmeImage(image, source: "logo.png", document: document,
+            projectID: project.id, binding: binding, scope: scope)
+        // A complete metadata refresh must not erase the independently retained README.
+        let refresh = try await cache.beginRefresh(namespace: "projects", scope: scope)
+        try await cache.commit(namespace: "projects", responses: [:], scope: scope, revision: refresh)
+        let reopened = NativeWorkspaceOfflineCache(directory: directory)
+        await reopened.configure(scope: scope, masterKey: masterKey)
+        let restored = try await reopened.projectReadme(projectID: project.id, binding: binding, scope: scope)
+        XCTAssertEqual(restored?.markdown, document.markdown)
+        XCTAssertEqual(restored?.images["logo.png"], image)
+        XCTAssertNil(restored?.document.sourceSessionID, "Device retention must never preserve live request authority")
+        let files = FileManager.default.enumerator(at: directory, includingPropertiesForKeys: nil)!.allObjects.compactMap { $0 as? URL }
+        for file in files where file.pathExtension == "aesgcm" {
+            let bytes = try Data(contentsOf: file)
+            XCTAssertNil(bytes.range(of: Data(document.markdown.utf8)))
+            XCTAssertNil(bytes.range(of: image))
+        }
+        let rotated = ProjectWorkspaceSource(id: connected.id, kind: connected.kind, name: connected.name,
+            metadata: [:], capabilities: ["read"], status: "connected", sessionID: "replacement", keyEpoch: 4)
+        let newBinding = try ProjectReadmeOfflineSnapshot.binding(project: project,
+            contents: .init(folders: [], items: [], sources: [rotated]))
+        let mismatched = try await reopened.projectReadme(projectID: project.id, binding: newBinding, scope: scope)
+        XCTAssertFalse(try XCTUnwrap(mismatched).isCompatible(with: .init(folders: [], items: [], sources: [rotated])),
+                       "A known changed source key epoch must reject the old private README")
+        let offline = ProjectWorkspaceSource(id: connected.id, kind: connected.kind, name: connected.name,
+            metadata: [:], capabilities: ["read"], status: "offline", sessionID: nil, keyEpoch: nil)
+        XCTAssertTrue(try XCTUnwrap(restored).isCompatible(with: .init(folders: [], items: [], sources: [offline])),
+                      "Offline sources omit epoch without proving revocation")
+        let other = NativeWorkspaceOfflineScope(accountID: "another-owner", server: scope.server,
+            teamID: scope.teamID, accountGeneration: UUID(), teamEpoch: 2)
+        await reopened.configure(scope: other, masterKey: masterKey)
+        do { _ = try await reopened.projectReadme(projectID: project.id, binding: binding, scope: scope); XCTFail("Old account read") }
+        catch is CancellationError { }
+        let foreign = try await reopened.projectReadme(projectID: project.id, binding: binding, scope: other)
+        XCTAssertNil(foreign)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-workspaces.offline-complete,apple-workspaces.isolation
+    func testReadmeImageBudgetAndChangedDocumentPreserveOnlyCompatibleBytes() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let scope = NativeWorkspaceOfflineScope(accountID: "owner", server: "https://example.invalid",
+            teamID: nil, accountGeneration: UUID(), teamEpoch: 0)
+        let cache = NativeWorkspaceOfflineCache(directory: directory)
+        await cache.configure(scope: scope, masterKey: SymmetricKey(size: .bits256))
+        let document = ProjectWorkspaceReadme(markdown: "First", truncated: false, origin: "stored")
+        try await cache.retainProjectReadme(document, projectID: "p", binding: "metadata", scope: scope)
+        for index in 0..<9 {
+            try await cache.retainProjectReadmeImage(Data([UInt8(index)]), source: "image-\(index)",
+                document: document, projectID: "p", binding: "metadata", scope: scope)
+        }
+        do {
+            try await cache.retainProjectReadmeImage(Data(repeating: 1, count: 2 * 1_024 * 1_024 + 1),
+                source: "image-0", document: document, projectID: "p", binding: "metadata", scope: scope)
+            XCTFail("Oversized images must be rejected")
+        } catch { }
+        let bounded = try await cache.projectReadme(projectID: "p", binding: "metadata", scope: scope)
+        XCTAssertEqual(bounded?.images.count, 8)
+        XCTAssertEqual(bounded?.images["image-0"], Data([0]))
+        let gate = WorkspaceOfflineGETGate()
+        let cancelled = Task {
+            _ = await gate.fetch()
+            try await cache.retainProjectReadme(ProjectWorkspaceReadme(markdown: "Cancelled replacement", truncated: false, origin: "stored"),
+                projectID: "p", binding: "metadata", scope: scope)
+        }
+        await gate.waitUntilStarted()
+        cancelled.cancel()
+        await gate.finish()
+        do { try await cancelled.value; XCTFail("Cancelled README writes must fail") }
+        catch is CancellationError { }
+        let preserved = try await cache.projectReadme(projectID: "p", binding: "metadata", scope: scope)
+        XCTAssertEqual(preserved?.markdown, "First")
+        XCTAssertEqual(preserved?.images.count, 8)
+        let changed = ProjectWorkspaceReadme(markdown: "Changed", truncated: false, origin: "stored")
+        try await cache.retainProjectReadme(changed, projectID: "p", binding: "metadata", scope: scope)
+        try await cache.retainProjectReadmeImage(Data([9]), source: "stale-image", document: document,
+            projectID: "p", binding: "metadata", scope: scope)
+        let replaced = try await cache.projectReadme(projectID: "p", binding: "metadata", scope: scope)
+        XCTAssertEqual(replaced?.markdown, "Changed")
+        XCTAssertEqual(replaced?.images.count, 0, "Late images cannot attach to a replacement README")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-workspaces.local-first
+    func testOfflineProjectContentsAndReadmeRenderWhenSettingsAreUncachedAndRefreshFails() async throws {
+        let service = ProjectsWorkspaceMockService()
+        let project = makeProject(id: "offline", name: "Offline")
+        service.listResult = [project]
+        service.cachedContentsResult = .init(folders: [
+            .init(id: "folder", name: "Files", parentHash: nil, position: 0, createdAt: 1)
+        ], items: [
+            .init(id: "file", kind: "embed", targetID: "embed", name: "Report.pdf", metadata: [:], folderHash: nil, position: 0, createdAt: 1)
+        ], sources: [])
+        service.omitCachedSettings = true
+        service.contentsError = URLError(.notConnectedToInternet)
+        service.cachedReadmeResult = .init(binding: "fixture", markdown: "# Cached", truncated: false,
+            origin: "stored", sourceID: nil, sourceKeyEpoch: nil, images: ["logo.png": ProjectsWorkspacePreviewFixture.readmeImageData])
+        let store = ProjectsWorkspaceStore(service: service, validateFence: { _ in })
+        await store.load(accountId: "owner")
+        await store.selectProject(project.id)
+        XCTAssertEqual(store.items.map(\.name), ["Report.pdf"])
+        XCTAssertEqual(store.folders.map(\.name), ["Files"])
+        XCTAssertFalse(store.isLoadingDetail)
+        XCTAssertNil(store.errorMessage, "A transient refresh must preserve the readable offline workspace")
+        guard case .ready(let document) = store.readme else { return XCTFail("Cached README must remain ready") }
+        XCTAssertEqual(document.markdown, "# Cached")
+        let image = try await store.readReadmeImage("logo.png", readme: document)
+        XCTAssertEqual(image, ProjectsWorkspacePreviewFixture.readmeImageData)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-workspaces.offline-complete,apple-workspaces.maintenance
+    func testBackgroundReadmeFillVisitsEveryProjectAndBoundsReferencedImageReads() async throws {
+        var visited: [String] = [], saved: [String] = [], images: [String] = [], cleared: [String] = []
+        let markdown = "# Overview\n\n```markdown\n![Literal](not-an-image.png)\n```\n\n" +
+            (0..<12).map { "![Image \($0)](images/\($0).png)" }.joined(separator: "\n\n")
+        let complete = try await ProjectReadmeOfflineMaintenance.fill(projectIDs: ["offline", "first", "empty", "last"], load: { id in
+            visited.append(id)
+            if id == "offline" { throw ProjectsWorkspaceError.sourceOffline }
+            if id == "empty" { return nil }
+            return .init(markdown: markdown, truncated: false, origin: "stored")
+        }, readImage: { id, _, source in
+            images.append(id + ":" + source)
+            return Data([1, 2, 3])
+        }, save: { id, _ in saved.append(id) }, saveImage: { _, _, _, _ in },
+           clear: { cleared.append($0) }, validate: {})
+        XCTAssertFalse(complete, "Unavailable Projects require a later maintenance retry")
+        XCTAssertEqual(visited, ["offline", "first", "empty", "last"])
+        XCTAssertEqual(saved, ["first", "last"], "One unavailable host cannot suppress another Project's cache")
+        XCTAssertEqual(cleared, ["empty"], "Only authoritative empty reads reconcile retained overviews")
+        XCTAssertEqual(images.count, 16)
+        XCTAssertFalse(images.contains { $0.contains("not-an-image") || $0.hasSuffix("/8.png") })
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-workspaces.offline-complete,apple-workspaces.isolation,apple-workspaces.maintenance
+    func testCancelledBackgroundReadmeFillCannotClearPreviouslyRetainedOverview() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let cache = NativeWorkspaceOfflineCache(directory: directory)
+        let scope = NativeWorkspaceOfflineScope(accountID: "owner", server: "https://example.invalid",
+            teamID: nil, accountGeneration: UUID(), teamEpoch: 0)
+        await cache.configure(scope: scope, masterKey: SymmetricKey(size: .bits256))
+        let document = ProjectWorkspaceReadme(markdown: "Previous complete README", truncated: false, origin: "stored")
+        try await cache.retainProjectReadme(document, projectID: "p", binding: "metadata", scope: scope)
+        let gate = WorkspaceOfflineGETGate()
+        var clearCount = 0
+        let maintenance = Task {
+            try await ProjectReadmeOfflineMaintenance.fill(projectIDs: ["p"], load: { _ in
+                _ = await gate.fetch()
+                return nil
+            }, readImage: { _, _, _ in Data() }, save: { _, _ in }, saveImage: { _, _, _, _ in },
+               clear: { _ in clearCount += 1 }, validate: {})
+        }
+        await gate.waitUntilStarted()
+        maintenance.cancel()
+        await gate.finish()
+        do { _ = try await maintenance.value; XCTFail("Cancellation must interrupt maintenance") }
+        catch is CancellationError { }
+        XCTAssertEqual(clearCount, 0)
+        let retained = try await cache.projectReadme(projectID: "p", binding: "metadata", scope: scope)
+        XCTAssertEqual(retained?.markdown, document.markdown)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-workspaces.offline-complete,apple-workspaces.maintenance
+    func testBackgroundReadmeFillRejectsOversizedBodiesAndImagesWithoutStoppingHealthyProjects() async throws {
+        var saved: [String] = [], savedImages: [String] = []
+        let complete = try await ProjectReadmeOfflineMaintenance.fill(projectIDs: ["large-body", "large-image", "healthy"], load: { id in
+            .init(markdown: id == "large-body" ? String(repeating: "x", count: 2 * 1_024 * 1_024 + 1) : "![Image](logo.png)",
+                  truncated: false, origin: "stored")
+        }, readImage: { id, _, _ in
+            id == "large-image" ? Data(repeating: 1, count: 2 * 1_024 * 1_024 + 1) : Data([1])
+        }, save: { id, _ in saved.append(id) }, saveImage: { id, _, _, _ in savedImages.append(id) }, clear: { _ in }, validate: {})
+        XCTAssertFalse(complete)
+        XCTAssertEqual(saved, ["large-image", "healthy"])
+        XCTAssertEqual(savedImages, ["healthy"])
+    }
+
 }
 
 @MainActor
@@ -1540,10 +1992,14 @@ private final class ProjectsWorkspaceMockService: ProjectsWorkspaceServing {
     var listResult: [ProjectWorkspaceProject]?
     var cachedListResult: [ProjectWorkspaceProject]?
     var cachedContentsResult: ProjectWorkspaceContents?
+    var omitCachedSettings = false
+    var contentsError: Error?
+    var cachedReadmeResult: ProjectReadmeOfflineSnapshot?
+    func cachedReadme(project: ProjectWorkspaceProject, contents: ProjectWorkspaceContents, fence: ProjectsWorkspaceFence) async throws -> ProjectReadmeOfflineSnapshot? { cachedReadmeResult }
     func cachedProjects(accountID: String, teamID: String?) async throws -> [ProjectWorkspaceProject]? { cachedListResult }
     func cachedContents(project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws -> ProjectWorkspaceContents? { cachedContentsResult }
     func cachedSettings(project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws -> ProjectWorkspaceSettings? {
-        cachedContentsResult == nil ? nil : ProjectWorkspaceSettings(writeMode: .applyAndShow, selectionRequired: false, focusID: nil, focusInstruction: nil)
+        cachedContentsResult == nil || omitCachedSettings ? nil : ProjectWorkspaceSettings(writeMode: .applyAndShow, selectionRequired: false, focusID: nil, focusInstruction: nil)
     }
     var suspendContents = false
     var contentsResult: ProjectWorkspaceContents?
@@ -1587,6 +2043,7 @@ private final class ProjectsWorkspaceMockService: ProjectsWorkspaceServing {
     }
 
     func contents(project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws -> ProjectWorkspaceContents {
+        if let contentsError { throw contentsError }
         workspaceContentsReads += 1
         if failsWorkspaceContents { throw ProjectsWorkspaceError.sourceOffline }
         if let specific = contentsByProject[project.id] { return specific }

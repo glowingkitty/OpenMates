@@ -1,3 +1,5 @@
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.message.confirmed-haptic
 // Specification: specifications/architecture/storage-lifecycle/specification.yml
 // Assertions: storage.versions.metadata-and-payload, storage.versions.bounded-reconstruction
 // Watch chat runtime and offline cache.
@@ -899,6 +901,8 @@ protocol WatchChatSyncSocket: AnyObject {
     func disconnect()
     func sendTurn(_ pending: WatchPendingTextSend) async throws
     func sendTurn(_ pending: WatchPendingTextSend, encryptMetadata: @escaping @MainActor (String) async throws -> String) async throws
+    func sendTurn(_ pending: WatchPendingTextSend, encryptMetadata: @escaping @MainActor (String) async throws -> String,
+                  confirmHaptic: Bool) async throws
     func setChangeHandler(_ handler: (@MainActor () -> Void)?)
     var generation: Int { get }
     var canonicalEmbedReceiptPolicy: CanonicalEmbedReceiptPolicy { get }
@@ -918,6 +922,10 @@ extension WatchChatSyncSocket {
     var canonicalEmbedReceiptPolicy: CanonicalEmbedReceiptPolicy { .allowLegacyReceipt }
     func sendTurn(_ pending: WatchPendingTextSend, encryptMetadata: @escaping @MainActor (String) async throws -> String) async throws {
         try await sendTurn(pending)
+    }
+    func sendTurn(_ pending: WatchPendingTextSend, encryptMetadata: @escaping @MainActor (String) async throws -> String,
+                  confirmHaptic: Bool) async throws {
+        try await sendTurn(pending, encryptMetadata: encryptMetadata)
     }
     func sendEvent(type: String, payload: [String: Any]) async throws { throw WatchChatRuntimeError.socketUnavailable }
     func setEventHandler(_ handler: (@MainActor (String, [String: Any]) -> Void)?) {}
@@ -2725,7 +2733,7 @@ final class WatchChatRuntime: ObservableObject {
             try await syncSocket.sendTurn(try await preparedTurn(pending, chat: chat), encryptMetadata: { text in
                 try validate()
                 return try await self.crypto.encryptText(text, for: chat)
-            })
+            }, confirmHaptic: true)
             try validate()
             guard socketGeneration == syncSocket.generation else { throw WatchChatRuntimeError.socketUnavailable }
             pendingTextSends.removeAll { $0.id == turnId }
@@ -3727,13 +3735,24 @@ final class WatchRealtimeSyncSocket: WatchChatSyncSocket {
     }
 
     func sendTurn(_ pending: WatchPendingTextSend, encryptMetadata: @escaping @MainActor (String) async throws -> String) async throws {
+        try await sendTurn(pending, encryptMetadata: encryptMetadata, confirmHaptic: false)
+    }
+
+    func sendTurn(_ pending: WatchPendingTextSend, encryptMetadata: @escaping @MainActor (String) async throws -> String,
+                  confirmHaptic: Bool) async throws {
         let expected = connectionGeneration
+        let accountGeneration = WatchChatAccountLifecycle.generation
         let profile = ServerProfile.current()
         try await WatchCanonicalStorage.sendTurn(pending, request: { type, payload, responses, matching in
             try await self.requestEvent(type: type, payload: payload, responseTypes: responses, matching: matching)
         }, encryptMetadata: encryptMetadata, validate: {
             guard !Task.isCancelled, self.connectionGeneration == expected,
+                  WatchChatAccountLifecycle.generation == accountGeneration,
                   ServerProfile.current() == profile else { throw WatchChatRuntimeError.socketUnavailable }
+        }, confirmed: {
+            guard confirmHaptic else { return }
+            NativeHaptics.shared.confirmed(.messageAccepted, id: pending.id,
+                scope: "\(profile.apiBaseURL.absoluteString)|\(accountGeneration)|\(expected)")
         })
     }
 

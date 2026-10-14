@@ -6,6 +6,95 @@ import UIKit
 @testable import OpenMates
 
 final class EmbedWireFormatTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chats.rendering.assistant-document-convergence
+    func testComposerMediaRecordIdentitiesSurviveDecodeAndHydrationWhileDispatchUsesAliases() throws {
+        for (wireType, app, renderer) in [("audio-recording", "audio", EmbedType.recording),
+                                          ("images-image", "images", EmbedType.image)] {
+            let payload: [String: Any] = ["type": wireType, "filename": "synthetic-media", "app_id": app]
+            let inline = EmbedRecord(id: "synthetic", type: wireType, status: .finished,
+                data: .raw(payload.mapValues(AnyCodable.init)), parentEmbedId: nil, appId: app,
+                skillId: nil, embedIds: nil, createdAt: nil)
+            let content = String(decoding: try JSONSerialization.data(withJSONObject: payload), as: UTF8.self)
+            let dataWire: [String: Any] = ["id": "synthetic", "type": wireType, "status": "finished", "data": payload]
+            let contentWire: [String: Any] = ["id": "synthetic", "type": wireType, "status": "finished", "content": content]
+            let shell = EmbedRecord(id: "synthetic", type: "encrypted", status: .finished, data: nil,
+                parentEmbedId: nil, appId: app, skillId: nil, embedIds: nil, createdAt: nil)
+            let decodedData = try JSONDecoder().decode(EmbedRecord.self, from: JSONSerialization.data(withJSONObject: dataWire))
+            let decodedContent = try JSONDecoder().decode(EmbedRecord.self, from: JSONSerialization.data(withJSONObject: contentWire))
+            // EmbedRecord supports decoding only. Exercise its supported wire
+            // forms and decrypted hydration; draft tests cover persistence.
+            for record in [inline, decodedData, decodedContent, shell.decryptedCopy(content: content, type: wireType)] {
+                XCTAssertEqual(record.type, wireType, "Composer/persisted identities must remain backwards compatible")
+                XCTAssertEqual(record.rawData?["type"]?.value as? String, wireType)
+                XCTAssertEqual(EmbedType.normalized(rawValue: record.type), renderer)
+            }
+            // Backend direct-type identities remain valid too; this fix only
+            // preserves explicit composer aliases, not all unnormalized types.
+            let backend = EmbedRecord(id: "backend", type: renderer.rawValue, status: .finished, data: nil,
+                parentEmbedId: nil, appId: app, skillId: nil, embedIds: nil, createdAt: nil)
+            XCTAssertEqual(backend.type, renderer.rawValue)
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.rendering.assistant-document-convergence,chats.surface.semantic-parity
+    func testRegisteredBackendChildNamesNormalizeAcrossDecodeDecryptionAndInlineRecords() throws {
+        let children: [(String, String, EmbedType)] = [
+            ("business", "company_financial_result", .businessCompanyFinancialResult),
+            ("code", "repo", .codeRepo), ("code", "code", .codeCode),
+            ("design", "icon_result", .designIconResult),
+            ("electronics", "component", .electronicsComponent), ("events", "event", .eventsEvent),
+            ("fitness", "location", .fitnessLocation), ("fitness", "class", .fitnessClass),
+            ("health", "appointment", .healthAppointment), ("home", "listing", .homeListing),
+            ("hosting", "hosting_domain", .hostingDomain), ("images", "image_result", .imagesImageResult),
+            ("mail", "email", .mailEmail), ("maps", "place", .mapsPlace),
+            ("models3d", "model_result", .models3dModelResult), ("news", "website", .webWebsite),
+            ("nutrition", "recipe", .nutritionRecipe), ("shopping", "product", .shoppingProduct),
+            ("social_media", "social_post", .socialMediaPost), ("tasks", "task", .tasksTask),
+            ("travel", "connection", .travelConnection), ("travel", "stay", .travelStay),
+            ("videos", "video", .videosVideo), ("weather", "weather_day", .weatherDay),
+            ("web", "website", .webWebsite), ("workflows", "workflow", .workflowsWorkflow)
+        ]
+        for (app, wireType, expected) in children {
+            let payload: [String: Any] = ["type": wireType, "app_id": app, "name": "Synthetic result"]
+            let row: [String: Any] = ["id": "child", "type": wireType, "app_id": app,
+                                      "status": "finished", "data": payload]
+            let decoded = try JSONDecoder().decode(EmbedRecord.self, from: JSONSerialization.data(withJSONObject: row))
+            let content = String(decoding: try JSONSerialization.data(withJSONObject: payload), as: UTF8.self)
+            let encrypted = EmbedRecord(id: "child", type: "encrypted", status: .finished, data: nil,
+                parentEmbedId: "parent", appId: nil, skillId: nil, embedIds: nil, createdAt: nil)
+            let inline = EmbedRecord(id: "child", type: wireType, status: .finished,
+                data: .raw(payload.mapValues(AnyCodable.init)), parentEmbedId: "parent", appId: nil,
+                skillId: nil, embedIds: nil, createdAt: nil)
+            for record in [decoded, encrypted.decryptedCopy(content: content, type: wireType), inline] {
+                XCTAssertEqual(record.type, expected.rawValue, "\(app)/\(wireType)")
+                XCTAssertEqual(EmbedType.normalized(rawValue: record.type), expected)
+                XCTAssertEqual(record.rawData?["name"]?.value as? String, "Synthetic result")
+            }
+        }
+        XCTAssertEqual(EmbedType.normalized(rawValue: "location"), .maps,
+                       "Bare direct location retains the web Maps registration; fitness supplies app identity")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    @MainActor
+    func testMapsComposerAndHostingWireAliasesUseTheSameTypedDispatch() throws {
+        for wireType in ["place", "map-location", "maps-place", "app:maps:place", "app:maps:location"] {
+            let record = EmbedRecord(id: "place", type: wireType, status: .finished,
+                data: .raw(["type": AnyCodable(wireType), "name": AnyCodable("Synthetic venue"),
+                            "location_lat": AnyCodable(52.52), "location_lng": AnyCodable(13.405)]),
+                parentEmbedId: nil, appId: "maps", skillId: nil, embedIds: nil, createdAt: nil)
+            XCTAssertEqual(EmbedType.normalized(rawValue: record.type), .mapsPlace)
+            XCTAssertEqual(MapsEmbedModel(record.rawData).name, "Synthetic venue")
+            XCTAssertTrue(MapsEmbedModel(record.rawData).hasCoordinates)
+        }
+        for wireType in ["hosting_domain", "hosting-domain"] {
+            let record = EmbedRecord(id: "domain", type: wireType, status: .finished, data: nil,
+                parentEmbedId: nil, appId: "hosting", skillId: nil, embedIds: nil, createdAt: nil)
+            XCTAssertTrue(HostingEmbedKind.isDomain(record))
+            XCTAssertEqual(EmbedType.normalized(rawValue: record.type), .hostingDomain)
+        }
+    }
+
     #if os(iOS)
     // contract-test: supporting surface=gui.apple assertions=code-run.surface-parity
     func testCodeFilenameNullAndBlankMetadataPreservesLanguageAndRealNames() throws {

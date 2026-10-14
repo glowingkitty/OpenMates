@@ -245,6 +245,11 @@ final class LocalModelLabController: ObservableObject {
         generation = UUID()
         let token = generation
         let owner = ownerIdentity()
+        let runtimeOwner = UUID()
+        guard store.registerRuntime(id, owner: runtimeOwner, drain: { [weak self] in
+            self?.cancel()
+            await self?.waitUntilIdle()
+        }) else { return }
         runningModel = id
         activeRuntime = runtime
         let sourceDuration = id == .whisper ? audioDuration : nil
@@ -288,6 +293,7 @@ final class LocalModelLabController: ObservableObject {
             measurement.transition(.cleanup)
             if token == generation { applyMeasurement(measurement.snapshot()) }
             await runtime.unload()
+            store.unregisterRuntime(id, owner: runtimeOwner)
             // Keep ownership and sampling until even a non-cooperative native kernel drains.
             sampler.cancel()
             await sampler.value

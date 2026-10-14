@@ -5,6 +5,7 @@
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/embeds/images/ImageEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/images/ImageEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/images/ImageViewEmbedPreview.svelte
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
 //          TypographyTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
@@ -273,6 +274,27 @@ struct ImageEmbedRenderer: View {
     var body: some View {
         switch mode {
         case .preview:
+            if accessibilityPrefix == "image-view-skill" {
+                SearchPreviewIdentityLayout(horizontalInset: .spacing10) {
+                    if renderedS3Url != nil && aesKey != nil {
+                        EncryptedImageView(
+                            s3Url: renderedS3Url, s3Key: renderedS3Key, aesKey: aesKey,
+                            aesNonce: aesNonce, encryption: encryption, contentMode: .fit
+                        )
+                        .frame(maxWidth: .infinity).frame(height: 30)
+                        .clipped()
+                        .accessibilityIdentifier("image-view-skill-thumbnail")
+                    }
+                } inputs: {
+                    if let input = EmbedFieldReader.string(data ?? [:], keys: ["file_path", "filename"]) {
+                        Text(input).font(.omXs).foregroundStyle(Color.fontSecondary).lineLimit(3)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .accessibilityIdentifier("image-view-skill-input")
+                    }
+                } summary: {
+                    EmptyView()
+                }
+            } else {
             if renderedS3Url != nil && aesKey != nil {
                 EncryptedImageView(
                     s3Url: renderedS3Url, s3Key: renderedS3Key, aesKey: aesKey, aesNonce: aesNonce, encryption: encryption,
@@ -292,6 +314,8 @@ struct ImageEmbedRenderer: View {
                 .padding(.vertical, .spacing8)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .accessibilityIdentifier("\(accessibilityPrefix)-thumbnail")
+            }
+
             }
 
         case .fullscreen:
@@ -362,6 +386,11 @@ struct ImageViewSkillModel {
             for (key, value) in originalData {
                 resolved[key] = value
             }
+        }
+        // The referenced upload supplies media, while the called skill owns
+        // the exact file_path shown throughout processing and completion.
+        if let filePath = skillEmbed.rawData?["file_path"] {
+            resolved["file_path"] = filePath
         }
         return resolved.isEmpty ? nil : resolved
     }

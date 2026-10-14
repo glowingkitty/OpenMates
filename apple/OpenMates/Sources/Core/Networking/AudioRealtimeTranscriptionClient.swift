@@ -2,6 +2,8 @@
 // Mirrors the authenticated browser protocol without sharing the long-lived chat socket.
 // Specification: specifications/features/message-input/specification.yml
 // Assertions: message-input.recording.lifecycle, message-input.embeds.gated-send
+// Specification: specifications/features/apple-local-model-lab/specification.yml
+// Assertions: apple-local-model-lab.local-execution, apple-local-model-lab.serialized-cancellation
 
 import Foundation
 
@@ -193,9 +195,16 @@ actor AudioRealtimeTranscriptionClient {
         // switches to a server after an asset, memory or inference failure.
         let localRuntime: (any LocalPCMTranscribing)?
         #if arch(arm64) && !os(watchOS)
-        if LocalModelStore.shared.state(for: .whisper) == .ready,
+        if LocalModelStore.shared.canUseCapability(.whisper),
            let directory = try? LocalModelStore.shared.installedDirectory(.whisper) {
-            localRuntime = WhisperKitComposerRuntime(directory: directory)
+            let runtimeOwner = UUID()
+            let runtime = WhisperKitComposerRuntime(directory: directory, onUnload: {
+                await LocalModelStore.shared.unregisterRuntime(.whisper, owner: runtimeOwner)
+            })
+            LocalModelStore.shared.registerRuntime(.whisper, owner: runtimeOwner) { [weak runtime] in
+                await runtime?.unload()
+            }
+            localRuntime = runtime
         } else { localRuntime = nil }
         #else
         localRuntime = nil // Intel and Watch retain the disclosed server route.

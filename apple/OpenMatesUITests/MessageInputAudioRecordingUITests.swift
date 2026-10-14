@@ -52,6 +52,9 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         app.terminate()
         app.launchArguments = ["--ui-test-start-new-chat"]
         app.launch()
+        let summary = app.buttons["message-draft-summary"]
+        XCTAssertTrue(summary.waitForExistence(timeout: 30), "Restored audio draft starts as an inactive summary")
+        summary.tap()
         let restoredCard = element(in: app, identifier: "native-composer-preview-recording-finished")
         XCTAssertTrue(
             restoredCard.waitForExistence(timeout: 30),
@@ -162,6 +165,10 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
             skipInterests.tap()
         }
 
+        let summary = app.buttons["message-draft-summary"]
+        XCTAssertTrue(summary.waitForExistence(timeout: 8))
+        XCTAssertFalse(app.buttons["send-button"].exists)
+        summary.tap()
         XCTAssertTrue(element(in: app, identifier: "native-composer-preview-recording-finished")
             .waitForExistence(timeout: 8))
         XCTAssertTrue(element(in: app, identifier: "native-composer-audio-content").exists)
@@ -312,7 +319,9 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         element(in: app, identifier: "record-finish-button").tap()
 
         XCTAssertTrue(element(in: app, identifier: "native-composer-preview-recording-finished").waitForExistence(timeout: 5))
-        XCTAssertFalse(app.keyboards.firstMatch.waitForExistence(timeout: 2))
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5),
+                      "Finishing recording must reopen the editor")
+        XCTAssertFalse(element(in: app, identifier: "message-draft-summary").exists)
         XCTAssertFalse(element(in: app, identifier: "pending-composer-embed").exists)
         XCTAssertTrue(textContaining("recording", in: app).waitForExistence(timeout: 5))
         XCTAssertFalse(textContaining("```json", in: app).exists)
@@ -517,6 +526,19 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         )
         XCTAssertTrue(element(in: app, identifier: "record-cancel-button").isHittable)
         XCTAssertTrue(element(in: app, identifier: "record-finish-button").isHittable)
+        let fieldMatches = app.descendants(matching: .any).matching(identifier: "message-field")
+        XCTAssertEqual(fieldMatches.count, 1, "Recording geometry must resolve one active field")
+        let field = fieldMatches.firstMatch
+        XCTAssertEqual(overlay.frame.minX, field.frame.minX, accuracy: 1)
+        XCTAssertEqual(overlay.frame.maxX, field.frame.maxX, accuracy: 1)
+        XCTAssertEqual(controls.frame.minX - overlay.frame.minX,
+                       overlay.frame.maxX - controls.frame.maxX, accuracy: 1,
+                       "Recording controls must have equal horizontal inset")
+        for identifier in ["timer-pill", "record-cancel-button", "record-finish-button"] {
+            let control = element(in: app, identifier: identifier)
+            XCTAssertTrue(overlay.frame.insetBy(dx: -1, dy: -1).contains(control.frame),
+                          "Recording control must remain fully inside the panel: \(identifier)")
+        }
         XCTAssertGreaterThanOrEqual(
             controls.frame.minY - releaseText.frame.maxY,
             64,

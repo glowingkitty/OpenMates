@@ -48,7 +48,7 @@ enum EnhancedPIIRuntimeStatus: Equatable, Sendable {
 @MainActor
 final class EnhancedPIIDetectionService: ObservableObject {
     static let shared: EnhancedPIIDetectionService = EnhancedPIIDetectionService(controller: .shared,
-        validContext: { $0.accountGeneration == OfflineStore.shared.scopeGeneration })
+        validContext: { $0.accountGeneration == OfflineStore.shared.scopeGeneration }, capabilityStore: .shared)
     @Published private(set) var status: EnhancedPIIRuntimeStatus = .regexOnly
     @Published private(set) var revision: UInt64 = 0
     @Published private(set) var coldLoadSeconds: Double?
@@ -56,6 +56,9 @@ final class EnhancedPIIDetectionService: ObservableObject {
     private let controller: EnhancedPIIModelDownloadController
     private let runtime: any ProductionPIIRuntimeServing
     private let validContext: @MainActor (ComposerPIIContext) -> Bool
+    private let capabilityStore: LocalModelStore?
+    private let runtimeOwner = UUID()
+    private var capabilityEnabled: Bool { capabilityStore?.isCapabilityEnabled(.privacyFilter) ?? true }
     private var contexts: Set<ComposerPIIContext> = []
     private var generation = UUID()
     private var warmTask: Task<Void, Never>?
@@ -75,8 +78,28 @@ final class EnhancedPIIDetectionService: ObservableObject {
 
     init(controller: EnhancedPIIModelDownloadController, runtime: any ProductionPIIRuntimeServing = ProductionPIIRuntime.shared,
          validContext: @escaping @MainActor (ComposerPIIContext) -> Bool = { _ in true },
-         observePressure: Bool = true) {
+         observePressure: Bool = true, capabilityStore: LocalModelStore? = nil) {
         self.controller = controller; self.runtime = runtime; self.validContext = validContext
+        self.capabilityStore = capabilityStore
+        if let capabilityStore {
+            capabilityStore.registerRuntime(.privacyFilter, owner: runtimeOwner) { [weak self] in
+                await self?.invalidateModel()
+            }
+            capabilityStore.$capabilityPreferences.map { $0[.privacyFilter] ?? true }.removeDuplicates()
+                .sink { [weak self] enabled in
+                    guard let self else { return }
+                    revision &+= 1
+                    if enabled {
+                        // @Published emits before its stored value changes.
+                        // Resume after the preference commit, preserving the
+                        // synchronous revision fence against cached detection.
+                        Task { @MainActor [weak self] in
+                            guard let self, capabilityEnabled else { return }
+                            modelAvailabilityChanged()
+                        }
+                    }
+                }.store(in: &observations)
+        }
         controller.$status.sink { [weak self] _ in
             Task { @MainActor [weak self] in self?.modelAvailabilityChanged() }
         }.store(in: &observations)
@@ -126,9 +149,9 @@ final class EnhancedPIIDetectionService: ObservableObject {
 
     func detect(text: String, options: PIIDetectionOptions, context: ComposerPIIContext,
                 waitForWarm: Bool = false) async -> EnhancedPIIDetectionResult {
-        if waitForWarm { await awaitInstalledReadiness(context) }
+        if waitForWarm, capabilityEnabled { await awaitInstalledReadiness(context) }
         let fallbackMode: EnhancedPIIDetectionMode
-        switch status {
+        switch capabilityEnabled ? status : .regexOnly {
         case .warming: fallbackMode = .regexFallback(reason: .modelLoading)
         case .regexFallback(let reason): fallbackMode = .regexFallback(reason: reason)
         case .regexOnly, .ready: fallbackMode = .regexOnly
@@ -136,7 +159,7 @@ final class EnhancedPIIDetectionService: ObservableObject {
         let scan = Task.detached(priority: .userInitiated) { PIIDetector.detect(in: text, options: options) }
         let regex = await withTaskCancellationHandler { await scan.value } onCancel: { scan.cancel() }
         let fallback = EnhancedPIIDetectionResult(matches: regex, mode: fallbackMode)
-        guard !Task.isCancelled, contexts.contains(context), validContext(context),
+        guard capabilityEnabled, !Task.isCancelled, contexts.contains(context), validContext(context),
               !memorySuppressed, !availabilitySuppressed else { return fallback }
         guard contexts.contains(context), validContext(context), !memorySuppressed,
               warmedDirectory != nil, controller.status.isReady else { return fallback }
@@ -165,7 +188,7 @@ final class EnhancedPIIDetectionService: ObservableObject {
         detectionTask = task; detectionID = requestID
         let result = await withTaskCancellationHandler { await task.value } onCancel: { task.cancel() }
         if detectionID == requestID { detectionTask = nil; detectionID = nil }
-        guard !Task.isCancelled, generation == requestGeneration, contexts.contains(context), validContext(context) else { return fallback }
+        guard capabilityEnabled, !Task.isCancelled, generation == requestGeneration, contexts.contains(context), validContext(context) else { return fallback }
         let measured = await runtime.timings()
         guard !Task.isCancelled, generation == requestGeneration, contexts.contains(context), validContext(context) else { return fallback }
         lastTimings = measured
@@ -184,7 +207,7 @@ final class EnhancedPIIDetectionService: ObservableObject {
         warmIfNeeded()
     }
     private func warmIfNeeded() {
-        guard !contexts.isEmpty, contexts.contains(where: validContext), !memorySuppressed, !availabilitySuppressed,
+        guard capabilityEnabled, !contexts.isEmpty, contexts.contains(where: validContext), !memorySuppressed, !availabilitySuppressed,
               let directory = controller.installedDirectory,
               warmedDirectory != directory, failedWarmDirectory != directory, warmTask == nil, detectionTask == nil, !draining else { return }
         let expected = generation
@@ -210,7 +233,7 @@ final class EnhancedPIIDetectionService: ObservableObject {
         revision &+= 1
     }
     private func awaitInstalledReadiness(_ context: ComposerPIIContext) async {
-        while !Task.isCancelled, contexts.contains(context), validContext(context),
+        while capabilityEnabled, !Task.isCancelled, contexts.contains(context), validContext(context),
               !memorySuppressed, !availabilitySuppressed {
             if let refreshing = refreshTask { await refreshing.value; continue }
             if let draining = drainTask { await draining.value; continue }
@@ -224,6 +247,9 @@ final class EnhancedPIIDetectionService: ObservableObject {
     }
     @discardableResult
     private func scheduleDrain() -> Task<Void, Never> {
+        // Every invalidator joins the same actual cleanup owner. In particular,
+        // explicit asset removal cannot await a superseded no-op drain.
+        if let drainTask { return drainTask }
         let identifier = UUID(); drainID = identifier
         let task = Task { [weak self] in
             guard let self else { return }
@@ -234,13 +260,15 @@ final class EnhancedPIIDetectionService: ObservableObject {
         return task
     }
     private func drainAndUnload() async {
-        let expected = generation
         let warming = warmTask; let detecting = detectionTask
         if let warming { await warming.value }
         if let detecting { await detecting.value }
-        guard generation == expected else { return }
+        // Generation changes invalidate publication, never cleanup ownership.
+        // Admission stays closed while draining, so no newer warm/detect can
+        // replace these operations before the actual runtime unload completes.
         warmTask = nil; detectionTask = nil; detectionID = nil
         await runtime.unload()
-        if generation == expected { draining = false; warmIfNeeded() }
+        draining = false
+        warmIfNeeded() // Re-check the latest capability/context/suppression gates.
     }
 }

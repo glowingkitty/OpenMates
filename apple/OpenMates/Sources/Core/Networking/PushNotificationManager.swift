@@ -147,7 +147,8 @@ enum WorkflowCompletionDelivery {
     }
 
     static func persistIfNeeded(_ route: WorkflowCompletionRoute, accountID: String,
-                                socket: WebSocketManager) async throws {
+                                socket: WebSocketManager,
+                                isCurrent: @escaping @MainActor () -> Bool = { true }) async throws {
         guard let deliveryID = route.deliveryID, let chatID = route.chatID,
               let messageID = route.messageID else { return }
         let profile = ServerProfile.current()
@@ -156,7 +157,8 @@ enum WorkflowCompletionDelivery {
         let auth = AuthManager.notificationSession
         let authorityGeneration = auth.networkAuthority?.generation
         func check() throws {
-            guard auth.hasNetworkAuthority,
+            try Task.checkCancellation()
+            guard isCurrent(), auth.hasNetworkAuthority,
                   auth.networkAuthority?.generation == authorityGeneration,
                   auth.currentUser?.id == accountID,
                   ServerProfile.current() == profile,
@@ -164,16 +166,32 @@ enum WorkflowCompletionDelivery {
                   socket.transportGeneration == generation,
                   socket.connectionState == .connected else { throw WorkflowCompletionDeliveryError.changedContext }
         }
+        try await persist(route, exchange: { type, payload, responseType, validate in
+            let response = try await socket.sendAndWait(WSOutboundMessage(type: type, payload: payload),
+                responseType: responseType,
+                matching: { $0["request_id"] as? String == payload["request_id"] as? String &&
+                            $0["delivery_id"] as? String == deliveryID }, beforeSend: validate)
+            return response.fields
+        }, encryptClaim: { claim in
+            try await encrypt(claim, accountID: accountID, chatID: chatID, messageID: messageID)
+        }, check: check)
+    }
+
+    // Tests suspend one exchange without using a real session or transport.
+    // Production retains its synchronous fence at the queued socket send.
+    typealias Exchange = @MainActor (String, [String: Any], String,
+                                     @escaping @MainActor () throws -> Void) async throws -> [String: Any]
+
+    static func persist(_ route: WorkflowCompletionRoute, exchange: @escaping Exchange,
+                        encryptClaim: @escaping @MainActor ([String: Any]) async throws -> (metadata: String, message: String),
+                        check: @escaping @MainActor () throws -> Void) async throws {
+        guard let deliveryID = route.deliveryID, let chatID = route.chatID,
+              let messageID = route.messageID else { return }
         try check()
         let requestID = UUID().uuidString
-        let response = try await socket.sendAndWait(
-            WSOutboundMessage(type: "workflow_chat_delivery_claim", payload: [
-                "delivery_id": deliveryID, "request_id": requestID]),
-            responseType: "workflow_chat_delivery_claimed",
-            matching: { $0["request_id"] as? String == requestID && $0["delivery_id"] as? String == deliveryID },
-            beforeSend: check)
+        let claim = try await exchange("workflow_chat_delivery_claim",
+            ["delivery_id": deliveryID, "request_id": requestID], "workflow_chat_delivery_claimed", check)
         try check()
-        let claim = response.fields
         guard claim["chat_id"] as? String == chatID,
               claim["message_id"] as? String == messageID,
               claim["workflow_id"] as? String == route.workflowID,
@@ -187,30 +205,35 @@ enum WorkflowCompletionDelivery {
             "claim_generation": claimGeneration, "claim_issued_at": issuedAt,
             "claim_expires_at": expiresAt]
         if claim["client_persisted"] as? Bool != true {
-            let ciphertext = try await encrypt(claim, accountID: accountID, chatID: chatID,
-                                               messageID: messageID)
+            let ciphertext = try await encryptClaim(claim)
             try check()
             let persistID = UUID().uuidString
             var payload = fence
             payload["encrypted_chat_metadata"] = ciphertext.metadata
             payload["encrypted_message"] = ciphertext.message
             payload["request_id"] = persistID
-            _ = try await socket.sendAndWait(
-                WSOutboundMessage(type: "workflow_chat_delivery_persist", payload: payload),
-                responseType: "workflow_chat_delivery_persisted",
-                matching: { $0["request_id"] as? String == persistID && $0["delivery_id"] as? String == deliveryID },
-                beforeSend: check)
+            _ = try await exchange("workflow_chat_delivery_persist", payload,
+                                   "workflow_chat_delivery_persisted", check)
         }
         try check()
         let ackID = UUID().uuidString
         var ack = fence
         ack["request_id"] = ackID
-        _ = try await socket.sendAndWait(
-            WSOutboundMessage(type: "workflow_chat_delivery_ack", payload: ack),
-            responseType: "workflow_chat_delivery_acknowledged",
-            matching: { $0["request_id"] as? String == ackID && $0["delivery_id"] as? String == deliveryID },
-            beforeSend: check)
+        _ = try await exchange("workflow_chat_delivery_ack", ack,
+                               "workflow_chat_delivery_acknowledged", check)
         try check()
+    }
+
+    /// Revalidate before the loader captures its own cache generation. A key
+    /// returned after logout must never enter the replacement account's cache.
+    static func installChatKeyIfCurrent(loadMasterKey: @MainActor () async throws -> SymmetricKey?,
+                                       isCurrent: @MainActor () -> Bool,
+                                       install: @MainActor (SymmetricKey) async -> Void) async throws {
+        guard isCurrent(), !Task.isCancelled else { throw WorkflowCompletionDeliveryError.changedContext }
+        let masterKey = try await loadMasterKey()
+        guard isCurrent(), !Task.isCancelled else { throw WorkflowCompletionDeliveryError.changedContext }
+        if let masterKey { await install(masterKey) }
+        guard isCurrent(), !Task.isCancelled else { throw WorkflowCompletionDeliveryError.changedContext }
     }
 
     private static func encrypt(_ claim: [String: Any], accountID: String,
@@ -226,23 +249,23 @@ enum WorkflowCompletionDelivery {
             guard let wrapped = existing["encrypted_chat_key"] as? String, !wrapped.isEmpty else {
                 throw WorkflowCompletionDeliveryError.missingMasterKey
             }
-            chatKey = try CryptoManager.shared.unwrapChatKey(encryptedChatKeyBase64: wrapped, masterKey: masterKey)
+            chatKey = try await CryptoManager.shared.unwrapChatKey(encryptedChatKeyBase64: wrapped, masterKey: masterKey)
             encryptedChatKey = wrapped
         } else {
-            chatKey = CryptoManager.shared.generateChatKey()
-            encryptedChatKey = try CryptoManager.shared.wrapChatKey(chatKey, masterKey: masterKey)
+            chatKey = await CryptoManager.shared.generateChatKey()
+            encryptedChatKey = try await CryptoManager.shared.wrapChatKey(chatKey, masterKey: masterKey)
         }
         let encryptedTitle: String
         if let value = existing?["encrypted_title"] as? String, !value.isEmpty {
             encryptedTitle = value
         } else {
-            encryptedTitle = try CryptoManager.shared.encryptContent(title, key: chatKey)
+            encryptedTitle = try await CryptoManager.shared.encryptContent(title, key: chatKey)
         }
         let encryptedCategory: String
         if let value = existing?["encrypted_category"] as? String, !value.isEmpty {
             encryptedCategory = value
         } else {
-            encryptedCategory = try CryptoManager.shared.encryptContent("openmates_official", key: chatKey)
+            encryptedCategory = try await CryptoManager.shared.encryptContent("openmates_official", key: chatKey)
         }
         let createdAt = (claim["created_at"] as? Int) ?? Int(Date().timeIntervalSince1970)
         let metadata: [String: Any] = [
@@ -276,7 +299,7 @@ enum WorkflowCompletionDelivery {
             ])
         }
         let message: [String: Any] = ["role": "assistant",
-            "encrypted_content": try CryptoManager.shared.encryptContent(content, key: chatKey),
+            "encrypted_content": try await CryptoManager.shared.encryptContent(content, key: chatKey),
             "created_at": createdAt, "embeds": embeds]
         let metadataData = try JSONSerialization.data(withJSONObject: metadata)
         let messageData = try JSONSerialization.data(withJSONObject: message)
@@ -646,13 +669,14 @@ final class PushNotificationManager: NSObject, ObservableObject {
     }
 
     /// Resolve a notification target beyond the initial sidebar metadata page.
-    func chatForNotification(_ chatId: String) async throws -> Chat {
+    func chatForNotification(_ chatId: String,
+                             isCurrent operationIsCurrent: @escaping @MainActor () -> Bool = { true }) async throws -> Chat {
         let authManager = AuthManager.notificationSession
         let accountId = authManager.currentUser?.id
         let server = ServerConfiguration.current.apiBaseURL
         let scope = OfflineStore.shared.scopeGeneration
         func validate() throws {
-            guard authManager.hasNetworkAuthority, accountId != nil,
+            guard operationIsCurrent(), !Task.isCancelled, authManager.hasNetworkAuthority, accountId != nil,
                   authManager.currentUser?.id == accountId,
                   ServerConfiguration.current.apiBaseURL == server,
                   OfflineStore.shared.scopeGeneration == scope else { throw NotificationReplyError.accountChanged }
@@ -670,7 +694,7 @@ final class PushNotificationManager: NSObject, ObservableObject {
             let response = try await wsManager.sendAndWait(
                 WSOutboundMessage(type: "load_more_chats", payload: ["offset": pageOffset, "limit": 50, "context_epoch": 0]),
                 responseType: "load_more_chats_response",
-                matching: { ($0["offset"] as? Int) == pageOffset })
+                matching: { ($0["offset"] as? Int) == pageOffset }, beforeSend: validate)
             try validate()
             let page = try syncDecoder.decode(ChatMetadataPage.self,
                 from: JSONSerialization.data(withJSONObject: response.fields))
@@ -691,7 +715,8 @@ final class PushNotificationManager: NSObject, ObservableObject {
 
     /// Verify the exact workflow output is in ordinary owner chat history
     /// before resolving a tap, including when a second device won the claim.
-    func workflowMessageForNotification(chatId: String, messageId: String) async throws -> Chat {
+    func workflowMessageForNotification(chatId: String, messageId: String,
+                                        isCurrent operationIsCurrent: @escaping @MainActor () -> Bool = { true }) async throws -> Chat {
         let auth = AuthManager.notificationSession
         let accountId = auth.currentUser?.id
         let authorityGeneration = auth.networkAuthority?.generation
@@ -699,18 +724,21 @@ final class PushNotificationManager: NSObject, ObservableObject {
         let scope = OfflineStore.shared.scopeGeneration
         let socket = AppSessionCoordinator.shared.webSocketManager
         let generation = socket.transportGeneration
+        func isCurrent() -> Bool {
+            operationIsCurrent() && auth.hasNetworkAuthority &&
+                  auth.networkAuthority?.generation == authorityGeneration &&
+                  auth.currentUser?.id == accountId &&
+                  ServerProfile.current() == profile &&
+                  OfflineStore.shared.scopeGeneration == scope &&
+                  socket.transportGeneration == generation && !Task.isCancelled
+        }
         func validate() throws {
-            guard auth.hasNetworkAuthority,
-                  auth.networkAuthority?.generation == authorityGeneration,
-                  auth.currentUser?.id == accountId,
-                  ServerProfile.current() == profile,
-                  OfflineStore.shared.scopeGeneration == scope,
-                  socket.transportGeneration == generation else { throw NotificationReplyError.accountChanged }
+            guard isCurrent() else { throw NotificationReplyError.accountChanged }
         }
         try validate()
-        let target = try await chatForNotification(chatId)
+        let target = try await chatForNotification(chatId, isCurrent: isCurrent)
         try validate()
-        let response = try await socket.requestChatContentBatch(chatId: target.id)
+        let response = try await socket.requestChatContentBatch(chatId: target.id, beforeSend: { try validate() })
         try validate()
         let batch = try ChatContentBatchPayload.decode(response.fields)
         let store = AppSessionCoordinator.shared.chatStore
@@ -719,8 +747,13 @@ final class PushNotificationManager: NSObject, ObservableObject {
         let history = ChatContentBatchPayload.mergedMessages(
             snapshot: try batch.messages(for: target.id), preserving: cached)
         guard history.contains(where: { $0.id == messageId }) else { throw NotificationReplyError.chatUnavailable }
-        if let accountId, let masterKey = try await CryptoManager.shared.loadMasterKey(for: accountId) {
-            await ChatKeyManager.shared.loadChatKey(chatId: target.id, wrappers: batch.chatKeyWrappers, masterKey: masterKey)
+        if let accountId {
+            try await WorkflowCompletionDelivery.installChatKeyIfCurrent(
+                loadMasterKey: { try await CryptoManager.shared.loadMasterKey(for: accountId) },
+                isCurrent: isCurrent, install: { masterKey in
+                    await ChatKeyManager.shared.loadChatKey(chatId: target.id, wrappers: batch.chatKeyWrappers,
+                                                           masterKey: masterKey, isCurrent: isCurrent)
+                })
         }
         try validate()
         store.upsertChat(target)
@@ -1160,10 +1193,12 @@ extension PushNotificationManager: UNUserNotificationCenterDelegate {
             })
             let route = WorkflowCompletionRoute.parse(fields)
             let completion = NotificationCompletionBox(completionHandler)
+            let actionIdentifier = response.actionIdentifier
+            let categoryIdentifier = response.notification.request.content.categoryIdentifier
             Task { @MainActor in
                 defer { completion.complete() }
-                guard response.actionIdentifier == UNNotificationDefaultActionIdentifier,
-                      response.notification.request.content.categoryIdentifier == Self.NotificationAction.workflowCompletedCategory,
+                guard actionIdentifier == UNNotificationDefaultActionIdentifier,
+                      categoryIdentifier == Self.NotificationAction.workflowCompletedCategory,
                       let route else { return }
                 pendingWorkflowCompletion = route
                 UnreadMessagesStore.shared.resynchronizeBadge()

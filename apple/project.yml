@@ -220,7 +220,16 @@ targets:
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSApplicationCategoryType: public.app-category.productivity
+        UIFileSharingEnabled: true
+        LSSupportsOpeningDocumentsInPlace: true
         UTExportedTypeDeclarations:
+          - UTTypeIdentifier: org.openmates.offline-model
+            UTTypeDescription: Offline AI model
+            UTTypeConformsTo:
+              - com.apple.package
+            UTTypeTagSpecification:
+              public.filename-extension:
+                - offline-model
           - UTTypeIdentifier: org.openmates.chat-organization
             UTTypeConformsTo:
               - public.data
@@ -385,6 +394,7 @@ targets:
       - path: OpenMates/Sources/Core/Watch/WatchWhisperLabController.swift
       - path: OpenMates/Sources/Core/Watch/WatchWhisperTinyRuntime.swift
       - path: OpenMates/Sources/Core/Watch/WatchPushLifecycle.swift
+      - path: OpenMates/Sources/Core/Services/NativeHaptics.swift
       - path: OpenMates/Sources/Core/Watch/WatchCanonicalStorage.swift
       - path: OpenMates/Sources/Core/Diagnostics/NativeDiagnostics.swift
       - path: OpenMates/Sources/Core/Watch/WatchItemOpenModel.swift
@@ -713,6 +723,14 @@ targets:
         SWIFT_VERSION: "6.0"
 
 schemes:
+  OpenMates_Core_UI_Evidence:
+    build:
+      targets:
+        OpenMates_iOS: all
+    test:
+      testPlans:
+        - path: OpenMatesCoreUI.xctestplan
+          defaultPlan: true
   OpenMates_iOS:
     build:
       targets:

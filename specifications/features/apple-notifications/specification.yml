@@ -98,6 +98,17 @@ models:
       constraints: {equals_remaining_total_unread: true}
 
 assertions:
+  - id: apple-notifications.delivery.confirmed-action-haptics
+    type: behavior
+    must: >
+      Supported active Apple devices provide native haptic confirmation after
+      account-fenced Task and Workflow creation or updates, completed Team
+      creation, fully unlocked login or signup, and API-key creation once its
+      one-time secret is available. A newly visible in-app notification emits
+      once per notification identity. Failed, stale, duplicate or replayed
+      operations and notification content updates remain silent. Native system
+      haptic settings apply, unsupported hardware is a no-op, and OS-delivered
+      notification vibration remains controlled by the operating system.
   - id: apple-notifications.registration.lifecycle
     type: behavior
     must: Apple reports push registration as active only after server acknowledgment; token rotation replaces the prior token for the same account-scoped device and environment, logout unregisters or revokes that registration, terminal APNs rejection marks it unusable, and denied, stale, or failed registrations never fabricate readiness or delivery success.

@@ -42,7 +42,10 @@ final class NativeComposerSessionTests: XCTestCase {
             embedIds: nil, createdAt: "1"
         )
 
+        XCTAssertEqual(record.type, "audio-recording",
+                       "Public recording identity must survive hydration before composer restoration")
         let restored = try XCTUnwrap(ComposerPendingEmbed.restoredRecording(from: record))
+        XCTAssertEqual(restored.record.type, "audio-recording")
         XCTAssertEqual(restored.id, record.id)
         XCTAssertEqual(restored.referenceType, "audio-recording")
         XCTAssertEqual(restored.textPreview, "Recorded summary")
@@ -126,6 +129,39 @@ final class NativeComposerSessionTests: XCTestCase {
         XCTAssertEqual(resolved.id, nodeID)
         XCTAssertEqual(resolved.contentRef, "embed:server-recording-1")
         XCTAssertFalse(session.hasBlockingEmbeds)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle,message-input.drafts.preview-persistence
+    func testRecordingAppendPreservesExistingDraftAndEmbedsDespiteEarlierSelection() throws {
+        let original = "Before @mate:developer\n```json\n{\"type\":\"image\",\"embed_id\":\"synthetic-existing\"}\n```\nAfter"
+        let session = NativeComposerSession(canonicalMarkdown: original)
+        let priorNodes = session.controller.document.nodes
+        try session.controller.setSelection(NSRange(location: 1, length: 3))
+        try session.appendPendingEmbed(nodeID: "new-audio", embedType: "recording", title: "recording.m4a")
+        XCTAssertEqual(Array(session.controller.document.nodes.prefix(priorNodes.count)), priorNodes)
+        XCTAssertEqual(session.controller.document.nodes.suffix(2).map(\.kind), ["embed", "hardBreak"])
+        XCTAssertEqual(session.controller.document.nodes.suffix(2).first?.id, "new-audio")
+        XCTAssertEqual(session.canonicalMarkdown, original + "\n")
+        XCTAssertEqual(session.controller.selection.location, session.controller.attributedString.length)
+        try session.resolveEmbed(nodeID: "new-audio", durableEmbedID: "synthetic-audio",
+                                 referenceType: "audio-recording", status: "finished")
+        XCTAssertTrue(session.canonicalMarkdown.hasPrefix(original))
+        XCTAssertEqual(session.controller.document.nodes.filter { $0.kind == "embed" }.map(\.contentRef),
+                       ["embed:synthetic-existing", "embed:synthetic-audio"])
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle,message-input.drafts.preview-persistence
+    func testRejectedAppendRetainsDraftAndSelection() throws {
+        let session = NativeComposerSession(canonicalMarkdown: "Unchanged")
+        try session.insertPendingEmbed(nodeID: "duplicate", embedType: "image", title: "image")
+        try session.controller.setSelection(NSRange(location: 1, length: 2))
+        let document = session.controller.document
+        let markdown = session.canonicalMarkdown
+        let selection = session.controller.selection
+        XCTAssertThrowsError(try session.appendPendingEmbed(nodeID: "duplicate", embedType: "recording", title: "audio"))
+        XCTAssertEqual(session.controller.document, document)
+        XCTAssertEqual(session.canonicalMarkdown, markdown)
+        XCTAssertEqual(session.controller.selection, selection)
     }
 
     // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send

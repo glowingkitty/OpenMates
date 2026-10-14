@@ -96,7 +96,7 @@ struct AppSkillUseRenderer: View {
     }
 
     private var query: String {
-        (data["query"]?.value as? String) ?? (data["title"]?.value as? String) ?? skillTitle
+        AppSkillInputPreviewModel(embed: embed).text ?? (data["title"]?.value as? String) ?? skillTitle
     }
 
     private var provider: String? {
@@ -112,11 +112,15 @@ struct AppSkillUseRenderer: View {
     }
 
     private var appId: String {
-        embed.appId ?? data["app_id"]?.value as? String ?? EmbedType(rawValue: embed.type)?.appId ?? "web"
+        embed.appId ?? data["app_id"]?.value as? String ?? EmbedType(rawValue: embed.type)?.appId
+            ?? (embed.type.hasPrefix("app:") ? embed.type.split(separator: ":").dropFirst().first.map(String.init) : nil)
+            ?? "web"
     }
 
     private var skillId: String {
-        embed.skillId ?? data["skill_id"]?.value as? String ?? skillIdFromType ?? "search"
+        let raw = embed.skillId ?? data["skill_id"]?.value as? String ?? skillIdFromType ?? "search"
+        let canonical = EmbedType.normalized(rawValue: "app:\(appId):\(raw)")?.rawValue
+        return canonical?.split(separator: ":").last.map(String.init) ?? raw
     }
 
     private var skillIdFromType: String? {
@@ -280,6 +284,8 @@ struct AppSkillUseRenderer: View {
         }
         if appId == "web", skillId == "search" {
             return AnyView(WebSearchEmbedRenderer(model: model, mode: .preview, onOpenEmbed: onOpenEmbed))
+        } else if appId == "maps", skillId == "search" {
+            return AnyView(MapsSearchEmbedRenderer(embed: embed, mode: .preview, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed))
         } else if appId == "news", skillId == "search" {
             return AnyView(NewsSearchEmbedRenderer(model: model, mode: .preview, onOpenEmbed: onOpenEmbed))
         } else if appId == "code", skillId == "search_repos" {
@@ -348,8 +354,6 @@ struct AppSkillUseRenderer: View {
             return AnyView(TaskWorkflowParentRenderer(embed: embed, kind: .task, mode: .preview, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed))
         } else if appId == "workflows", skillId == "create-or-modify" || skillId == "search" {
             return AnyView(TaskWorkflowParentRenderer(embed: embed, kind: .workflow, mode: .preview, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed))
-        } else if appId == "images", !childEmbeds.isEmpty {
-            return AnyView(imagesSearchPreview)
         } else {
             return AnyView(textSearchPreview)
         }
@@ -374,7 +378,7 @@ struct AppSkillUseRenderer: View {
         case .travelFlight:
             return AnyView(TravelFlightSkillCard(data: data, mode: .preview))
         case .reminder:
-            return AnyView(ReminderSkillCard(data: data, status: embed.status, mode: .preview))
+            return AnyView(ReminderSkillCard(data: data, skillId: skillId, status: embed.status, mode: .preview))
         }
     }
 
@@ -398,7 +402,7 @@ struct AppSkillUseRenderer: View {
         case .travelFlight:
             TravelFlightSkillCard(data: data, mode: .fullscreen)
         case .reminder:
-            ReminderSkillCard(data: data, status: embed.status, mode: .fullscreen)
+            ReminderSkillCard(data: data, skillId: skillId, status: embed.status, mode: .fullscreen)
         }
     }
 
@@ -434,33 +438,22 @@ struct AppSkillUseRenderer: View {
     }
 
     private var textSearchPreview: some View {
-        VStack(alignment: .leading, spacing: .spacing2) {
-            Text(query)
-                .font(.omP)
-                .fontWeight(.bold)
-                .foregroundStyle(Color.grey100)
-                .lineLimit(2)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            if let providerDisplayName {
-                Text("via \(providerDisplayName)")
-                    .font(.omXs)
-                    .fontWeight(.medium)
-                    .foregroundStyle(Color.grey70)
-                    .lineLimit(1)
+        SearchPreviewIdentityLayout {
+            if !childEmbeds.isEmpty { childStrip }
+        } inputs: {
+            VStack(alignment: .leading, spacing: .spacing2) {
+                Text(query).font(.omP).fontWeight(.semibold).foregroundStyle(Color.grey100)
+                    .lineLimit(3).fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("app-skill-input-parameters")
+                Text(providerDisplayName.map { "\(AppStrings.via) \($0)" } ?? " ")
+                    .font(.omXs).foregroundStyle(Color.grey70).lineLimit(1)
+                    .accessibilityHidden(providerDisplayName == nil)
             }
-
-            if skillId == "search", !childEmbeds.isEmpty {
-                webSearchResultsInfo
-                    .padding(.top, .spacing1)
-            } else if appId != "images", !childEmbeds.isEmpty {
-                childStrip
-                    .padding(.top, .spacing2)
-            }
-
-            Spacer(minLength: 0)
+        } summary: {
+            if embed.status == .error {
+                Text(AppStrings.genericProcessingError).font(.omXs).foregroundStyle(Color.error).lineLimit(1)
+            } else if !childEmbeds.isEmpty { webSearchResultsInfo }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
 
     @ViewBuilder
@@ -470,6 +463,8 @@ struct AppSkillUseRenderer: View {
             specializedFullscreen(specialized)
         } else if appId == "web", skillId == "search" {
             WebSearchEmbedRenderer(model: model, mode: .fullscreen, onOpenEmbed: onOpenEmbed)
+        } else if appId == "maps", skillId == "search" {
+            MapsSearchEmbedRenderer(embed: embed, mode: .fullscreen, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
         } else if appId == "news", skillId == "search" {
             NewsSearchEmbedRenderer(model: model, mode: .fullscreen, onOpenEmbed: onOpenEmbed)
         } else if appId == "code", skillId == "search_repos" {
@@ -839,7 +834,7 @@ struct TaskWorkflowParentRenderer: View {
     }
 
     private var displayTitle: String {
-        EmbedFieldReader.string(data, keys: ["instruction", "query", "title"])
+        AppSkillInputPreviewModel(embed: embed).text
             ?? EmbedType.normalized(rawValue: embed.type)?.displayName
             ?? kind.singularTitle
     }
@@ -858,20 +853,13 @@ struct TaskWorkflowParentRenderer: View {
     }
 
     private var parentPreview: some View {
-        VStack(alignment: .leading, spacing: .spacing3) {
-            Text(displayTitle)
-                .font(.omSmall)
-                .fontWeight(.bold)
-                .foregroundStyle(Color.fontPrimary)
-                .lineLimit(1)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            Text(summary)
-                .font(.omXs)
-                .foregroundStyle(Color.fontSecondary)
-                .lineLimit(2)
+        SearchPreviewIdentityLayout { Color.clear } inputs: {
+            Text(displayTitle).font(.omSmall).fontWeight(.bold).foregroundStyle(Color.fontPrimary)
+                .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("task-workflow-input-parameters")
+        } summary: {
+            Text(summary).font(.omXs).foregroundStyle(Color.fontSecondary).lineLimit(1)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         .accessibilityIdentifier(parentPreviewIdentifier)
     }
 
@@ -1095,32 +1083,21 @@ struct Models3DSearchParentRenderer: View {
     }
 
     private var preview: some View {
-        VStack(alignment: .leading, spacing: .spacing4) {
+        SearchPreviewIdentityLayout(thumbnailHeight: 74) {
             let imageChildren = childrenWithImages.prefix(5)
             if !imageChildren.isEmpty {
-                HStack(spacing: 4) {
-                    ForEach(Array(imageChildren)) { child in
-                        modelThumbnail(child)
-                    }
+                HStack(spacing: .spacing2) {
+                    ForEach(Array(imageChildren)) { child in modelThumbnail(child) }
                 }
-                .frame(height: 74)
-                .clipShape(RoundedRectangle(cornerRadius: 18))
-                .background(Color.grey10)
+                .frame(height: 74).clipShape(RoundedRectangle(cornerRadius: .radius6))
             }
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(query)
-                    .font(.omSmall)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(Color.fontPrimary)
-                    .lineLimit(1)
-                Text(metaText)
-                    .font(.omXs)
-                    .foregroundStyle(Color.fontSecondary)
-                    .lineLimit(1)
-            }
+        } inputs: {
+            Text(query).font(.omSmall).fontWeight(.semibold).foregroundStyle(Color.fontPrimary)
+                .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("models3d-search-query")
+        } summary: {
+            Text(metaText).font(.omXs).foregroundStyle(Color.fontSecondary).lineLimit(1)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         .accessibilityIdentifier("models3d-search-preview")
     }
 
@@ -1376,11 +1353,25 @@ struct Models3DGenerateEmbedRenderer: View {
     }
 
     private var preview: some View {
+        SearchPreviewIdentityLayout {
+            if posterURL != nil || encryptedPoster != nil { posterPreview }
+        } inputs: {
+            Text(AppSkillInputPreviewModel(embed: embed).text ?? prompt)
+                .font(.omP).foregroundStyle(Color.fontPrimary).lineLimit(3)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("models3d-generate-input-parameters")
+        } summary: {
+            if let providerModel { Text(providerModel).font(.omXs).foregroundStyle(Color.fontSecondary).lineLimit(1) }
+        }
+        .accessibilityIdentifier("models3d-generate-preview")
+    }
+
+    private var posterPreview: some View {
         ZStack {
             if let posterURL, let url = URL(string: posterURL) {
                 CachedRemoteImage(url: url) { image in
                     image.resizable().aspectRatio(contentMode: .fit)
-                } placeholder: { modelFallbackText }
+                } placeholder: { Color.grey10 }
             } else if let encryptedPoster {
                 EncryptedImageView(
                     s3Url: encryptedPoster.baseURL,
@@ -1391,12 +1382,12 @@ struct Models3DGenerateEmbedRenderer: View {
                     contentMode: .fit
                 )
             } else {
-                modelFallbackText
+                Color.clear
             }
         }
-        .padding(12)
+        .padding(.spacing1)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .accessibilityIdentifier("models3d-generate-preview")
+        .accessibilityIdentifier("models3d-generate-poster")
     }
 
     private var fullscreen: some View {
@@ -1667,26 +1658,19 @@ private struct BusinessCompanyFinancialsPreview: View {
     let model: BusinessCompanyFinancialsModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: .spacing2) {
-            Text(model.query)
-                .font(.omSmall)
-                .fontWeight(.semibold)
-                .foregroundStyle(Color.fontPrimary)
-                .lineLimit(1)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            Text(model.resultSummary)
-                .font(.omXs)
-                .foregroundStyle(Color.fontSecondary)
-                .lineLimit(2)
-
-            HStack(spacing: .spacing2) {
-                BusinessFinancialChip(label: model.periodLabel)
-                BusinessFinancialChip(label: model.metricGroupLabel)
+        SearchPreviewIdentityLayout(summaryHeight: 42) { Color.clear } inputs: {
+            Text(model.query).font(.omSmall).fontWeight(.semibold).foregroundStyle(Color.fontPrimary)
+                .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("business-financials-query")
+        } summary: {
+            VStack(alignment: .leading, spacing: .spacing2) {
+                Text(model.resultSummary).font(.omXs).foregroundStyle(Color.fontSecondary).lineLimit(1)
+                HStack(spacing: .spacing2) {
+                    BusinessFinancialChip(label: model.periodLabel)
+                    BusinessFinancialChip(label: model.metricGroupLabel)
+                }
             }
-            .padding(.top, .spacing1)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         .accessibilityIdentifier("business-financials-preview")
     }
 }
@@ -2008,7 +1992,7 @@ struct CalendarActionEmbedRenderer: View {
     var body: some View {
         switch mode {
         case .preview:
-            CalendarActionPreview(model: model, isError: embed.status == .error, isProcessing: embed.status == .processing)
+            CalendarActionPreview(model: model, input: AppSkillInputPreviewModel(embed: embed), isError: embed.status == .error, isProcessing: embed.status == .processing)
         case .fullscreen:
             CalendarActionFullscreen(model: model, isError: embed.status == .error, isProcessing: embed.status == .processing)
         }
@@ -2017,6 +2001,7 @@ struct CalendarActionEmbedRenderer: View {
 
 private struct CalendarActionPreview: View {
     let model: CalendarActionValue
+    let input: AppSkillInputPreviewModel
     let isError: Bool
     let isProcessing: Bool
 
@@ -2031,20 +2016,13 @@ private struct CalendarActionPreview: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: .spacing3) {
-            Text(title)
-                .font(.omP.weight(.bold))
-                .foregroundStyle(Color.fontPrimary)
-                .lineLimit(2)
-
-            if let detail {
-                Text(detail)
-                    .font(.omSmall)
-                    .foregroundStyle(isError ? Color.error : Color.fontSecondary)
-                    .lineLimit(3)
-            }
+        SearchPreviewIdentityLayout { Color.clear } inputs: {
+            Text(input.text ?? title).font(.omP.weight(.bold)).foregroundStyle(Color.fontPrimary)
+                .lineLimit(3).fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("calendar-action-input-parameters")
+        } summary: {
+            if let detail { Text(detail).font(.omSmall).foregroundStyle(isError ? Color.error : Color.fontSecondary).lineLimit(1) }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
 }
 
@@ -2138,7 +2116,7 @@ private struct WeatherRainRadarEmbedRenderer: View {
     var body: some View {
         switch mode {
         case .preview:
-            RainRadarPreview(model: model, status: embed.status)
+            RainRadarPreview(model: model, input: AppSkillInputPreviewModel(embed: embed), status: embed.status)
         case .fullscreen:
             RainRadarFullscreen(model: model)
         }
@@ -2147,25 +2125,21 @@ private struct WeatherRainRadarEmbedRenderer: View {
 
 private struct RainRadarPreview: View {
     let model: RainRadarValue
+    let input: AppSkillInputPreviewModel
     let status: EmbedStatus
 
     var body: some View {
-        if status == .error {
-            Text(AppStrings.genericProcessingError)
-                .font(.omSmall)
-                .foregroundStyle(Color.error)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        } else if status == .processing {
-            Text(AppStrings.loading)
-                .font(.omSmall)
-                .foregroundStyle(Color.fontSecondary)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        } else {
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: .spacing6) { radar; copy }
-                VStack(alignment: .leading, spacing: .spacing4) { radar; copy }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        SearchPreviewIdentityLayout(thumbnailHeight: 60) {
+            if status == .finished { RainRadarMap(frame: model.previewFrame, compact: true) }
+        } inputs: {
+            Text(input.text ?? model.locationName ?? AppStrings.rainRadar)
+                .font(.omSmall.weight(.bold)).foregroundStyle(Color.grey100)
+                .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("weather-radar-input-parameters")
+        } summary: {
+            Text(status == .error ? AppStrings.genericProcessingError
+                 : (model.summaryInTenMinutes ?? (status == .processing ? AppStrings.loading : AppStrings.rainRadarNoRain)))
+                .font(.omXs).foregroundStyle(status == .error ? Color.error : Color.grey70).lineLimit(1)
         }
     }
 
@@ -2509,7 +2483,7 @@ private struct FitnessSearchEmbedRenderer: View {
     var body: some View {
         switch mode {
         case .preview:
-            FitnessSearchPreview(skillId: skillId, group: group, status: embed.status)
+            FitnessSearchPreview(skillId: skillId, group: group, input: AppSkillInputPreviewModel(embed: embed), status: embed.status)
         case .fullscreen:
             FitnessSearchFullscreen(group: group, childEmbeds: childEmbeds, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
         }
@@ -2519,6 +2493,7 @@ private struct FitnessSearchEmbedRenderer: View {
 private struct FitnessSearchPreview: View {
     let skillId: String
     let group: FitnessSearchGroup
+    let input: AppSkillInputPreviewModel
     let status: EmbedStatus
 
     private var title: String {
@@ -2530,48 +2505,33 @@ private struct FitnessSearchPreview: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 5.6) {
-            Text(group.provider)
-                .font(.omXs)
-                .foregroundStyle(Color.fontSecondary)
-                .lineLimit(1)
-
-            Text(title)
-                .font(.omP)
-                .fontWeight(.bold)
-                .foregroundStyle(Color.fontPrimary)
-                .lineLimit(2)
-
-            Text(locationLabel).font(.omXs).foregroundStyle(Color.fontSecondary).lineLimit(1)
-
-            if status == .finished {
-                Text("\(group.resultCount) \(skillId == "search_classes" ? "classes" : "locations")")
-                    .font(.omP.weight(.semibold))
-                    .foregroundStyle(Color.fontPrimary)
-                    .accessibilityIdentifier("fitness-search-result-count")
-                if let summary = group.summary {
-                    Text(summary).font(.omXs).foregroundStyle(Color.fontSecondary).lineLimit(1)
-                }
-                ForEach(group.results.prefix(2)) { result in
-                    VStack(alignment: .leading, spacing: .spacing1) {
-                        Text(result.name).font(.omSmall.weight(.semibold)).foregroundStyle(Color.fontPrimary).lineLimit(1)
-                        if let venue = result.venueName {
-                            Text(venue).font(.omXs).foregroundStyle(Color.fontSecondary).lineLimit(1)
-                        }
-                    }
-                }
-            } else {
-                Text(status == .error ? "Search failed." : status == .cancelled ? "Search cancelled." : "Searching Urban Sports Club...")
-                    .font(.omXs)
-                    .foregroundStyle(Color.fontSecondary)
+        SearchPreviewIdentityLayout(summaryHeight: 64) {
+            if !group.chips.isEmpty { FitnessChipRow(chips: group.chips) }
+        } inputs: {
+            VStack(alignment: .leading, spacing: .spacing2) {
+                Text(input.text ?? group.query ?? locationLabel).font(.omP).fontWeight(.bold)
+                    .foregroundStyle(Color.fontPrimary).lineLimit(1)
+                    .accessibilityIdentifier("fitness-search-input-parameters")
+                Text(group.provider).font(.omXs).foregroundStyle(Color.fontSecondary).lineLimit(1)
             }
-
-            if !group.chips.isEmpty {
-                FitnessChipRow(chips: group.chips)
-                    .frame(maxHeight: .infinity, alignment: .bottom)
+            .fixedSize(horizontal: false, vertical: true)
+        } summary: {
+            VStack(alignment: .leading, spacing: .spacing1) {
+                if status == .finished {
+                    Text("\(group.resultCount) \(skillId == "search_classes" ? "classes" : "locations")")
+                        .font(.omSmall.weight(.semibold)).foregroundStyle(Color.fontPrimary)
+                        .accessibilityIdentifier("fitness-search-result-count")
+                    if let summary = group.summary { Text(summary).font(.omXxs).foregroundStyle(Color.fontSecondary).lineLimit(1) }
+                    ForEach(group.results.prefix(2)) { result in
+                        Text([result.name, result.venueName].compactMap { $0 }.joined(separator: " · "))
+                            .font(.omXxs).foregroundStyle(Color.fontSecondary).lineLimit(1)
+                    }
+                } else {
+                    Text(status == .error ? AppStrings.searchFailed : AppStrings.loading)
+                        .font(.omXs).foregroundStyle(status == .error ? Color.error : Color.fontSecondary)
+                }
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }
 
@@ -3000,65 +2960,30 @@ struct TravelFlightSkillCard: View {
     }
 
     private var preview: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: .spacing4) {
-                Text(flightNumber ?? "—")
-                    .font(.omP)
-                    .fontWeight(.bold)
-                    .foregroundStyle(Color.fontPrimary)
-                if diverted {
-                    Text(AppStrings.travelFlightDiverted)
-                        .font(.omXxs.weight(.semibold))
-                        .foregroundStyle(Color.warning)
-                        .padding(.horizontal, .spacing3)
-                        .padding(.vertical, .spacing1)
-                        .background(Color.warning.opacity(0.12))
-                        .clipShape(RoundedRectangle(cornerRadius: .radius1))
+        SearchPreviewIdentityLayout(summaryHeight: 48) {
+            if let route { Text(route).font(.omSmall.weight(.medium)).foregroundStyle(Color.fontPrimary).lineLimit(1) }
+        } inputs: {
+            VStack(alignment: .leading, spacing: .spacing2) {
+                HStack(spacing: .spacing4) {
+                    Text(flightNumber ?? "—").font(.omP.weight(.bold)).foregroundStyle(Color.fontPrimary)
+                        .accessibilityIdentifier("travel-flight-input-number")
+                    if diverted { Text(AppStrings.travelFlightDiverted).font(.omXxs).foregroundStyle(Color.warning) }
                 }
-            }
-            .padding(.bottom, 3)
-            if let route {
-                Text(route)
-                    .font(.omSmall.weight(.medium))
-                    .foregroundStyle(Color.fontPrimary)
-                    .padding(.bottom, 1)
-            }
-            if let date = takeoff ?? departureDate {
-                Text(formatDate(date))
-                    .font(.omXs)
-                    .foregroundStyle(Color.fontSecondary)
-                    .padding(.bottom, .spacing2)
-            }
-            if takeoff != nil || landing != nil {
-                HStack(spacing: .spacing3) {
-                    if let takeoff {
-                        Text(formatTime(takeoff))
-                            .font(.omSmall.weight(.semibold))
-                            .foregroundStyle(Color.fontPrimary)
-                        Text("→")
-                            .font(.omXs)
-                            .foregroundStyle(Color.fontSecondary)
-                    }
-                    if let landing {
-                        Text(formatTime(landing))
-                            .font(.omSmall.weight(.semibold))
-                            .foregroundStyle(Color.fontPrimary)
-                    }
+                if let date = departureDate {
+                    Text(date).font(.omXs).foregroundStyle(Color.fontSecondary).lineLimit(1)
+                        .accessibilityIdentifier("travel-flight-input-date")
                 }
-                .padding(.bottom, .spacing3)
+            }.fixedSize(horizontal: false, vertical: true)
+        } summary: {
+            VStack(alignment: .leading, spacing: .spacing2) {
+                if takeoff != nil || landing != nil {
+                    Text([takeoff.map(formatTime), landing.map(formatTime)].compactMap { $0 }.joined(separator: " → "))
+                        .font(.omSmall.weight(.semibold)).foregroundStyle(Color.fontPrimary).lineLimit(1)
+                }
+                Text(trackCount > 0 ? "\(AppStrings.travelFlightTrackAvailable) · \(trackCount) pts" : "No track data")
+                    .font(.omXxs).foregroundStyle(Color.fontSecondary).lineLimit(1)
             }
-            Text(trackCount > 0 ? "\(AppStrings.travelFlightTrackAvailable) · \(trackCount) pts" : "No track data")
-                .font(.omXxs.weight(.medium))
-                .foregroundStyle(Color.fontSecondary)
-                .padding(.horizontal, .spacing3)
-                .padding(.vertical, .spacing1)
-                .background(Color.grey20)
-                .clipShape(RoundedRectangle(cornerRadius: .radius1))
         }
-        .padding(.top, 2)
-        .padding(.bottom, .spacing1)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .accessibilityIdentifier("travel-flight-details-preview")
     }
 
     private var fullscreen: some View {
@@ -3296,38 +3221,20 @@ private struct MathCalculateSkillCard: View {
     }
 
     private var preview: some View {
-        VStack(alignment: .leading, spacing: .spacing3) {
-            if let title, !title.isEmpty {
-                previewRow("Title") {
-                    Text(title)
-                        .font(.omSmall.weight(.bold))
-                        .foregroundStyle(Color.grey100)
-                        .lineLimit(2)
+        SearchPreviewIdentityLayout(summaryHeight: 32) { Color.clear } inputs: {
+            VStack(alignment: .leading, spacing: .spacing2) {
+                if let title, !title.isEmpty { Text(title).font(.omSmall.weight(.bold)).foregroundStyle(Color.grey100).lineLimit(1) }
+                if let expression, !expression.isEmpty {
+                    Text(expression).font(.omSmall).monospaced().foregroundStyle(Color.grey70)
+                        .lineLimit(2).accessibilityIdentifier("math-calculate-input-expression")
                 }
-            }
-            if let expression, !expression.isEmpty {
-                previewRow("Expression") {
-                    Text(expression)
-                        .font(.custom("CourierNewPSMT", size: 14))
-                        .foregroundStyle(Color.grey70)
-                        .lineLimit(2)
-                }
-            }
-            if status == .error {
-                Text(AppStrings.genericProcessingError)
-                    .font(.omXs)
-                    .foregroundStyle(Color.error)
-                    .padding(.top, .spacing2)
-            } else if status == .finished, let result, !result.isEmpty {
-                previewRow("Result") {
-                    Text("= \(result)")
-                        .font(.custom("CourierNewPS-BoldMT", size: 22))
-                        .foregroundStyle(Color.grey100)
-                        .lineLimit(2)
-                }
+            }.fixedSize(horizontal: false, vertical: true)
+        } summary: {
+            if status == .error { Text(AppStrings.genericProcessingError).font(.omXs).foregroundStyle(Color.error) }
+            else if status == .finished, let result, !result.isEmpty {
+                Text("= \(result)").font(.omLg.weight(.bold)).monospaced().foregroundStyle(Color.grey100).lineLimit(1)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .accessibilityIdentifier("math-calculate-preview")
     }
 
@@ -3438,11 +3345,12 @@ private struct ReminderSkillCard: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     let data: [String: AnyCodable]
+    let skillId: String
     let status: EmbedStatus
     let mode: EmbedDisplayMode
 
     private var prompt: String? { EmbedFieldReader.string(data, keys: ["prompt", "message"]) }
-    private var trigger: String? { EmbedFieldReader.string(data, keys: ["trigger_at_formatted", "datetime"]) }
+    private var trigger: String? { EmbedFieldReader.string(data, keys: ["trigger_at_formatted", "trigger_datetime", "datetime"]) }
     private var target: String? { EmbedFieldReader.string(data, keys: ["target_type"]) }
     private var warning: String? { EmbedFieldReader.string(data, keys: ["email_notification_warning"]) }
     private var error: String? { EmbedFieldReader.string(data, keys: ["error"]) }
@@ -3460,71 +3368,26 @@ private struct ReminderSkillCard: View {
     }
 
     private var preview: some View {
-        VStack(alignment: .leading, spacing: .spacing5) {
-            if status == .processing {
-                HStack(spacing: .spacing6) {
-                    Circle().fill(Color.grey20).frame(width: 32, height: 32)
-                    VStack(alignment: .leading, spacing: .spacing4) {
-                        RoundedRectangle(cornerRadius: .radius1).fill(Color.grey20).frame(maxWidth: .infinity).frame(height: 14)
-                        RoundedRectangle(cornerRadius: .radius1).fill(Color.grey20).frame(width: 110, height: 14)
+        SearchPreviewIdentityLayout(summaryHeight: 50) { Color.clear } inputs: {
+            Text(AppSkillInputPreviewModel(data: data, appId: "reminder", skillId: skillId).text
+                 ?? prompt ?? AppStrings.localized("apps.reminder"))
+                .font(.omSmall).foregroundStyle(Color.grey80).lineLimit(3)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("reminder-input-parameters")
+        } summary: {
+            VStack(alignment: .leading, spacing: .spacing2) {
+                if status == .error || error != nil {
+                    Text(error ?? AppStrings.genericProcessingError).font(.omXs).foregroundStyle(Color.error).lineLimit(2)
+                } else {
+                    if let trigger { Text(trigger).font(.omSmall.weight(.medium)).foregroundStyle(Color.grey80).lineLimit(1) }
+                    HStack(spacing: .spacing3) {
+                        if let target { targetBadge(target) }
+                        if isRepeating { Text(AppStrings.localized("embeds.reminder.repeating")).font(.omTiny).foregroundStyle(Color.warning) }
+                        if let warning { Text(warning).font(.omTiny).foregroundStyle(Color.warning).lineLimit(1) }
                     }
-                }
-            } else if status == .error || error != nil {
-                HStack(spacing: .spacing4) {
-                    Text("❌")
-                    Text(error ?? AppStrings.genericProcessingError)
-                        .font(.omXs)
-                        .foregroundStyle(Color.error)
-                }
-                .padding(.spacing5)
-                .background(Color.error.opacity(0.05))
-                .clipShape(RoundedRectangle(cornerRadius: .radius2))
-            } else {
-                if let prompt, !prompt.isEmpty {
-                    Text(promptPreview(prompt))
-                        .font(.omXs)
-                        .foregroundStyle(Color.grey80)
-                        .lineLimit(3)
-                        .padding(.horizontal, .spacing5)
-                        .padding(.vertical, .spacing4)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.grey10)
-                        .clipShape(RoundedRectangle(cornerRadius: .radius2))
-                        .overlay(alignment: .leading) { Color.warning.frame(width: 3) }
-                }
-                if let trigger {
-                    HStack(spacing: .spacing4) {
-                        Text("🕑").font(.omH3)
-                        Text(trigger).font(.omSmall.weight(.medium)).foregroundStyle(Color.grey80)
-                    }
-                }
-                HStack(spacing: .spacing3) {
-                    if let target {
-                        targetBadge(target)
-                    }
-                    if isRepeating {
-                        Text(LocalizationManager.shared.text("embeds.reminder.repeating"))
-                            .font(.omTiny.weight(.medium))
-                            .foregroundStyle(Color.warning)
-                            .padding(.horizontal, .spacing4)
-                            .padding(.vertical, 3)
-                            .background(Color.warning.opacity(0.1))
-                            .clipShape(RoundedRectangle(cornerRadius: .radius5))
-                    }
-                }
-                if let warning {
-                    HStack(alignment: .top, spacing: .spacing3) {
-                        Text("⚠")
-                        Text(warning).font(.omXxs).foregroundStyle(Color.warning)
-                    }
-                    .padding(.spacing4)
-                    .background(Color.warning.opacity(0.05))
-                    .clipShape(RoundedRectangle(cornerRadius: .radius2))
                 }
             }
         }
-        .padding(.spacing6)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .accessibilityIdentifier("reminder-embed-preview")
     }
 
@@ -3649,16 +3512,21 @@ struct WeatherForecastSkillCard: View {
 
     var body: some View {
         Group {
-            if status == .finished && !days.isEmpty {
-                if mode == .preview {
-                    dayStrip(count: 4)
-                } else {
-                    fullscreenGrid
-                }
-            } else {
+            if mode == .preview {
+                // Keep the existing weather pills in a stable 96pt result band.
+                SearchPreviewIdentityLayout(thumbnailHeight: 96, summaryHeight: 0) {
+                    if status == .finished && !days.isEmpty { dayStrip(count: 4) }
+                } inputs: {
+                    Text(AppSkillInputPreviewModel(data: data, appId: "weather", skillId: "forecast").text
+                         ?? AppStrings.weatherForecast)
+                        .font(.omSmall).fontWeight(.semibold).foregroundStyle(Color.fontPrimary)
+                        .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("weather-forecast-input-parameters")
+                } summary: { Color.clear }
+            } else if status == .finished && !days.isEmpty { fullscreenGrid }
+            else {
                 Text(status == .error ? AppStrings.genericProcessingError : AppStrings.loading)
-                    .font(.omXs)
-                    .foregroundStyle(status == .error ? Color.error : Color.grey70)
+                    .font(.omXs).foregroundStyle(status == .error ? Color.error : Color.grey70)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: mode == .preview ? .infinity : nil, alignment: .leading)
@@ -3912,56 +3780,38 @@ struct FinanceCheckAccountsSkillCard: View {
     }
 
     private var previewBody: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text(AppStrings.financeNetCashFlow.uppercased())
-                    .font(.omXxs.weight(.bold))
-                    .foregroundStyle(Color.fontSecondary)
-                Text(overview.isEmpty ? "No balance" : money(net))
-                    .font(.omLg.weight(.bold))
-                    .foregroundStyle(Color.fontPrimary)
-                    .lineLimit(1)
-                    .accessibilityIdentifier("finance-net-cash-flow")
+        SearchPreviewIdentityLayout(thumbnailHeight: 38, summaryHeight: 50) {
+            VStack(alignment: .leading, spacing: .spacing1) {
+                Text(AppStrings.financeNetCashFlow.uppercased()).font(.omXxs.weight(.bold)).foregroundStyle(Color.fontSecondary)
+                Text(overview.isEmpty ? "No balance" : money(net)).font(.omLg.weight(.bold))
+                    .foregroundStyle(Color.fontPrimary).lineLimit(1).accessibilityIdentifier("finance-net-cash-flow")
+            }.frame(maxWidth: .infinity, alignment: .leading)
+        } inputs: {
+            HStack(spacing: .spacing3) {
+                HStack(spacing: .spacing2) {
+                    Icon("revolut_business", size: 13).foregroundStyle(Color.fontSecondary)
+                    Text(provider ?? "Revolut Business").font(.omXs)
+                }.accessibilityIdentifier("finance-provider-pill")
+                Text(data["period"]?.value as? String ?? "monthly").font(.omXs.weight(.semibold))
+                    .accessibilityIdentifier("finance-input-period")
             }
-            VStack(alignment: .leading, spacing: .spacing2) {
-                HStack(spacing: 6) {
-                    HStack(spacing: 5) {
-                        Icon("revolut_business", size: 13)
-                            .foregroundStyle(Color.fontSecondary)
-                        Text(provider ?? "Revolut Business")
-                            .font(.omXs)
-                    }
-                    .accessibilityIdentifier("finance-provider-pill")
-                    Text((data["period"]?.value as? String ?? "monthly").replacingOccurrences(of: "_", with: " ").capitalized)
-                        .font(.omXs)
-                }
+            .foregroundStyle(Color.fontSecondary).lineLimit(1)
+        } summary: {
+            VStack(alignment: .leading, spacing: .spacing1) {
                 Text("\(AppStrings.financeCashBalance) \(balance.map(money) ?? "No balance")")
-                    .font(.omXs)
-            }
-            .foregroundStyle(Color.fontSecondary)
-            .lineLimit(1)
-            if !trend.isEmpty {
-                trendChart(height: 34)
-                HStack(spacing: 6) {
-                    HStack(spacing: 4) {
-                        Circle().fill(Self.incomeColor).frame(width: 7, height: 7)
+                    .font(.omXs).foregroundStyle(Color.fontSecondary).lineLimit(1)
+                if !trend.isEmpty {
+                    trendChart(height: 20)
+                    HStack(spacing: .spacing3) {
                         Text("\(AppStrings.financeIncome) \(money(income))")
-                    }
-                    HStack(spacing: 4) {
-                        Circle().fill(Color.warning).frame(width: 7, height: 7)
                         Text("\(AppStrings.financeExpenses) \(money(expenses))")
-                    }
+                    }.font(.omXxs).foregroundStyle(Color.fontSecondary).lineLimit(1)
+                } else {
+                    Text(summary ?? "\(accountCount) \(AppStrings.financeAccounts) · \(transactionCount) \(AppStrings.financeTransactions)")
+                        .font(.omXs).foregroundStyle(Color.fontSecondary).lineLimit(2)
                 }
-                .font(.omXs)
-                .foregroundStyle(Color.fontSecondary)
-            } else {
-                Text(summary ?? "\(accountCount) \(AppStrings.financeAccounts) · \(transactionCount) \(AppStrings.financeTransactions)")
-                    .font(.omXs)
-                    .foregroundStyle(Color.fontSecondary)
-                    .lineLimit(3)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: mode == .preview ? .infinity : nil, alignment: .leading)
         .accessibilityIdentifier("finance-check-accounts-preview")
     }
 

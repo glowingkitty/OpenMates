@@ -1,5 +1,7 @@
 // Specification: specifications/features/assistant-response-speech/specification.yml
 // Assertions: assistant-speech.surface.semantic-parity
+// Specification: specifications/features/apple-local-model-lab/specification.yml
+// Assertions: apple-local-model-lab.local-execution, apple-local-model-lab.serialized-cancellation
 import Foundation
 import Combine
 #if os(iOS)
@@ -21,6 +23,7 @@ final class AssistantSpeechAppRuntime {
     private var mediaSubscription: AnyCancellable?
     private let player = AssistantSpeechAudioPlayer()
     private let localSpeech = SupertonicComposerRuntime()
+    private let localSpeechOwner = UUID()
     private var localPreparation: Task<Void, Never>?
     // A capture retains its reservation through final decoding, including when
     // its composer disappears or realtime transcription fails before mic stop.
@@ -41,10 +44,20 @@ final class AssistantSpeechAppRuntime {
     private var localSpeechAvailable: Bool {
         if let localPreparationDependencies { return localPreparationDependencies.isAvailable() }
         #if arch(arm64) && canImport(OnnxRuntimeBindings) && !os(watchOS)
-        return LocalModelStore.shared.state(for: .supertonic3) == .ready
+        return LocalModelStore.shared.canUseCapability(.supertonic3)
         #else
         return false
         #endif
+    }
+    private func registerLocalSpeechRuntime() throws {
+        guard LocalModelStore.shared.canUseCapability(.supertonic3),
+              LocalModelStore.shared.registerRuntime(.supertonic3, owner: localSpeechOwner, drain: { [weak self] in
+                  guard let self else { return }
+                  let preparation = localPreparation
+                  preparation?.cancel()
+                  await preparation?.value
+                  await localSpeech.unloadAndWait()
+              }) else { throw LocalSpeechRuntimeError.unavailableRuntime }
     }
     private func scheduleLocalPreparation(chatID: String, control: NativeAssistantSpeech) {
         localPreparationDependencies?.didConsiderPreparation()
@@ -66,6 +79,7 @@ final class AssistantSpeechAppRuntime {
                       store?.messages(for: chatID).contains(where: { $0.isStreaming == true }) != true else { return }
                 if let prepare = localPreparationDependencies?.prepare { try await prepare() }
                 else if let directory = try? LocalModelStore.shared.installedDirectory(.supertonic3) {
+                    try registerLocalSpeechRuntime()
                     try await localSpeech.prepare(directory: directory)
                 }
             } catch { /* Playback reports a scoped failure if preparation fails. */ }
@@ -306,6 +320,7 @@ final class AssistantSpeechAppRuntime {
                 guard let self, recordingReservations.isEmpty, current(scope), activeChatID == scope.chatID, localSpeechAvailable,
                       let directory = try? LocalModelStore.shared.installedDirectory(.supertonic3) else { throw LocalSpeechRuntimeError.unavailableRuntime }
                 let language = localLanguage
+                try registerLocalSpeechRuntime()
                 let bytes = try await localSpeech.synthesize(.init(text: text, voice: "F1", language: language, steps: 8), directory: directory)
                 guard current(scope), activeChatID == scope.chatID else { throw CancellationError() }
                 guard localLanguage == language, localSpeechAvailable else { throw LocalSpeechRuntimeError.unavailableRuntime }

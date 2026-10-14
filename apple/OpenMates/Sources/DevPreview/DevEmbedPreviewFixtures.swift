@@ -50,6 +50,7 @@ enum DevEmbedPreviewApp: String, CaseIterable, Identifiable {
     case weather
     case events
     case workflows
+    case projects
 
     var id: String { rawValue }
 
@@ -89,6 +90,7 @@ enum DevEmbedPreviewApp: String, CaseIterable, Identifiable {
         case .weather: return "Weather"
         case .events: return "Events"
         case .workflows: return "Workflows"
+        case .projects: return "Projects"
         }
     }
 }
@@ -175,6 +177,42 @@ enum DevEmbedPreviewFixtures {
         let web = component.flatMap { webVariants.variants[$0] } ?? []
         var result = [DevEmbedPreviewVariant(name: "default", skill: skill)] + web.map {
             DevEmbedPreviewVariant(name: $0.name, skill: applying($0, to: skill, fullscreen: fullscreen))
+        }
+        if skill.primaryEmbed.type == EmbedType.mapsPlace.rawValue {
+            let raw: [String: Any] = ["type": "place", "app_id": "maps", "name": "Synthetic sports venue",
+                "formatted_address": "Example Street, Berlin", "location_lat": 52.52,
+                "location_lng": 13.405, "rating": 4.7, "place_type": "Sports club"]
+            let place = record(id: "preview-wire-place", type: "place", appId: "maps", data: raw)
+            result.append(.init(name: "wire-place", skill: self.skill(id: skill.id, label: "Location", primary: place)))
+        }
+        if skill.primaryEmbed.type == EmbedType.mapsSearch.rawValue {
+            let parentID = "preview-wire-maps-search"
+            let child = record(id: "preview-wire-maps-child", type: "place", appId: "maps",
+                data: ["type": "place", "name": "Synthetic sports venue", "formatted_address": "Example Street, Berlin",
+                       "location_lat": 52.52, "location_lng": 13.405, "rating": 4.7], parentEmbedId: parentID)
+            let parent = record(id: parentID, type: "app_skill_use", appId: "maps", skillId: "search",
+                data: ["type": "app_skill_use", "app_id": "maps", "skill_id": "search", "query": "Sports in Berlin",
+                       "provider": "Google", "result_count": 1], embedIds: child.id)
+            result.append(.init(name: "wire-search", skill: self.skill(id: skill.id, label: "Search", primary: parent, children: [child])))
+        }
+        if !fullscreen, [EmbedType.webSearch.rawValue, EmbedType.newsSearch.rawValue,
+                         EmbedType.imagesSearch.rawValue].contains(skill.primaryEmbed.type) {
+            for name in ["input-loading", "input-partial", "input-complete"] {
+                let status: EmbedStatus = name == "input-complete" ? .finished : .processing
+                let children = name == "input-complete" ? skill.childEmbeds : []
+                // Deliberately omit the generic app_skill_use marker: typed
+                // wire parents must keep their query during processing too.
+                var raw: [String: Any] = ["query": "Golden Gate Bridge", "title": "Generic search title",
+                                         "provider": "Brave", "result_count": skill.childEmbeds.count]
+                if name == "input-partial", let first = skill.childEmbeds.first?.rawData {
+                    raw["preview_thumbnails"] = [first.mapValues(\.value)]
+                }
+                let parent = record(id: skill.primaryEmbed.id, type: skill.primaryEmbed.type,
+                    status: status, appId: skill.primaryEmbed.appId, skillId: "search", data: raw,
+                    embedIds: children.isEmpty ? nil : children.map(\.id).joined(separator: "|"))
+                result.append(.init(name: name, skill: self.skill(id: skill.id, label: skill.label,
+                                                                primary: parent, children: children)))
+            }
         }
         // Supplemental valid preview; keep the web's empty processing default intact.
         if !fullscreen, skill.primaryEmbed.type == EmbedType.mindmapsMindmap.rawValue,
@@ -843,10 +881,23 @@ enum DevEmbedPreviewFixtures {
             return [eventsSearch, event]
         case .workflows:
             return [workflowsCreate, workflowsSearch, workflowsWorkflow]
+        case .projects:
+            return [projectReferences("search"), projectReferences("read")]
         }
     }
 
     // MARK: - Code
+
+    private static func projectReferences(_ operation: String) -> DevEmbedPreviewSkill {
+        let rows: [[String: Any]] = [
+            ["project_id": "preview-project", "project_name": "OpenMates", "source_id": "preview-source", "path": "README.md", "line": 12],
+            ["project_id": "preview-project", "project_name": "OpenMates", "embed_id": "preview-hosted-file", "path": "docs/architecture.md"]
+        ]
+        let embed = appSkill(id: "preview-project-reference-\(operation)", type: "app:projects:\(operation)",
+            appId: "projects", skillId: operation,
+            data: ["query": "README", "results": rows, "app_id": "projects", "skill_id": operation])
+        return skill(id: "project-references-\(operation)", label: operation == "read" ? "Read files" : "Search files", primary: embed)
+    }
 
     private static var codeEmbed: DevEmbedPreviewSkill {
         let hydratedIndexRegression = ProcessInfo.processInfo.arguments.contains("--dev-code-hydrated-index")

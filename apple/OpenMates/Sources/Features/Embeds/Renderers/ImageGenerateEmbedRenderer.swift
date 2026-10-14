@@ -32,36 +32,27 @@ struct ImageGenerateEmbedRenderer: View {
     var body: some View {
         switch mode {
         case .preview:
-            if let s3BaseUrl, let aesKey {
-                EncryptedImageView(
-                    s3Url: s3BaseUrl, s3Key: nil, aesKey: aesKey, aesNonce: aesNonce, encryption: encryption,
-                    contentMode: .fill
-                )
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                VStack(alignment: .leading, spacing: .spacing2) {
-                    if let prompt {
-                        if let modelDisplayName {
-                            HStack(alignment: .center, spacing: .spacing3) {
-                                Text("\(AppStrings.imageGenerateGeneratingVia) \(modelDisplayName):")
-                                    .font(.omXxs)
-                                    .fontWeight(.semibold)
-                                    .foregroundStyle(Color.grey50)
-                                    .lineLimit(1)
-                            }
-                            .padding(.bottom, .spacing1)
-                        }
-                        Text(prompt).font(.omXs).foregroundStyle(Color.fontSecondary).lineLimit(3)
-                    } else {
-                        VStack(alignment: .leading, spacing: .spacing3) {
-                            RoundedRectangle(cornerRadius: .radius1).fill(Color.grey20).frame(width: 160, height: 12)
-                            RoundedRectangle(cornerRadius: .radius1).fill(Color.grey20).frame(width: 96, height: 12)
-                        }
-                    }
+            SearchPreviewIdentityLayout(horizontalInset: .spacing10) {
+                if let s3BaseUrl, let aesKey {
+                    EncryptedImageView(
+                        s3Url: s3BaseUrl, s3Key: nil, aesKey: aesKey, aesNonce: aesNonce, encryption: encryption,
+                        contentMode: .fit
+                    )
+                    .frame(maxWidth: .infinity).frame(height: 30)
+                    .clipped()
+                    .accessibilityIdentifier("image-generate-preview-thumbnail")
                 }
-                .padding(.horizontal, .spacing10)
-                .padding(.vertical, .spacing8)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            } inputs: {
+                if let prompt {
+                    Text(prompt).font(.omXs).foregroundStyle(Color.fontSecondary).lineLimit(3)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("image-generate-preview-prompt")
+                }
+            } summary: {
+                if let modelDisplayName {
+                    Text(modelDisplayName).font(.omXxs).foregroundStyle(Color.grey50).lineLimit(1)
+                        .accessibilityIdentifier("image-generate-preview-model")
+                }
             }
 
         case .fullscreen:

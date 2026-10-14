@@ -5,6 +5,8 @@
 // Composer rendering and plaintext editor state remain outside this service.
 // Specification: specifications/features/message-input/specification.yml
 // Assertions: message-input.drafts.preview-persistence, message-input.recording.lifecycle
+// Specification: specifications/architecture/drafts/specification.yml
+// Assertions: drafts.sync.version-authoritative, drafts.draft-only.presentation
 
 import Foundation
 
@@ -38,6 +40,7 @@ final class DraftSyncCoordinator {
     private let uuid: () -> UUID
     private let onDraftChanged: (String) -> Void
     private var newChatDraftId: String?
+    private var requestedHydrationVersions: [String: Int] = [:]
     private let expectedScope: UUID?
     private let isCurrentSession: () -> Bool
 
@@ -212,15 +215,35 @@ final class DraftSyncCoordinator {
         guard let transport, transport.isConnected else { return }
         let records = try await repository.allRecords()
         try validateSession()
-        guard !records.isEmpty else { return }
-        try await transport.sendDraftSyncMessage(DraftSyncMessage(
-            type: "get_draft_versions",
-            payload: [
-                "chats": records.map {
-                    ["chat_id": $0.chatId, "client_draft_v": $0.draftVersion]
-                },
-            ]
-        ))
+        requestedHydrationVersions.removeAll()
+        if !records.isEmpty {
+            try await transport.sendDraftSyncMessage(DraftSyncMessage(
+                type: "get_draft_versions",
+                payload: [
+                    "chats": records.map {
+                        ["chat_id": $0.chatId, "client_draft_v": $0.draftVersion]
+                    },
+                ]
+            ))
+        }
+        // Metadata is not proof of draft content. Recover missing ciphertext
+        // before letting that metadata become a draft preview or presence flag.
+        let storedIDs = Set(records.map(\.chatId))
+        for chat in chatStore.chats where !storedIDs.contains(chat.id)
+            && chat.hasNonEmptyDraft != false && (chat.draftV ?? 0) > 0 {
+            try await requestDraftHydration(chatId: chat.id, version: chat.draftV ?? 0)
+        }
+    }
+
+    func handleStartupMetadata(raw: Data) async throws {
+        try validateSession()
+        let envelope = try decoder.decode(StartupDraftEnvelope.self, from: raw)
+        let payload = envelope.payload ?? envelope.data
+        guard let payload else { return }
+        for details in ([payload.chatDetails].compactMap { $0 }) + (payload.recentChatMetadata ?? []) {
+            try validateSession()
+            _ = try await applySyncedDraft(details)
+        }
     }
 
     func handleEvent(type: String, raw: Data) async throws {
@@ -244,7 +267,8 @@ final class DraftSyncCoordinator {
                 try validateSession()
                 let record = ComposerDraftRecord(chatId: event.chatId,
                     encryptedMarkdown: encryptedMarkdown,
-                    encryptedPreview: event.data.encryptedDraftPreview ?? existing?.encryptedPreview ?? "",
+                    encryptedPreview: event.data.encryptedDraftPreview
+                        ?? (existing?.encryptedMarkdown == encryptedMarkdown ? existing?.encryptedPreview : nil) ?? "",
                     revision: existing?.revision ?? 0, draftVersion: event.versions.draftV)
                 let result = try await apply(.content(record))
                 publish(result, refresh: true, createMissingChat: true,
@@ -371,18 +395,37 @@ final class DraftSyncCoordinator {
             let version = max(draftVersion, details.clearedDraftV ?? 0)
             let deletion = try await apply(.deletion(chatId: details.id, version: version))
             publish(deletion, refresh: true)
+            requestedHydrationVersions.removeValue(forKey: details.id)
             return deletion
         } else if let encryptedMarkdown = details.encryptedDraftMd {
             let existing = try await repository.record(chatId: details.id)
             try validateSession()
             let record = ComposerDraftRecord(chatId: details.id,
                 encryptedMarkdown: encryptedMarkdown,
-                encryptedPreview: details.encryptedDraftPreview ?? existing?.encryptedPreview ?? "",
+                encryptedPreview: details.encryptedDraftPreview
+                    ?? (existing?.encryptedMarkdown == encryptedMarkdown ? existing?.encryptedPreview : nil) ?? "",
                 revision: existing?.revision ?? 0, draftVersion: draftVersion)
             publish(try await apply(.content(record)), refresh: true)
+            requestedHydrationVersions.removeValue(forKey: details.id)
+        } else if draftVersion > 0, try await repository.record(chatId: details.id) == nil {
+            try await requestDraftHydration(chatId: details.id, version: draftVersion)
         }
         // A metadata-only positive version omitting ciphertext must not delete a draft.
         return nil
+    }
+
+    private func requestDraftHydration(chatId: String, version: Int) async throws {
+        try validateSession()
+        guard version > 0, let transport, transport.isConnected,
+              requestedHydrationVersions[chatId] != version else { return }
+        requestedHydrationVersions[chatId] = version
+        do {
+            try await transport.sendDraftSyncMessage(DraftSyncMessage(
+                type: "get_chat_details", payload: ["chat_id": chatId]))
+        } catch {
+            requestedHydrationVersions.removeValue(forKey: chatId)
+            throw error
+        }
     }
 
     private func validateSession() throws {
@@ -500,8 +543,7 @@ private struct DraftUpdatedData: Decodable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         encryptedDraftMd = try c.decodeIfPresent(String.self, forKey: .encryptedDraftMd)
         encryptedDraftPreview = try c.decodeIfPresent(String.self, forKey: .encryptedDraftPreview)
-        explicitlyClearsDraft = (c.contains(.encryptedDraftMd) && encryptedDraftMd == nil)
-            || (c.contains(.encryptedDraftPreview) && encryptedDraftPreview == nil)
+        explicitlyClearsDraft = c.contains(.encryptedDraftMd) && encryptedDraftMd == nil
     }
 }
 
@@ -555,7 +597,6 @@ private struct SyncedDraftDetails: Decodable {
         draftV = try container.decodeIfPresent(Int.self, forKey: .draftV)
         clearedDraftV = try container.decodeIfPresent(Int.self, forKey: .clearedDraftV)
         explicitlyClearsDraft = (container.contains(.encryptedDraftMd) && encryptedDraftMd == nil)
-            || (container.contains(.encryptedDraftPreview) && encryptedDraftPreview == nil)
             || (draftV == 0 && (clearedDraftV ?? 0) > 0)
     }
 }
@@ -568,4 +609,13 @@ private struct AuthoritativeSyncPayload: Decodable {
     let authoritative: Bool?
     let authoritativeChatIds: [String]?
     let deletedChatIds: [String]?
+}
+
+private struct StartupDraftEnvelope: Decodable {
+    let payload: StartupDraftPayload?
+    let data: StartupDraftPayload?
+}
+private struct StartupDraftPayload: Decodable {
+    let chatDetails: SyncedDraftDetails?
+    let recentChatMetadata: [SyncedDraftDetails]?
 }

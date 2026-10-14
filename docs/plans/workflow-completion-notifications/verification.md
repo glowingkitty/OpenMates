@@ -142,10 +142,47 @@ The public dev Apple association endpoint serves JSON matching activated source
 and advertises both completion email fragment patterns. This verifies deployed
 configuration; native OS handoff and device receipt still require native proof.
 
-The Mac is reachable, but typed source-transfer, doctor/build and native workload
-operations return `UNSUPPORTED_REMOTE_OPERATION`. Linux has no Swift compiler;
-configured private-candidate CI workflows have no macOS/Xcode mode. Apple route,
-preview decryption, exact-run, pending owner-delivery and no-inline-Reply tests
-are implemented but unexecuted. A native compiled build and real APNs device
-receipt remain unverified. The main Plan remains implementing until that
-capability is available or the user grants an explicit verification waiver.
+## Local Apple verification — 2026-10-09
+
+The bound Mac session reconciled the published Apple feature into its existing
+working source, preserving its ongoing Apple changes. The import receipt records
+base `c6bed2ad4d895eb7772d0ff7046647b8047c9e4a`, feature head
+`ac42c4be694816f59c73daf21a6d6df4a27497a0`, and native patch SHA-256
+`5f7a3bdf945f1c153ebaf42ffae62985a077a858dcf76b08225bedbbb592637e`.
+The approved notifications Specification matches the published contract.
+
+Local Xcode compilation succeeds for iOS, its embedded Watch app and the selected
+unit-test bundle. The SimulatorDebug binary identifies itself as **0.27.0 (12)**;
+this is distinct from the installed TestFlight **0.27.0 (97)**, which predates this
+feature import. Both build receipts record no Apple source drift. Source manifests
+and SHA-256 hashes of the app executable and debug library bind compilation to
+the tested candidate. These receipts are retained in the assigned workspace under
+`.runtime/followups123/workflow-completion274/native-verification284.json`, with
+the full source manifests in `native261` and `native273`.
+
+The completed local iOS Simulator run passes all **68 required focused tests**:
+`AppDeepLinkRoutingTests` (26), `NotificationPreviewCryptoTests` (9), and
+`WorkflowsParityTests` (33). Their relevant implementation and test source hashes
+match the later successful compilation. The complete selected run passes 515
+tests, fails none, and skips one separate opt-in PII benchmark. This proves the
+covered routing, encrypted-preview, exact-run and scoped owner-delivery logic in
+Simulator; it does not establish delivery to an Apple device. New reconnect/header
+regressions added afterward are not covered by this earlier result.
+
+Three fresh focused test attempts stop before tests execute: Simulator/test-host
+startup fails while the local 12 GiB disk reserve is crossed. The runner stops the
+owned process group and retains each interrupted result and receipt. Cache cleanup
+and verified lossless retention of historical source/symbol files have been
+performed; the reserve has not been lowered or bypassed. Local Xcode capability is
+available, so the Linux helper's unsupported-operation result is not treated as
+proof that native verification is unavailable.
+
+**Remaining native proof:** macOS compilation; actual scheduled-completion APNs
+receipt and taps; cold launch and signed-out login handoff; Team-to-Personal
+switching; deleted/unavailable/mismatched destinations without fallback; device
+preview consent/privacy; owner claim/persist/acknowledgment and duplicate/competing
+device handling; and the completion email Universal Link opening the same exact
+destination. A new TestFlight binary containing this feature is needed for those
+device checks under the authorized delivery route. Installed apps and account data
+remain preserved. The Plan remains implementing and TASK-2444 remains in progress;
+the feature is **not yet natively verified**.

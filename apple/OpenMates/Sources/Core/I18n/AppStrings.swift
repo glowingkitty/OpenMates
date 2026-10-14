@@ -505,6 +505,7 @@ enum AppStrings {
     static var scrollToTop: String { L("chats.scroll_to_top") }
     static var scrollToBottom: String { L("chats.scroll_to_bottom") }
     static var interactiveQuestionFailed: String { L("chat.interactive_question_failed") }
+    static var interactiveQuestionClear: String { L("chat.interactive_question_clear") }
     static var anonymousFreeUsageFeatureNotice: String { L("chat.anonymous_free_usage.feature_notice") }
     static var uploadSignupRequired: String { L("enter_message.attachments.signup_required.title") }
     static var requestFeature: String { L("chat.request_feature") }

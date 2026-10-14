@@ -296,6 +296,8 @@ final class TeamWorkspaceContext: ObservableObject {
     @Published private(set) var isLoading = false
     @Published private(set) var error: TeamWorkspaceError?
     @Published private(set) var usingCachedRoster = false
+    // Empty cached/missing membership is not an authoritative empty account.
+    @Published private(set) var hasAuthoritativeRoster = false
 
     private let service: any TeamWorkspaceServing
     private let environment: TeamWorkspaceEnvironment
@@ -323,6 +325,52 @@ final class TeamWorkspaceContext: ObservableObject {
     }
 
     var loadedAccountID: String? { accountID }
+
+    var showsTeamCreation: Bool {
+        hasAuthoritativeRoster && teams.isEmpty && error == nil &&
+            accountID != nil && scope == environment.scopeGeneration() && server == environment.serverProfile()
+    }
+
+    var canOfferTeamCreation: Bool { showsTeamCreation && !isLoading }
+
+    #if DEBUG
+    private static var retainedHomeRosterUIFixture: TeamWorkspaceContext?
+    private(set) var isHomeRosterUIFixture = false
+
+    // Synthetic home UI state never uses the live account, transport or keychain.
+    // Controller-level Teams fixtures cannot supply this separate roster context.
+    static func homeRosterUIFixtureIfRequested() -> TeamWorkspaceContext? {
+        guard ProcessInfo.processInfo.arguments.contains("--ui-test-teams-home-roster-fixture") else { return nil }
+        if let retainedHomeRosterUIFixture { return retainedHomeRosterUIFixture }
+        let variant = ProcessInfo.processInfo.environment["UI_TEST_TEAMS_HOME_ROSTER"] ?? "joined"
+        let scope = UUID()
+        let server = ServerProfile.current()
+        let account = "synthetic-teams-home"
+        let environment = TeamWorkspaceEnvironment(currentAccountID: { account },
+            scopeGeneration: { scope }, serverProfile: { server })
+        let context = TeamWorkspaceContext(service: TeamWorkspaceService(transport: { _, _ in
+            throw TeamWorkspaceError.invalidResponse
+        }), environment: environment, defaults: UserDefaults(suiteName: "ui-test-teams-home-" + UUID().uuidString)!,
+            revocationCleanup: { _, _, _ in })
+        context.reset(accountID: account)
+        context.isHomeRosterUIFixture = true
+        context.hasAuthoritativeRoster = variant != "unknown" && variant != "loading"
+        if variant == "joined" || variant == "offline" {
+            context.teams = [("synthetic-home-one", "xHain"), ("synthetic-home-two", "OpenMates")].map { id, name in
+                TeamWorkspaceTeam(id: id, name: name, description: "", role: .member, status: "active",
+                    profileImageMetadata: .generated, zeroBalance: 0, createdAt: 0, updatedAt: 0,
+                    key: SymmetricKey(data: Data(repeating: 7, count: 32)))
+            }
+            context.selectedTeam = context.teams.first
+            context.teamID = context.teams.first?.id
+            context.usingCachedRoster = variant == "offline"
+        }
+        // loading is unknown membership; refreshing is known-empty membership.
+        context.isLoading = variant == "loading" || variant == "refreshing"
+        retainedHomeRosterUIFixture = context
+        return context
+    }
+    #endif
 
     var snapshot: TeamWorkspaceSnapshot {
         TeamWorkspaceSnapshot(accountID: accountID, server: server, scope: scope,
@@ -383,6 +431,7 @@ final class TeamWorkspaceContext: ObservableObject {
         isLoading = false
         error = nil
         usingCachedRoster = false
+        hasAuthoritativeRoster = false
         self.accountID = accountID
         server = nextServer
         scope = nextScope
@@ -433,6 +482,7 @@ final class TeamWorkspaceContext: ObservableObject {
             selectionGeneration = UUID(); setSelectionLoading(false)
             teams = next
             usingCachedRoster = false
+            hasAuthoritativeRoster = true
             TeamWorkspaceOfflineRetention.refresh(fence: fence, teams: next, removedIDs: removedIDs)
             let retainedID = teamID ?? defaults.string(forKey: storageKey(accountID: accountID, server: currentServer))
             if let retainedID, let team = teams.first(where: { $0.id == retainedID }) {

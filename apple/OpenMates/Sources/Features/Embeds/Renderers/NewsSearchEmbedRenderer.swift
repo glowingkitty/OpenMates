@@ -18,10 +18,10 @@ struct NewsSearchEmbedRenderer: View {
     var body: some View {
         switch mode {
         case .preview:
-            VStack(alignment: .leading, spacing: .spacing2) {
-                if model.status == .finished {
-                    WebSearchThumbnailStrip(results: model.websiteResults)
-                }
+            SearchPreviewIdentityLayout {
+                WebSearchThumbnailStrip(results: model.websiteResults)
+            } inputs: {
+                VStack(alignment: .leading, spacing: .spacing2) {
                 Text(model.query)
                     .font(.omP).fontWeight(.semibold).foregroundStyle(Color.grey100)
                     .lineLimit(3).fixedSize(horizontal: false, vertical: true)
@@ -31,6 +31,8 @@ struct NewsSearchEmbedRenderer: View {
                     .font(.omSmall).foregroundStyle(Color.grey70).lineLimit(1)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("news-search-provider")
+                }
+            } summary: {
                 if model.status == .error {
                     Text(AppStrings.searchFailed).font(.omXs).foregroundStyle(Color.error)
                 } else if model.status == .finished {
@@ -44,7 +46,7 @@ struct NewsSearchEmbedRenderer: View {
                     }
                 }
             }
-            // .news-search-details:not(.mobile): justify-content:center.
+            // Fixed input region retains the centered web input presentation.
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("news-search-preview-details")

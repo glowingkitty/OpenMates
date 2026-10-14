@@ -192,4 +192,12 @@ final class SupertonicComposerRuntime: @unchecked Sendable {
             #endif
         }
     }
+    /// The serial queue owns native calls and mapped weights. Await its cleanup
+    /// barrier before an explicit capability removal can delete those weights.
+    func unloadAndWait() async {
+        unload()
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            queue.async { continuation.resume() }
+        }
+    }
 }

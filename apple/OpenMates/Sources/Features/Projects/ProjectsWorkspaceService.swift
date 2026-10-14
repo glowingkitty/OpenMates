@@ -50,6 +50,10 @@ protocol ProjectsWorkspaceServing: Sendable {
     func cachedProjects(accountID: String, teamID: String?) async throws -> [ProjectWorkspaceProject]?
     func cachedContents(project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws -> ProjectWorkspaceContents?
     func cachedSettings(project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws -> ProjectWorkspaceSettings?
+    func cachedReadme(project: ProjectWorkspaceProject, contents: ProjectWorkspaceContents, fence: ProjectsWorkspaceFence) async throws -> ProjectReadmeOfflineSnapshot?
+    func retainReadme(_ document: ProjectWorkspaceReadme, project: ProjectWorkspaceProject, contents: ProjectWorkspaceContents, fence: ProjectsWorkspaceFence) async throws
+    func clearReadme(project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws
+    func retainReadmeImage(_ data: Data, source: String, document: ProjectWorkspaceReadme, project: ProjectWorkspaceProject, contents: ProjectWorkspaceContents, fence: ProjectsWorkspaceFence) async throws
     func listProjects(accountID: String, teamID: String?) async throws -> [ProjectWorkspaceProject]
     func listSources(project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws -> [ProjectWorkspaceSource]
     func contents(project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws -> ProjectWorkspaceContents
@@ -84,10 +88,51 @@ extension ProjectsWorkspaceServing {
     func cachedProjects(accountID: String, teamID: String?) async throws -> [ProjectWorkspaceProject]? { nil }
     func cachedContents(project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws -> ProjectWorkspaceContents? { nil }
     func cachedSettings(project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws -> ProjectWorkspaceSettings? { nil }
+    func cachedReadme(project: ProjectWorkspaceProject, contents: ProjectWorkspaceContents, fence: ProjectsWorkspaceFence) async throws -> ProjectReadmeOfflineSnapshot? { nil }
+    func retainReadme(_ document: ProjectWorkspaceReadme, project: ProjectWorkspaceProject, contents: ProjectWorkspaceContents, fence: ProjectsWorkspaceFence) async throws { }
+    func clearReadme(project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws { }
+    func retainReadmeImage(_ data: Data, source: String, document: ProjectWorkspaceReadme, project: ProjectWorkspaceProject, contents: ProjectWorkspaceContents, fence: ProjectsWorkspaceFence) async throws { }
 }
 
 @MainActor
 final class ProjectsWorkspaceService: ProjectsWorkspaceServing {
+    func cachedReadme(project: ProjectWorkspaceProject, contents: ProjectWorkspaceContents, fence: ProjectsWorkspaceFence) async throws -> ProjectReadmeOfflineSnapshot? {
+        let scope = try await readmeScope(project: project, fence: fence)
+        let value = try await NativeWorkspaceOfflineCache.shared.projectReadme(projectID: project.id,
+            binding: ProjectReadmeOfflineSnapshot.binding(project: project, contents: contents), scope: scope)
+        try await fence.check()
+        try await NativeWorkspaceOfflineRuntime.check(scope)
+        return value?.isCompatible(with: contents) == true ? value : nil
+    }
+
+    func retainReadme(_ document: ProjectWorkspaceReadme, project: ProjectWorkspaceProject, contents: ProjectWorkspaceContents, fence: ProjectsWorkspaceFence) async throws {
+        let scope = try await readmeScope(project: project, fence: fence)
+        try await NativeWorkspaceOfflineCache.shared.retainProjectReadme(document, projectID: project.id,
+            binding: ProjectReadmeOfflineSnapshot.binding(project: project, contents: contents), scope: scope)
+        try await NativeWorkspaceOfflineRuntime.check(scope)
+    }
+
+    func retainReadmeImage(_ data: Data, source: String, document: ProjectWorkspaceReadme, project: ProjectWorkspaceProject, contents: ProjectWorkspaceContents, fence: ProjectsWorkspaceFence) async throws {
+        let scope = try await readmeScope(project: project, fence: fence)
+        try await NativeWorkspaceOfflineCache.shared.retainProjectReadmeImage(data, source: source, document: document,
+            projectID: project.id, binding: ProjectReadmeOfflineSnapshot.binding(project: project, contents: contents), scope: scope)
+        try await NativeWorkspaceOfflineRuntime.check(scope)
+    }
+
+    func clearReadme(project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws {
+        let scope = try await readmeScope(project: project, fence: fence)
+        let namespace = "project-readme:" + project.id
+        let revision = try await NativeWorkspaceOfflineCache.shared.beginRefresh(namespace: namespace, scope: scope)
+        try await NativeWorkspaceOfflineRuntime.check(scope)
+        try await NativeWorkspaceOfflineCache.shared.commit(namespace: namespace, responses: [:], scope: scope, revision: revision)
+    }
+
+    private func readmeScope(project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws -> NativeWorkspaceOfflineScope {
+        try await fence.check()
+        let scope = try await NativeWorkspaceOfflineRuntime.configure(accountID: fence.accountID, teamID: project.teamId)
+        try await fence.check()
+        return scope
+    }
     // A bounded memory-only key cache reuses the exact Project wrapper already
     // opened for the displayed artifact. Timeline pagination fetches no head.
     private var artifactHistoryKeys: [String: (key: SymmetricKey, fence: ProjectsWorkspaceFence)] = [:]
@@ -220,6 +265,7 @@ final class ProjectsWorkspaceService: ProjectsWorkspaceServing {
         let data = try await NativeWorkspaceOfflineRuntime.request(namespace: "projects", path: listPath, scope: scope, retain: false)
         let inventory = try await NativeWorkspaceOfflineRuntime.decodeResponse(ProjectListResponse.self, data: data)
         var responses = [listPath: data]
+        var liveResponses = responses
         for project in inventory.projects {
             for suffix in ["/items", "/sources", "/settings"] {
                 try Task.checkCancellation()
@@ -230,11 +276,130 @@ final class ProjectsWorkspaceService: ProjectsWorkspaceServing {
                 case "/sources": _ = try await NativeWorkspaceOfflineRuntime.decodeResponse(SourcesResponse.self, data: raw)
                 default: _ = try await NativeWorkspaceOfflineRuntime.decodeResponse(SettingsResponse.self, data: raw)
                 }
+                liveResponses[path] = raw
                 responses[path] = try NativeWorkspaceOfflineRuntime.sanitizedResponse(raw)
             }
         }
         try await NativeWorkspaceOfflineRuntime.check(scope)
         try await cache.commit(namespace: "projects", responses: responses, scope: scope, revision: revision)
+        guard let key = try await CryptoManager.shared.loadMasterKey(for: scope.accountID) else {
+            throw ProjectsWorkspaceError.missingMasterKey
+        }
+        try await maintainReadmes(responses: liveResponses, scope: scope, cache: cache, masterKey: key,
+            validate: { try await NativeWorkspaceOfflineRuntime.check(scope) })
+    }
+
+    /// Also used by all-context retention with its private cache actor. Explicit
+    /// routes authorize each Team without changing the foreground Team selection.
+    func maintainReadmes(responses: [String: Data], scope: NativeWorkspaceOfflineScope,
+                         cache: NativeWorkspaceOfflineCache, masterKey: SymmetricKey,
+                         validate: @escaping @MainActor () async throws -> Void) async throws {
+        let fence = ProjectsWorkspaceFence(accountID: scope.accountID)
+        try await fence.check(); try await validate()
+        let listPath = route("/v1/projects", teamID: scope.teamID)
+        guard let list = responses[listPath] else { throw ProjectsWorkspaceError.invalidResponse }
+        let inventory = try await NativeWorkspaceOfflineRuntime.decodeResponse(ProjectListResponse.self, data: list)
+        var projects: [String: ProjectWorkspaceProject] = [:]
+        var contents: [String: ProjectWorkspaceContents] = [:]
+        var preparationComplete = true
+        for record in inventory.projects {
+            try Task.checkCancellation(); try await validate()
+            do {
+                let project = try await open(record, masterKey: masterKey, teamID: scope.teamID, accountID: scope.accountID)
+                guard let itemData = responses[projectRoute(project, suffix: "/items")],
+                      let sourceData = responses[projectRoute(project, suffix: "/sources")] else { throw ProjectsWorkspaceError.invalidResponse }
+                let items = try await NativeWorkspaceOfflineRuntime.decodeResponse(ContentsResponse.self, data: itemData)
+                let sources = try await NativeWorkspaceOfflineRuntime.decodeResponse(SourcesResponse.self, data: sourceData)
+                contents[project.id] = try await openContents(items, sources: sources, project: project)
+                projects[project.id] = project
+            } catch {
+                try Task.checkCancellation(); try await validate()
+                if NativeWorkspaceReadFailure.isCancellation(error) { throw error }
+                preparationComplete = false
+                NativeDiagnostics.warning("project_readme_metadata_unavailable", category: "projects")
+            }
+        }
+        let complete = try await ProjectReadmeOfflineMaintenance.fill(projectIDs: inventory.projects.map(\.projectId).filter { projects[$0] != nil }, load: { id in
+            guard let project = projects[id], let detail = contents[id] else { throw ProjectsWorkspaceError.invalidResponse }
+            return try await self.readmeDocument(project: project, contents: detail, fence: fence)
+        }, readImage: { id, document, source in
+            guard let project = projects[id], let detail = contents[id] else { throw ProjectsWorkspaceError.invalidResponse }
+            return try await self.readmeImage(source, document: document, project: project, contents: detail, fence: fence)
+        }, save: { id, document in
+            guard let project = projects[id], let detail = contents[id] else { throw ProjectsWorkspaceError.invalidResponse }
+            try await cache.retainProjectReadme(document, projectID: id,
+                binding: ProjectReadmeOfflineSnapshot.binding(project: project, contents: detail), scope: scope)
+        }, saveImage: { id, document, source, bytes in
+            guard let project = projects[id], let detail = contents[id] else { throw ProjectsWorkspaceError.invalidResponse }
+            try await cache.retainProjectReadmeImage(bytes, source: source, document: document, projectID: id,
+                binding: ProjectReadmeOfflineSnapshot.binding(project: project, contents: detail), scope: scope)
+        }, clear: { id in
+            let namespace = "project-readme:" + id
+            let revision = try await cache.beginRefresh(namespace: namespace, scope: scope)
+            try await validate()
+            try await cache.commit(namespace: namespace, responses: [:], scope: scope, revision: revision)
+        }, validate: {
+            try await fence.check(); try await validate()
+        })
+        guard complete && preparationComplete else { throw ProjectsWorkspaceError.sourceOffline }
+    }
+
+    private func readmeDocument(project: ProjectWorkspaceProject, contents: ProjectWorkspaceContents,
+                                fence: ProjectsWorkspaceFence) async throws -> ProjectWorkspaceReadme? {
+        if let item = contents.items.filter({ $0.kind == "embed" && $0.folderHash == nil && $0.filePath?.lowercased() == "readme.md" })
+            .sorted(by: { $0.createdAt > $1.createdAt }).first {
+            let body = try await readStoredFile(item, project: project, fence: fence)
+            guard let text = ["code", "content", "markdown", "text"].compactMap({ body[$0] as? String }).first else {
+                throw ProjectsWorkspaceError.invalidResponse
+            }
+            return .init(markdown: text, truncated: false, origin: "stored")
+        }
+        let remote = ProjectRemoteSourceClient()
+        let result = await ProjectsWorkspaceStore.loadConnectedReadme(sources: contents.sources,
+            list: { try await remote.list(project: project, source: $0, path: ".", maxEntries: 500, fence: fence) },
+            read: { try await remote.readText(project: project, source: $0, path: $1, fence: fence) })
+        try Task.checkCancellation(); try await fence.check()
+        switch result {
+        case .ready(let document): return document
+        case .empty: return nil
+        case .unavailable: throw ProjectsWorkspaceError.sourceOffline
+        default: throw ProjectsWorkspaceError.invalidResponse
+        }
+    }
+
+    private func readmeImage(_ sourceURL: String, document: ProjectWorkspaceReadme, project: ProjectWorkspaceProject,
+                             contents: ProjectWorkspaceContents, fence: ProjectsWorkspaceFence) async throws -> Data {
+        try await fence.check()
+        if let url = ProjectReadmeDocument.publicImageURL(sourceURL) {
+            let session = URLSession(configuration: .ephemeral)
+            defer { session.invalidateAndCancel() }
+            let (bytes, response) = try await session.bytes(from: url)
+            let data = try await S3MediaClient.boundedResponseData(bytes, response: response, maximumBytes: 2 * 1_024 * 1_024)
+            try await fence.check(); return data
+        }
+        guard let path = ProjectReadmeDocument.relativePath(sourceURL) else { throw ProjectsWorkspaceError.invalidContext }
+        if document.origin == "connected" {
+            guard let source = contents.sources.first(where: { $0.id == document.sourceID && $0.status == "connected"
+                && $0.sessionID == document.sourceSessionID && $0.keyEpoch == document.sourceKeyEpoch }) else {
+                throw ProjectsWorkspaceError.sourceOffline
+            }
+            return try await ProjectRemoteSourceClient().readReadmeImage(project: project, source: source, path: path, fence: fence)
+        }
+        guard let item = contents.items.first(where: { $0.kind == "embed" && $0.folderHash == nil && $0.filePath == path }) else {
+            throw ProjectsWorkspaceError.invalidContext
+        }
+        let body = try await readStoredFile(item, project: project, fence: fence)
+        if let raw = body["data_url"] as? String, raw.utf8.count <= 2_800_000,
+           raw.range(of: #"^data:image/(png|jpeg|gif|webp|avif);base64,"#, options: [.regularExpression, .caseInsensitive]) != nil,
+           let encoded = raw.split(separator: ",", maxSplits: 1).last, let data = Data(base64Encoded: String(encoded)) { return data }
+        let files = body["files"] as? [String: Any] ?? [:]
+        guard let variant = ["preview", "full", "original"].compactMap({ files[$0] as? [String: Any] }).first,
+              let key = variant["s3_key"] as? String, let aes = body["aes_key"] as? String else {
+            throw ProjectsWorkspaceError.invalidResponse
+        }
+        return try await S3MediaClient.shared.fetchAndDecryptBounded(s3Url: body["s3_base_url"] as? String ?? "",
+            aesKeyHex: aes, aesNonceHex: variant["aes_nonce"] as? String ?? body["aes_nonce"] as? String,
+            encryption: variant["encryption"] as? String, s3Key: key, maximumPlaintextBytes: 2 * 1_024 * 1_024)
     }
 
     func listProjects(accountID: String, teamID: String? = nil) async throws -> [ProjectWorkspaceProject] {
@@ -316,6 +481,13 @@ final class ProjectsWorkspaceService: ProjectsWorkspaceServing {
             fence: fence, teamID: project.teamId, cachedOnly: cachedOnly)
         let (response, sourceResponse) = try await (contents, sources)
         try await fence.check()
+        let opened = try await openContents(response, sources: sourceResponse, project: project)
+        try await fence.check()
+        return opened
+    }
+
+    private func openContents(_ response: ContentsResponse, sources sourceResponse: SourcesResponse,
+                              project: ProjectWorkspaceProject) async throws -> ProjectWorkspaceContents {
         var folders: [ProjectWorkspaceFolder] = []
         for record in response.folders {
             let name = try await decryptOptional(record.encryptedName, key: project.key)
@@ -333,7 +505,6 @@ final class ProjectsWorkspaceService: ProjectsWorkspaceServing {
                 position: record.position, createdAt: record.createdAt))
         }
         let projectSources = try await openSources(sourceResponse.sources, project: project)
-        try await fence.check()
         return ProjectWorkspaceContents(folders: folders, items: items, sources: projectSources)
     }
 
@@ -641,6 +812,69 @@ final class ProjectsWorkspaceService: ProjectsWorkspaceServing {
 
 }
 
+
+/// The existing inventory maintenance owns admission, cancellation and retry.
+/// Only README and its first eight safe image references are read here.
+@MainActor
+enum ProjectReadmeOfflineMaintenance {
+    static func imageSources(_ markdown: String) -> [String] {
+        var sources: [String] = []
+        for block in ProjectReadmeDocument.parse(markdown) {
+            for text in ProjectReadmeDocument.textContents(block) {
+                for part in ProjectReadmeDocument.inlineParts(text) {
+                    guard case .image(let image) = part,
+                          ProjectReadmeDocument.relativePath(image.source) != nil || ProjectReadmeDocument.publicImageURL(image.source) != nil,
+                          !sources.contains(image.source) else { continue }
+                    sources.append(image.source)
+                    if sources.count == 8 { return sources }
+                }
+            }
+        }
+        return sources
+    }
+
+    static func fill(projectIDs: [String],
+                     load: (String) async throws -> ProjectWorkspaceReadme?,
+                     readImage: (String, ProjectWorkspaceReadme, String) async throws -> Data,
+                     save: (String, ProjectWorkspaceReadme) async throws -> Void,
+                     saveImage: (String, ProjectWorkspaceReadme, String, Data) async throws -> Void,
+                     clear: (String) async throws -> Void,
+                     validate: () async throws -> Void) async throws -> Bool {
+        var complete = true
+        for projectID in projectIDs {
+            try Task.checkCancellation(); try await validate()
+            do {
+                guard let document = try await load(projectID) else {
+                    try Task.checkCancellation(); try await validate()
+                    try await clear(projectID)
+                    continue
+                }
+                guard document.markdown.utf8.count <= 2 * 1_024 * 1_024 else { throw URLError(.dataLengthExceedsMaximum) }
+                try Task.checkCancellation(); try await validate()
+                try await save(projectID, document)
+                for source in imageSources(document.markdown) {
+                    try Task.checkCancellation(); try await validate()
+                    do {
+                        let bytes = try await readImage(projectID, document, source)
+                        guard !bytes.isEmpty, bytes.count <= 2 * 1_024 * 1_024 else { throw URLError(.dataLengthExceedsMaximum) }
+                        try Task.checkCancellation(); try await validate()
+                        try await saveImage(projectID, document, source, bytes)
+                    } catch {
+                        try Task.checkCancellation(); try await validate()
+                        if NativeWorkspaceReadFailure.isCancellation(error) { throw error }
+                        complete = false
+                    }
+                }
+            } catch {
+                try Task.checkCancellation(); try await validate()
+                if NativeWorkspaceReadFailure.isCancellation(error) { throw error }
+                complete = false
+            }
+            await Task.yield()
+        }
+        return complete
+    }
+}
 
 // Specification: specifications/features/focus-modes/specification.yml
 // Assertions: focus-modes.project-recommendation-catalog, focus-modes.project-recommendation-full-assessment,

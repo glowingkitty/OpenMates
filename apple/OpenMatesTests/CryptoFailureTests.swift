@@ -82,6 +82,56 @@ private extension Data {
 final class KeyRevocationTests: XCTestCase {
     private let fixtureKey = SymmetricKey(data: Data(repeating: 7, count: 32))
 
+    // contract-test: supporting surface=gui.apple assertions=apple-notifications.action.routing-coherent
+    func testWorkflowCompletionMasterKeyReturnedAfterAccountChangeCannotStartKeyLoader() async {
+        let started = expectation(description: "workflow master key suspended")
+        let gate = RevocationCryptoGate<SymmetricKey?>(started: started)
+        let key = fixtureKey
+        let manager = ChatKeyManager(unwrapKey: { _, _ in key })
+        var accountID = "original-owner"
+        var loaderCalls = 0
+        let pending = Task {
+            try await WorkflowCompletionDelivery.installChatKeyIfCurrent(
+                loadMasterKey: { await gate.suspend() }, isCurrent: { accountID == "original-owner" },
+                install: { masterKey in
+                    loaderCalls += 1
+                    await manager.loadChatKey(chatId: "workflow-chat", encryptedChatKey: "wrapped-key",
+                                              masterKey: masterKey)
+                })
+        }
+        await fulfillment(of: [started], timeout: 2)
+        manager.clearAll()
+        accountID = "replacement-owner"
+        await gate.resume(with: fixtureKey)
+        do { try await pending.value; XCTFail("The old account key must be rejected before loading") }
+        catch WorkflowCompletionDeliveryError.changedContext { }
+        catch { XCTFail("Unexpected failure: \(type(of: error))") }
+        XCTAssertEqual(loaderCalls, 0)
+        XCTAssertFalse(manager.hasKey(for: "workflow-chat"))
+        XCTAssertNil(manager.encryptedKey(for: "workflow-chat"))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-notifications.action.routing-coherent
+    func testWorkflowCompletionUnwrapCannotInstallAfterCallerAuthorityChanges() async {
+        let started = expectation(description: "workflow unwrap suspended")
+        let gate = RevocationCryptoGate<SymmetricKey>(started: started)
+        let manager = ChatKeyManager(unwrapKey: { _, _ in await gate.suspend() })
+        let generation = manager.cacheGeneration
+        var authorized = true
+        let pending = Task {
+            await manager.loadChatKey(chatId: "workflow-chat", encryptedChatKey: "wrapped-key",
+                                      masterKey: fixtureKey, isCurrent: { authorized })
+        }
+        await fulfillment(of: [started], timeout: 2)
+        authorized = false
+        await gate.resume(with: fixtureKey)
+        let loaded = await pending.value
+        XCTAssertEqual(manager.cacheGeneration, generation, "The caller fence must work without a cache reset")
+        XCTAssertFalse(loaded)
+        XCTAssertFalse(manager.hasKey(for: "workflow-chat"))
+        XCTAssertNil(manager.encryptedKey(for: "workflow-chat"))
+    }
+
     // contract-test: supporting surface=gui.apple assertions=teams.membership.role-gated
     func testSingleChatUnwrapCannotInstallAfterRevocation() async {
         let started = expectation(description: "single unwrap suspended")

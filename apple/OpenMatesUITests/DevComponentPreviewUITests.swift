@@ -11,6 +11,45 @@ import UIKit
 
 @MainActor
 final class DevComponentPreviewUITests: XCTestCase {
+    // contract-test: direct surface=gui.apple assertions=apple-local-model-lab.optional-downloads,settings-ui.composition.canonical-and-accessible
+    func testDownloadedOfflineCapabilitiesToggleIndependentlyAndRemoveWithoutCompletedProgress() {
+        let app = launch(component: "notification", variant: "offline-ready")
+        XCTAssertTrue(element(app, "settings-offline-models-page").waitForExistence(timeout: 10))
+        XCTAssertFalse(element(app, "offline-ai-download-progress").exists)
+        XCTAssertFalse(element(app, "offline-ai-settings-progress-summary").exists)
+        XCTAssertFalse(app.buttons["offline-ai-settings-download"].exists)
+        for title in ["Speech to text", "Text to speech", "Enhanced anonymization"] {
+            XCTAssertTrue(app.staticTexts[title].exists)
+        }
+        let receipt = app.staticTexts["offline-ai-fixture-capabilities"]
+        for id in ["whisper", "supertonic3", "privacyFilter"] {
+            let row = element(app, "offline-ai-capability-\(id)")
+            let toggle = row.switches.firstMatch
+            XCTAssertTrue(toggle.waitForExistence(timeout: 3))
+            XCTAssertTrue(toggle.isHittable)
+            XCTAssertEqual(toggle.value as? String, "On")
+            toggle.tap()
+            XCTAssertEqual(toggle.value as? String, "Off")
+            XCTAssertTrue(receipt.label.contains("ready=privacyFilter,supertonic3,whisper"))
+            let remainingEnabled = ["privacyFilter", "supertonic3", "whisper"].filter { $0 != id }.joined(separator: ",")
+            XCTAssertEqual(receipt.label, "enabled=\(remainingEnabled);ready=privacyFilter,supertonic3,whisper")
+            toggle.tap()
+            XCTAssertEqual(toggle.value as? String, "On")
+            XCTAssertEqual(receipt.label, "enabled=privacyFilter,supertonic3,whisper;ready=privacyFilter,supertonic3,whisper")
+            let remove = app.buttons["offline-ai-remove-\(id)"]
+            XCTAssertTrue(remove.isHittable)
+        }
+        attachScreenshot("Downloaded offline capabilities have independent toggles and delete icons without a completed progress bar")
+        app.buttons["offline-ai-remove-whisper"].tap()
+        XCTAssertFalse(app.buttons["offline-ai-remove-whisper"].exists)
+        XCTAssertTrue(app.buttons["offline-ai-remove-supertonic3"].exists)
+        XCTAssertTrue(app.buttons["offline-ai-remove-privacyFilter"].exists)
+        XCTAssertTrue(receipt.label.contains("ready=privacyFilter,supertonic3"))
+        XCTAssertTrue(app.buttons["offline-ai-settings-download"].isHittable)
+        XCTAssertFalse(element(app, "offline-ai-download-progress").exists)
+        attachScreenshot("Removing one capability preserves the other installed capabilities")
+    }
+
     override func setUpWithError() throws {
         continueAfterFailure = false
     }
@@ -18,6 +57,10 @@ final class DevComponentPreviewUITests: XCTestCase {
     override func tearDownWithError() throws {
         if let testRun, testRun.failureCount > 0 {
             attachScreenshot("Component preview failure — \(name)")
+            let hierarchy = XCTAttachment(string: XCUIApplication().debugDescription)
+            hierarchy.name = "Component preview accessibility hierarchy"
+            hierarchy.lifetime = .keepAlways
+            add(hierarchy)
         }
         try super.tearDownWithError()
     }
@@ -93,21 +136,27 @@ final class DevComponentPreviewUITests: XCTestCase {
         XCTAssertFalse(element(app, "offline-ai-model-pack-notification").exists)
     }
 
-    // contract-test: supporting surface=gui.apple assertions=settings-ui.composition.canonical-and-accessible
+    // contract-test: supporting surface=gui.apple assertions=settings-ui.composition.canonical-and-accessible,apple-notifications.delivery.confirmed-action-haptics
     func testNotificationStackShowsThreeCardsAndRevealsRetainedNoticeAfterDismiss() {
         let app = launch(component: "notification", variant: "stack")
         let dismiss = app.buttons["notification-dismiss"]
         XCTAssertTrue(dismiss.waitForExistence(timeout: 10))
         XCTAssertTrue(dismiss.isHittable)
+        XCTAssertEqual(app.buttons.matching(identifier: "notification-dismiss").count, 1,
+            "Only the visible top card may participate in notification feedback")
         XCTAssertTrue(app.staticTexts["Changes saved"].exists)
         attachScreenshot("Production three-card notification stack")
         dismiss.tap()
         XCTAssertTrue(app.staticTexts["Reconnecting..."].firstMatch.waitForExistence(timeout: 3))
         XCTAssertTrue(dismiss.isHittable)
+        XCTAssertEqual(app.buttons.matching(identifier: "notification-dismiss").count, 1,
+            "Only the visible top card may participate in notification feedback")
         attachScreenshot("Dismissed success reveals existing processing connection")
         dismiss.tap()
         XCTAssertTrue(app.staticTexts["First notice"].waitForExistence(timeout: 3))
         XCTAssertTrue(dismiss.isHittable)
+        XCTAssertEqual(app.buttons.matching(identifier: "notification-dismiss").count, 1,
+            "Only the visible top card may participate in notification feedback")
         XCTAssertTrue(dismiss.isEnabled, "A promoted retained card must enable its real dismiss button")
         dismiss.tap()
         expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: dismiss)

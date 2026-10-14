@@ -293,15 +293,25 @@ actor WhisperKitComposerRuntime: LocalPCMTranscribing {
     private let directory: URL
     private var generation: UInt64 = 0
     private var running = false
+    private var invalidated = false
+    private var drainWaiters: [CheckedContinuation<Void, Never>] = []
+    private let onUnload: @Sendable () async -> Void
+    private var unloadTask: Task<Void, Never>?
     #if arch(arm64) && !os(watchOS)
     private var engine: WhisperKit?
     #endif
-    init(directory: URL) { self.directory = directory }
+    init(directory: URL, onUnload: @escaping @Sendable () async -> Void = {}) {
+        self.directory = directory; self.onUnload = onUnload
+    }
 
     func transcribe(_ samples: [Float]) async throws -> String {
-        guard !running, !samples.isEmpty, samples.count <= 16_000 * 30 else { throw LocalSpeechRuntimeError.busy }
+        guard !invalidated, !running, !samples.isEmpty, samples.count <= 16_000 * 30 else { throw LocalSpeechRuntimeError.busy }
         running = true
-        defer { running = false }
+        defer {
+            running = false
+            let waiters = drainWaiters; drainWaiters.removeAll()
+            for waiter in waiters { waiter.resume() }
+        }
         let token = generation
         #if arch(arm64) && !os(watchOS)
         do {
@@ -343,13 +353,20 @@ actor WhisperKitComposerRuntime: LocalPCMTranscribing {
         guard token == generation else { throw CancellationError() }
     }
     func unload() async {
+        if let unloadTask { await unloadTask.value; return }
+        invalidated = true
         generation &+= 1
         // An in-flight native call owns its engine until it drains. Its stale
         // generation will unload before returning; do not unload beneath it.
-        guard !running else { return }
-        #if arch(arm64) && !os(watchOS)
-        await engine?.unloadModels(); engine = nil
-        LocalSpeechInferenceOwnership.shared.release(ownerID)
-        #endif
+        let task = Task {
+            if running { await withCheckedContinuation { drainWaiters.append($0) } }
+            #if arch(arm64) && !os(watchOS)
+            await engine?.unloadModels(); engine = nil
+            LocalSpeechInferenceOwnership.shared.release(ownerID)
+            #endif
+            await onUnload()
+        }
+        unloadTask = task
+        await task.value
     }
 }

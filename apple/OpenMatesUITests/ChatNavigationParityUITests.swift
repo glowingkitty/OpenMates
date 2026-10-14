@@ -183,7 +183,7 @@ final class ChatNavigationParityUITests: XCTestCase {
             "Relaunch must restore later text from the saved encrypted attachment draft")
     }
 
-    // contract-test: direct surface=gui.apple assertions=chat-navigation.draft-only.addressable,chat-navigation.order.sidebar-header-match,chat-navigation.empty-new-chat.excluded
+    // contract-test: direct surface=gui.apple assertions=chat-navigation.draft-only.addressable,chat-navigation.order.sidebar-header-match,chat-navigation.empty-new-chat.excluded,drafts.draft-only.presentation
     func testHeaderNavigationFollowsSidebarOrderIncludingDraftOnlyChat() throws {
         let app = XCUIApplication()
         app.launchArguments = ["--ui-test-authenticated-chat-navigation", "--ui-test-shell-metrics"]
@@ -209,6 +209,10 @@ final class ChatNavigationParityUITests: XCTestCase {
         sidebarToggle.tap()
         XCTAssertTrue(app.descendants(matching: .any)["chat-history-panel"].waitForExistence(timeout: 5))
         try assertSidebarRowsInOrder(["Header navigation draft", "Newer Chat", "Current Chat", "Older Chat"], in: app)
+        let draftPreview = try NativeUITestElementResolution.requireVisible(
+            app.staticTexts.matching(identifier: "chat-draft-preview"), in: app)
+        XCTAssertEqual(draftPreview.label, "Header navigation draft",
+                       "A hydrated saved draft must show its content beside Draft, never a blank status-only row")
         let shell = app.descendants(matching: .any).matching(identifier: "shell-responsive-metrics").firstMatch
         XCTAssertTrue(shell.waitForExistence(timeout: 5))
         XCTAssertEqual(try waitForMetric("chat-panel-open", equals: "true", in: shell), "true")

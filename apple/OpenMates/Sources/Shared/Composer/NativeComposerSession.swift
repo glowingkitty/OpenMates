@@ -72,6 +72,25 @@ final class NativeComposerSession: ObservableObject {
         publishControllerState()
     }
 
+    /// Recording completion appends without replacing an earlier selection or draft content.
+    /// Keep the existing controller and node identities; never rebuild from preview text.
+    func appendPendingEmbed(
+        nodeID: String,
+        embedType: String,
+        title: String,
+        localPreviewData: Data? = nil
+    ) throws {
+        let previousSelection = controller.selection
+        try controller.setSelection(NSRange(location: controller.attributedString.length, length: 0))
+        do {
+            try insertPendingEmbed(nodeID: nodeID, embedType: embedType,
+                                   title: title, localPreviewData: localPreviewData)
+        } catch {
+            try? controller.setSelection(previousSelection)
+            throw error
+        }
+    }
+
     #if !OPENMATES_SHARE_EXTENSION
     func resolveEmbed(
         nodeID: String,

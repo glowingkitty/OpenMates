@@ -1,5 +1,7 @@
 // Web source: frontend/packages/ui/src/components/Header.svelte.
 // Compact native design: user-approved WatchHubView.selector gradient overlay.
+// Specification: specifications/features/workspace-shell/specification.yml
+// Assertions: workspace-shell.nav.released-surfaces-visible
 import SwiftUI
 
 #if DEBUG
@@ -221,11 +223,12 @@ struct WorkspaceSwitcherTabs: View {
 /// A size class cannot distinguish a wide landscape phone from a narrow Mac.
 enum WorkspaceSwitcherLayoutPolicy {
     static let tabsWidth: CGFloat = 360
+    static let compactWidth: CGFloat = 120
     static let expandedHeight: CGFloat = 376
     static let triggerHeight: CGFloat = 44
     static func compactTriggerWidth(availableCenterWidth: CGFloat) -> CGFloat {
         guard availableCenterWidth.isFinite else { return 0 }
-        return min(120, max(0, availableCenterWidth))
+        return min(compactWidth, max(0, availableCenterWidth))
     }
     static func panelHeight(viewportHeight: CGFloat) -> CGFloat {
         guard viewportHeight.isFinite else { return triggerHeight }
@@ -238,6 +241,51 @@ enum WorkspaceSwitcherLayoutPolicy {
     }
     static func isCompact(headerWidth: CGFloat, leadingWidth: CGFloat, trailingWidth: CGFloat) -> Bool {
         availableWidth(headerWidth: headerWidth, leadingWidth: leadingWidth, trailingWidth: trailingWidth) < tabsWidth
+    }
+}
+
+/// Optional branding yields before the compact navigation or connection slot.
+/// Inputs measure intrinsic controls, independent of their current visibility,
+/// so shrinking and restoring a window cannot oscillate the hide decisions.
+enum NativeHeaderControlsLayoutPolicy {
+    struct Presentation: Equatable {
+        let showsLogo: Bool
+        let showsGift: Bool
+        let centerWidth: CGFloat
+        let centerOffset: CGFloat
+    }
+    static func presentation(headerWidth: CGFloat, leadingRequiredWidth: CGFloat,
+                             logoWidth: CGFloat, trailingRequiredWidth: CGFloat,
+                             giftWidth: CGFloat) -> Presentation {
+        func combined(_ required: CGFloat, _ optional: CGFloat) -> CGFloat {
+            required + optional + (required > 0 && optional > 0 ? .spacing4 : 0)
+        }
+        func lane(logo: Bool, gift: Bool) -> CGFloat {
+            WorkspaceSwitcherLayoutPolicy.availableWidth(headerWidth: headerWidth,
+                leadingWidth: combined(leadingRequiredWidth, logo ? logoWidth : 0),
+                trailingWidth: combined(trailingRequiredWidth, gift ? giftWidth : 0))
+        }
+        var logo = true
+        var gift = giftWidth > 0
+        if lane(logo: logo, gift: gift) < WorkspaceSwitcherLayoutPolicy.compactWidth { logo = false }
+        if lane(logo: logo, gift: gift) < WorkspaceSwitcherLayoutPolicy.compactWidth { gift = false }
+        let leading = combined(leadingRequiredWidth, logo ? logoWidth : 0)
+        let trailing = combined(trailingRequiredWidth, gift ? giftWidth : 0)
+        let inset = CGFloat.spacing10 + .spacing4
+        let balanced = lane(logo: logo, gift: gift)
+        // A status slot can make the right side wider than the left. Once
+        // optional controls have yielded, use the safe asymmetric lane rather
+        // than clipping the navigation merely to keep its center exact.
+        let available = max(0, headerWidth - leading - trailing - 2 * inset)
+        let centerWidth = balanced >= WorkspaceSwitcherLayoutPolicy.compactWidth ? balanced : available
+        let pickerWidth = centerWidth >= WorkspaceSwitcherLayoutPolicy.tabsWidth
+            ? WorkspaceSwitcherLayoutPolicy.tabsWidth
+            : WorkspaceSwitcherLayoutPolicy.compactTriggerWidth(availableCenterWidth: centerWidth)
+        let minimumCenter = inset + leading + pickerWidth / 2
+        let maximumCenter = headerWidth - inset - trailing - pickerWidth / 2
+        let center = max(minimumCenter, min(headerWidth / 2, maximumCenter))
+        return Presentation(showsLogo: logo, showsGift: gift, centerWidth: centerWidth,
+            centerOffset: center - headerWidth / 2)
     }
 }
 

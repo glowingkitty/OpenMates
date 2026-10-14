@@ -1,0 +1,31 @@
+{
+  "configurations": [
+    {
+      "id": "8CC0E3AE-350E-43AA-8099-B5B38AE4C7C4",
+      "name": "Core UI evidence",
+      "options": {}
+    }
+  ],
+  "defaultOptions": {
+    "uiTestingScreenshotsLifetime": "keepAlways",
+    "preferredScreenCaptureFormat": "screenRecording",
+    "userAttachmentLifetime": "keepAlways"
+  },
+  "testTargets": [
+    {
+      "target": {
+        "containerPath": "container:OpenMates.xcodeproj",
+        "identifier": "3A17A68F43922F87AC0B9220",
+        "name": "OpenMatesUITests"
+      },
+      "parallelizable": false,
+      "selectedTests": [
+        "LandingOnboardingParityUITests/testSignedOutAppStartsWithDailyInspirationExamplesAndInterestLinkBelowCards()",
+        "LandingOnboardingParityUITests/testTopicSelectionNarrowsExamplesAndSkipRestoresCatalog()",
+        "DevComponentPreviewUITests/testDownloadedOfflineCapabilitiesToggleIndependentlyAndRemoveWithoutCompletedProgress()",
+        "LocalModelLabUITests/testDownloadShowsAdvancingTransferAndSeparateVerification()"
+      ]
+    }
+  ],
+  "version": 1
+}

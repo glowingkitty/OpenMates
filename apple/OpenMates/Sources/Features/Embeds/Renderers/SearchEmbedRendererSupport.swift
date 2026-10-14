@@ -146,3 +146,29 @@ struct SearchResultsGrid<Result: Identifiable, Content: View>: View {
         .frame(maxWidth: .infinity)
     }
 }
+
+/// Fixed input region: provider/result arrival cannot move the query. The top
+/// 30pt strip matches SearchThumbnailStrip; the bottom source-summary row also
+/// retains its space throughout loading, partial results, and completion.
+/// User-approved input-position clarification extends the current web source.
+struct SearchPreviewIdentityLayout<Thumbnails: View, Inputs: View, Summary: View>: View {
+    var horizontalInset: CGFloat = 0
+    var thumbnailHeight: CGFloat = 30
+    var summaryHeight: CGFloat = 22
+    @ViewBuilder let thumbnails: () -> Thumbnails
+    @ViewBuilder let inputs: () -> Inputs
+    @ViewBuilder let summary: () -> Summary
+
+    var body: some View {
+        VStack(spacing: 0) {
+            thumbnails().frame(maxWidth: .infinity).frame(height: thumbnailHeight, alignment: .top)
+            VStack(alignment: .leading, spacing: 0) {
+                inputs().frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                summary().frame(maxWidth: .infinity, alignment: .leading).frame(height: summaryHeight)
+            }
+            .padding(.horizontal, horizontalInset)
+            .padding(.bottom, .spacing4)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}

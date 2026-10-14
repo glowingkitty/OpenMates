@@ -327,7 +327,7 @@ specifications:
     version: 1
     status: draft
     path: features/apple-notifications
-    fingerprint: cbe684c40c6f8ea634956198c8535e14e442b025e02a97b4c5f61e3986a17c01
+    fingerprint: 3094934c6d5d40f2b36985673e53a8d2dec797295721b1570e5624e8ec9d5271
     required_applies_to:
     - rest_api
     - gui.apple
@@ -335,7 +335,7 @@ specifications:
     version: 1
     status: draft
     path: features/apple-offline-workspaces
-    fingerprint: bdfa9e1bf3da1e917bf14e4bd8f9551d4741d17e0fe59e618ef9206e363e8862
+    fingerprint: 65d94c6a7ef51e12bbd4781b4e542a054b0f11b2876159d4a50a3ca73b43208b
     required_applies_to:
     - gui.apple
   feature.apple-recent-offline-chats:
@@ -464,7 +464,7 @@ specifications:
     version: 5
     status: draft
     path: features/chats
-    fingerprint: bb15c3a64529d314815ae93e0ab022b8ae9bf9576a99c38271190a7f1dc6c413
+    fingerprint: a4a9d0aea7b2a794f22321bb68a7a7c0874f71757fe22afc64560c62150706c8
     required_applies_to:
     - cli
     - gui.web
@@ -4397,6 +4397,14 @@ assertions:
     fingerprint: c85dea29c95be39b9656677b8c0bc1fd6a5bf4c7ff4360ed83e2fe0551369ea8
     required_applies_to:
     - gui.apple
+  apple-notifications.delivery.confirmed-action-haptics:
+    specification: feature.apple-notifications@1
+    specification_id: feature.apple-notifications
+    type: behavior
+    fingerprint: b63788ce019d2fbf464a03788f85581bc02d581981a81ec727d1f7dc2504c4b9
+    required_applies_to:
+    - rest_api
+    - gui.apple
   apple-notifications.registration.lifecycle:
     specification: feature.apple-notifications@1
     specification_id: feature.apple-notifications
@@ -4433,7 +4441,7 @@ assertions:
     specification: feature.apple-notifications@1
     specification_id: feature.apple-notifications
     type: invariant
-    fingerprint: b3c0994b188b14bfaee7b2c014274aa020b69eb04f6481b7c9a27954e2ff3a0d
+    fingerprint: 14e09c0754b415ff19dd03cd7c8b9d958e71c9341bfbd91ec387d9b15b7bc3e8
     required_applies_to:
     - rest_api
     - gui.apple
@@ -4441,7 +4449,7 @@ assertions:
     specification: feature.apple-offline-workspaces@1
     specification_id: feature.apple-offline-workspaces
     type: behavior
-    fingerprint: 5a0f07d075a92a5e3d43aab9b7c33f2d1ffbd8a194f4cf74177d0ca49378c8e3
+    fingerprint: 082367389e24ddc8b5e605e7f62d97b2bcf075437e5a395ea01454ba75693bca
     required_applies_to:
     - gui.apple
   apple-workspaces.watch-retention:
@@ -4455,7 +4463,7 @@ assertions:
     specification: feature.apple-offline-workspaces@1
     specification_id: feature.apple-offline-workspaces
     type: behavior
-    fingerprint: c0173eda8c240d249d5ef3b407f6bfb4990b17bda755b2a21e4ba7c3af8597d7
+    fingerprint: ea59dca04545f929547b667750a4cb475248200aa37e1ead0a571c22a76cb292
     required_applies_to:
     - gui.apple
   apple-workspaces.isolation:
@@ -5944,7 +5952,7 @@ assertions:
     specification: feature.chats@5
     specification_id: feature.chats
     type: invariant
-    fingerprint: 48a43c8f66d64d6542891f6ec8b524df6346e91da8c1a036a8971153dba22f1f
+    fingerprint: c1b93a09622d0b17a3e48447dead75f89e2171ae5c26836db75c8de3ca9ecd45
     required_applies_to:
     - cli
     - gui.web
@@ -6061,7 +6069,7 @@ assertions:
     specification: feature.chats@5
     specification_id: feature.chats
     type: parity
-    fingerprint: 97a9b0ffc9c5c4d5c7d0e6689d86dc035ecd129759d8d649e2b556423da68a55
+    fingerprint: 909d2e662f5e085d0b80c8bcc1678d2b592571bb86342c2749bcc198aa5ab7e7
     required_applies_to:
     - cli
     - gui.web
@@ -6125,6 +6133,15 @@ assertions:
     specification_id: feature.chats
     type: behavior
     fingerprint: a729ac346fe433e2e380442ef6f03841492a6a7430face1edc6a70d9ddd3d612
+    required_applies_to:
+    - cli
+    - gui.web
+    - gui.apple
+  chats.message.confirmed-haptic:
+    specification: feature.chats@5
+    specification_id: feature.chats
+    type: behavior
+    fingerprint: 26153aa65831011fef3efd507a71ea2e7e141a93ceff81c6a22ad064dbbd8572
     required_applies_to:
     - cli
     - gui.web

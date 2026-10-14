@@ -1,3 +1,5 @@
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.message.confirmed-haptic
 // Canonical Watch user-turn storage and leased assistant completion recovery.
 // Plaintext exists only in transient request/encryption closures.
 // Specification: specifications/features/apple-watch/specification.yml
@@ -35,7 +37,8 @@ enum WatchCanonicalStorage {
 
     static func sendTurn(_ pending: WatchPendingTextSend, request: Request,
                          encryptMetadata: @MainActor (String) async throws -> String,
-                         validate: @MainActor () throws -> Void) async throws {
+                         validate: @MainActor () throws -> Void,
+                         confirmed: @MainActor () -> Void = {}) async throws {
         let preflight = try object(pending.preflightJSON)
         let inference = try object(pending.inferenceJSON)
         guard preflight["turn_id"] as? String == pending.id,
@@ -125,6 +128,12 @@ enum WatchCanonicalStorage {
                   let version = versions["messages_v"] as? Int, version > 0 else {
                 throw WatchTurnAdmissionDiagnostic.invalidAcknowledgement(stage: .legacyStorage, issue: .missingStoredVersion)
             }
+        }
+        try validate()
+        // Legacy acknowledgement only queues Celery persistence. No new reads or
+        // polling are introduced for feedback, so that fallback remains silent.
+        if NativeMessageHapticGate.preparedStorageVersion(ack, expected: preflight["expected_messages_v"]) != nil {
+            confirmed()
         }
     }
 

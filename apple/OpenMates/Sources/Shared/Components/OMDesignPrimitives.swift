@@ -188,6 +188,7 @@ struct OMMessageInputField<ActionButtons: View>: View {
     var compactCornerRadius: CGFloat = .radiusFull
     var showActionButtonsWhenCompact = false
     var expandedMinHeight: CGFloat = 100
+    var fieldAccessibilityIdentifier = "message-field"
     var accessibilityHint: String
     var isComposerEditable = true
     var piiDecorations: [NativeComposerPIIDecoration] = []
@@ -289,7 +290,7 @@ struct OMMessageInputField<ActionButtons: View>: View {
                 .accessibilityElement()
                 .accessibilityLabel(AppStrings.chatMessageInput)
                 .accessibilityHint(accessibilityHint)
-                .accessibilityIdentifier("message-field")
+                .accessibilityIdentifier(fieldAccessibilityIdentifier)
                 .accessibilityValue(scrollFadeDiagnostic)
                 .preference(key: ComposerNativeOverflowPreferenceKey.self, value: nativeContentOverflows)
 

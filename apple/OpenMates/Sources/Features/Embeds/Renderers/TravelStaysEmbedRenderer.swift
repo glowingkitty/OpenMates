@@ -1,4 +1,6 @@
 // TravelStaysEmbedRenderer — native counterpart for travel stays search embeds.
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.surface.semantic-parity, chats.rendering.assistant-document-convergence
 //
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/embeds/travel/TravelStaysEmbedPreview.svelte
@@ -31,7 +33,14 @@ struct TravelStaysEmbedRenderer: View {
     }
 
     private var query: String {
-        TravelValue.string(data, ["query", "title"]) ?? "Stays"
+        let raw = data ?? embed.rawData ?? [:]
+        let request = EmbedFieldReader.dictionaryArray(raw, key: "requests").first?.mapValues(AnyCodable.init) ?? [:]
+        let fields = request.merging(raw) { _, root in root }
+        let values = [TravelValue.string(fields, ["query", "title"]),
+                      TravelValue.string(fields, ["check_in_date"]),
+                      TravelValue.string(fields, ["check_out_date"])]
+            .compactMap { $0 }
+        return values.isEmpty ? AppStrings.localized("embeds.stays") : values.joined(separator: " · ")
     }
 
     private var provider: String? {
@@ -41,38 +50,43 @@ struct TravelStaysEmbedRenderer: View {
     var body: some View {
         switch mode {
         case .preview:
-            VStack(alignment: .leading, spacing: .spacing3) {
-                Text(query)
-                    .font(.omP)
-                    .fontWeight(.bold)
-                    .foregroundStyle(Color.fontPrimary)
-                    .lineLimit(2)
+            SearchPreviewIdentityLayout(horizontalInset: .spacing6) {
+                Color.clear
+            } inputs: {
+                VStack(alignment: .leading, spacing: .spacing2) {
+                    Text(query)
+                        .font(.omP)
+                        .fontWeight(.bold)
+                        .foregroundStyle(Color.fontPrimary)
+                        .lineLimit(3)
+                        .accessibilityIdentifier("travel-stays-input")
 
-                if let provider {
-                    Text("\(AppStrings.via) \(provider)")
-                        .font(.omSmall)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(Color.grey70)
-                        .lineLimit(1)
+                    if let provider {
+                        Text("\(AppStrings.via) \(provider)")
+                            .font(.omSmall)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(Color.grey70)
+                            .lineLimit(1)
+                    }
+
                 }
-
+            } summary: {
                 HStack(spacing: .spacing2) {
                     if !stays.isEmpty {
-                        Text("\(stays.count) \(stays.count == 1 ? "stay" : "stays")")
+                        Text("\(stays.count) \(AppStrings.localized(stays.count == 1 ? "embeds.stay" : "embeds.stays"))")
                             .font(.omSmall)
                             .fontWeight(.bold)
                             .foregroundStyle(Color.grey70)
                     }
                     if let minimumPrice {
-                        Text("from \(minimumPrice)")
+                        Text("\(AppStrings.localized("embeds.from")) \(minimumPrice)")
                             .font(.omSmall)
                             .fontWeight(.bold)
                             .foregroundStyle(Color.fontPrimary)
                     }
                 }
             }
-            .padding(.spacing6)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .accessibilityIdentifier("travel-stays-preview")
 
         case .fullscreen:
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 280, maximum: 320), spacing: .spacing8)], spacing: .spacing8) {

@@ -504,6 +504,17 @@ final class WorkflowsParityTests: XCTestCase {
         XCTAssertTrue(store.runs.isEmpty)
     }
 
+    @MainActor
+    // contract-test: supporting surface=gui.apple assertions=apple-workspaces.local-first
+    func testWorkflowSelectionCancellationFinishesLoadingWithoutRawError() async {
+        let store = WorkflowStore(detailRequest: { _, _ in throw CancellationError() }, runsRequest: { _, _ in [] })
+        store.reset(accountId: "synthetic-owner")
+        await store.select(id: "cancelled-workflow")
+        XCTAssertFalse(store.isLoading)
+        XCTAssertNil(store.errorMessage, "Navigation cancellation is not a Workflow failure")
+        XCTAssertNil(store.selectedWorkflow)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=workflows.surface.semantic-parity
     func testWorkflowListDetailAndRunsDecodeServerEnvelopes() throws {
         let object = try JSONSerialization.jsonObject(with: workflowFixtureData())

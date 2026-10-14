@@ -3,6 +3,8 @@
 //      maps/MapLocationEmbedFullscreen.svelte.
 // Specification: specifications/features/chats/specification.yml
 // Assertions: chats.surface.semantic-parity
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.surface.semantic-parity, chats.rendering.assistant-document-convergence
 
 import Foundation
 import CoreFoundation
@@ -25,13 +27,17 @@ struct MapsEmbedModel {
     let imageURL: URL?
     let websiteURL: URL?
     let placeID: String?
+    let provider: String?
+    let dataSource: String?
+    let sourceURL: URL?
+    let distanceMeters: Double?
 
     init(_ payload: [String: AnyCodable]?) {
         let data = payload ?? [:]
         name = Self.string(data, ["displayName", "display_name", "name", "title"])
         address = Self.string(data, ["formattedAddress", "formatted_address", "address"])
         placeType = Self.string(data, ["placeType", "place_type", "category"])
-            ?? (data["types"]?.value as? [String])?.first
+            ?? EmbedFieldReader.stringArray(data, keys: ["categories", "types"]).first
         locationType = Self.string(data, ["location_type", "locationType"])
         let location = Self.record(data["location"]?.value)
         latitude = Self.number(location, ["latitude", "lat"], range: -90...90)
@@ -47,6 +53,10 @@ struct MapsEmbedModel {
         imageURL = Self.imageURL(Self.string(data, ["imageUrl", "image_url", "photo_url"]))
         websiteURL = Self.httpURL(Self.string(data, ["websiteUri", "website_uri", "website", "website_url"]))
         placeID = Self.string(data, ["placeId", "place_id"])
+        provider = Self.string(data, ["provider"])
+        dataSource = Self.string(data, ["data_source", "dataSource"])
+        sourceURL = Self.httpURL(Self.string(data, ["source_url", "sourceUrl"]))
+        distanceMeters = Self.number(data, ["distance_meters", "distanceMeters"], range: 0...Double.greatestFiniteMagnitude)
     }
 
     var primaryName: String? {
@@ -66,13 +76,23 @@ struct MapsEmbedModel {
         return label
     }
 
+    var isGeoapify: Bool {
+        provider?.lowercased() == "geoapify" || placeID?.lowercased().hasPrefix("geoapify:") == true
+    }
+    var distanceText: String? {
+        guard let distanceMeters else { return nil }
+        return distanceMeters < 1000 ? String(format: "%.0f m", distanceMeters.rounded(.toNearestOrAwayFromZero))
+            : String(format: "%.1f km", (distanceMeters / 100).rounded(.toNearestOrAwayFromZero) / 10)
+    }
+
     func googleMapsURL(isPlace: Bool) -> URL? {
-        if isPlace, let placeID {
+        if isPlace, !isGeoapify, let placeID {
             return Self.url("https://www.google.com/maps/place/", query: [("q", "place_id:\(placeID)")])
         }
         if let latitude, let longitude {
             return Self.url("https://www.google.com/maps/search/", query: [("api", "1"), ("query", "\(latitude),\(longitude)")])
         }
+        if isGeoapify { return nil }
         if isPlace, let address {
             return Self.url("https://www.google.com/maps/search/", query: [("api", "1"), ("query", address)])
         }

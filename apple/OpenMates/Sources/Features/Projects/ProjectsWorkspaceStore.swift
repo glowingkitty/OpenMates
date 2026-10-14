@@ -48,6 +48,7 @@ final class ProjectsWorkspaceStore: ObservableObject {
 
     @Published private(set) var chatNavigationProjects: [ChatSidebarProject] = []
     @Published private(set) var isOrganizingChats = false
+    @Published private(set) var chatOrganizationErrorMessage: String?
     @Published private(set) var projects: [ProjectWorkspaceProject] = []
     @Published private(set) var selectedProjectID: String?
     @Published private(set) var folders: [ProjectWorkspaceFolder] = []
@@ -165,9 +166,11 @@ final class ProjectsWorkspaceStore: ObservableObject {
         let requestGeneration = generation
         isLoading = true
         errorMessage = nil
+        var hasCachedList = false
         if let cached = try? await service.cachedProjects(accountID: accountId, teamID: teamId),
            requestGeneration == generation, accountID == accountId {
             projects = cached.sorted { $0.updatedAt > $1.updatedAt }
+            hasCachedList = true
         }
         do {
             let values = try await service.listProjects(accountID: accountId, teamID: teamId)
@@ -179,7 +182,10 @@ final class ProjectsWorkspaceStore: ObservableObject {
             }
         } catch {
             guard requestGeneration == generation else { return }
-            errorMessage = AppStrings.projectError(error)
+            if !NativeWorkspaceReadFailure.isCancellation(error),
+               !(hasCachedList && NativeWorkspaceReadFailure.isTransient(error)) {
+                errorMessage = AppStrings.projectError(error)
+            }
         }
         if requestGeneration == generation { isLoading = false }
     }
@@ -213,6 +219,7 @@ final class ProjectsWorkspaceStore: ObservableObject {
         projects = []
         chatNavigationProjects = []
         isOrganizingChats = false
+        chatOrganizationErrorMessage = nil
         selectedProjectID = nil
         clearDetail()
         clearRemoteDownload()
@@ -254,15 +261,24 @@ final class ProjectsWorkspaceStore: ObservableObject {
         sourceGeneration = UUID()
         let sourceRequest = sourceGeneration
         errorMessage = nil
+        var hasCachedContents = false
         if let cachedContents = try? await service.cachedContents(project: project, fence: fence),
-           let cachedSettings = try? await service.cachedSettings(project: project, fence: fence),
            requestGeneration == generation, selectedProjectID == project.id,
            (try? await validateFence(fence)) != nil {
+            guard requestGeneration == generation, selectedProjectID == project.id else { return }
             folders = cachedContents.folders
             items = cachedContents.items
             sources = cachedContents.sources
-            self.settings = cachedSettings
+            hasCachedContents = true
             isLoadingDetail = false
+            await restoreCachedReadme(project: project, contents: cachedContents, fence: fence,
+                                     generation: requestGeneration, sourceGeneration: sourceRequest)
+        }
+        if let cachedSettings = try? await service.cachedSettings(project: project, fence: fence),
+           requestGeneration == generation, selectedProjectID == project.id,
+           (try? await validateFence(fence)) != nil {
+            guard requestGeneration == generation, selectedProjectID == project.id else { return }
+            self.settings = cachedSettings
         }
         do {
             async let contentsRequest = service.contents(project: project, fence: fence)
@@ -270,6 +286,7 @@ final class ProjectsWorkspaceStore: ObservableObject {
             let (contents, settings) = try await (contentsRequest, settingsRequest)
             guard requestGeneration == generation, selectedProjectID == project.id else { return }
             try await validateFence(fence)
+            guard requestGeneration == generation, selectedProjectID == project.id else { return }
             folders = contents.folders
             items = contents.items
             itemEmbedPreviews = [:]
@@ -279,6 +296,11 @@ final class ProjectsWorkspaceStore: ObservableObject {
             // README discovery may wait for a remote host. Its independent
             // overview state must not hold Files or Tasks behind that read.
             isLoadingDetail = false
+            // Revalidate the README against fresh metadata before keeping any
+            // cached bytes; an old source epoch or deleted stored file cannot match.
+            readme = .loading
+            await restoreCachedReadme(project: project, contents: contents, fence: fence,
+                                     generation: requestGeneration, sourceGeneration: sourceRequest)
             Task { [weak self] in
                 guard let self else { return }
                 let loadedReadme = await self.loadReadme(project: project, contents: contents, fence: fence)
@@ -287,7 +309,8 @@ final class ProjectsWorkspaceStore: ObservableObject {
                 guard (try? await self.validateFence(fence)) != nil,
                       requestGeneration == self.generation, sourceRequest == self.sourceGeneration,
                       self.selectedProjectID == project.id else { return }
-                self.readme = loadedReadme
+                await self.applyReadmeRefresh(loadedReadme, project: project, contents: contents, fence: fence,
+                    generation: requestGeneration, sourceGeneration: sourceRequest)
             }
             Task { [weak self] in
                 await self?.prefetchSourceRoots(project: project, sources: contents.sources,
@@ -295,13 +318,62 @@ final class ProjectsWorkspaceStore: ObservableObject {
             }
         } catch {
             guard requestGeneration == generation else { return }
-            errorMessage = AppStrings.projectError(error)
+            guard (try? await validateFence(fence)) != nil, requestGeneration == generation else { return }
+            if !NativeWorkspaceReadFailure.isCancellation(error),
+               !(hasCachedContents && NativeWorkspaceReadFailure.isTransient(error)) {
+                errorMessage = AppStrings.projectError(error)
+            }
             #if DEBUG
             readOnlyReadmeCategory = Self.readOnlyErrorCategory(error)
             #endif
-            readme = .failed
+            if case .ready = readme {
+                // Keep the compatible encrypted overview while reporting real refresh errors above.
+            } else if !NativeWorkspaceReadFailure.isCancellation(error) { readme = .failed }
         }
         if requestGeneration == generation { isLoadingDetail = false }
+    }
+
+    private func applyReadmeRefresh(_ loaded: ReadmeState, project: ProjectWorkspaceProject,
+                                     contents: ProjectWorkspaceContents, fence: ProjectsWorkspaceFence,
+                                     generation request: UUID, sourceGeneration sourceRequest: UUID) async {
+        guard !Task.isCancelled, request == generation, sourceRequest == sourceGeneration,
+              selectedProjectID == project.id, (try? await validateFence(fence)) != nil else { return }
+        guard request == generation, sourceRequest == sourceGeneration else { return }
+        switch loaded {
+        case .ready(let document):
+            try? await service.retainReadme(document, project: project, contents: contents, fence: fence)
+        case .empty:
+            // Only a successful complete source check may erase retained bytes.
+            try? await service.clearReadme(project: project, fence: fence)
+        default: break
+        }
+        guard !Task.isCancelled, request == generation, sourceRequest == sourceGeneration,
+              (try? await validateFence(fence)) != nil else { return }
+        guard request == generation, sourceRequest == sourceGeneration else { return }
+        if case .ready = readme {
+            switch loaded {
+            case .unavailable, .loading: return
+            case .failed:
+                errorMessage = AppStrings.projectError(ProjectsWorkspaceError.invalidResponse)
+                NativeDiagnostics.warning("readme_refresh_failed", category: "projects")
+                return
+            default: break
+            }
+        }
+        readme = loaded
+    }
+
+    private func restoreCachedReadme(project: ProjectWorkspaceProject, contents: ProjectWorkspaceContents,
+                                     fence: ProjectsWorkspaceFence, generation request: UUID,
+                                     sourceGeneration sourceRequest: UUID) async {
+        guard let retained = try? await service.cachedReadme(project: project, contents: contents, fence: fence),
+              request == generation, sourceRequest == sourceGeneration, selectedProjectID == project.id,
+              (try? await validateFence(fence)) != nil else { return }
+        guard request == generation, sourceRequest == sourceGeneration, selectedProjectID == project.id else { return }
+        let document = retained.document
+        readme = .ready(document)
+        cachedImageReadme = document
+        readmeImageCache = retained.images
     }
 
     /// Web refreshes source presence every 15 seconds. A retained workspace
@@ -338,13 +410,16 @@ final class ProjectsWorkspaceStore: ObservableObject {
             sources = refreshed
             let contents = ProjectWorkspaceContents(folders: folders, items: items, sources: refreshed)
             readme = .loading
+            await restoreCachedReadme(project: project, contents: contents, fence: fence,
+                                     generation: requestGeneration, sourceGeneration: sourceRequest)
             Task { [weak self] in
                 guard let self else { return }
                 let loaded = await self.loadReadme(project: project, contents: contents, fence: fence)
                 guard (try? await self.validateFence(fence)) != nil,
                       requestGeneration == self.generation, sourceRequest == self.sourceGeneration,
                       self.selectedProjectID == project.id else { return }
-                self.readme = loaded
+                await self.applyReadmeRefresh(loaded, project: project, contents: contents, fence: fence,
+                    generation: requestGeneration, sourceGeneration: sourceRequest)
             }
             Task { [weak self] in
                 await self?.prefetchSourceRoots(project: project, sources: refreshed, fence: fence,
@@ -484,7 +559,9 @@ final class ProjectsWorkspaceStore: ObservableObject {
             self.projects = projects.sorted { $0.updatedAt > $1.updatedAt }
             chatNavigationProjects = result
         } catch {
-            if generation == request { errorMessage = AppStrings.projectError(error) }
+            if generation == request, !NativeWorkspaceReadFailure.isCancellation(error) {
+                NativeDiagnostics.warning("Chat navigation inventory unavailable", category: "projects.navigation")
+            }
         }
     }
 
@@ -493,7 +570,7 @@ final class ProjectsWorkspaceStore: ObservableObject {
               chats.allSatisfy({ ChatProjectEligibility.canOrganize($0, teamID: teamID) }) else { return nil }
         let request = generation, contextTeam = teamID
         let fence = ProjectsWorkspaceFence(accountID: accountID)
-        isOrganizingChats = true; errorMessage = nil
+        isOrganizingChats = true; chatOrganizationErrorMessage = nil
         defer { if generation == request { isOrganizingChats = false } }
         do {
             try await validateFence(fence)
@@ -505,7 +582,7 @@ final class ProjectsWorkspaceStore: ObservableObject {
             return generation == request ? project.id : nil
         } catch {
             if generation == request {
-                errorMessage = AppStrings.projectError(error)
+                chatOrganizationErrorMessage = AppStrings.projectError(error)
                 await refreshChatNavigation(accountID: accountID, teamID: contextTeam)
             }
             return nil
@@ -517,7 +594,7 @@ final class ProjectsWorkspaceStore: ObservableObject {
               chats.allSatisfy({ ChatProjectEligibility.canOrganize($0, teamID: teamID) }) else { return }
         let request = generation, contextTeam = teamID
         let fence = ProjectsWorkspaceFence(accountID: accountID)
-        isOrganizingChats = true; errorMessage = nil
+        isOrganizingChats = true; chatOrganizationErrorMessage = nil
         do {
             try await validateFence(fence)
             guard let destination = chatNavigationProjects.first(where: { $0.id == location.projectID }),
@@ -526,7 +603,7 @@ final class ProjectsWorkspaceStore: ObservableObject {
             }
             try await placeChats(chats, destination: destination.project, folderID: location.folderID, fence: fence, request: request, removeOtherLinks: removeOtherLinks)
         } catch {
-            if generation == request { errorMessage = AppStrings.projectError(error) }
+            if generation == request { chatOrganizationErrorMessage = AppStrings.projectError(error) }
         }
         guard generation == request else { return }
         isOrganizingChats = false
@@ -564,13 +641,14 @@ final class ProjectsWorkspaceStore: ObservableObject {
         guard let accountID, let project = chatNavigationProjects.first(where: { $0.id == location.projectID }),
               location.folderID == nil || project.contents.folders.contains(where: { $0.id == location.folderID }) else { return }
         let request = generation, contextTeam = teamID
+        chatOrganizationErrorMessage = nil
         do {
             let fence = ProjectsWorkspaceFence(accountID: accountID)
             try await validateFence(fence)
             try await service.createFolder(name, project: project.project, parentID: location.folderID, fence: fence)
             guard generation == request else { return }
             await refreshChatNavigation(accountID: accountID, teamID: contextTeam)
-        } catch { if generation == request { errorMessage = AppStrings.projectError(error) } }
+        } catch { if generation == request { chatOrganizationErrorMessage = AppStrings.projectError(error) } }
     }
 
     func createProject(name: String, writeMode: ProjectWorkspaceWriteMode) async {
@@ -1176,9 +1254,12 @@ final class ProjectsWorkspaceStore: ObservableObject {
         remoteFilePreviews = [:]
     }
 
-    /// Private README media remains scoped in memory to this Project and source binding.
+    /// Private and proxy README media use the same bounded encrypted Project cache.
     func readReadmeImage(_ sourceURL: String, readme: ProjectWorkspaceReadme) async throws -> Data {
-        guard let path = ProjectReadmeDocument.relativePath(sourceURL) else { throw ProjectsWorkspaceError.invalidContext }
+        let publicURL = ProjectReadmeDocument.publicImageURL(sourceURL)
+        let relativePath = ProjectReadmeDocument.relativePath(sourceURL)
+        guard publicURL != nil || relativePath != nil else { throw ProjectsWorkspaceError.invalidContext }
+        let path = relativePath ?? sourceURL
         #if DEBUG
         if previewVariant == "readme", path == "assets/readme-preview.png" {
             return ProjectsWorkspacePreviewFixture.readmeImageData
@@ -1190,14 +1271,29 @@ final class ProjectsWorkspaceStore: ObservableObject {
         let requestGeneration = generation
         let sourceRequest = sourceGeneration
         let fence = ProjectsWorkspaceFence(accountID: accountID)
-        if let cached = readmeImageCache[path] {
+        let contents = ProjectWorkspaceContents(folders: folders, items: items, sources: sources)
+        if readmeImageCache[sourceURL] == nil,
+           let retained = try? await service.cachedReadme(project: project, contents: contents, fence: fence),
+           retained.markdown == readme.markdown, retained.origin == readme.origin,
+           retained.sourceID == readme.sourceID, retained.sourceKeyEpoch == readme.sourceKeyEpoch,
+           let bytes = retained.images[sourceURL] {
+            guard requestGeneration == generation, sourceRequest == sourceGeneration,
+                  case .ready(let current) = self.readme, current == readme else { throw ProjectsWorkspaceError.accountChanged }
+            readmeImageCache[sourceURL] = bytes
+        }
+        if let cached = readmeImageCache[sourceURL] {
             try await validateFence(fence)
             guard requestGeneration == generation, sourceRequest == sourceGeneration,
                   case .ready(let current) = self.readme, current == readme else { throw ProjectsWorkspaceError.accountChanged }
             return cached
         }
         let bytes: Data
-        if readme.origin == "connected" {
+        if let publicURL {
+            let session = URLSession(configuration: .ephemeral)
+            defer { session.invalidateAndCancel() }
+            let (stream, response) = try await session.bytes(from: publicURL)
+            bytes = try await S3MediaClient.boundedResponseData(stream, response: response, maximumBytes: 2 * 1_024 * 1_024)
+        } else if readme.origin == "connected" {
             guard let sourceID = readme.sourceID,
                   let source = sources.first(where: { $0.id == sourceID && $0.status == "connected"
                       && $0.sessionID == readme.sourceSessionID && $0.keyEpoch == readme.sourceKeyEpoch }) else {
@@ -1235,7 +1331,14 @@ final class ProjectsWorkspaceStore: ObservableObject {
         guard requestGeneration == generation, sourceRequest == sourceGeneration, selectedProjectID == project.id,
               case .ready(let current) = self.readme, current == readme else { throw ProjectsWorkspaceError.accountChanged }
         try Task.checkCancellation()
-        if readmeImageCache.count < 8 { readmeImageCache[path] = bytes }
+        if readmeImageCache.count < 8 { readmeImageCache[sourceURL] = bytes }
+        try? await service.retainReadmeImage(bytes, source: sourceURL, document: readme,
+            project: project, contents: contents, fence: fence)
+        try await validateFence(fence)
+        guard !Task.isCancelled, requestGeneration == generation, sourceRequest == sourceGeneration,
+              selectedProjectID == project.id, case .ready(let current) = self.readme, current == readme else {
+            throw ProjectsWorkspaceError.accountChanged
+        }
         return bytes
     }
 
@@ -1251,7 +1354,12 @@ final class ProjectsWorkspaceStore: ObservableObject {
                     .compactMap { content[$0] as? String }.first
                 guard let markdown else { return .failed }
                 return .ready(ProjectWorkspaceReadme(markdown: markdown, truncated: false, origin: "stored"))
-            } catch { return .failed }
+            } catch {
+                if NativeWorkspaceReadFailure.isCancellation(error) || NativeWorkspaceReadFailure.isTransient(error) {
+                    return .unavailable
+                }
+                return .failed
+            }
         }
         #if DEBUG
         readOnlyReadmeCategory = "pending"

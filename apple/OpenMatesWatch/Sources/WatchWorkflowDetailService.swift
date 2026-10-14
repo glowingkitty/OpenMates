@@ -1,3 +1,5 @@
+// Specification: specifications/features/apple-notifications/specification.yml
+// Assertions: apple-notifications.delivery.confirmed-action-haptics
 // Compact Watch workflow reads and edits using the existing graph update API.
 // Specification: specifications/features/apple-watch/specification.yml
 // Assertions: apple-watch.workflows.compact-editor, apple-watch.lists.read-only-private
@@ -415,6 +417,7 @@ struct WatchWorkflowRunMetadata: Codable, Equatable, Sendable, Identifiable {
     func save() async -> Bool {
         guard writesAllowed(), !isSaving, !isOffline, let draft, let scope = selectionScope, permits(scope), let id = selectionID, case let .loaded(original) = state else { return false }
         let operation = requestID
+        let hapticOperation = UUID()
         isSaving = true; saveError = nil
         defer { if requestID == operation { isSaving = false } }
         do {
@@ -438,6 +441,8 @@ struct WatchWorkflowRunMetadata: Codable, Equatable, Sendable, Identifiable {
             await cache(data, key: "workflow-" + id, scope: scope, operation: operation)
             try validation(operation, scope: scope, writing: true)()
             self.draft = nil; saveError = nil
+            NativeHaptics.shared.confirmed(.workflowUpdated, id: hapticOperation.uuidString,
+                scope: "\(scope.accountID)|\(scope.generation)|\(scope.profile.apiBaseURL.absoluteString)")
             return true
         } catch {
             guard requestID == operation else { return false }

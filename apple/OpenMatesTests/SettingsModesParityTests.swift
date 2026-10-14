@@ -10,6 +10,16 @@ import XCTest
 
 @MainActor
 final class SettingsModesParityTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=settings-ui.parity.web-apple-shell,settings-ui.composition.canonical-and-accessible
+    func testTeamMenuFitsRowsAndOnlyScrollsAtViewportCap() {
+        XCTAssertEqual(SettingsTeamMenuBounds.height(teamCount: 0, expanded: false, viewportHeight: 900), 106)
+        XCTAssertEqual(SettingsTeamMenuBounds.height(teamCount: 1, expanded: false, viewportHeight: 900), 157)
+        XCTAssertEqual(SettingsTeamMenuBounds.height(teamCount: 2, expanded: false, viewportHeight: 900), 208)
+        XCTAssertEqual(SettingsTeamMenuBounds.height(teamCount: 8, expanded: false, viewportHeight: 900), 412)
+        XCTAssertEqual(SettingsTeamMenuBounds.height(teamCount: 8, expanded: true, viewportHeight: 900), 480)
+        XCTAssertEqual(SettingsTeamMenuBounds.height(teamCount: 8, expanded: true, viewportHeight: 320), 252)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=settings-ui.composition.canonical-and-accessible,settings-ui.parity.web-apple-shell
     func testTeamContextMenuBoundsReserveTriggerAndViewportMargin() {
         XCTAssertEqual(SettingsTeamMenuBounds.maximumHeight(viewportHeight: 900), 480)

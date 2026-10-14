@@ -1847,7 +1847,8 @@ struct CodeGetDocsEmbedRenderer: View {
     var body: some View {
         switch mode {
         case .preview:
-            VStack(alignment: .leading, spacing: .spacing3) {
+            SearchPreviewIdentityLayout { Color.clear } inputs: {
+                VStack(alignment: .leading, spacing: .spacing3) {
                 if let title {
                     Text(title)
                         .font(.omP)
@@ -1865,6 +1866,8 @@ struct CodeGetDocsEmbedRenderer: View {
                 Text("via Context7")
                     .font(.omSmall)
                     .foregroundStyle(Color.grey70)
+                }
+            } summary: {
                 if let wordCount = previewWordCount {
                     Text("\(wordCount.formatted()) words")
                         .font(.omSmall)

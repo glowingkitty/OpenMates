@@ -7,6 +7,7 @@
 // Assertions: message-input.drafts.preview-persistence, message-input.recording.lifecycle
 // Specification: specifications/architecture/drafts/specification.yml
 // Assertions: drafts.persistence.local-first-encrypted, drafts.draft-only.lifecycle
+// Assertions: drafts.draft-only.presentation, drafts.sync.version-authoritative
 
 import Combine
 import CryptoKit
@@ -329,12 +330,12 @@ final class DraftService: ObservableObject {
                 postDraftChange(chatId: record.chatId, reloadComposer: false)
                 return nil
             }
-            let preview: String
+            var preview: String
             let attachments: [ComposerDraftAttachment]
             var expectedEncryptedPreview = record.encryptedPreview
             if record.encryptedPreview.isEmpty {
                 loadPhase = "previewRepair"
-                preview = String(markdown.prefix(160))
+                preview = String(ChatDraftPreviewFormatter.format(markdown).prefix(160))
                 let encryptedPreview = try await crypto.encryptWithMasterKey(preview, masterKey: masterKey)
                 try requireCurrentLoad()
                 let repaired = try await repository.apply(.previewRepair(ComposerDraftRecord(
@@ -351,8 +352,8 @@ final class DraftService: ObservableObject {
                     key: masterKey
                 )
                 // A missing display preview must not discard serialized attachments.
-                preview = decryptedPreview.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                    ? String(markdown.prefix(160)) : decryptedPreview
+                preview = ChatDraftPreviewFormatter.format(decryptedPreview).isEmpty
+                    ? String(ChatDraftPreviewFormatter.format(markdown).prefix(160)) : decryptedPreview
             }
             if let encryptedPayload = record.encryptedRecordingPayload {
                 loadPhase = "recordingPayloadDecrypt"
@@ -366,6 +367,9 @@ final class DraftService: ObservableObject {
                 )
             } else {
                 attachments = []
+            }
+            if ChatDraftPreviewFormatter.format(preview).isEmpty, let attachment = attachments.first {
+                preview = AppStrings.draftEmbedPreviewLabel(type: attachment.embedRecord.type)
             }
             loadPhase = "recordRecheck"
             guard let latest = try await repository.record(chatId: record.chatId),
@@ -492,8 +496,18 @@ final class DraftService: ObservableObject {
     }
 
     func reconcileAfterReconnect() async {
+        let lifecycle = draftLifecycleGeneration
+        let scope = OfflineStore.shared.scopeGeneration
         do {
             try await syncCoordinator?.reconcileAfterReconnect()
+            let records = try await repository.allRecords()
+            for record in records {
+                guard !Task.isCancelled, lifecycle == draftLifecycleGeneration,
+                      scope == OfflineStore.shared.scopeGeneration else { return }
+                // Unlock may have completed after the initial hydration attempt.
+                // Matching server versions do not emit another content update.
+                await refreshDraftState(chatId: record.chatId)
+            }
         } catch {
             NativeDiagnostics.warning(
                 "Draft reconnect reconciliation failed errorType=\(type(of: error))",
@@ -504,7 +518,9 @@ final class DraftService: ObservableObject {
 
     func handleSyncEvent(type: String, raw: Data) async {
         do {
-            if type == "phase_2_last_20_chats_ready" || type == "phase_3_last_100_chats_ready" || type == "sync_metadata_chats_response" {
+            if type == "phase_1_last_chat_ready" {
+                try await syncCoordinator?.handleStartupMetadata(raw: raw)
+            } else if type == "phase_2_last_20_chats_ready" || type == "phase_3_last_100_chats_ready" || type == "sync_metadata_chats_response" {
                 try await syncCoordinator?.handleSyncEvent(raw: raw)
             } else {
                 try await syncCoordinator?.handleEvent(type: type, raw: raw)

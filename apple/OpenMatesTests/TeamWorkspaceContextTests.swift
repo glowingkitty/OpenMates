@@ -4,6 +4,43 @@ import XCTest
 
 @MainActor
 final class TeamWorkspaceContextTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=teams.context.full-switch-local,teams.membership.role-gated
+    func testCreationRequiresAuthoritativeEmptyRosterInCurrentScope() async {
+        let state = ScopeState()
+        let service = MockTeamService()
+        let (context, defaults, suite) = makeStore(state: state, service: service)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        XCTAssertFalse(context.canOfferTeamCreation)
+        service.listError = URLError(.notConnectedToInternet)
+        await context.load(accountID: state.accountID)
+        XCTAssertFalse(context.hasAuthoritativeRoster)
+        XCTAssertFalse(context.canOfferTeamCreation)
+        service.listError = nil; service.listResult = []
+        await context.load(accountID: state.accountID)
+        XCTAssertTrue(context.canOfferTeamCreation)
+        let loading = expectation(description: "known-empty roster refresh suspended")
+        service.suspendList = true; service.listDidSuspend = loading
+        let refresh = Task { await context.load(accountID: state.accountID) }
+        await fulfillment(of: [loading], timeout: 2)
+        XCTAssertTrue(context.showsTeamCreation)
+        XCTAssertFalse(context.canOfferTeamCreation, "Known-empty membership retains a disabled action during refresh")
+        service.finishList([]); await refresh.value
+        service.suspendList = false; service.listDidSuspend = nil
+        service.listError = URLError(.notConnectedToInternet)
+        await context.load(accountID: state.accountID)
+        XCTAssertFalse(context.canOfferTeamCreation, "A failed refresh must not advertise known-empty membership")
+        service.listError = nil; service.listResult = [team("joined", role: .member)]
+        await context.load(accountID: state.accountID)
+        XCTAssertFalse(context.canOfferTeamCreation)
+        service.listResult = []
+        await context.load(accountID: state.accountID)
+        XCTAssertTrue(context.canOfferTeamCreation)
+        state.scope = UUID()
+        XCTAssertFalse(context.canOfferTeamCreation)
+        context.reset(accountID: state.accountID)
+        XCTAssertFalse(context.hasAuthoritativeRoster)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=teams.lifecycle.encrypted-profiled
     func testTeamKeyWrapperAndMetadataUseSeparateKeys() async throws {
         let masterKey = SymmetricKey(size: .bits256)

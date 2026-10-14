@@ -65,36 +65,40 @@ struct HostingSearchEmbedRenderer: View {
         else { fullscreen }
     }
     private var preview: some View {
-        VStack(alignment: .leading, spacing: .spacing3) {
-            Text(model.query.isEmpty ? AppStrings.hosting(.title) : model.query)
-                .font(.omP).fontWeight(.semibold).foregroundStyle(Color.fontPrimary).lineLimit(3)
-            Text(AppStrings.hosting(.providerVia, ["provider": model.provider]))
-                .font(.omP).foregroundStyle(Color.fontSecondary)
+        SearchPreviewIdentityLayout(thumbnailHeight: 0, summaryHeight: 64) { Color.clear } inputs: {
+            VStack(alignment: .leading, spacing: .spacing2) {
+                Text(model.query.isEmpty ? AppStrings.hosting(.title) : model.query)
+                    .font(.omP).fontWeight(.semibold).foregroundStyle(Color.fontPrimary).lineLimit(2)
+                    .accessibilityIdentifier("hosting-search-input-query")
+                Text(AppStrings.hosting(.providerVia, ["provider": model.provider]))
+                    .font(.omSmall).foregroundStyle(Color.fontSecondary).lineLimit(1)
+            }.fixedSize(horizontal: false, vertical: true)
+        } summary: {
+            VStack(alignment: .leading, spacing: .spacing1) {
             if model.embed.status == .processing {
-                Text(AppStrings.hosting(.processing)).font(.omP)
+                Text(AppStrings.hosting(.processing)).font(.omXs)
             } else if model.embed.status == .cancelled {
-                Text(AppStrings.hosting(.cancelled)).font(.omP)
+                Text(AppStrings.hosting(.cancelled)).font(.omXs)
             } else {
-                Text(counts).font(.omP).foregroundStyle(Color.fontSecondary)
+                Text(counts).font(.omXs).foregroundStyle(Color.fontSecondary)
                 if model.partial {
-                    Text(AppStrings.hosting(.partialResults)).font(.omP).foregroundStyle(Color.warning)
+                    Text(AppStrings.hosting(.partialResults)).font(.omXs).foregroundStyle(Color.warning)
                         .accessibilityIdentifier("hosting-search-partial")
                 }
                 if model.embed.status == .error, !model.error.isEmpty {
-                    Text(model.error).font(.omP).foregroundStyle(Color.error)
+                    Text(model.error).font(.omXs).foregroundStyle(Color.error)
                 }
                 if model.embed.status == .finished, model.resultCount == 0, model.checkedCount == 0 {
-                    Text(AppStrings.hosting(.noResults)).font(.omP)
+                    Text(AppStrings.hosting(.noResults)).font(.omXs)
                 }
                 if let quote = model.startingQuote {
                     Text(AppStrings.hosting(.fromFirstYear, ["price": HostingMoney.format(quote.amount, currency: model.startingCurrency)])
                          + (quote.basis == .excluding ? " · \(AppStrings.hosting(.taxExcluded))" : ""))
-                        .font(.omP).fontWeight(.semibold).foregroundStyle(Color.fontPrimary)
+                        .font(.omXs).fontWeight(.semibold).foregroundStyle(Color.fontPrimary)
                 }
             }
+            }.lineLimit(1)
         }
-        .padding(.top, .spacing5)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .accessibilityElement(children: .contain).accessibilityIdentifier("hosting-search-preview")
     }
     private var counts: String {

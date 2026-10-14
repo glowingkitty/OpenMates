@@ -1,3 +1,5 @@
+// Specification: specifications/features/apple-notifications/specification.yml
+// Assertions: apple-notifications.delivery.confirmed-action-haptics
 // Specification: specifications/features/apple-offline-workspaces/specification.yml
 // Assertions: apple-workspaces.offline-complete, apple-workspaces.local-first, apple-workspaces.isolation, apple-workspaces.maintenance
 // Retained Tasks workspace state. MainAppView owns this object so board selection,
@@ -212,17 +214,23 @@ final class TasksWorkspaceStore: ObservableObject {
         #else
         let useCache = true
         #endif
+        var cachedStages: Set<LoadStage> = []
         if useCache {
             if let cached = try? await tasks.cachedBoard(filters: filters, fence: fence),
                await acceptsLoadResult(generation: generation, fence: fence) {
                 boardItems = cached
+                cachedStages.insert(.tasks)
                 applyPendingTaskDetail()
             }
             if let cached = try? await plansService.cachedPlans(projectID: projectID, teamID: teamID, fence: fence),
-               await acceptsLoadResult(generation: generation, fence: fence) { plans = cached }
+               await acceptsLoadResult(generation: generation, fence: fence) {
+                plans = cached
+                cachedStages.insert(.plans)
+            }
             if let cached = try? await projects.cachedProjects(accountID: accountID, teamID: teamID),
                await acceptsLoadResult(generation: generation, fence: fence) {
                 projectNames = Dictionary(cached.map { ($0.id, $0.name) }, uniquingKeysWith: { _, last in last })
+                cachedStages.insert(.projectNames)
             }
         }
         var boardLoaded = false
@@ -246,7 +254,7 @@ final class TasksWorkspaceStore: ObservableObject {
             boardLoaded = true
         } catch {
             guard await acceptsLoadResult(generation: generation, fence: fence) else { return }
-            recordLoadFailure(error, stage: .tasks, generation: generation)
+            recordLoadFailure(error, stage: .tasks, generation: generation, hasCache: cachedStages.contains(.tasks))
         }
         // The deployed web loads these independently. A Plan or project-label
         // failure must not discard successfully opened, account-fenced Tasks.
@@ -258,7 +266,7 @@ final class TasksWorkspaceStore: ObservableObject {
             plansLoaded = true
         } catch {
             guard await acceptsLoadResult(generation: generation, fence: fence) else { return }
-            recordLoadFailure(error, stage: .plans, generation: generation)
+            recordLoadFailure(error, stage: .plans, generation: generation, hasCache: cachedStages.contains(.plans))
         }
         do {
             let fetchedProjects = try await projects.listProjects(accountID: accountID, teamID: teamID)
@@ -267,13 +275,13 @@ final class TasksWorkspaceStore: ObservableObject {
             projectNames = Dictionary(fetchedProjects.map { ($0.id, $0.name) }, uniquingKeysWith: { _, current in current })
         } catch {
             guard await acceptsLoadResult(generation: generation, fence: fence) else { return }
-            recordLoadFailure(error, stage: .projectNames, generation: generation)
+            recordLoadFailure(error, stage: .projectNames, generation: generation, hasCache: cachedStages.contains(.projectNames))
         }
         guard generation == loadGeneration else { return }
         hasLoaded = boardLoaded && plansLoaded
     }
 
-    private enum LoadStage: String { case tasks, plans, projectNames = "project_names" }
+    private enum LoadStage: String, Hashable { case tasks, plans, projectNames = "project_names" }
 
     func retryLoad() async {
         guard let accountID, currentFence() != nil else { return }
@@ -285,8 +293,9 @@ final class TasksWorkspaceStore: ObservableObject {
         return generation == loadGeneration
     }
 
-    private func recordLoadFailure(_ error: Error, stage: LoadStage, generation: UUID) {
-        guard generation == loadGeneration else { return }
+    private func recordLoadFailure(_ error: Error, stage: LoadStage, generation: UUID, hasCache: Bool = false) {
+        guard generation == loadGeneration, !NativeWorkspaceReadFailure.isCancellation(error),
+              !(hasCache && NativeWorkspaceReadFailure.isTransient(error)) else { return }
         NativeDiagnostics.error("Tasks workspace load failed stage=\(stage.rawValue) error_type=\(type(of: error))", category: "tasks")
         switch stage {
         case .tasks: errorMessage = error.localizedDescription
@@ -527,6 +536,7 @@ final class TasksWorkspaceStore: ObservableObject {
             boardItems.append(.task(item))
             selectedTaskID = item.id
             errorMessage = nil
+            NativeHaptics.shared.confirmed(.taskCreated, id: item.id, scope: fence.scope.uuidString)
             return true
         } catch {
             guard (try? await fence.check()) != nil else { return false }
@@ -581,13 +591,16 @@ final class TasksWorkspaceStore: ObservableObject {
                 try await fence.check()
             }
             #else
-            guard let fence else { return false }
-            updated = try await tasks.update(task, patch: patch, teamID: teamID, fence: fence)
-            try await fence.check()
+            guard let activeFence = fence else { return false }
+            updated = try await tasks.update(task, patch: patch, teamID: teamID, fence: activeFence)
+            try await activeFence.check()
             #endif
             guard generation == loadGeneration else { return false }
             replace(updated)
             errorMessage = nil
+            if let fence {
+                NativeHaptics.shared.confirmed(.taskUpdated, id: "\(updated.id)|\(updated.version)", scope: fence.scope.uuidString)
+            }
             return true
         } catch {
             guard generation == loadGeneration else { return false }
@@ -671,12 +684,15 @@ final class TasksWorkspaceStore: ObservableObject {
                 try await fence.check()
             }
             #else
-            guard let fence else { return }
-            updated = try await persistMove(current, to: status, position: position, fence: fence, generation: generation)
-            try await fence.check()
+            guard let activeFence = fence else { return }
+            updated = try await persistMove(current, to: status, position: position, fence: activeFence, generation: generation)
+            try await activeFence.check()
             #endif
             guard generation == loadGeneration else { return }
             replace(updated)
+            if let fence {
+                NativeHaptics.shared.confirmed(.taskUpdated, id: "\(updated.id)|\(updated.version)", scope: fence.scope.uuidString)
+            }
         } catch {
             guard generation == loadGeneration else { return }
             if let fence {
@@ -734,6 +750,7 @@ final class TasksWorkspaceStore: ObservableObject {
             try await fence.check()
             replace(updated)
             errorMessage = nil
+            NativeHaptics.shared.confirmed(.taskUpdated, id: "\(updated.id)|\(updated.version)", scope: fence.scope.uuidString)
         } catch {
             guard (try? await fence.check()) != nil else { return }
             errorMessage = error.localizedDescription

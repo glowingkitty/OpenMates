@@ -1,3 +1,5 @@
+// Specification: specifications/features/apple-notifications/specification.yml
+// Assertions: apple-notifications.delivery.confirmed-action-haptics
 // Standalone Watch authentication store.
 // Persists only the authenticated user metadata and local master key needed to
 // bootstrap later Watch chat/offline slices. It intentionally avoids importing
@@ -92,6 +94,7 @@ final class WatchAuthStore: ObservableObject {
         await WatchPushNotificationManager.shared.unregisterCurrentDevice()
         isVerifiedOnline = false
         WatchChatAccountLifecycle.invalidate()
+        let hapticGeneration = WatchChatAccountLifecycle.generation
         ServerConfiguration.current = result.serverProfile.endpointConfiguration
         WatchServerProfileStore().saveSuccessfulProfile(result.serverProfile)
         PairPendingAckStore.mark(userID: user.id)
@@ -116,6 +119,10 @@ final class WatchAuthStore: ObservableObject {
         isVerifiedOnline = true
         schedulePairDeadline(for: user.id)
         state = .authenticated
+        if WatchChatAccountLifecycle.generation == hapticGeneration, ServerProfile.current() == result.serverProfile {
+            NativeHaptics.shared.confirmed(.authenticated, id: "\(hapticGeneration)",
+                scope: result.serverProfile.apiBaseURL.absoluteString)
+        }
         NativeDiagnostics.event(
             "pair_login_authenticated",
             category: Self.diagnosticsCategory,

@@ -48,6 +48,16 @@ identity_idempotency:
   expect:
     treated_as_handled: true
     duplicate_messages: 0
+- id: confirmed-local-message-haptic-in-either-receipt-order
+  assertion_ids: [chats.message.confirmed-haptic]
+  given: Alice sends a saved message on a supported active Apple device in the current account, server, team and transport generation.
+  when: Authoritative encrypted user-message durability is acknowledged before matching server processing admission, or matching admission arrives before the authoritative durability acknowledgement.
+  then: The first receipt alone is silent. Exactly one native haptic occurs when both proofs match that locally initiated message, and duplicate receipts do not repeat the cue.
+- id: unproven-replayed-and-invalidated-message-receipts-stay-silent
+  assertion_ids: [chats.message.confirmed-haptic]
+  given: Alice has a locally initiated message awaiting confirmation, or the client is retrying, recovering or synchronizing a message.
+  when: The client only sends locally, writes to the socket, receives typing or a legacy queued-persistence acknowledgement without durability proof, receives failed or stale receipts, or receives duplicates, recovery or synchronization replay. Alternatively, account, server, team or transport generation changes before the two matching proofs arrive.
+  then: These events emit no haptic; scope or generation changes invalidate the pending cue and late receipts cannot revive it. Confirmation adds no polling, inference or background network work.
 recovery_takeover:
 - id: secondary-client-persists-completion
   input:
