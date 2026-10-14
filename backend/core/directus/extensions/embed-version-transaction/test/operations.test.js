@@ -120,7 +120,7 @@ function existingSeed() {
       hashed_chat_id: createHash('sha256').update('chat-a').digest('hex'),
       encrypted_content: 'cipher-head-v1', version_number: 1,
     }],
-    chats: [{ id: 'chat-a', storage_state: 'hot' }],
+    chats: [{ id: 'chat-a', storage_state: 'hot', hashed_user_id: ACTOR, hashed_team_id: null }],
     embed_diffs: [{
       id: 'history-v1', embed_id: EMBED_ID, hashed_user_id: ACTOR,
       version_number: 1, encrypted_snapshot: 'cipher-snapshot-v1',
@@ -1154,3 +1154,29 @@ test('chat diagram legacy writer finalizes a processing v1 but cannot rewrite a 
   assert.equal(db.rows.embed_diffs.length, 2);
   assert.equal(db.rows.embed_diffs[0].encrypted_snapshot, 'encrypted-original-source');
 });
+
+// contract-test: supporting surface=rest_api assertions=apps.library.embeds-account-paginated,chats.persistence.client-encrypted
+for (const [appId, skillId] of [['reminder', 'set-reminder'], ['workflows', 'create-or-modify'], ['travel', 'search_connections']]) {
+  test(`registered ${appId}/${skillId} persists and updates ciphertext atomically`, async () => {
+    const database = fakeDatabase(existingSeed());
+    const embedId = 'hyphen-catalog';
+    const payload = { embed_id: embedId, hashed_user_id: ACTOR, encrypted_content: 'cipher-first',
+      app_id: appId, skill_id: skillId, root_embed_id: embedId, workspace_origin: 'chat' };
+    const body = { embed_id: embedId, actor_user_hash: ACTOR, payload };
+    assert.equal((await writeLegacyEmbed(database, body)).status, 'created');
+    assert.equal((await writeLegacyEmbed(database, { ...body,
+      payload: { ...payload, encrypted_content: 'cipher-second' } })).status, 'updated');
+    assert.equal(database.rows.embeds.at(-1).skill_id, skillId);
+    assert.equal(database.rows.embeds.at(-1).encrypted_content, 'cipher-second');
+    for (const change of [{ skill_id: 'set.reminder' }, { skill_id: 'set/reminder' },
+      { skill_id: 'set reminder' }, { skill_id: 'Set-reminder' }, { skill_id: 's'.repeat(65) },
+      { app_id: 're-minder' }, { hashed_team_id: 'invalid-hash' }]) {
+      await assert.rejects(writeLegacyEmbed(database, { ...body, payload: { ...payload, ...change } }),
+        error => error instanceof ProtocolError);
+      assert.equal(database.rows.embeds.at(-1).encrypted_content, 'cipher-second');
+    }
+    await assert.rejects(writeLegacyEmbed(database, { ...body, actor_user_hash: 'f'.repeat(64) }),
+      error => error instanceof ProtocolError && error.status === 403);
+    assert.equal(database.rows.embeds.at(-1).encrypted_content, 'cipher-second');
+  });
+}

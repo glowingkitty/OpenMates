@@ -72,9 +72,14 @@ class FakeDirectusService:
         self.embed = FakeEmbedMethods(existing_embed)
         self.project_linked = project_linked
         self.registered_child = registered_child
-        self.chats = chats or {}
+        self.chats = {"legacy-chat": {"id": "legacy-chat", "hashed_user_id": OWNER_HASH, "hashed_team_id": None},
+                      **(chats or {})}
         self.recovery_calls = []
         self.manager = None
+        self.chat = types.SimpleNamespace(get_chat_metadata=self.get_chat_metadata)
+
+    async def get_chat_metadata(self, chat_id, **kwargs):
+        return self.chats.get(chat_id)
 
     async def get_items(self, collection, params, **kwargs):
         if collection == "chats":
@@ -157,7 +162,8 @@ def store_payload(**overrides):
         "encrypted_type": "encrypted-type",
         "encrypted_content": "encrypted-content",
         "status": "finished",
-        "hashed_chat_id": "hashed-chat",
+        "chat_id": "legacy-chat",
+        "hashed_chat_id": hashlib.sha256(b"legacy-chat").hexdigest(),
         "hashed_message_id": "hashed-message",
         "hashed_user_id": OWNER_HASH,
         "created_at": 1,
@@ -506,3 +512,46 @@ async def test_store_embed_rejects_reserved_hosted_create_before_project_link_ex
 
     assert directus.embed.updated == []
     assert directus.embed.created == []
+
+
+# contract-test: supporting surface=rest_api assertions=apps.library.embeds-account-paginated,chats.persistence.client-encrypted
+@pytest.mark.asyncio
+@pytest.mark.parametrize("app_id,skill_id", [("reminder", "set-reminder"), ("workflows", "create-or-modify"), ("travel", "search_connections")])
+async def test_registered_skill_catalog_persists_encrypted_owner_embed(app_id, skill_id):
+    manager = FakeConnectionManager()
+    chat_id = "catalog-chat"
+    directus = FakeDirectusService(chats={chat_id: {"id": chat_id, "hashed_user_id": OWNER_HASH, "hashed_team_id": None}})
+    payload = store_payload(chat_id=chat_id, hashed_chat_id=hashlib.sha256(chat_id.encode()).hexdigest(),
+                            app_id=app_id, skill_id=skill_id, request_id="catalog-write")
+    await get_handle_store_embed()(websocket=None, manager=manager, cache_service=FakeCacheService(),
+        directus_service=directus, user_id=OWNER_ID, device_fingerprint_hash="device-1", payload=payload)
+    assert len(directus.embed.created) == 1
+    assert directus.embed.created[0]["skill_id"] == skill_id
+    assert directus.embed.created[0]["encrypted_content"] == "encrypted-content"
+    assert manager.personal_messages[0][0]["type"] == "store_embed_confirmed"
+
+
+# contract-test: supporting surface=rest_api assertions=apps.library.embeds-account-paginated,projects.files.hosted-ciphertext-commit
+@pytest.mark.asyncio
+@pytest.mark.parametrize("change", [
+    {"skill_id": "set.reminder"}, {"skill_id": "set/reminder"}, {"skill_id": "set reminder"},
+    {"skill_id": "Set-reminder"}, {"skill_id": "s" * 65}, {"app_id": "re-minder"},
+    {"hashed_chat_id": "invalid-hash"}, {"hashed_user_id": RECIPIENT_HASH},
+    {"chat_id": "foreign-chat", "hashed_chat_id": hashlib.sha256(b"foreign-chat").hexdigest()},
+])
+async def test_hyphenated_skill_does_not_bypass_catalog_or_owner_scope(change):
+    manager = FakeConnectionManager()
+    chat_id = "catalog-chat"
+    directus = FakeDirectusService(chats={
+        chat_id: {"id": chat_id, "hashed_user_id": OWNER_HASH, "hashed_team_id": None},
+        "foreign-chat": {"id": "foreign-chat", "hashed_user_id": RECIPIENT_HASH, "hashed_team_id": None},
+    })
+    payload = store_payload(**{
+        "chat_id": chat_id, "hashed_chat_id": hashlib.sha256(chat_id.encode()).hexdigest(),
+        "app_id": "reminder", "skill_id": "set-reminder", "request_id": "denied-catalog", **change})
+    await get_handle_store_embed()(websocket=None, manager=manager, cache_service=FakeCacheService(),
+        directus_service=directus, user_id=OWNER_ID, device_fingerprint_hash="device-1", payload=payload)
+    assert directus.embed.created == [] and directus.embed.updated == []
+    assert manager.broadcasts == []
+    assert manager.personal_messages[0][0]["payload"]["code"] == "embed_write_denied"
+    assert manager.personal_messages[0][0]["payload"]["request_id"] == "denied-catalog"

@@ -347,9 +347,11 @@ export async function writeLegacyEmbed(database, raw) {
   ];
   const hasCatalogContext = catalogFields.some((field) => payload[field] != null);
   if (hasCatalogContext) {
-    const catalogId = /^[a-z][a-z0-9_]{0,63}$/;
-    if (typeof payload.app_id !== 'string' || !catalogId.test(payload.app_id)
-      || typeof payload.skill_id !== 'string' || !catalogId.test(payload.skill_id)
+    // Registered skill IDs include hyphens; app IDs retain their existing grammar.
+    const appCatalogId = /^[a-z][a-z0-9_]{0,63}$/;
+    const skillCatalogId = /^[a-z][a-z0-9_-]{0,63}$/;
+    if (typeof payload.app_id !== 'string' || !appCatalogId.test(payload.app_id)
+      || typeof payload.skill_id !== 'string' || !skillCatalogId.test(payload.skill_id)
       || (payload.hashed_team_id != null && !HEX_64_RE.test(payload.hashed_team_id))
       || (payload.workspace_origin != null && payload.workspace_origin !== 'chat')
       || payload.root_embed_id !== (payload.parent_embed_id || embedId)) {
