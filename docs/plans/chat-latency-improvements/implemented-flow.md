@@ -353,3 +353,10 @@ Reserved stage-one routing is restored in `62549591a0`: the internal same-turn d
 Deployed `0c4a995b0a` used 2,790 prompt tokens for the proved first Spain factual turn, with mandatory safety, Mate, model and contextual-composer instructions retained, Gemini 3.8 Flash LOW and zero tools. Mate at 2.070 s and authored text at 4.295 s remain outside acceptance.
 
 The next candidate overlaps the required historical artifact-ledger read with configuration loading and joins both before preprocessing. A single user message does not prove the ledger empty. Active-summary and private authorization gates remain. Atomic admission retains separate message insertion/version CAS and finer numeric timings; first-Personal proof creation reuses only its already-held protocol check.
+
+
+### Bounded parallel active preparation and recovery repair
+
+For an eligible Personal route with one visible user message, routing can hydrate the exact-bound details phase on an isolated deep copy while Jev runs. Only a complete, empty server active-context proof permits the existing active-summary publication. This does not certify committed first-message count or absence of historical artifacts, and skips no main read. The 500-ms optional task cannot delay selected-Mate feedback or handoff; main still performs its independent details and authoritative active-summary calls. Metadata preparation invokes no model or tool.
+
+Credential retries remove only rejected service-owned tokens. Caller-supplied Authorization remains intact and cannot be elevated. Authenticated numeric admission tracing now separates inserts and identity reads and records process-wide event-loop utilization; it does not change SQL, wire responses or permissions. Latest factual TUI latency remains outside targets, with Focus/remote-access and final web acceptance pending.

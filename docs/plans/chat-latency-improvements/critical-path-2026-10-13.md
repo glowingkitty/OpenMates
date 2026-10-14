@@ -238,3 +238,29 @@ The next candidate overlaps unchanged artifact-ledger/config reads and removes a
 Combining message insertion and chat update in a data-modifying SQL CTE is held: shared statement snapshots need database-level equivalence proof for the existing chat-reading storage trigger. Early positive wallet reuse is held because refund paths can debit without the settlement lock. Neither shortcut is applied.
 
 The exact-source narrow check passed in 153.7 seconds without browser/signup/schema/web preparation. The versioned schema-key candidate excludes only request-only recovery handlers/tests, retaining registration, setup, migrations, packages and current CMS verification. It causes one migration miss and then allows eligible handler-only edits to reuse schema; it does not make full recovery CI a 2–3-minute operation. CI remains outside real chat processing.
+
+
+## Current exact-source TUI diagnostic (`79d7efdb29`)
+
+Core19 passed 141 relevant Python cases, 160 extension tests and its narrow exact-source isolated artifact/queue checks in 116.5 seconds. The scoped deployment preserved independently integrated CLI changes. The old frozen CLI was rejected by the source guard; an exact published-source CLI was rebuilt once with unchanged verified dependencies. Runtime updated in 208.6 seconds, reusing unchanged schema and verifying both baked CMS handler and entrypoint bytes. Real inference then ran directly on development.
+
+The actual warmed Spain TUI still misses acceptance: optimistic row/clear 32 ms, selected Mate 2,202 ms, authored text 4,853 ms and idle 11,796 ms. Gemini 3.8 Flash LOW, no tools, 2,790 input tokens and uncompressed SSE are correlated. Provider request-to-authored was 1,531 ms; final-to-idle adds 4,262 ms separately. Cache-read tokens were unreported; this is not proof of either a hit or miss.
+
+| Cumulative after Enter | Boundary |
+|---|---|
+| 316 ms | Admission frame after fresh privacy preparation |
+| 798 ms | Client durable ACK |
+| 1,020 ms | Broker dispatch after encrypted history preparation |
+| 1,240 / 1,286 ms | Current routing authority / context and catalogue |
+| 1,620 ms | Fresh credit and Project join |
+| 1,682 / 2,066 ms | Jev request / model resolution |
+| 2,170 / 2,202 ms | Selected Mate publication / paint |
+| 2,314 / 2,385 ms | Sealed handoff / main receipt |
+| 3,075 / 3,182 ms | Main preparation complete / Google SDK call |
+| 4,713 / 4,853 ms | Server authored text / TUI paint |
+
+CMS atomic admission took 333.98 ms. Its chat-write group (107.80 ms) also includes canonical preflight and message-identity reads; preflight insertion took 77.69 ms, first schema probes 47.16 ms, persisted-message proof read 25.43 ms, message insertion 11.18 ms, version CAS 2.06 ms and proof insertion 2.57 ms. Read-only nonexistent-key EXPLAIN probes show all three identity/proof reads use indexes (0.07–0.68 ms), so no missing index is established. Current phase spans include client/transaction scheduling and cannot be treated as PostgreSQL execution-only costs. The next numeric trace separates the remaining groups and records CMS-process event-loop utilization over the operation; that activity includes other requests.
+
+No further unchanged inference reproduction follows the two misses. The next bounded candidate first fixes two proven credential retry defects: Workflow repository reused a rejected token on subsequent reads; generic Directus retry retained its own expired Authorization header and never fetched the new token. Explicit caller Authorization remains unchanged, including lowercase headers. These defects have focused local regressions but are not established as the cause of the measured latency.
+
+Eligible Personal routing now can prepare active metadata concurrently with Jev: a deep-copied request reads the same repeatable, bound details phase, proves complete empty server active context and calls the existing authoritative active-summary endpoint. This optional operation is capped at 500 ms and canceled/settled on routing exit. Live routing data, fingerprint, broker envelope, Mate/handoff timing, main details read and main authority checks stay unchanged. It targets the observed roughly 92-ms summary join, not the full 284-ms overlapped summary duration. No improvement is claimed before a source-matched diagnostic.

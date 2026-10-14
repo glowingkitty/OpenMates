@@ -22,6 +22,7 @@ from backend.apps.ai.processing.stage_one_handoff import (
 )
 
 logger = logging.getLogger(__name__)
+EARLY_ACTIVE_SUMMARY_BUDGET_SECONDS = 0.5
 _SOURCE_ROOT = Path(__file__).resolve().parents[4]
 _SAFE_EXCEPTION_TYPES = frozenset({
     "AttributeError", "ConnectionError", "HTTPStatusError", "KeyError",
@@ -96,8 +97,68 @@ def eligible_for_routing_lane(request: dict) -> bool:
                    for marker in ("<<<TEST_MOCK:", "<<<TEST_RECORD:", "<<<TEST_LIVE_")))
 
 
+def _eligible_for_early_active_summary(request: Any, overrides: Any,
+                                       *, allow_pending_details: bool = False) -> bool:
+    """Require one visible Personal message and an empty server context snapshot.
+
+    This does not establish the chat's committed DB message count. Pending client
+    details are only candidates; no active write uses them before clone hydration.
+    """
+    admission = getattr(request, "admission_context", None)
+    required = {
+        "scope_complete", "context_revision", "active_project_id",
+        "active_project_activation_id", "active_focus_id", "accepted_plan_ref",
+        "explicit_related_task_ids",
+    }
+    if (not isinstance(admission, dict) or not required.issubset(admission)
+            or admission.get("context_revision") != "server-admission-v1"
+            or any(admission.get(key) for key in required - {"scope_complete", "context_revision"})):
+        return False
+    complete = admission.get("scope_complete") is True and not getattr(request, "client_context_pending", False)
+    pending = (allow_pending_details and admission.get("scope_complete") is False
+               and getattr(request, "client_context_pending", False))
+    if not (complete or pending):
+        return False
+    history = request.message_history or []
+    if (request.chat_has_title or len(history) != 1
+            or history[0].role != "user" or history[0].message_id != request.message_id
+            or (overrides and overrides.has_overrides)):
+        return False
+    if any(getattr(request, field, None) for field in (
+        "team_id", "team_id_hash", "user_task_id", "active_project_focus", "current_project",
+        "active_focus_id", "accepted_plan_context", "current_chat_summary",
+        "current_chat_summary_v", "custom_rule_documents", "project_focus_documents",
+        "project_context_documents", "mentioned_settings_memories_cleartext",
+        "legacy_cutover_task_id", "preprocessing_resume_ref", "embed_file_path_index",
+        "is_external", "is_anonymous", "is_incognito", "is_sub_chat",
+        "is_sub_chat_continuation", "is_async_skill_continuation", "is_focus_mode_continuation",
+        "is_app_settings_memories_continuation", "is_connected_account_permission_continuation",
+    )):
+        return False
+    return "@" not in (request.current_user_content or "") and "@" not in (history[0].content or "")
+
+
+async def _publish_early_active_summary(request: Any, inference_task_id: str,
+                                        cache: Any, encryption: Any, overrides: Any) -> None:
+    """Hydrate a clone, then bound optional metadata work to half a second."""
+    from backend.core.api.app.services.client_context_continuation import await_client_context_phase
+    from backend.shared.python_utils.recent_work_summary_client import mark_response_summary_active
+    clone = request.model_copy(deep=True)
+    try:
+        async with asyncio.timeout(EARLY_ACTIVE_SUMMARY_BUDGET_SECONDS):
+            if clone.client_context_pending:
+                await await_client_context_phase(
+                    cache_service=cache, request=clone, phase="details",
+                    encryption_service=encryption,
+                )
+            if _eligible_for_early_active_summary(clone, overrides):
+                await mark_response_summary_active(clone, inference_task_id)
+    except Exception as exc:
+        logger.info("Early active summary unavailable (%s)", type(exc).__name__)
+
+
 async def route_stage_one(request_data_dict: dict, skill_config_dict: dict,
-                          inference_task_id: str) -> str | None:
+                          inference_task_id: str, *, allow_early_summary: bool = True) -> str | None:
     from backend.apps.ai.skills.ask_skill import AskSkillRequest, AskSkillDefaultConfig
     from backend.apps.ai.processing.preprocessor import handle_preprocessing
     from backend.apps.ai.processing.focus_phase_history import filter_focus_phase_history
@@ -197,6 +258,14 @@ async def route_stage_one(request_data_dict: dict, skill_config_dict: dict,
     # The key read is independent of fresh credits, Project eligibility and Jev.
     # It starts only after admission and the scoped routing context are verified.
     chat_key_task = asyncio.create_task(load_encrypted_chat_key())
+    active_summary_task = (
+        asyncio.create_task(_publish_early_active_summary(
+            request, inference_task_id, cache, encryption, overrides,
+        ))
+        if allow_early_summary and _eligible_for_early_active_summary(
+            request, overrides, allow_pending_details=True,
+        ) else None
+    )
 
     async def publish(routing: dict) -> None:
         encrypted_key = await chat_key_task
@@ -241,7 +310,10 @@ async def route_stage_one(request_data_dict: dict, skill_config_dict: dict,
     finally:
         if not chat_key_task.done():
             chat_key_task.cancel()
-        await asyncio.gather(chat_key_task, return_exceptions=True)
+        if active_summary_task and not active_summary_task.done():
+            active_summary_task.cancel()
+        await asyncio.gather(*(task for task in (chat_key_task, active_summary_task) if task),
+                             return_exceptions=True)
 
 
 class StageOneRoutingTask(DedupedTask):
@@ -273,7 +345,8 @@ def process_ai_stage_one_task(self, request_data_dict: dict, skill_config_dict: 
     try:
         if not self.request.retries and eligible_for_routing_lane(request_data_dict):
             reference = loop.run_until_complete(route_stage_one(
-                request_data_dict, skill_config_dict, inference_task_id))
+                request_data_dict, skill_config_dict, inference_task_id,
+                allow_early_summary=legacy_batch_proof is None))
     except Exception as exc:
         # No private text in logs; main performs the complete safe fallback.
         try:

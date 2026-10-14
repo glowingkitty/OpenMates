@@ -45,3 +45,35 @@ def test_reads_observe_atomic_delivery_changes_despite_cached_response(repositor
         assert all(request.headers.get("Cache-Control") == "no-store" for request in reads)
     finally:
         repository._client.close()
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.chat-delivery.pending-private
+def test_delivery_repository_reuses_refreshed_admin_token_after_unauthorized_read():
+    requests = []
+
+    def handle(request):
+        requests.append((request.method, request.url.path, request.headers.get("Authorization")))
+        if request.url.path == "/auth/login":
+            return httpx.Response(200, json={"data": {"access_token": "refreshed-token"}})
+        assert request.url.path == "/items/workflow_chat_deliveries"
+        if request.headers.get("Authorization") == "Bearer stale-token":
+            return httpx.Response(401, json={"errors": []})
+        assert request.headers.get("Authorization") == "Bearer refreshed-token"
+        return httpx.Response(200, json={"data": []})
+
+    repository = DirectusWorkflowChatDeliveryRepository(base_url="http://cms.example", token="stale-token")
+    repository.admin_email = "admin@example.test"
+    repository.admin_password = "test-password"
+    repository._client.close()
+    repository._client = httpx.Client(transport=httpx.MockTransport(handle))
+    try:
+        assert repository._get_items({}) == []
+        assert repository._get_items({}) == []
+        assert requests == [
+            ("GET", "/items/workflow_chat_deliveries", "Bearer stale-token"),
+            ("POST", "/auth/login", None),
+            ("GET", "/items/workflow_chat_deliveries", "Bearer refreshed-token"),
+            ("GET", "/items/workflow_chat_deliveries", "Bearer refreshed-token"),
+        ]
+    finally:
+        repository._client.close()

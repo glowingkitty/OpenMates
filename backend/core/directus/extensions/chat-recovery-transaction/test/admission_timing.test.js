@@ -2,7 +2,7 @@
 // contract-test-file: tooling
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import endpoint, { createAdmissionTimer } from '../src/index.js';
+import endpoint, { createAdmissionTimer, FIRST_PERSONAL_PHASES } from '../src/index.js';
 import { executeOperation, testing } from '../src/operations.js';
 
 const body = { operation: 'verify_routing_admission', data: {
@@ -147,6 +147,35 @@ test('timer reports successful phase durations and a fixed numeric schema', () =
   assert.ok(Object.values(fields).every((value) => typeof value === 'number'));
 });
 
+test('first Personal event-loop delta remains numeric and observer failures are inert', () => {
+  let now = 0;
+  const samples = [{ active: 10, idle: 20 }, { active: 16, idle: 24 }];
+  const timer = createAdmissionTimer(() => now++, FIRST_PERSONAL_PHASES, 0,
+    () => samples.shift());
+  timer.enter('validation');
+  timer.operationDone();
+  const fields = timer.finish(false);
+  assert.equal(fields.event_loop_active_ms, 6);
+  assert.equal(fields.event_loop_idle_ms, 4);
+  assert.equal(fields.event_loop_utilization_permille, 600);
+  assert.equal(fields.event_loop_observed, 1);
+  const failedSampler = createAdmissionTimer(() => now++, FIRST_PERSONAL_PHASES, now,
+    () => { throw Error('private observer failure'); });
+  const failedFields = failedSampler.finish(false);
+  assert.equal(failedFields.event_loop_observed, 0);
+  assert.equal(failedFields.event_loop_active_ms, 0);
+  assert.ok(Object.values(failedFields).every((value) => typeof value === 'number' && Number.isFinite(value)));
+  assert.ok(!JSON.stringify(failedFields).includes('private observer failure'));
+  let samplesTaken = 0;
+  const lateFailure = createAdmissionTimer(() => now++, FIRST_PERSONAL_PHASES, now,
+    () => { if (samplesTaken++ === 0) return { active: 1, idle: 1 };
+      throw Error('private late observer failure'); });
+  const lateFields = lateFailure.finish(true);
+  assert.equal(lateFields.failed, 1);
+  assert.equal(lateFields.event_loop_observed, 0);
+  assert.ok(!JSON.stringify(lateFields).includes('private late observer failure'));
+});
+
 const firstPersonalBody = { operation: 'admit_first_personal', data: {
   protocol_version: 1, hashed_user_id: 'a'.repeat(64),
   chat_id: body.data.chat_id, turn_id: body.data.turn_id,
@@ -205,7 +234,8 @@ test('first Personal timing preserves successful result and exact database call 
   assert.equal(instrumented.committed_messages_v, plain.committed_messages_v);
   assert.deepEqual(instrumented.admission_chat_projection, plain.admission_chat_projection);
   assert.deepEqual(phases, ['transaction_setup', 'account_lock', 'protocol_read', 'chat_lock_reads',
-    'chat_write', 'message_insert', 'chat_version_cas', 'preflight_schema_check',
+    'chat_insert', 'canonical_preflight_read', 'message_identity_read',
+    'message_insert', 'chat_version_cas', 'preflight_schema_check',
     'preflight_write', 'post_prepare_reads',
     'outbox_write', 'proof_schema_check', 'commit_result']);
 });
@@ -251,7 +281,7 @@ test('first Personal endpoint emits numeric timing only after auth, including fa
   await success.run();
   assert.equal(success.response.statusCode, 200);
   assert.equal(success.logs[0][0].failed, 0);
-  assert.equal(success.logs[0][0].terminal_phase, 20);
+  assert.equal(success.logs[0][0].terminal_phase, 23);
   assert.equal(success.logs[0][1], 'First Personal admission timing');
   for (const requestBody of [firstPersonalBody,
     { operation: 'admit_first_personal', data: {} }]) {

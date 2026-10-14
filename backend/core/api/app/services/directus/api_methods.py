@@ -75,7 +75,9 @@ async def _make_api_request(self, method, url, headers=None, **kwargs):
     Connection errors (DNS failure, connect timeout, refused) retry up to 5 times
     with exponential backoff (1s, 2s, 4s, 8s, 16s) to survive CMS restarts.
     """
-    headers = headers or {}
+    # Keep caller-owned headers intact across retries, including explicit credentials.
+    headers = dict(headers or {})
+    caller_authorization = any(key.lower() == "authorization" for key in headers)
     max_connection_retries = 5
     total_retries = max(self.max_retries, max_connection_retries)
     connection_failures = 0
@@ -84,7 +86,7 @@ async def _make_api_request(self, method, url, headers=None, **kwargs):
         if attempt > 0:
             logger.info(f"Retry attempt {attempt} for {method} {url}")
 
-        if "Authorization" not in headers:
+        if not caller_authorization and "Authorization" not in headers:
             # Get a fresh token if this is a retry. Callers that explicitly pass
             # an Authorization header (for admin-token operations) keep it.
             token = await self.ensure_auth_token(force_refresh=(attempt > 0))
@@ -108,6 +110,8 @@ async def _make_api_request(self, method, url, headers=None, **kwargs):
                 if attempt < total_retries - 1:
                     logger.warning("Token expired, will refresh and retry")
                     await self.clear_tokens()
+                    if not caller_authorization:
+                        headers.pop("Authorization", None)
                     continue
 
             return response

@@ -2209,7 +2209,7 @@ async function preparePreflightInTransaction(trx, data, now, { accountAlreadyLoc
         }
         const metadataCompletion = missingChatMetadata(chat, chatMetadata);
         if (Object.keys(metadataCompletion).length > 0) {
-          timing?.enter('chat_write');
+          timing?.enter('chat_metadata_update');
           const scope = teamHash
             ? { id: chatId, hashed_team_id: teamHash, messages_v: 0 }
             : { id: chatId, hashed_user_id: ownerHash, messages_v: 0 };
@@ -2246,7 +2246,7 @@ async function preparePreflightInTransaction(trx, data, now, { accountAlreadyLoc
         share_pii: false,
         share_highlights: true,
       };
-      timing?.enter('chat_write');
+      timing?.enter('chat_insert');
       await trx(CHATS).insert(chat);
       if (teamHash) {
         await trx(CHAT_KEY_WRAPPERS).insert({
@@ -2261,12 +2261,14 @@ async function preparePreflightInTransaction(trx, data, now, { accountAlreadyLoc
         });
       }
     }
+    timing?.enter('canonical_preflight_read');
     const canonical = await trx(PREFLIGHTS).where({ hashed_user_id: ownerHash, chat_id: chatId, chat_key_version: keyVersion })
       .whereNull('deletion_invalidated_at').orderBy('prepared_at', 'asc').first();
     if (chat.encrypted_chat_key && chat.encrypted_chat_key !== wrappedKey) fail(409, 'immutable_chat_key_mismatch');
     if (canonical && canonical.wrapped_chat_key !== wrappedKey) fail(409, 'immutable_chat_key_mismatch');
     if (canonical && canonical.recovery_public_key !== recoveryKey) fail(409, 'recovery_key_mismatch');
     if (chat.messages_v !== expectedVersion) fail(409, 'version_conflict');
+    timing?.enter('message_identity_read');
     if (await trx(MESSAGES).where({ client_message_id: userMessageId }).first()) fail(409, 'message_identity_conflict');
     timing?.enter('message_insert');
     await trx(MESSAGES).insert({ id: randomUUID(), ...message });

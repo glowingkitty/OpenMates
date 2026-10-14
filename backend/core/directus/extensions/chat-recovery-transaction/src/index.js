@@ -3,6 +3,7 @@
  * Authentication fails closed; logs contain sanitized operation/error codes.
  */
 import { createHash, timingSafeEqual } from 'node:crypto';
+import { performance } from 'node:perf_hooks';
 import { executeOperation, ProtocolError } from './operations.js';
 
 const TOKEN_HEADER = 'x-internal-service-token';
@@ -19,21 +20,27 @@ export function isAuthorized(headers, configuredToken) {
 const ADMISSION_PHASES = Object.freeze([
   'validation', 'transaction_setup', 'account_chat_locks', 'fences_reads', 'proof', 'commit_result',
 ]);
-const FIRST_PERSONAL_PHASES = Object.freeze([
+export const FIRST_PERSONAL_PHASES = Object.freeze([
   'handler_auth', 'validation', 'transaction_setup', 'account_lock', 'protocol_read',
-  'chat_lock_reads', 'chat_write', 'message_insert', 'chat_version_cas',
+  'chat_lock_reads', 'chat_insert', 'chat_metadata_update',
+  'canonical_preflight_read', 'message_identity_read',
+  'message_insert', 'chat_version_cas',
   'preflight_schema_check', 'preflight_write',
   'post_prepare_reads', 'outbox_write', 'proof_schema_check', 'proof_protocol_read',
   'proof_message_read', 'proof_row_read', 'proof_existing_validation', 'proof_write',
   'commit_result',
 ]);
 export function createAdmissionTimer(clock = () => performance.now(), phases = ADMISSION_PHASES,
-  started = clock()) {
+  started = clock(), loopSample = () => performance.eventLoopUtilization()) {
   const durations = Object.fromEntries(phases.map((phase) => [`${phase}_ms`, 0]));
   let phase = phases[0];
   let phaseStarted = started;
   let failurePhase = null;
   let operationFinished = null;
+  let loopStarted = null;
+  if (phases === FIRST_PERSONAL_PHASES) {
+    try { loopStarted = loopSample(); } catch { /* observability only */ }
+  }
   const enter = (next) => {
     if (!phases.includes(next)) return;
     const at = clock();
@@ -49,6 +56,23 @@ export function createAdmissionTimer(clock = () => performance.now(), phases = A
     if (phases === FIRST_PERSONAL_PHASES) {
       result.operation_total_ms = Math.max(0,
         (operationFinished ?? at) - (started + result.handler_auth_ms));
+      let active = 0;
+      let idle = 0;
+      let observed = 0;
+      if (loopStarted) {
+        try {
+          const loopEnded = loopSample();
+          active = Math.max(0, loopEnded.active - loopStarted.active);
+          idle = Math.max(0, loopEnded.idle - loopStarted.idle);
+          if (Number.isFinite(active) && Number.isFinite(idle)) observed = 1;
+          else { active = 0; idle = 0; }
+        } catch { /* observability only */ }
+      }
+      result.event_loop_active_ms = active;
+      result.event_loop_idle_ms = idle;
+      result.event_loop_utilization_permille = observed && active + idle > 0
+        ? Math.round(1000 * active / (active + idle)) : 0;
+      result.event_loop_observed = observed;
     }
     return result;
   };

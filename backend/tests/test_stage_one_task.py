@@ -118,6 +118,21 @@ def test_publication_retry_reuses_snapshot_without_paid_routing(monkeypatch):
     assert dispatch.call_args.kwargs["headers"] == {"x-openmates-stage-one-ref": "sealed-ref"}
 
 
+def test_legacy_handoff_does_not_prewrite_active_summary(monkeypatch):
+    route = AsyncMock(return_value="sealed-ref")
+    monkeypatch.setattr(stage_one_task, "route_stage_one", route)
+    monkeypatch.setattr(ask_skill_task.process_ai_skill_ask_task, "apply_async", Mock())
+    task = stage_one_task.process_ai_stage_one_task
+    task.push_request(id="main:routing", retries=0, headers={})
+    try:
+        task.run({"user_id": "owner", "recovery_task_id": "main",
+                  "recovery_preflight_id": "preflight"}, {}, "main",
+                 legacy_batch_proof={"legacy": True})
+    finally:
+        task.pop_request()
+    assert route.await_args.kwargs["allow_early_summary"] is False
+
+
 @pytest.mark.parametrize("field", ["is_incognito", "is_external", "is_anonymous", "is_sub_chat", "is_focus_mode_continuation"])
 def test_special_authority_paths_stay_on_main(field):
     request = {"user_id": "owner", "recovery_task_id": "task", "recovery_preflight_id": "preflight"}
@@ -232,7 +247,13 @@ async def test_stage_one_prefetches_chat_key_and_rechecks_authority_before_mate(
     request = ask_skill.AskSkillRequest(
         chat_id="chat", message_id="turn", user_id="owner", user_id_hash="owner-hash",
         recovery_task_id="task", recovery_preflight_id="preflight",
-        current_user_content="Hello", message_history=[],
+        current_user_content="Hello", message_history=[
+            {"role": "user", "message_id": "turn", "content": "Hello", "created_at": 1},
+        ],
+        admission_context={"scope_complete": True, "context_revision": "server-admission-v1",
+            "active_project_id": None, "active_project_activation_id": None,
+            "active_focus_id": None, "accepted_plan_ref": None,
+            "explicit_related_task_ids": []},
     )
     config = SimpleNamespace(model_dump=lambda **_kwargs: {})
     monkeypatch.setattr(ask_skill.AskSkillRequest, "model_validate", lambda _value: request)
@@ -265,16 +286,35 @@ async def test_stage_one_prefetches_chat_key_and_rechecks_authority_before_mate(
     monkeypatch.setattr(recent_work_summary_client, "restore_private_context_payload",
                         AsyncMock(return_value=private_descriptor))
     monkeypatch.setattr(recent_work_summary_client, "bind_restored_context_turn", lambda *_args: None)
-    monkeypatch.setattr(client_context_continuation, "await_client_context_phase", AsyncMock())
+    context_ready = asyncio.Event()
+
+    async def load_context(**_kwargs):
+        context_ready.set()
+
+    monkeypatch.setattr(client_context_continuation, "await_client_context_phase", load_context)
     current = AsyncMock(side_effect=[True, outcome != "stale", outcome != "stale_before_handoff"])
     admitted = AsyncMock(return_value=True)
     monkeypatch.setattr(stage_one_task, "routing_turn_is_current", current)
     monkeypatch.setattr(stage_one_task, "routing_admission_is_current", admitted)
     handoff = AsyncMock(return_value="sealed-routing-ref")
     monkeypatch.setattr(stage_one_task, "store_stage_one", handoff)
+    active_started = asyncio.Event()
+    active_cancelled = asyncio.Event()
+
+    async def active(_request, task_id, _cache, _encryption, _overrides):
+        assert task_id == "task" and context_ready.is_set() and current.await_count >= 1
+        assert admitted.await_count >= 1
+        active_started.set()
+        try:
+            await asyncio.Future()
+        except asyncio.CancelledError:
+            active_cancelled.set()
+            raise
+
+    monkeypatch.setattr(stage_one_task, "_publish_early_active_summary", active)
 
     async def decision(**kwargs):
-        await asyncio.wait_for(key_started.wait(), timeout=1)
+        await asyncio.wait_for(asyncio.gather(key_started.wait(), active_started.wait()), timeout=1)
         if outcome == "failed_before_publish":
             raise RuntimeError("Jev unavailable")
         release_key.set()
@@ -306,8 +346,174 @@ async def test_stage_one_prefetches_chat_key_and_rechecks_authority_before_mate(
     assert current.await_count == (1 if outcome == "failed_before_publish"
                                    else 2 if outcome == "stale" else 3)
     assert key_cancelled.is_set() is (outcome == "failed_before_publish")
+    assert active_started.is_set() and active_cancelled.is_set()
     directus.get_items.assert_not_awaited()
     assert not hasattr(request, "same_turn_request")
+
+
+@pytest.mark.parametrize("change", [
+    {"chat_has_title": True}, {"team_id": "team"}, {"current_chat_summary": "prior"},
+    {"current_project": {"id": "project"}}, {"is_sub_chat": True},
+    {"current_user_content": "@tool:search"}, {"client_context_pending": True},
+    {"admission_context": None},
+    {"admission_context": {"scope_complete": False, "context_revision": "server-admission-v1"}},
+    {"admission_context": {"scope_complete": True, "context_revision": "supplied-client"}},
+])
+def test_early_active_summary_requires_one_message_and_complete_personal_scope(change):
+    from types import SimpleNamespace
+
+    fields = {"chat_has_title": False, "message_id": "turn", "current_user_content": "Hello",
+              "message_history": [SimpleNamespace(role="user", message_id="turn", content="Hello")],
+              "admission_context": {"scope_complete": True,
+                  "context_revision": "server-admission-v1", "active_project_id": None,
+                  "active_project_activation_id": None, "active_focus_id": None,
+                  "accepted_plan_ref": None, "explicit_related_task_ids": []}}
+    assert stage_one_task._eligible_for_early_active_summary(SimpleNamespace(**fields), None)
+    assert not stage_one_task._eligible_for_early_active_summary(
+        SimpleNamespace(**{**fields, **change}), None)
+
+
+@pytest.mark.asyncio
+async def test_early_active_summary_timeout_is_optional_and_cancels_ipc(monkeypatch):
+    from backend.apps.ai.skills.ask_skill import AskSkillRequest
+    from backend.shared.python_utils import recent_work_summary_client
+
+    cancelled = asyncio.Event()
+
+    async def hanging(_request, _task_id):
+        try:
+            await asyncio.Future()
+        except asyncio.CancelledError:
+            cancelled.set()
+            raise
+
+    monkeypatch.setattr(recent_work_summary_client, "mark_response_summary_active", hanging)
+    monkeypatch.setattr(stage_one_task, "EARLY_ACTIVE_SUMMARY_BUDGET_SECONDS", 0.01)
+    request = AskSkillRequest(
+        chat_id="chat", message_id="turn", user_id="owner", user_id_hash="hash",
+        current_user_content="Hello", message_history=[
+            {"role": "user", "message_id": "turn", "content": "Hello", "created_at": 1},
+        ], admission_context={"scope_complete": True, "context_revision": "server-admission-v1",
+            "active_project_id": None, "active_project_activation_id": None,
+            "active_focus_id": None, "accepted_plan_ref": None,
+            "explicit_related_task_ids": []},
+    )
+    await stage_one_task._publish_early_active_summary(request, "task", None, None, None)
+    assert cancelled.is_set()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("private_details", [False, True])
+async def test_early_summary_clone_reads_real_details_without_consuming_main_phase(
+    monkeypatch, private_details,
+):
+    import uuid
+    from backend.apps.ai.skills.ask_skill import AskSkillRequest
+    from backend.core.api.app.services import client_context_continuation as context
+    from backend.shared.python_utils import recent_work_summary_client
+    from backend.tests.test_client_context_continuation import Redis, Vault
+
+    redis, vault = Redis(), Vault()
+
+    class Cache:
+        @property
+        async def client(self):
+            return redis
+
+        async def get_user_vault_key_id(self, owner):
+            return "key:" + owner
+
+    cache = Cache()
+    scope = {"user_id": "owner", "chat_id": "chat", "turn_id": "turn",
+             "message_id": "turn", "request_id": str(uuid.uuid4()), "team_id": None}
+    reference = await context.register_client_context(
+        cache_service=cache, encryption_service=vault, device_fingerprint_hash="device", **scope,
+    )
+    details = ({"custom_rule_documents": [{"id": "rule", "source": "project",
+                "project_id": "project", "document": "private body", "item_revision": "v1"}]}
+               if private_details else {})
+    for phase, payload in (("routing", {}), ("details", details)):
+        assert await context.receive_client_context(
+            cache_service=cache, encryption_service=vault, device_fingerprint_hash="device",
+            phase=phase, context=payload, **scope,
+        ) == "accepted"
+    request = AskSkillRequest(
+        chat_id="chat", message_id="turn", user_id="owner", user_id_hash="hash",
+        recovery_turn_id="turn", current_user_content="Hello",
+        message_history=[{"role": "user", "message_id": "turn", "content": "Hello",
+                          "created_at": 1}],
+        client_context_pending=True, client_context_request_id=scope["request_id"],
+        client_context_binding_ref=reference, client_context_turn_id="turn",
+        admission_context={"scope_complete": False, "context_revision": "server-admission-v1",
+            "active_project_id": None, "active_project_activation_id": None,
+            "active_focus_id": None, "accepted_plan_ref": None,
+            "explicit_related_task_ids": []},
+    )
+    await context.await_client_context_phase(
+        cache_service=cache, request=request, phase="routing", encryption_service=vault,
+    )
+    assert stage_one_task._eligible_for_early_active_summary(
+        request, None, allow_pending_details=True,
+    )
+    initial_keys = set(redis.values)
+    mark = AsyncMock(return_value=True)
+    monkeypatch.setattr(recent_work_summary_client, "mark_response_summary_active", mark)
+    await stage_one_task._publish_early_active_summary(request, "task", cache, vault, None)
+    assert mark.await_count == (0 if private_details else 1)
+    if not private_details:
+        clone = mark.await_args.args[0]
+        assert clone is not request and clone.client_context_pending is False
+        assert clone.admission_context["scope_complete"] is True
+    assert request.client_context_pending is True
+    assert request.admission_context["scope_complete"] is False
+    assert set(redis.values) == initial_keys
+    await context.await_client_context_phase(
+        cache_service=cache, request=request, phase="details", encryption_service=vault,
+    )
+    assert request.client_context_pending is False
+    assert request.admission_context["scope_complete"] is (not private_details)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure", ["slow", "unavailable"])
+async def test_early_summary_details_failure_is_optional_and_leaves_original_pending(
+    monkeypatch, failure,
+):
+    from backend.apps.ai.skills.ask_skill import AskSkillRequest
+    from backend.core.api.app.services import client_context_continuation as context
+    from backend.shared.python_utils import recent_work_summary_client
+
+    request = AskSkillRequest(
+        chat_id="chat", message_id="turn", user_id="owner", user_id_hash="hash",
+        current_user_content="Hello", message_history=[
+            {"role": "user", "message_id": "turn", "content": "Hello", "created_at": 1},
+        ], client_context_pending=True, admission_context={
+            "scope_complete": False, "context_revision": "server-admission-v1",
+            "active_project_id": None, "active_project_activation_id": None,
+            "active_focus_id": None, "accepted_plan_ref": None,
+            "explicit_related_task_ids": [],
+        },
+    )
+    cancelled = asyncio.Event()
+
+    async def read_details(**_kwargs):
+        if failure == "unavailable":
+            raise RuntimeError("details unavailable")
+        try:
+            await asyncio.Future()
+        except asyncio.CancelledError:
+            cancelled.set()
+            raise
+
+    mark = AsyncMock()
+    monkeypatch.setattr(context, "await_client_context_phase", read_details)
+    monkeypatch.setattr(recent_work_summary_client, "mark_response_summary_active", mark)
+    monkeypatch.setattr(stage_one_task, "EARLY_ACTIVE_SUMMARY_BUDGET_SECONDS", 0.01)
+    await stage_one_task._publish_early_active_summary(request, "task", object(), object(), None)
+    assert cancelled.is_set() is (failure == "slow")
+    mark.assert_not_awaited()
+    assert request.client_context_pending is True
+    assert request.admission_context["scope_complete"] is False
 
 
 @pytest.mark.asyncio
