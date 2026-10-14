@@ -346,3 +346,10 @@ The internal routing-proof table was verified absent on the shared development r
 For a fully proved simple factual first turn, main omits the interactive-question protocol when no interaction, form or dialogue intent exists. It preserves ethics, selected Mate persona, model identity and the main-generated contextual composer suggestion. General, ambiguous, tool-bearing and context-bearing turns keep the protocol. Atomic first-Personal admission now has authenticated fixed numeric phase diagnostics as well as later routing verification; SQL order and wire responses are unchanged.
 
 Reserved stage-one routing is restored in `62549591a0`: the internal same-turn descriptor remains in main's trusted checkpoint path. The latest actual TUI observations show Berlin's Mate at 1,375 ms, but Spain at 1,957 ms with first text at 4,202 ms. Targets remain open, and these individual observations are not percentile acceptance. The detailed cumulative timeline is in `critical-path-2026-10-13.md`.
+
+
+### Measured minimal factual context and remaining setup
+
+Deployed `0c4a995b0a` used 2,790 prompt tokens for the proved first Spain factual turn, with mandatory safety, Mate, model and contextual-composer instructions retained, Gemini 3.8 Flash LOW and zero tools. Mate at 2.070 s and authored text at 4.295 s remain outside acceptance.
+
+The next candidate overlaps the required historical artifact-ledger read with configuration loading and joins both before preprocessing. A single user message does not prove the ledger empty. Active-summary and private authorization gates remain. Atomic admission retains separate message insertion/version CAS and finer numeric timings; first-Personal proof creation reuses only its already-held protocol check.

@@ -56,6 +56,34 @@ def test_schema_runtime_key_includes_schema_setup_and_directus_runtime(tmp_path)
     assert runtime.runtime_key(tmp_path, "schema") != first
 
 
+def test_schema_ignores_only_chat_recovery_request_handlers_and_tests(tmp_path):
+    write(tmp_path, "scripts/ci_schema_image.Dockerfile", pinned("postgres:13-alpine"))
+    write(tmp_path, "scripts/ci_runtime_images.py", "runtime key implementation")
+    write(tmp_path, "scripts/ci_schema_bundle.py", "sanitizer = 1")
+    write(tmp_path, "scripts/ci_environment.py", "restore = 1")
+    write(tmp_path, "backend/core/directus/Dockerfile", pinned("directus/directus:11.5"))
+    write(tmp_path, "backend/core/directus/Dockerfile.setup.selfhost", pinned("python:3.13"))
+    extension = "backend/core/directus/extensions/chat-recovery-transaction/"
+    for relative in ("src/index.js", "src/operations.js", "src/metadata_operations.js",
+                     "test/operations.test.js", "package.json"):
+        write(tmp_path, extension + relative, "first")
+    schema = runtime.runtime_key(tmp_path, "schema")
+    cms = runtime.runtime_key(tmp_path, "cms")
+    for relative in ("src/operations.js", "src/metadata_operations.js", "test/operations.test.js"):
+        path = tmp_path / extension / relative
+        path.write_text("second")
+        assert runtime.runtime_key(tmp_path, "schema") == schema
+        assert runtime.runtime_key(tmp_path, "cms") != cms
+        path.write_text("first")
+    for relative in ("src/index.js", "package.json"):
+        path = tmp_path / extension / relative
+        path.write_text("second")
+        assert runtime.runtime_key(tmp_path, "schema") != schema
+        path.write_text("first")
+    write(tmp_path, "backend/core/directus/setup/migrate.py", "migration")
+    assert runtime.runtime_key(tmp_path, "schema") != schema
+
+
 def test_schema_runtime_key_includes_producer_sanitizer_and_restore_code(tmp_path):
     write(tmp_path, "scripts/ci_schema_image.Dockerfile", pinned("postgres:13-alpine"))
     write(tmp_path, "scripts/ci_runtime_images.py", "runtime key implementation")

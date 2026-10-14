@@ -161,10 +161,12 @@ const firstPersonalBody = { operation: 'admit_first_personal', data: {
     encrypted_chat_key: 'private-wrapped-key', created_at: 100, updated_at: 100 },
 } };
 
-function firstPersonalDatabase() {
+function firstPersonalDatabase({ proofSchema = false, accountFenced = false, deletionFenced = false } = {}) {
   const rows = { chat_recovery_protocol_state: [{ id: 'chat-recovery', protocol_epoch: 1,
     sends_paused: false, legacy_in_flight: 0, active_legacy_tasks: [], legacy_task_lifecycle: [] }],
-  chats: [], messages: [], chat_turn_preflights: [], chat_inference_outbox: [] };
+  chat_recovery_account_fences: accountFenced ? [{ id: firstPersonalBody.data.hashed_user_id }] : [],
+  chat_recovery_chat_deletion_fences: deletionFenced ? [{ id: firstPersonalBody.data.chat_id }] : [],
+  chats: [], messages: [], chat_turn_preflights: [], chat_inference_outbox: [], chat_routing_proofs: [] };
   const calls = [];
   const trx = (table) => {
     let matching = () => rows[table] ?? [];
@@ -184,8 +186,8 @@ function firstPersonalDatabase() {
     return query;
   };
   trx.raw = async () => { calls.push('raw'); };
-  // Absence of the optional proof schema is a valid first-Personal deployment state.
-  trx.schema = { hasTable: async () => false, hasColumn: async () => false };
+  // Both presence and absence of the optional proof schema are supported.
+  trx.schema = { hasTable: async () => proofSchema, hasColumn: async () => proofSchema };
   return { calls, rows, transaction: async (callback) => { calls.push('transaction');
     const result = await callback(trx); calls.push('commit'); return result; } };
 }
@@ -203,8 +205,45 @@ test('first Personal timing preserves successful result and exact database call 
   assert.equal(instrumented.committed_messages_v, plain.committed_messages_v);
   assert.deepEqual(instrumented.admission_chat_projection, plain.admission_chat_projection);
   assert.deepEqual(phases, ['transaction_setup', 'account_lock', 'protocol_read', 'chat_lock_reads',
-    'chat_write', 'message_write', 'preflight_write', 'post_prepare_reads',
-    'outbox_write', 'proof_write', 'commit_result']);
+    'chat_write', 'message_insert', 'chat_version_cas', 'preflight_schema_check',
+    'preflight_write', 'post_prepare_reads',
+    'outbox_write', 'proof_schema_check', 'commit_result']);
+});
+
+test('atomic first Personal reuses only its held protocol read when writing a routing proof', async () => {
+  const database = firstPersonalDatabase({ proofSchema: true });
+  const at = new Date('2029-01-01T00:00:00Z');
+  const phases = [];
+  const first = await executeOperation(database, 'admit_first_personal', firstPersonalBody.data, at,
+    { enter: (phase) => phases.push(phase), failHere: () => assert.fail('unexpected failure') });
+  assert.equal(first.state, 'ENQUEUED');
+  assert.equal(database.rows.chat_routing_proofs.length, 1);
+  assert.equal(database.calls.filter((call) => call === 'chat_recovery_protocol_state.first').length, 1);
+  assert.equal(database.calls.filter((call) => call === 'messages.first').length, 2);
+  assert.equal(database.calls.filter((call) => call === 'chat_routing_proofs.first').length, 1);
+  assert.equal(database.calls.filter((call) => call === 'chat_routing_proofs.insert').length, 1);
+  assert.deepEqual(phases.slice(-5), ['proof_schema_check', 'proof_message_read',
+    'proof_row_read', 'proof_write', 'commit_result']);
+
+  const replay = await executeOperation(database, 'admit_first_personal', firstPersonalBody.data,
+    new Date(at.getTime() + 1_000));
+  assert.deepEqual(replay, first);
+  assert.equal(database.rows.chat_routing_proofs.length, 1);
+  assert.equal(database.rows.messages.length, 1);
+  await assert.rejects(executeOperation(database, 'admit_first_personal',
+    { ...firstPersonalBody.data, turn_id: '018f9999-9999-7999-8999-999999999999' }, at),
+  /existing_chat_metadata_forbidden/);
+  assert.equal(database.rows.chat_routing_proofs.length, 1);
+});
+
+test('atomic proof path still rejects account and deletion fences before writing', async () => {
+  for (const option of [{ accountFenced: true }, { deletionFenced: true }]) {
+    const database = firstPersonalDatabase({ ...option, proofSchema: true });
+    await assert.rejects(executeOperation(database, 'admit_first_personal', firstPersonalBody.data,
+      new Date('2029-01-01T00:00:00Z')));
+    assert.equal(database.rows.messages.length, 0);
+    assert.equal(database.rows.chat_routing_proofs.length, 0);
+  }
 });
 
 test('first Personal endpoint emits numeric timing only after auth, including failures', async () => {
@@ -212,7 +251,7 @@ test('first Personal endpoint emits numeric timing only after auth, including fa
   await success.run();
   assert.equal(success.response.statusCode, 200);
   assert.equal(success.logs[0][0].failed, 0);
-  assert.equal(success.logs[0][0].terminal_phase, 13);
+  assert.equal(success.logs[0][0].terminal_phase, 20);
   assert.equal(success.logs[0][1], 'First Personal admission timing');
   for (const requestBody of [firstPersonalBody,
     { operation: 'admit_first_personal', data: {} }]) {

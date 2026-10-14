@@ -21,8 +21,11 @@ const ADMISSION_PHASES = Object.freeze([
 ]);
 const FIRST_PERSONAL_PHASES = Object.freeze([
   'handler_auth', 'validation', 'transaction_setup', 'account_lock', 'protocol_read',
-  'chat_lock_reads', 'chat_write', 'message_write', 'preflight_write',
-  'post_prepare_reads', 'outbox_write', 'proof_write', 'commit_result',
+  'chat_lock_reads', 'chat_write', 'message_insert', 'chat_version_cas',
+  'preflight_schema_check', 'preflight_write',
+  'post_prepare_reads', 'outbox_write', 'proof_schema_check', 'proof_protocol_read',
+  'proof_message_read', 'proof_row_read', 'proof_existing_validation', 'proof_write',
+  'commit_result',
 ]);
 export function createAdmissionTimer(clock = () => performance.now(), phases = ADMISSION_PHASES,
   started = clock()) {

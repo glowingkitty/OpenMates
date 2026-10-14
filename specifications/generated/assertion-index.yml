@@ -57755,17 +57755,17 @@ assertions:
     direct_tests:
     - &id7209
       path: backend/apps/ai/tests/test_ask_skill_task.py
-      line: 186
+      line: 250
       name: test_failure_cleanup_preserves_atomic_owner_and_handoff_fences
       surface: gui.web
     - &id7210
       path: backend/apps/ai/tests/test_ask_skill_task.py
-      line: 336
+      line: 400
       name: test_first_turn_overlap_fences_and_drains_delayed_jobs
       surface: cli
     - &id7211
       path: backend/apps/ai/tests/test_ask_skill_task.py
-      line: 487
+      line: 551
       name: test_first_visible_barrier_waits_once_and_stream_covers_terminal_paths
       surface: cli
     - &id7212
@@ -58253,7 +58253,7 @@ assertions:
     direct_tests:
     - &id7271
       path: backend/apps/ai/tests/test_ask_skill_task.py
-      line: 186
+      line: 250
       name: test_failure_cleanup_preserves_atomic_owner_and_handoff_fences
       surface: gui.web
     - &id7272

@@ -213,3 +213,28 @@ A bounded read-only system probe found no sustained disk/WAL/checkpoint pressure
 The minimal main-context change omits the 477-word interactive-question protocol only under the existing complete factual first-turn proof, with no interactive/form/dialogue intent. It retains safety, selected Mate persona, model identity, composer suggestion instructions and Gemini LOW policy. A full-main-loop prompt capture and 136 relevant local cases passed. Ordinary questions, context-bearing turns, tools and ambiguous or interactive requests retain that protocol. A shorter prompt is not itself a measured provider-latency improvement.
 
 The focus/TUI-start hint already prepares the socket, chat key, privacy worker and encrypted Project/Focus/Workflow metadata with two sliding hours. It does not replace the fresh one-use Personal Memory snapshot or fresh credit authority. No positive authority cache or across-turn snapshot reuse is introduced by this batch.
+
+
+## Atomic admission located (`0c4a995b0a`)
+
+Actual warmed Spain TUI: optimistic row 34 ms, selected Mate 2,070 ms, authored text 4,295 ms and idle 10,006 ms. Exact logs verify Google AI Studio Gemini 3.8 Flash LOW with zero tools. Prompt tokens fell from 3,818 to 2,790 (26.9%); provider wait was 1,387 ms. Targets remain unmet.
+
+| Cumulative from Enter | Critical path | Interval |
+|---|---|---:|
+| 0–230 ms | Fresh Memory/privacy, encryption, admission dispatch | 230 ms |
+| 230–793 ms | Atomic admission through client ACK | 563 ms |
+| 793–1,001 ms | Context, encrypted history and broker dispatch | 208 ms |
+| 1,001–1,504 ms | Routing authority, context, fresh credits/Project join | 503 ms |
+| 1,504–2,041 ms | Jev preparation, stage one, model and Mate publication | 537 ms |
+| 2,041–2,195 ms | Encrypted handoff and main receipt | 154 ms |
+| 2,195–2,870 ms | Main execution checks, setup and prompt | 675 ms |
+| 2,870–4,257 ms | Provider request to authored text | 1,387 ms |
+| 4,257–4,295 ms | Delivery and TUI paint | 38 ms |
+
+Atomic CMS admission measured 453.61 ms: message insert, version CAS and initial schema probes 181.60 ms, proof preparation 101.94 ms, chat reads 56.59 ms, chat creation 52.24 ms, commit 21.32 ms and remaining phases 39.92 ms. Initial routing verification was 154.49 ms (178 ms HTTP). Stage two was skipped. The Google call would need to start by 1,575 ms instead of 2,870 ms under this observed provider/paint budget. Removing all main setup alone is insufficient. Server-final-to-idle adds 3,928 ms separately.
+
+The next candidate overlaps unchanged artifact-ledger/config reads and removes a redundant protocol read only when atomic first-Personal admission already holds and validates that protocol lock. Persisted-message digest and proof locking remain. Finer numeric phases distinguish insert, version CAS and proof steps. No latency win is claimed before measurement.
+
+Combining message insertion and chat update in a data-modifying SQL CTE is held: shared statement snapshots need database-level equivalence proof for the existing chat-reading storage trigger. Early positive wallet reuse is held because refund paths can debit without the settlement lock. Neither shortcut is applied.
+
+The exact-source narrow check passed in 153.7 seconds without browser/signup/schema/web preparation. The versioned schema-key candidate excludes only request-only recovery handlers/tests, retaining registration, setup, migrations, packages and current CMS verification. It causes one migration miss and then allows eligible handler-only edits to reuse schema; it does not make full recovery CI a 2–3-minute operation. CI remains outside real chat processing.

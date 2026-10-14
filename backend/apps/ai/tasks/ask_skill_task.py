@@ -2363,6 +2363,55 @@ def _can_overlap_first_turn_reads(request_data, stage_one_snapshot, user_overrid
     return _stage_one_project_none_candidate(request_data, routing, user_overrides)
 
 
+async def _prepare_artifact_context(
+    request_data: AskSkillRequest, task_id: str, cache_service: CacheService,
+    encryption_service: EncryptionService, directus_service: DirectusService,
+    user_vault_key_id: Optional[str],
+) -> None:
+    """Read the full historical ledger for every turn before preprocessing."""
+    # Even an empty first message cannot prove that the chat has no encrypted
+    # historical refs; admission_context only proves Project/context scope.
+    recovered_inline_artifacts = await recover_inline_upload_artifacts(
+        cache_service=cache_service,
+        chat_id=request_data.chat_id,
+        message_history=request_data.message_history,
+    )
+    current_artifact_index = {
+        **recovered_inline_artifacts,
+        **(request_data.embed_file_path_index or {}),
+    }
+    request_data.embed_file_path_index = await load_and_merge_artifact_ledger(
+        cache_service=cache_service,
+        encryption_service=encryption_service,
+        user_vault_key_id=user_vault_key_id,
+        user_id_hash=request_data.user_id_hash,
+        chat_id=request_data.chat_id,
+        current_index=current_artifact_index,
+        persist=not request_data.is_incognito and not request_data.is_external,
+    ) or None
+    request_data.historical_artifact_context = None
+    if request_data.embed_file_path_index and user_vault_key_id:
+        try:
+            from backend.core.api.app.services.embed_service import EmbedService
+
+            request_data.historical_artifact_context = await build_historical_artifact_context(
+                embed_service=EmbedService(
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service,
+                ),
+                user_vault_key_id=user_vault_key_id,
+                current_user_content=request_data.current_user_content,
+                artifact_index=request_data.embed_file_path_index,
+                log_prefix=f"[Task ID: {task_id}] ",
+            )
+        except Exception as exc:
+            logger.warning(
+                "[Task ID: %s] Historical artifact context unavailable; continuing (%s)",
+                task_id, type(exc).__name__,
+            )
+
+
 async def _async_process_ai_skill_ask_task(
     task_id: str, # task_id is still needed
     request_data: AskSkillRequest,
@@ -2790,7 +2839,14 @@ async def _async_process_ai_skill_ask_task(
         summary_operation = _time_setup_stage(
             "active_summary", task_id, mark_response_summary_active(request_data, task_id)
         )
-    async with _overlap_preparation(summary_operation) as active_summary_task:
+    artifact_operation = _time_setup_stage(
+        "artifact", task_id, _prepare_artifact_context(
+            request_data, task_id, cache_service_instance, encryption_service_instance,
+            directus_service_instance, user_vault_key_id,
+        ),
+    )
+    async with _overlap_preparation(summary_operation) as active_summary_task, \
+            _overlap_preparation(artifact_operation) as artifact_task:
         configs_started = time.monotonic()
         # --- Load configurations from cache (preloaded by main API server at startup) ---
         # The main API server preloads these into the shared Dragonfly cache during startup.
@@ -2916,52 +2972,7 @@ async def _async_process_ai_skill_ask_task(
         logger.info("[Task ID: %s] [PRE_MAIN] stage=configs elapsed_ms=%.1f",
                     task_id, (time.monotonic() - configs_started) * 1000)
 
-        artifact_started = time.monotonic()
-        # Preserve only the reference-to-embed mapping needed by later skill calls.
-        # The payload is Vault-encrypted and contains no artifact bytes or extracted content.
-        recovered_inline_artifacts = await recover_inline_upload_artifacts(
-            cache_service=cache_service_instance,
-            chat_id=request_data.chat_id,
-            message_history=request_data.message_history,
-        )
-        current_artifact_index = {
-            **recovered_inline_artifacts,
-            **(request_data.embed_file_path_index or {}),
-        }
-        request_data.embed_file_path_index = await load_and_merge_artifact_ledger(
-            cache_service=cache_service_instance,
-            encryption_service=encryption_service_instance,
-            user_vault_key_id=user_vault_key_id,
-            user_id_hash=request_data.user_id_hash,
-            chat_id=request_data.chat_id,
-            current_index=current_artifact_index,
-            persist=not request_data.is_incognito and not request_data.is_external,
-        ) or None
-        request_data.historical_artifact_context = None
-        if request_data.embed_file_path_index and user_vault_key_id:
-            try:
-                from backend.core.api.app.services.embed_service import EmbedService
-
-                request_data.historical_artifact_context = await build_historical_artifact_context(
-                    embed_service=EmbedService(
-                        cache_service=cache_service_instance,
-                        directus_service=directus_service_instance,
-                        encryption_service=encryption_service_instance,
-                    ),
-                    user_vault_key_id=user_vault_key_id,
-                    current_user_content=request_data.current_user_content,
-                    artifact_index=request_data.embed_file_path_index,
-                    log_prefix=f"[Task ID: {task_id}] ",
-                )
-            except Exception as exc:
-                logger.warning(
-                    "[Task ID: %s] Historical artifact context unavailable; continuing (%s)",
-                    task_id,
-                    type(exc).__name__,
-                )
-
-        logger.info("[Task ID: %s] [PRE_MAIN] stage=artifact elapsed_ms=%.1f",
-                    task_id, (time.monotonic() - artifact_started) * 1000)
+        await artifact_task
         if active_summary_task:
             await active_summary_task
 

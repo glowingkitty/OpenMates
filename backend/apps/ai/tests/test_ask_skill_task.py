@@ -160,6 +160,67 @@ def test_preparation_overlap_runs_concurrently_and_drains_early_exit():
     asyncio.run(check())
 
 
+def test_artifact_preparation_reads_ledger_for_empty_unknown_and_existing_context():
+    """Overlap changes scheduling, not historical-reference coverage."""
+    import asyncio
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+
+    import backend.core.api.app.services.embed_service as embed_module
+
+    source = (Path(__file__).resolve().parents[1] / "tasks" / "ask_skill_task.py").read_text()
+    tree = ast.parse(source)
+    helper = next(node for node in tree.body if isinstance(node, ast.AsyncFunctionDef)
+                  and node.name == "_prepare_artifact_context")
+    module = ast.Module(body=[helper], type_ignores=[])
+    ast.fix_missing_locations(module)
+
+    class FakeEmbedService:
+        def __init__(self, **_kwargs):
+            pass
+
+    original_embed_service = embed_module.EmbedService
+    embed_module.EmbedService = FakeEmbedService
+    try:
+        for admission, initial_index, historical in [
+            ({"scope_complete": True}, None, {}),
+            (None, None, {}),
+            ({"scope_complete": False}, {"new.pdf": "embed-new"},
+             {"old.pdf": "embed-old", "new.pdf": "embed-new"}),
+        ]:
+            recover = AsyncMock(return_value={})
+            ledger = AsyncMock(return_value=historical)
+            historical_context = AsyncMock(return_value="Recovered artifact context")
+            namespace = {
+                "recover_inline_upload_artifacts": recover,
+                "load_and_merge_artifact_ledger": ledger,
+                "build_historical_artifact_context": historical_context,
+                "logger": SimpleNamespace(warning=lambda *_args: None),
+            }
+            exec("from __future__ import annotations\n" + ast.unparse(module), namespace)
+            request = SimpleNamespace(
+                chat_id="chat", user_id_hash="owner", message_history=[],
+                current_user_content="Question?", embed_file_path_index=initial_index,
+                historical_artifact_context="stale", admission_context=admission,
+                is_incognito=False, is_external=False,
+            )
+            asyncio.run(namespace["_prepare_artifact_context"](
+                request, "task", object(), object(), object(), "vault-key",
+            ))
+            recover.assert_awaited_once()
+            ledger.assert_awaited_once()
+            assert ledger.await_args.kwargs["current_index"] == (initial_index or {})
+            assert request.embed_file_path_index == (historical or None)
+            if historical:
+                historical_context.assert_awaited_once()
+                assert request.historical_artifact_context == "Recovered artifact context"
+            else:
+                historical_context.assert_not_awaited()
+                assert request.historical_artifact_context is None
+    finally:
+        embed_module.EmbedService = original_embed_service
+
+
 # contract: summary activation cannot outrun the authority/cache fences, and
 # metadata publication consumes the persisted sealed job before visible output.
 def test_preparation_and_metadata_join_boundaries():
@@ -167,6 +228,9 @@ def test_preparation_and_metadata_join_boundaries():
     body = source.split("async def _async_process_ai_skill_ask_task(", 1)[1]
     assert body.index('"claim_inference"') < body.index("user_vault_key_id = cached_user_data.get")
     assert body.index("user_vault_key_id = cached_user_data.get") < body.index("async with _overlap_preparation(summary_operation)")
+    assert body.index("_overlap_preparation(artifact_operation)") < body.index("get_base_instructions()")
+    assert body.index("get_discovered_apps_metadata()") < body.index("await artifact_task")
+    assert body.index("await artifact_task") < body.index("# --- Step 0: Parse User Overrides")
     assert body.index("await active_summary_task") < body.index("# --- Step 0: Parse User Overrides")
     assert body.index("debug_cache_task = asyncio.create_task(cache_debug_nonfatal())") < body.index(
         'initial_metadata_operation = time_pre_main("metadata_job"')

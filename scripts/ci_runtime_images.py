@@ -74,8 +74,19 @@ RUNTIME_KEY_FACTORS = {
     "schema": {
         "bundle_format": SCHEMA_BUNDLE_FORMAT,
         "restore_semantics": SCHEMA_RESTORE_SEMANTICS,
+        "definition_inputs_version": "2",
     }
 }
+# These request handlers and their unit tests cannot define database schema or
+# seed data. Keep the endpoint entrypoint, package metadata, every other
+# extension, setup/migrations, and the complete CMS runtime image in the key.
+SCHEMA_REQUEST_ONLY_INPUTS = frozenset({
+    "backend/core/directus/extensions/chat-recovery-transaction/src/operations.js",
+    "backend/core/directus/extensions/chat-recovery-transaction/src/metadata_operations.js",
+})
+SCHEMA_REQUEST_ONLY_TEST_PREFIX = (
+    "backend/core/directus/extensions/chat-recovery-transaction/test/"
+)
 EXECUTED_COMPATIBILITY_INPUTS = {
     "schema": (
         Path(__file__).resolve(),
@@ -102,6 +113,13 @@ def input_paths(root: Path, kind: str) -> list[Path]:
             and "__pycache__" not in path.parts
             and path.suffix not in {".pyc", ".pyo"}
         )
+    if kind == "schema":
+        paths = {
+            path for path in paths
+            if (relative := path.relative_to(root).as_posix()) not in SCHEMA_REQUEST_ONLY_INPUTS
+            and not (relative.startswith(SCHEMA_REQUEST_ONLY_TEST_PREFIX)
+                     and relative.endswith(".test.js"))
+        }
     return sorted(paths, key=lambda item: item.relative_to(root).as_posix())
 
 
