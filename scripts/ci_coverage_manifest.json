@@ -399,7 +399,8 @@
         "components/chat-open-focus.spec.ts",
         "public-example-input-focus.spec.ts",
         "components/questionnaire-recipe-options.spec.ts",
-        "questionnaire-recipe-options-public.spec.ts"
+        "questionnaire-recipe-options-public.spec.ts",
+        "components/landing-section-replay.spec.ts"
       ],
       "enabling_work": "Run existing public browser/component/source assertions on the built candidate; report product failures rather than holding execution.",
       "execution": "e2e"

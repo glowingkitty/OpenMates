@@ -98,12 +98,14 @@
         <!-- Static rendering of the existing EventEmbedPreview. Keeping this
              presentation surface local avoids importing authenticated UI stores. -->
         <div class="event-preview" class:pressed={interaction === 'preview-clicked'} data-testid="landing-actionable-event-preview">
-          <div class="event-details">
-            <div class="event-meta"><span>{new Intl.DateTimeFormat(language === 'de' ? 'de-DE' : 'en-US', { month: 'short', day: 'numeric', timeZone: 'Europe/Berlin' }).format(new Date('2024-05-22T11:00:00+02:00'))}</span><span>11:00–18:00</span><span>{copy.actionable_event_venue}</span></div>
-            <div class="event-badges"><span>{copy.actionable_event_in_person}</span><span>460 {copy.actionable_event_rsvps}</span><span>Luma</span></div>
+          <div class="event-title"><span class="app-icon">{@render icon('event')}</span><strong>{copy.actionable_event_title}</strong></div>
+          <div class="event-content">
+            <div class="event-details">
+              <div class="event-meta"><span class="event-date">{new Intl.DateTimeFormat(language === 'de' ? 'de-DE' : 'en-US', { month: 'short', day: 'numeric', timeZone: 'Europe/Berlin' }).format(new Date('2024-05-22T11:00:00+02:00'))}</span><span class="event-time">{new Intl.DateTimeFormat(language === 'de' ? 'de-DE' : 'en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'Europe/Berlin' }).format(new Date('2024-05-22T11:00:00+02:00'))}</span><span class="event-location">{language === 'de' ? 'Berlin, Deutschland' : 'Berlin, Germany'}</span></div>
+              <div class="event-badges"><span class="event-type-badge">{copy.actionable_event_in_person}</span><span class="event-rsvps">460 {copy.actionable_event_rsvps}</span><span class="event-source">Luma</span></div>
+            </div>
+            <img class="event-image" src={eventImage} alt="" width="139" height="139" />
           </div>
-          <img class="event-image" src={eventImage} alt="" width="130" height="160" />
-          <div class="event-title"><span class="app-icon">{@render icon('calendar')}</span><strong>{copy.actionable_event_title}</strong></div>
         </div>
       {:else if scene.id === 'luma-cta'}
         <div class="luma-cta" class:pressed={interaction === 'cta-clicked'} data-testid="landing-actionable-luma-button">{copy.actionable_event_open_luma}</div>
@@ -136,8 +138,9 @@
 </div>
 
 {#snippet icon(name: string)}
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <svg viewBox={name === 'event' ? '0 0 48 48' : '0 0 24 24'} fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     {#if name === 'pointer'}<path d="m4 3 7.07 17 2.51-7.39L21 10.1 4 3Z" />
+    {:else if name === 'event'}<path fill="currentColor" stroke="none" d="M33.778 26.4h-7.334C25.1 26.4 24 27.48 24 28.8V36c0 1.32 1.1 2.4 2.444 2.4h7.334c1.344 0 2.444-1.08 2.444-2.4v-7.2c0-1.32-1.1-2.4-2.444-2.4zm0-24v2.4H14.222V2.4c0-1.32-1.1-2.4-2.444-2.4-1.345 0-2.445 1.08-2.445 2.4v2.4H6.89c-2.713 0-4.865 2.16-4.865 4.8L2 43.2c0 1.273.515 2.494 1.432 3.394.917.9 2.16 1.406 3.457 1.406H41.11C43.8 48 46 45.84 46 43.2V9.6c0-2.64-2.2-4.8-4.889-4.8h-2.444V2.4c0-1.32-1.1-2.4-2.445-2.4-1.344 0-2.444 1.08-2.444 2.4zm4.889 40.8H9.333c-1.344 0-2.444-1.08-2.444-2.4v-24H41.11v24c0 1.32-1.1 2.4-2.444 2.4z" />
     {:else if name === 'lock' || name === 'unlock'}<rect x="5" y="10" width="14" height="11" rx="2" /><path d={name === 'lock' ? 'M8 10V6a4 4 0 0 1 8 0v4' : 'M8 10V6a4 4 0 0 1 7.5-2'} /><path d="M12 15v2" />
     {:else if name === 'chat'}<path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8v.5Z" />
     {:else if name === 'folder'}<path d="M3 7V5a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" />
@@ -162,13 +165,23 @@
   .assistant { background: var(--color-grey-10); }
   .mate-name { color: var(--color-font-tertiary); font-size: var(--font-size-xs); margin-bottom: var(--spacing-2); }
   .copy { max-width: 30rem; margin: 0; font-size: clamp(1.25rem, 3.8cqi, 1.7rem); font-weight: 800; line-height: 1.35; text-align: center; text-wrap: balance; }
-  .event-preview { display: grid; grid-template-columns: 1fr 130px; width: min(100%, 440px); min-height: 220px; border-radius: 30px; overflow: hidden; background: var(--color-grey-25); box-shadow: var(--shadow-lg); transition: transform 140ms ease; }
-  .event-details { display: grid; align-content: center; gap: var(--spacing-6); padding: var(--spacing-10); }
-  .event-meta { display: grid; gap: var(--spacing-2); font-size: var(--font-size-small); }
-  .event-badges { display: flex; flex-wrap: wrap; gap: var(--spacing-4); font-size: var(--font-size-xxs); color: var(--color-font-tertiary); }
-  .event-image { width: 130px; height: 160px; object-fit: cover; }
-  .event-title { grid-column: 1 / -1; display: flex; align-items: center; gap: var(--spacing-6); min-height: 61px; border-radius: 30px; background: var(--color-grey-30); font-size: var(--font-size-small); }
-  .app-icon { display: grid; place-items: center; flex: 0 0 61px; height: 61px; border-radius: var(--radius-full); background: var(--color-app-events); color: var(--color-font-button); }
+  /* Mirror the deployed EventEmbedPreview: BasicInfosBar above the details.
+     Child event previews have an app icon and title, without a skill/status row. */
+  .event-preview { display: flex; flex-direction: column; width: 300px; max-width: 100%; height: 200px; border-radius: 30px; overflow: hidden; background: var(--color-grey-25); box-shadow: 0 8px 24px rgb(0 0 0 / 16%), 0 2px 6px rgb(0 0 0 / 10%); transition: transform 140ms ease; }
+  .event-title { display: flex; align-items: center; gap: var(--spacing-3); height: 61px; flex: 0 0 61px; border-radius: 30px; background: var(--color-grey-30); color: var(--color-grey-100); }
+  .event-title strong { flex: 1; min-width: 0; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: var(--font-size-p); font-weight: 600; line-height: 1.2; word-break: break-word; }
+  .app-icon { display: grid; place-items: center; flex: 0 0 61px; height: 61px; border-radius: var(--radius-full); background: var(--color-app-events); color: white; }
+  .event-content { display: flex; align-items: stretch; gap: var(--spacing-4); min-height: 0; flex: 1; padding-inline: var(--spacing-10); }
+  .event-details { display: flex; flex-direction: column; align-items: start; align-self: center; flex: 1; min-width: 0; gap: var(--spacing-2); padding-block: 2px; }
+  .event-meta { display: flex; flex-direction: column; gap: 1px; max-width: 100%; }
+  .event-meta span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .event-date, .event-time { font-size: var(--font-size-small); font-weight: 600; color: var(--color-grey-70); }
+  .event-location { font-size: var(--font-size-xxs); color: var(--color-grey-60); }
+  .event-badges { display: flex; align-items: center; flex-wrap: wrap; gap: var(--spacing-2); margin-top: var(--spacing-1); }
+  .event-type-badge { padding: var(--spacing-1) var(--spacing-4); border-radius: var(--radius-full); background: var(--color-app-events-start); color: white; font-size: 0.625rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+  .event-rsvps, .event-source { font-size: 0.6875rem; color: var(--color-grey-60); }
+  .event-source { color: var(--color-grey-50); }
+  .event-image { flex: 0 0 139px; width: 139px; height: 139px; min-width: 0; object-fit: contain; }
   .luma-cta { padding: var(--spacing-6) var(--spacing-12); border-radius: var(--radius-8); background: var(--color-button-primary); color: var(--color-font-button); box-shadow: var(--shadow-md); font-size: clamp(1rem, 2.8cqi, 1.3rem); font-weight: 800; transition: transform 140ms ease; }
   .pressed { transform: scale(0.97); }
   .pointer { position: absolute; left: 54%; top: calc(100% + 40px); width: 38px; height: 38px; color: var(--color-font-primary); opacity: 0; transform: translate(-15%, -12%) scale(0.82); transition: left 620ms cubic-bezier(0.16, 1, 0.3, 1), top 620ms cubic-bezier(0.16, 1, 0.3, 1), opacity 180ms ease, transform 140ms ease; }
@@ -198,6 +211,6 @@
   @keyframes float-data { 0%, 100% { transform: translateY(-3px); } 50% { transform: translateY(4px); } }
   @keyframes unlock-exit { 0%, 28% { opacity: 1; transform: translateY(0) rotate(-7deg); } 48%, 100% { opacity: 0; transform: translateY(-18px) rotate(5deg); } }
   @keyframes lock-enter { 0%, 32% { opacity: 0; transform: translateY(18px) scale(0.8); } 54%, 100% { opacity: 1; transform: translateY(0) scale(1); } }
-  @container (max-width: 430px) { .event-preview { grid-template-columns: 1fr 95px; } .event-image { width: 95px; } .event-details { padding: var(--spacing-6); } .event-badges { font-size: var(--font-size-tiny); } .message { padding: var(--spacing-6) var(--spacing-8); } .permission-card { padding: var(--spacing-8); font-size: var(--font-size-xs); } }
+  @container (max-width: 430px) { .message { padding: var(--spacing-6) var(--spacing-8); } .permission-card { padding: var(--spacing-8); font-size: var(--font-size-xs); } }
   @media (prefers-reduced-motion: reduce) { .feature-animation { display: none; } .scene, .data-icon, .unlock, .locked { animation: none; } }
 </style>

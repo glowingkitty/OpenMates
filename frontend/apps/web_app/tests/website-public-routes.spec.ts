@@ -193,7 +193,7 @@ for (const width of [390, 1440]) {
       await section.scrollIntoViewIfNeeded();
       await expect(section).toHaveClass(/revealed/);
       await expect(section.getByRole('heading')).toHaveCSS('opacity', '1');
-      if (id === 'actionable' || id === 'privacy') {
+      {
         const skip = section.getByTestId(`landing-skip-${id}`);
         if (await skip.count()) await skip.click();
         await expect(section).toHaveAttribute('data-story-state', 'complete');

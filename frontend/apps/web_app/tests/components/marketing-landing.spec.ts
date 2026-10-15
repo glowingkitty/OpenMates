@@ -40,7 +40,7 @@ for (const { width, height } of [{ width: 390, height: 844 }, { width: 1440, hei
     await expect(deferredFeature).toHaveClass(/reveal-ready/);
     await expect(deferredFeature).not.toHaveClass(/revealed/);
     await expect(deferredFeature.locator('.feature-copy h2')).toHaveCSS('opacity', '0');
-    await expect(deferredFeature.locator('.feature-example')).toHaveCSS('opacity', '0');
+    await expect(deferredFeature.locator('.feature-example')).toHaveCount(0);
     const newsletter = page.getByTestId('landing-newsletter-reveal');
     await expect(newsletter).toHaveClass(/reveal-ready/);
     await expect(newsletter).not.toHaveClass(/revealed/);
@@ -86,10 +86,6 @@ for (const { width, height } of [{ width: 390, height: 844 }, { width: 1440, hei
     await expect(page.getByTestId('landing-open-web-app')).toHaveAttribute('href', `${APP}/`);
     expect((await page.getByTestId('landing-open-web-app').boundingBox())?.height).toBe(41);
     await expect(compose).toHaveAttribute('href', `${APP}/#compose`);
-    for (const id of ['landing-explore-apps', 'landing-explore-workflows']) {
-      await expect(page.getByTestId(id)).toHaveAttribute('target', '_blank');
-      await expect(page.getByTestId(id)).toHaveAttribute('rel', /noopener/);
-    }
     await page.getByTestId('landing-open-web-app').focus();
     await expect(page.getByTestId('landing-open-web-app')).toBeFocused();
     await expect(page.getByTestId('landing-open-web-app')).toHaveCSS('outline-style', 'solid');
@@ -175,6 +171,9 @@ for (const { width, height } of [{ width: 390, height: 844 }, { width: 1440, hei
       await section.scrollIntoViewIfNeeded();
       await expect(section.getByRole('heading')).toBeVisible();
       await expect(section).toHaveClass(/revealed/);
+      const skip = section.getByTestId(`landing-skip-${id}`);
+      if (await skip.count()) await skip.click();
+      await expect(section).toHaveAttribute('data-story-state', 'complete');
       if (id === 'privacy') {
         await expect(section.locator('.feature-icon')).toHaveCSS('opacity', '1');
         await expect(section.locator('.feature-copy h2')).toHaveCSS('opacity', '1');
@@ -203,6 +202,11 @@ for (const { width, height } of [{ width: 390, height: 844 }, { width: 1440, hei
         await image.scrollIntoViewIfNeeded();
         await expect.poll(() => image.evaluate((node: HTMLImageElement) => node.complete && node.naturalWidth > 0)).toBe(true);
         expect((await image.getAttribute('alt'))?.trim()).toBeTruthy();
+      }
+      if (id === 'open-source') {
+        await expect(media.locator('.device-frame')).toHaveCount(0);
+        await expect(media.locator('.source-github')).toHaveAttribute('href', 'https://github.com/glowingkitty/OpenMates');
+        continue;
       }
       await expect(media.locator('.device-frame.phone')).toHaveCount(1);
       await expect(media.locator('.device-frame.laptop')).toHaveCount(1);

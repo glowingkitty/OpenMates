@@ -56,12 +56,12 @@
     "imprint": "Imprint",
     "community": "Community",
     "social": "Follow OpenMates",
-    "heroPrivacyHighlight": "privacy first",
     "askAnythingDesktop": "Click to ask anything",
     "askAnythingTouch": "Tap to ask anything",
     "modelSelectionLink": "Learn more about AI model selection",
     "dataOwnershipLink": "Learn more about your rights to own your data",
     "skipAnimation": "Skip animation",
+    "replayAnimation": "Replay animation",
     "previousSection": "Previous section",
     "nextSection": "Next section"
   },
@@ -122,12 +122,12 @@
     "imprint": "Impressum",
     "community": "Community",
     "social": "OpenMates folgen",
-    "heroPrivacyHighlight": "Privatsphäre",
     "askAnythingDesktop": "Klicken und alles fragen",
     "askAnythingTouch": "Tippen und alles fragen",
     "modelSelectionLink": "Mehr über die Auswahl von KI-Modellen",
     "dataOwnershipLink": "Mehr über dein Recht auf deine eigenen Daten",
     "skipAnimation": "Animation überspringen",
+    "replayAnimation": "Animation erneut abspielen",
     "previousSection": "Vorheriger Abschnitt",
     "nextSection": "Nächster Abschnitt"
   }

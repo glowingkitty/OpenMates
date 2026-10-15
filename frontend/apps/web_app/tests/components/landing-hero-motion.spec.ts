@@ -14,27 +14,11 @@ test.beforeEach(async ({ page }) => {
 const execFileAsync = promisify(execFile);
 const APP = 'https://app.dev.openmates.org';
 
-const expectSensitiveDataMarker = async (highlight: import('@playwright/test').Locator) => {
-  const styles = await highlight.evaluate(element => {
-    const marker = getComputedStyle(element, '::before');
-    const probe = document.createElement('span');
-    probe.style.cssText = 'position:absolute;visibility:hidden;color:var(--color-font-primary);background:rgba(250,204,21,.35);border-radius:2px;padding:0 2px';
-    element.append(probe);
-    const expected = getComputedStyle(probe);
-    const result = {
-      actual: { color: getComputedStyle(element).color, background: marker.backgroundColor, radius: marker.borderRadius },
-      expected: { color: expected.color, background: expected.backgroundColor, radius: expected.borderRadius },
-      position: marker.position, layer: marker.zIndex, transform: marker.transform,
-      textBackground: getComputedStyle(element).backgroundColor,
-    };
-    probe.remove();
-    return result;
-  });
-  expect(styles.actual).toEqual(styles.expected);
-  expect(styles.position).toBe('absolute');
-  expect(styles.layer).toBe('-1');
-  expect(styles.textBackground).toBe('rgba(0, 0, 0, 0)');
-  expect(styles.transform).toBe('matrix(1, 0, 0, 1, 0, 0)');
+const expectPlainHeroTitle = async (page: import('@playwright/test').Page) => {
+  const title = page.locator('#hero-title');
+  await expect(title).toBeVisible();
+  await expect(page.getByTestId('landing-privacy-highlight')).toHaveCount(0);
+  await expect(title).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
 };
 
 const scrollToFeature = async (page: import('@playwright/test').Page, id: string, offset = 0) => {
@@ -286,25 +270,14 @@ for (const available of [true, false]) {
 }
 
 // contract-test: direct surface=gui.web assertions=marketing-landing.hero-entrance,marketing-landing.independent-scroll
-test('hero privacy marker settles accessibly and browser return restarts rendering', async ({ page }) => {
+test('hero title remains plain and browser return restarts rendering', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.context().route('https://events.example.test/return-preview', route => route.fulfill({ contentType: 'text/html', body: '<h1>Event details</h1>' }));
   await page.goto(preview(1440, 'light', { events: [{ id: 'return-event', title: 'Event details', href: 'https://events.example.test/return-preview' }] }), { waitUntil: 'domcontentloaded' });
   await waitForComponentPreview(page, 30_000);
-  const highlight = page.getByTestId('landing-privacy-highlight');
-  await expect(highlight).toHaveText('privacy first');
-  await expect.poll(() => highlight.evaluate(element => getComputedStyle(element, '::before').transform)).toBe('matrix(1, 0, 0, 1, 0, 0)');
-  const markerMotion = await highlight.evaluate(element => {
-    const style = getComputedStyle(element, '::before');
-    const animation = element.getAnimations({ subtree: true }).find(item =>
-      (item.effect as KeyframeEffect | null)?.getKeyframes().some(frame => String(frame.transform).includes('scaleX')));
-    return { name: style.animationName, origin: style.transformOrigin, frames: (animation?.effect as KeyframeEffect | null)?.getKeyframes().map(frame => String(frame.transform)) };
-  });
-  expect(markerMotion.name).toContain('privacy-marker');
-  expect(markerMotion.origin).toMatch(/^0px /);
-  expect(markerMotion.frames).toEqual(['scaleX(0)', 'scaleX(1)']);
-  await expectSensitiveDataMarker(highlight);
+  await expect(page.locator('#hero-title')).toContainText('Your privacy first');
+  await expectPlainHeroTitle(page);
   const scroller = page.getByTestId('landing-scroll-container');
   await expect(page.getByTestId('landing-hero-media')).toHaveCSS('transform', 'none');
   await scroller.evaluate(element => element.scrollTo({ top: element.clientHeight, behavior: 'auto' }));
@@ -331,8 +304,7 @@ test('hero privacy marker settles accessibly and browser return restarts renderi
   await scroller.evaluate(element => element.scrollTo({ top: element.clientHeight * 2, behavior: 'auto' }));
   await expect(page.getByTestId('landing-feature-privacy')).toHaveClass(/revealed/);
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await expect.poll(() => highlight.evaluate(element => getComputedStyle(element, '::before').animationName)).toBe('none');
-  await expectSensitiveDataMarker(highlight);
+  await expectPlainHeroTitle(page);
 });
 
 for (const width of [390, 1440]) {
@@ -511,7 +483,7 @@ test('desktop privacy story naturally completes every encryption, PII and permis
 test.describe('touch landing composer', () => {
   test.use({ hasTouch: true });
   // contract-test: direct surface=gui.web assertions=marketing-landing.composer-focus,marketing-landing.hero-entrance
-  test('touch input uses Tap and German highlights only Privatsphäre', async ({ page }) => {
+  test('touch input uses Tap and the German title has no highlight', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto(preview(390), { waitUntil: 'domcontentloaded' });
@@ -526,7 +498,7 @@ test.describe('touch landing composer', () => {
     await page.evaluate(() => localStorage.setItem('preferredLanguage', 'de'));
     await page.reload({ waitUntil: 'domcontentloaded' });
     await waitForComponentPreview(page, 30_000);
-    await expect(page.getByTestId('landing-privacy-highlight')).toHaveText('Privatsphäre');
-    await expectSensitiveDataMarker(page.getByTestId('landing-privacy-highlight'));
+    await expect(page.locator('#hero-title')).toContainText('Privatsphäre');
+    await expectPlainHeroTitle(page);
   });
 });

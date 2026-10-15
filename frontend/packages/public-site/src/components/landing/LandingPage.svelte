@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { fade } from 'svelte/transition';
   import LandingFeatureAnimation from './LandingFeatureAnimation.svelte';
   import LandingNativeIcon from './LandingNativeIcon.svelte';
-  import { landingAppExamples, type LandingPublication } from './landingPageContent';
+  import { landingAppExamples, landingSectionExamples, landingDeviceMedia, type LandingPublication } from './landingPageContent';
   import DeviceScreenshots from '../DeviceScreenshots.svelte';
   import NewsletterSignup from '../NewsletterSignup.svelte';
   import PublicSiteHeader from './PublicSiteHeader.svelte';
@@ -39,21 +39,66 @@
   let composerAlternative = $state(false);
   let touchDevice = $state(false);
   let composerLabel = $derived(composerAlternative ? (touchDevice ? copy.askAnythingTouch : copy.askAnythingDesktop) : (freeUsageAvailable ? copy.tryFree : copy.tryNow));
-  type StorySection = 'actionable' | 'privacy';
-  let storyStates = $state<Record<StorySection, 'pending' | 'playing' | 'finishing' | 'complete'>>({ actionable: 'pending', privacy: 'pending' });
+  const storySections = ['actionable', 'privacy', 'model-choice', 'workflows', 'devices', 'open-source'] as const;
+  type StorySection = typeof storySections[number];
+  type StoryState = 'pending' | 'playing' | 'finishing' | 'complete';
+  const isCustomStory = (section: StorySection): section is 'actionable' | 'privacy' => section === 'actionable' || section === 'privacy';
+  let storyStates = $state<Record<StorySection, StoryState>>(Object.fromEntries(storySections.map(section => [section, 'pending'])) as Record<StorySection, StoryState>);
   let activeStory = $state<StorySection | null>(null);
+  let pageVisible = $state(true);
+  const introElapsed: Partial<Record<StorySection, number>> = {};
   let showSectionNavigation = $state(false);
   let hasNextSection = $state(true);
   let navigateSection = (_direction: number) => {};
   let scrollToSection = (_id: string) => {};
-  const storyTransitionTimers: number[] = [];
+  const storyTransitionTimers = new Map<StorySection, number>();
   function finishStory(section: StorySection): void {
     if (storyStates[section] === 'complete' || storyStates[section] === 'finishing') return;
     if (reducedMotion) { storyStates[section] = 'complete'; return; }
     storyStates[section] = 'finishing';
     // Fade the full-width demonstration before changing to the device layout.
-    storyTransitionTimers.push(window.setTimeout(() => { storyStates[section] = 'complete'; }, 220));
+    storyTransitionTimers.set(section, window.setTimeout(() => { storyTransitionTimers.delete(section); storyStates[section] = 'complete'; }, 220));
   }
+  async function replayStory(section: StorySection): Promise<void> {
+    if (reducedMotion) return;
+    const finishing = storyTransitionTimers.get(section);
+    if (finishing !== undefined) window.clearTimeout(finishing);
+    storyTransitionTimers.delete(section);
+    introElapsed[section] = 0;
+    storyStates[section] = 'playing';
+    await tick();
+    scrollToSection(section);
+  }
+
+  // Future custom stories can replace this quiet title-only introduction.
+  // Count visible time only, so scrolling away never consumes another section.
+  $effect(() => {
+    const section = activeStory;
+    if (!section || isCustomStory(section) || reducedMotion || !pageVisible || storyStates[section] !== 'playing') return;
+    let elapsed = introElapsed[section] ?? 0;
+    let previous = performance.now();
+    let frame = 0;
+    const advance = (now: number) => {
+      elapsed += Math.min(100, Math.max(0, now - previous));
+      previous = now;
+      introElapsed[section] = elapsed;
+      if (elapsed >= 1400) finishStory(section);
+      else frame = requestAnimationFrame(advance);
+    };
+    frame = requestAnimationFrame(advance);
+    return () => cancelAnimationFrame(frame);
+  });
+
+  type Feature = { id: StorySection; title1: string; title2: string; body: string; icon: string; baseKey?: string; desktopAlt?: string; mobileAlt?: string; exampleChatId?: string; mediaPath?: string };
+  let features = $derived<Feature[]>([
+    { id: 'actionable', title1: copy.actionableTitle1, title2: copy.actionableTitle2, body: copy.actionableBody, icon: 'search', baseKey: 'events', desktopAlt: 'OpenMates web chat searching for AI events in Berlin', mobileAlt: 'OpenMates mobile view of an events chat', exampleChatId: landingSectionExamples.actionable },
+    { id: 'privacy', title1: copy.privacyTitle1, title2: copy.privacyTitle2, body: copy.privacyBody, icon: 'security', baseKey: 'privacy', desktopAlt: 'OpenMates highlighting sensitive data before sending a message', mobileAlt: 'OpenMates mobile chat highlighting personal data', exampleChatId: landingSectionExamples.privacy },
+    { id: 'model-choice', title1: copy.modelChoiceTitle1, title2: copy.modelChoiceTitle2, body: copy.modelChoiceBody, icon: 'coding', baseKey: 'model-selector', desktopAlt: 'OpenMates AI model selector on desktop', mobileAlt: 'OpenMates AI model selector on mobile', exampleChatId: landingSectionExamples['model-choice'] },
+    { id: 'workflows', title1: copy.workflowTitle1, title2: copy.workflowTitle2, body: copy.workflowBody, icon: 'workflow', baseKey: 'workflows', desktopAlt: 'OpenMates workflow editor on desktop', mobileAlt: 'OpenMates workflow editor on mobile', exampleChatId: landingSectionExamples.workflows, mediaPath: '/#workflows' },
+    { id: 'devices', title1: copy.devicesTitle1, title2: copy.devicesTitle2, body: copy.devicesBody, icon: 'devices', baseKey: 'devices', desktopAlt: 'OpenMates train connections example on desktop', mobileAlt: 'OpenMates train connections example on mobile', exampleChatId: landingSectionExamples.devices },
+    { id: 'open-source', title1: copy.sourceTitle1, title2: copy.sourceTitle2, body: copy.sourceBody, icon: 'coding' },
+  ]);
+
   let landingRoot: HTMLDivElement;
   let scrollContainer: HTMLElement;
   let railWindow: HTMLDivElement;
@@ -121,7 +166,7 @@
       hasNextSection = sectionIndex < sections.length - 1;
       const selected = sections[sectionIndex];
       const key = selected?.id;
-      activeStory = key === 'actionable' || key === 'privacy' ? key : null;
+      activeStory = storySections.includes(key as StorySection) ? key as StorySection : null;
       if (activeStory && storyStates[activeStory] === 'pending') storyStates[activeStory] = 'playing';
     };
     const moveTo = (element: HTMLElement) => scrollContainer.scrollTo({ top: sectionTop(element), behavior: reducedMotion ? 'auto' : 'smooth' });
@@ -325,7 +370,7 @@
     };
     const updateMotion = () => {
       reducedMotion = motionQuery.matches;
-      if (reducedMotion) { storyStates.actionable = 'complete'; storyStates.privacy = 'complete'; }
+      if (reducedMotion) for (const section of storySections) storyStates[section] = 'complete';
       velocity = automaticVelocity;
       progressionSource = 'automatic';
       if (reducedMotion && target !== null) {
@@ -383,9 +428,11 @@
       updateMotion();
     };
     const onVisibilityChange = () => {
+      pageVisible = !document.hidden;
       if (document.hidden) suspendRendering();
       else resumeRendering();
     };
+    pageVisible = !document.hidden;
     document.addEventListener('visibilitychange', onVisibilityChange);
     window.addEventListener('focus', resumeRendering);
     window.addEventListener('pageshow', resumeRendering);
@@ -432,7 +479,7 @@
         <div class="hero-visual" data-testid="landing-hero-media">
           <div class="hero-ai-entrance"><div class="hero-ai-visual" aria-hidden="true" data-testid="landing-hero-ai-icon"><span class="hero-ai-glyph"><LandingNativeIcon name="ai" /></span></div></div>
         </div>
-        <h1 id="hero-title">{#each [copy.heroLine1, copy.heroLine2] as line, index}{#if index > 0}<br />{/if}{#if line.includes(copy.heroPrivacyHighlight)}{line.slice(0, line.indexOf(copy.heroPrivacyHighlight))}<span class="privacy-highlight" data-testid="landing-privacy-highlight">{copy.heroPrivacyHighlight}</span>{line.slice(line.indexOf(copy.heroPrivacyHighlight) + copy.heroPrivacyHighlight.length)}{:else}{line}{/if}{/each}</h1>
+        <h1 id="hero-title">{copy.heroLine1}<br />{copy.heroLine2}</h1>
         <div class="hero-prompt-entrance">
           {#if activeApp}
             {#key activeApp.id}
@@ -459,98 +506,53 @@
         <a class="scroll-cue" href="#actionable" onclick={(event) => { event.preventDefault(); scrollToSection('actionable'); }} data-testid="landing-scroll-cue"><span class="scroll-cue-content"><svg class="cue-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg><span>{copy.scroll}</span><svg class="cue-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></span></a>
       </section>
 
-      <section class="feature feature-media" class:story-playing={storyStates.actionable !== 'complete'} class:story-finishing={storyStates.actionable === 'finishing'} data-story-state={storyStates.actionable} id="actionable" aria-labelledby="actionable-title" data-testid="landing-feature-actionable" data-reveal>
-        <div class="feature-copy">
-          <span class="feature-icon search-icon" aria-hidden="true" data-testid="landing-feature-icon"></span>
-          <h2 id="actionable-title">{copy.actionableTitle1}<br />{copy.actionableTitle2}</h2>
-          {#if storyStates.actionable === 'complete'}
-            <div class="story-copy" in:fade={{ duration: reducedMotion ? 0 : 360 }}><p>{copy.actionableBody}</p>
-              <a class="text-link" href={appUrl('/#apps')} target="_blank" rel="noopener noreferrer" data-testid="landing-explore-apps">{copy.exploreApps}</a></div>
-          {:else}<button class="skip-animation" type="button" onclick={() => finishStory('actionable')} data-testid="landing-skip-actionable">{copy.skipAnimation}</button>{/if}
-        </div>
-        <div class="story-surface">
-          {#if storyStates.actionable === 'complete'}
-        <div in:fade={{ duration: reducedMotion ? 0 : 400, delay: reducedMotion ? 0 : 180 }} class="feature-example" data-testid="landing-feature-media-actionable">
-          <DeviceScreenshots baseKey="events" desktopAlt="OpenMates web chat searching for AI events in Berlin" mobileAlt="OpenMates mobile view of an events chat" />
-          <a class="example-link" target="_blank" rel="noopener noreferrer" href={appUrl('/#chat-id=example-ai-workshops-meetups-berlin')}>{copy.openExample}</a>
-        </div>
-          {:else}
-            <div class="story-stage" out:fade={{ duration: reducedMotion ? 0 : 240 }}>
-              <LandingFeatureAnimation section="actionable" active={activeStory === 'actionable' && storyStates.actionable === 'playing'} language={chosenLanguage} onComplete={() => finishStory('actionable')} />
-            </div>
-          {/if}
-        </div>
-      </section>
-
-      <section class="feature feature-media" class:story-playing={storyStates.privacy !== 'complete'} class:story-finishing={storyStates.privacy === 'finishing'} data-story-state={storyStates.privacy} id="privacy" aria-labelledby="privacy-title" data-testid="landing-feature-privacy" data-reveal>
-        <div class="feature-copy">
-          <span class="feature-icon security-icon" aria-hidden="true" data-testid="landing-feature-icon"></span>
-          <h2 id="privacy-title">{copy.privacyTitle1}<br />{copy.privacyTitle2}</h2>
-          {#if storyStates.privacy === 'complete'}
-            <div class="story-copy" in:fade={{ duration: reducedMotion ? 0 : 360 }}><p>{copy.privacyBody}</p>
-              <div class="feature-links"><a class="text-link" href={siteUrl('/blog')}>{copy.privacyLink}</a><a class="text-link" href={siteUrl('/blog')}>{copy.safetyLink}</a></div></div>
-          {:else}<button class="skip-animation" type="button" onclick={() => finishStory('privacy')} data-testid="landing-skip-privacy">{copy.skipAnimation}</button>{/if}
-        </div>
-        <div class="story-surface">
-          {#if storyStates.privacy === 'complete'}
-        <div in:fade={{ duration: reducedMotion ? 0 : 400, delay: reducedMotion ? 0 : 180 }} class="feature-example" data-testid="landing-feature-media-privacy">
-          <DeviceScreenshots baseKey="privacy" desktopAlt="OpenMates web chat with personal data replaced by placeholders" mobileAlt="OpenMates mobile chat highlighting personal data" />
-          <a class="example-link" target="_blank" rel="noopener noreferrer" href={appUrl('/#chat-id=example-plumber-message-email-phone')}>{copy.openExample}</a>
-        </div>
-          {:else}
-            <div class="story-stage" out:fade={{ duration: reducedMotion ? 0 : 240 }}>
-              <LandingFeatureAnimation section="privacy" active={activeStory === 'privacy' && storyStates.privacy === 'playing'} language={chosenLanguage} onComplete={() => finishStory('privacy')} />
-            </div>
-          {/if}
-        </div>
-      </section>
-
-      <section class="feature feature-media" id="model-choice" aria-labelledby="model-choice-title" data-testid="landing-feature-model-choice" data-reveal>
-        <div class="feature-copy">
-          <span class="feature-icon coding-icon" aria-hidden="true" data-testid="landing-feature-icon"></span>
-          <h2 id="model-choice-title">{copy.modelChoiceTitle1}<br />{copy.modelChoiceTitle2}</h2>
-          <p>{copy.modelChoiceBody}</p>
-          <div class="feature-links"><a class="text-link" href={siteUrl('/blog')} data-testid="landing-model-selection-link">{copy.modelSelectionLink}</a><a class="text-link" href={siteUrl('/blog')} data-testid="landing-data-ownership-link">{copy.dataOwnershipLink}</a></div>
-        </div>
-        <div class="feature-example" data-testid="landing-feature-media-model-choice"><DeviceScreenshots baseKey="model-selector" desktopAlt="OpenMates AI model selector on desktop" mobileAlt="OpenMates AI model selector on mobile" /></div>
-      </section>
-
-      <section class="feature feature-media" id="workflows" aria-labelledby="workflows-title" data-testid="landing-feature-workflows" data-reveal>
-        <div class="feature-copy">
-          <span class="feature-icon workflow-icon" aria-hidden="true" data-testid="landing-feature-icon"></span>
-          <h2 id="workflows-title">{copy.workflowTitle1}<br />{copy.workflowTitle2}</h2>
-          <p>{copy.workflowBody}</p>
-          <a class="text-link" href={appUrl('/#workflows')} target="_blank" rel="noopener noreferrer" data-testid="landing-explore-workflows">{copy.exploreWorkflows}</a>
-        </div>
-        <div class="feature-example" data-testid="landing-feature-media-workflows">
-          <DeviceScreenshots baseKey="workflows" desktopAlt="OpenMates workflow workspace" mobileAlt="OpenMates workflow view on mobile" />
-          <a class="example-link" target="_blank" rel="noopener noreferrer" href={appUrl('/#chat-id=example-library-book-return-workflow')}>{copy.openExample}</a>
-        </div>
-      </section>
-
-      <section class="feature feature-media feature-later" id="devices" aria-labelledby="devices-title" data-testid="landing-feature-devices" data-reveal>
-        <div class="feature-copy">
-          <span class="feature-icon devices-icon" aria-hidden="true" data-testid="landing-feature-icon"></span>
-          <h2 id="devices-title">{copy.devicesTitle1}<br />{copy.devicesTitle2}</h2>
-          <p>{copy.devicesBody}</p>
-          <div class="feature-links">
-            <a class="text-link" href={appUrl('/')}>{copy.startWebApp}</a>
-            <a class="text-link" href="#testflight-signup" onclick={(event) => { event.preventDefault(); scrollToSection('testflight-signup'); }}>{copy.testflight}</a>
-            <a class="text-link" href={siteUrl('/blog')}>{copy.developers}</a>
+      {#each features as feature (feature.id)}
+        <section class="feature feature-media" class:feature-later={feature.id === 'devices' || feature.id === 'open-source'} class:story-playing={storyStates[feature.id] !== 'complete'} class:story-finishing={storyStates[feature.id] === 'finishing'} data-story-state={storyStates[feature.id]} id={feature.id} aria-labelledby={`${feature.id}-title`} data-testid={`landing-feature-${feature.id}`} data-reveal>
+          <div class="feature-copy">
+            <span class={`feature-icon ${feature.icon}-icon`} aria-hidden="true" data-testid="landing-feature-icon"></span>
+            <h2 id={`${feature.id}-title`}>{feature.title1}<br />{feature.title2}</h2>
+            {#if storyStates[feature.id] === 'complete'}
+              <div class="story-copy" in:fade={{ duration: reducedMotion ? 0 : 360 }}>
+                <p>{feature.body}</p>
+                {#if feature.id === 'actionable'}
+                  <a class="text-link" href={appUrl('/#apps')} target="_blank" rel="noopener noreferrer" data-testid="landing-explore-apps">{copy.exploreApps}</a>
+                {:else if feature.id === 'privacy'}
+                  <div class="feature-links"><a class="text-link" href={siteUrl('/blog')}>{copy.privacyLink}</a><a class="text-link" href={siteUrl('/blog')}>{copy.safetyLink}</a></div>
+                {:else if feature.id === 'model-choice'}
+                  <div class="feature-links"><a class="text-link" href={siteUrl('/blog')} data-testid="landing-model-selection-link">{copy.modelSelectionLink}</a><a class="text-link" href={siteUrl('/blog')} data-testid="landing-data-ownership-link">{copy.dataOwnershipLink}</a></div>
+                {:else if feature.id === 'workflows'}
+                  <a class="text-link" href={appUrl('/#workflows')} target="_blank" rel="noopener noreferrer" data-testid="landing-explore-workflows">{copy.exploreWorkflows}</a>
+                {:else if feature.id === 'devices'}
+                  <div class="feature-links"><a class="text-link" href={appUrl('/')}>{copy.startWebApp}</a><a class="text-link" href="#testflight-signup" onclick={(event) => { event.preventDefault(); scrollToSection('testflight-signup'); }}>{copy.testflight}</a><a class="text-link" href={siteUrl('/blog')}>{copy.developers}</a></div>
+                {:else}
+                  <div class="feature-links"><a class="text-link" href={siteUrl('/blog')}>{copy.ethics}</a><a class="text-link" href={siteUrl('/blog')}>{copy.selfHosting}</a></div>
+                {/if}
+              </div>
+            {:else}
+              <button class="skip-animation" type="button" onclick={() => finishStory(feature.id)} data-testid={`landing-skip-${feature.id}`}>{copy.skipAnimation}</button>
+            {/if}
           </div>
-        </div>
-        <div class="feature-example" data-testid="landing-feature-media-devices"><DeviceScreenshots baseKey="devices" desktopAlt="The same OpenMates chat on desktop" mobileAlt="The same OpenMates chat in the mobile web app" /></div>
-      </section>
-
-      <section class="feature feature-media feature-later" id="open-source" aria-labelledby="open-source-title" data-testid="landing-feature-open-source" data-reveal>
-        <div class="feature-copy">
-          <span class="feature-icon coding-icon" aria-hidden="true" data-testid="landing-feature-icon"></span>
-          <h2 id="open-source-title">{copy.sourceTitle1}<br />{copy.sourceTitle2}</h2>
-          <p>{copy.sourceBody}</p>
-          <div class="feature-links"><a class="text-link" href={siteUrl('/blog')}>{copy.ethics}</a><a class="text-link" href={siteUrl('/blog')}>{copy.selfHosting}</a></div>
-        </div>
-        <div class="feature-example" data-testid="landing-feature-media-open-source"><DeviceScreenshots baseKey="open-source" desktopAlt="OpenMates public source repository" mobileAlt="OpenMates source repository on mobile" /></div>
-      </section>
+          {#if storyStates[feature.id] === 'complete' || isCustomStory(feature.id)}
+            <div class="story-surface">
+              {#if storyStates[feature.id] === 'complete'}
+                <div class="feature-example" in:fade={{ duration: reducedMotion ? 0 : 400, delay: reducedMotion ? 0 : 180 }} data-testid={`landing-feature-media-${feature.id}`}>
+                  {#if feature.id === 'open-source'}
+                    <a class="source-github" href="https://github.com/glowingkitty/OpenMates" target="_blank" rel="noopener noreferrer" aria-label="OpenMates on GitHub" data-testid="landing-source-github"><svg aria-hidden="true" viewBox="0 0 48 48"><path d="M24 0c-3.152 0-6.273.623-9.184 1.833a23.995 23.995 0 00-7.787 5.22A24.126 24.126 0 000 24.084c0 10.645 6.888 19.677 16.416 22.88 1.2.192 1.584-.554 1.584-1.205v-4.07c-6.648 1.445-8.064-3.227-8.064-3.227-1.104-2.793-2.664-3.54-2.664-3.54-2.184-1.493.168-1.445.168-1.445 2.4.169 3.672 2.48 3.672 2.48 2.088 3.661 5.616 2.577 6.984 2 .216-1.566.84-2.626 1.512-3.228-5.328-.602-10.92-2.673-10.92-11.849 0-2.673.912-4.816 2.472-6.526-.24-.602-1.08-3.107.24-6.358 0 0 2.016-.65 6.6 2.456 1.896-.53 3.96-.795 6-.795s4.104.265 6 .795c4.584-3.107 6.6-2.456 6.6-2.456 1.32 3.25.48 5.756.24 6.358 1.56 1.71 2.472 3.853 2.472 6.526 0 9.2-5.616 11.223-10.968 11.825.864.747 1.656 2.216 1.656 4.456v6.599c0 .65.384 1.42 1.608 1.204C41.136 43.736 48 34.728 48 24.083c0-3.162-.62-6.294-1.827-9.216a24.09 24.09 0 00-5.202-7.813 23.995 23.995 0 00-7.787-5.22A23.928 23.928 0 0024 0z" fill="currentColor" /></svg></a>
+                  {:else if feature.baseKey && (feature.exampleChatId || feature.mediaPath)}
+                    <DeviceScreenshots baseKey={feature.baseKey} desktopAlt={feature.desktopAlt ?? ''} mobileAlt={feature.mobileAlt ?? ''} href={feature.mediaPath ? appUrl(feature.mediaPath) : appUrl(`/#chat-id=${encodeURIComponent(feature.exampleChatId ?? '')}`)} linkLabel={`${feature.exampleChatId ? copy.openExample : copy.exploreWorkflows}: ${feature.title1} ${feature.title2}`} watchSrc={feature.id === 'devices' ? landingDeviceMedia.devicesWatch : undefined} watchAlt="The OpenMates train connections example on Apple Watch" />
+                  {/if}
+                  <div class="feature-actions">
+                    {#if !reducedMotion}<button class="replay-animation" type="button" onclick={() => replayStory(feature.id)} data-testid={`landing-replay-${feature.id}`}>{copy.replayAnimation}</button>{/if}
+                    {#if feature.exampleChatId}<a class="example-link" target="_blank" rel="noopener noreferrer" href={appUrl(`/#chat-id=${encodeURIComponent(feature.exampleChatId)}`)} data-testid={`landing-open-example-${feature.id}`}>{copy.openExample}</a>{/if}
+                  </div>
+                </div>
+              {:else if isCustomStory(feature.id)}
+                <div class="story-stage" out:fade={{ duration: reducedMotion ? 0 : 240 }}><LandingFeatureAnimation section={feature.id} active={activeStory === feature.id && storyStates[feature.id] === 'playing'} language={chosenLanguage} onComplete={() => finishStory(feature.id)} /></div>
+              {/if}
+            </div>
+          {/if}
+        </section>
+      {/each}
 
       <div id="testflight-signup" class="newsletter-reveal" data-testid="landing-newsletter-reveal" data-reveal><NewsletterSignup {apiBaseUrl} {websiteBaseUrl} language={chosenLanguage === 'de' ? 'de' : 'en'} /></div>
 
@@ -638,10 +640,6 @@
   .composer-label { color: var(--color-font-tertiary); min-width: 0; }
   .composer-label-text { display: inline-block; animation: composer-label-enter 280ms ease-out both; }
   @keyframes composer-label-enter { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-  .privacy-highlight { position: relative; display: inline-block; isolation: isolate; color: var(--color-font-primary); border-radius: 2px; padding: 0 2px; }
-  /* Keep the marker on its own layer behind the glyphs, including in WebKit. */
-  .privacy-highlight::before { content: ''; position: absolute; z-index: -1; inset: .04em 0 -.04em; border-radius: inherit; background: rgba(250, 204, 21, .35); transform: scaleX(1); transform-origin: left center; animation: privacy-marker 850ms 600ms ease-out both; }
-  @keyframes privacy-marker { from { transform: scaleX(0); } to { transform: scaleX(1); } }
   .section-nav { position: absolute; z-index: 6; left: 50%; transform: translateX(-50%); display: grid; place-items: center; width: 41px; height: 41px; min-width: 0; min-height: 0; margin: 0; padding: var(--spacing-4); box-sizing: border-box; border: 1px solid var(--color-grey-30); border-radius: var(--radius-full); background: var(--color-grey-20); color: var(--color-primary-start); box-shadow: var(--shadow-md); cursor: pointer; scale: 1; filter: none; }
   .section-nav:hover { background: var(--color-grey-30); }.section-nav:focus-visible { outline: 3px solid var(--color-primary-start); outline-offset: 2px; }
   .section-nav-previous { top: var(--spacing-6); }.section-nav-next { bottom: calc(max(var(--spacing-8), env(safe-area-inset-bottom)) + 64px + var(--spacing-6)); }
@@ -663,7 +661,15 @@
   .text-link:hover, .example-link:hover, .site-footer a:hover { text-decoration: underline; }
   .feature-example { min-width: 0; width: 100%; }
   @media (min-width: 901px) { .feature-example :global(.device-screenshots) { width: 118%; } }
-  .example-link { display: block; width: fit-content; margin: var(--spacing-8) 0 0 auto; font-size: var(--font-size-small); font-weight: 500; color: var(--color-grey-70); }
+  .feature-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: var(--spacing-4) var(--spacing-12); margin-top: var(--spacing-8); }
+  .example-link, .replay-animation { width: fit-content; margin: 0; padding: var(--spacing-4) 0; font-size: var(--font-size-small); font-weight: 500; color: var(--color-grey-70); }
+  .replay-animation { min-width: 0; min-height: 0; border: 0; border-radius: var(--radius-2); background: transparent; box-shadow: none; font-family: inherit; cursor: pointer; }
+  .replay-animation:hover { color: var(--color-font-primary); text-decoration: underline; }
+  .replay-animation:focus-visible, .source-github:focus-visible { outline: 2px solid var(--color-button-primary); outline-offset: 4px; }
+  .source-github { display: grid; place-items: center; width: min(65vw, 320px); aspect-ratio: 1; margin-inline: auto; color: var(--color-font-primary); transition: transform var(--duration-normal), color var(--duration-normal); }
+  .source-github svg { display: block; width: 80%; height: 80%; }
+  .source-github:hover { transform: translateY(-4px); color: var(--color-primary-start); }
+  @media (prefers-reduced-motion: reduce) { .source-github { transition: none; }.source-github:hover { transform: none; } }
   :global(.reveal-ready) .feature-icon, :global(.reveal-ready) .feature-copy h2, :global(.reveal-ready) .feature-copy p, :global(.reveal-ready) .feature-copy .text-link, :global(.reveal-ready) .feature-example { transition: opacity 700ms cubic-bezier(.2, .75, .25, 1), transform 700ms cubic-bezier(.2, .75, .25, 1); }
   :global(.reveal-ready) .feature-copy p, :global(.reveal-ready) .feature-copy .text-link { transition-delay: 90ms; }
   :global(.reveal-ready) .feature-example { transition-delay: 180ms; }
@@ -723,5 +729,5 @@
     .rail-window { grid-column: 1 / -1; width: 100%; height: 64px; --icon-size: 48px; --icon-gap: 18px; }
     .scroll-cue { grid-column: 1 / -1; min-height: 24px; font-size: 12px; }
   }
-  @media (prefers-reduced-motion: reduce) { .scroll-container { scroll-behavior: auto; }.privacy-highlight::before, .composer-label-text, .composer-link, .hero-ai-entrance, .hero h1, .hero-prompt-entrance, .hero-speed, .rail-window, .rail-track, .scroll-cue, .scroll-cue-content, .prompt-bubble, .hero-ai-visual, .hero-ai-visual::before { animation: none !important; }.rail-icon, :global(.reveal-ready) .feature-icon, :global(.reveal-ready) .feature-copy h2, :global(.reveal-ready) .feature-copy p, :global(.reveal-ready) .feature-copy .text-link, :global(.reveal-ready) .feature-example, :global(.newsletter-reveal.reveal-ready), :global(.publication-row.reveal-ready) .publication-intro, :global(.publication-row.reveal-ready) .event-cards, :global(.publication-row.reveal-ready) .publication-cards, :global(.publication-row.reveal-ready) .empty-publication { transition: none !important; }.hero-visual { transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .scroll-container { scroll-behavior: auto; }.composer-label-text, .composer-link, .hero-ai-entrance, .hero h1, .hero-prompt-entrance, .hero-speed, .rail-window, .rail-track, .scroll-cue, .scroll-cue-content, .prompt-bubble, .hero-ai-visual, .hero-ai-visual::before { animation: none !important; }.rail-icon, :global(.reveal-ready) .feature-icon, :global(.reveal-ready) .feature-copy h2, :global(.reveal-ready) .feature-copy p, :global(.reveal-ready) .feature-copy .text-link, :global(.reveal-ready) .feature-example, :global(.newsletter-reveal.reveal-ready), :global(.publication-row.reveal-ready) .publication-intro, :global(.publication-row.reveal-ready) .event-cards, :global(.publication-row.reveal-ready) .publication-cards, :global(.publication-row.reveal-ready) .empty-publication { transition: none !important; }.hero-visual { transform: none; } }
 </style>

@@ -7,21 +7,31 @@ profile: concise
 scope:
 - Native landing scrolling, transient section navigation, behind-text highlight, subdued example links and first-visit
   actionable/privacy story transitions copied from main.
-- Public News/Blog omit hamburger and sidebar and share public header across standalone and app compatibility routes.
+- Public News/Blog omit hamburger and sidebar and share public header across standalone and app compatibility
+  routes.
 - Guest workflow nodes use the actual read-only editor and signup affordance; guest Chat welcome shows greeting
   and exact landing default examples.
 - Audit closely related earlier correction requests for concrete omissions.
+- 'Oct 15 follow-up: remove hero privacy marker; add Replay and linked clipped real browser-framed device captures;
+  extend title-only intros to all remaining sections; current top-info-bar event preview; GitHub replaces open-source
+  screenshots.'
 excluded:
 - Production domain cutover.
 - Anonymous workflow execution or writes.
-- New animations for the other sections.
+- Native iPhone/Watch capture production is delegated to the user’s separate Mac chat; prepare the real-asset
+  slot and handoff only.
 checks:
   required:
   - Focused isolated component checks for landing, publications, workflow guest editor and Chat welcome.
   - Targeted isolated cold-boot/reload guest example and publication compatibility route checks after component
     checks.
   - Narrow unit/lint/build checks and updated Specification/Plan validation.
+  - 'Follow-up media/replay round: one focused isolated component spec at phone and desktop plus reduced motion,
+    compiler/lint and asset provenance checks; reuse previous unrelated passing checks.'
 decisions:
 - Existing explicit instructions authorize these Specification updates without repeated approval.
 - Use main production story sequences in lightweight public-only components; no OpenMates inference model override.
 - Remove automatic section snap to preserve native mobile momentum; only explicit arrows request smooth scrolling.
+- The user’s newer explicit scope extends intro reveals to all six sections, without inventing new custom demonstrations
+  for the final four. A rejected real workflow example is not published; its screenshot opens the existing Workflows
+  workspace.
