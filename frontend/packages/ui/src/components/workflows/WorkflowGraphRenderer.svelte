@@ -37,12 +37,13 @@
   import { workflowNodePresentationStatus } from './workflowRunTimeline';
   import { scheduleDateTimeInput, scheduleDateTimeInstant, scheduleDateTimeWithOffset } from './workflowScheduleDateTime';
 
-  let { graph, readOnly = false, nodeRuns = [], executionStatus = null, testId = 'workflow-graph-renderer', workflowId = null, capabilityFixtures = null, chatFixtures = null, aiAddedNodeIds = [], aiEditedNodeIds = [], onChange, onSave = null, onDraftStateChange }: {
-    graph: WorkflowGraph; readOnly?: boolean; nodeRuns?: WorkflowNodeRun[]; executionStatus?: string | null; testId?: string; workflowId?: string | null; capabilityFixtures?: Capability[] | null; chatFixtures?: Chat[] | null;
+  let { graph, readOnly: requestedReadOnly = false, guestTemplate = null, nodeRuns = [], executionStatus = null, testId = 'workflow-graph-renderer', workflowId = null, capabilityFixtures = null, chatFixtures = null, aiAddedNodeIds = [], aiEditedNodeIds = [], onChange, onSave = null, onDraftStateChange }: {
+    graph: WorkflowGraph; readOnly?: boolean; guestTemplate?: { onSignup: () => void } | null; nodeRuns?: WorkflowNodeRun[]; executionStatus?: string | null; testId?: string; workflowId?: string | null; capabilityFixtures?: Capability[] | null; chatFixtures?: Chat[] | null;
     aiAddedNodeIds?: string[]; aiEditedNodeIds?: string[];
     onChange: (graph: WorkflowGraph) => void; onSave?: ((graph: WorkflowGraph) => Promise<void>) | null;
     onDraftStateChange?: (hasDraft: boolean) => void;
   } = $props();
+  const readOnly = $derived(requestedReadOnly || guestTemplate !== null);
   let capabilities = $state<Capability[]>([]);
   let capabilityLoad: Promise<void> | null = null;
   let loadError = $state('');
@@ -167,7 +168,7 @@
   function setCapabilities(items: Capability[]): void { capabilities = items.map(item => ({ ...item, metadata: { ...item.metadata, input_schema: item.metadata.input_schema ? normalizeSchema(item.metadata.input_schema) : undefined, output_schema: item.metadata.output_schema ? normalizeSchema(item.metadata.output_schema) : undefined } })); }
   function loadCapabilities(): Promise<void> {
     if (capabilityFixtures) { setCapabilities(capabilityFixtures); return Promise.resolve(); }
-    if (readOnly) return Promise.resolve();
+    if (readOnly && !guestTemplate) return Promise.resolve();
     if (!capabilityLoad) capabilityLoad = workflowApiRequest<{ capabilities: Capability[] }>('/v1/workflows/capabilities')
       .then(data => { setCapabilities(data.capabilities); loadError = ''; })
       .catch(error => { console.error('[Workflow capabilities]', error); loadError = tr('schema_unavailable'); })
@@ -227,7 +228,7 @@
   }
   async function edit(node: WorkflowNode): Promise<void> {
     if (busy || testStatus === 'processing') return;
-    if (readOnly) { transitionNodeUpdate(() => { expandedReadOnly = expandedReadOnly === node.id ? null : node.id; }); return; }
+    if (readOnly && !guestTemplate) { transitionNodeUpdate(() => { expandedReadOnly = expandedReadOnly === node.id ? null : node.id; }); return; }
     // AI input migration needs declared outputs; an early click must not clear
     // saved selections while the initial capability request is still loading.
     if (isCheck(node) && node.config?.mode === 'ai' && !capabilities.length) {
@@ -286,7 +287,7 @@
     configure('app_skill_action', capability);
     if (draft) { draft.title = tr('ask_ai'); draft.config = { app_id: 'ai', skill_id: 'ask', input: { prompt: '' } }; }
   }
-  function patch(config: Record<string, unknown>): void { if (draft) { draft = { ...draft, config: { ...draft.config, ...config } }; preview = null; } }
+  function patch(config: Record<string, unknown>): void { if (!readOnly && draft) { draft = { ...draft, config: { ...draft.config, ...config } }; preview = null; } }
   function schedulePatch(config: Record<string, unknown>): void { patch({ schedule: { ...record(draft?.config?.schedule), ...config } }); }
   function scheduleDatePatch(field: 'at' | 'starts_at', input: HTMLInputElement, schedule: Record<string, unknown>): void {
     const next = { ...schedule };
@@ -507,7 +508,7 @@
   function updateMention(visible: boolean, query: string): void { showReferences = visible; mentionQuery = visible ? query : ''; }
   function addAskReference(output: Output): void { messageEditor?.insertReference(output); showReferences = false; }
   async function saveNode(): Promise<void> {
-    if (!draft || !onSave || busy) return;
+    if (readOnly || !draft || !onSave || busy) return;
     if (isMessage(draft) && !String(draft.config?.title ?? '').trim()) { nodeError = tr('title_required'); return; }
     if (isCheck(draft) && draft.config?.mode === 'ai' && !aiCheckCanSave) { nodeError = tr('ai_check_required'); return; }
     if (isCheck(draft) && draft.config?.mode !== 'ai' && !exactCheckCanSave) { nodeError = tr('check_required'); return; }
@@ -537,7 +538,7 @@
     return draft === null;
   }
   export function discardPendingDraft(): void { closeEditor(true); }
-  async function deleteNode(): Promise<void> { if (!draft || !onSave || busy) return; if ((isOptionsCheck(draft) || draft.type === 'for_each') && graph.edges.some(edge => edge.from === draft!.id && !!edge.branch)) { nodeError = tr('branch_mapping_required'); return; } busy = true; try { await onSave({ ...removeNode(graph, draft.id, capabilities), version: 2 }); closeEditor(); } catch (error) { if (error instanceof WorkflowNodeDependencyError) { console.error('[Workflow builder]', error); nodeError = tr('step_in_use').replace('{steps}', error.dependentNodeTitles.join(', ')); } else failForUser(error, 'save_failed'); } finally { busy = false; } }
+  async function deleteNode(): Promise<void> { if (readOnly || !draft || !onSave || busy) return; if ((isOptionsCheck(draft) || draft.type === 'for_each') && graph.edges.some(edge => edge.from === draft!.id && !!edge.branch)) { nodeError = tr('branch_mapping_required'); return; } busy = true; try { await onSave({ ...removeNode(graph, draft.id, capabilities), version: 2 }); closeEditor(); } catch (error) { if (error instanceof WorkflowNodeDependencyError) { console.error('[Workflow builder]', error); nodeError = tr('step_in_use').replace('{steps}', error.dependentNodeTitles.join(', ')); } else failForUser(error, 'save_failed'); } finally { busy = false; } }
   async function persistReorder(next: WorkflowGraph | null, focusNodeId?: string): Promise<void> {
     if (!next || !onSave || busy || readOnly || testStatus === 'processing') return;
     const previous = graph;
@@ -590,7 +591,7 @@
   }
   function requestDelete(): void { if (!deleteArmed) { deleteArmed = true; return; } void deleteNode(); }
   async function testNode(): Promise<void> {
-    if (!draft || !workflowId || testStatus === 'processing') return;
+    if (readOnly || !draft || !workflowId || testStatus === 'processing') return;
     const node = structuredClone($state.snapshot(draft)); recoverAskModel(node); if (isAskAi(node)) draft = node;
     const revision = ++testRevision; testStatus = 'processing'; nodeError = ''; showOutputFields = true; streamedTestAnswer = ''; streamedTestEmbeds = [];
     const pending = (status: string | undefined) => !status || ['accepted', 'queued', 'running', 'cancellation_requested'].includes(status);
@@ -640,6 +641,7 @@
   }
   async function stopTest(): Promise<void> { if (testAbort) { testAbort.abort(); return; } if (!workflowId || !testingRunId) return; try { await workflowWorkspaceStore.cancelWorkflowRun(workflowId, testingRunId); } catch (error) { failForUser(error, 'save_failed'); } }
   async function loadChats(): Promise<void> {
+    if (readOnly) return;
     if (chatFixtures) { chats = chatFixtures; return; }
     try {
       const [{ chatDB }, { chatMetadataCache }] = await Promise.all([import('../../services/db'), import('../../services/chatMetadataCache')]);
@@ -657,7 +659,7 @@
   }
   function addReference(output: Output): void { messageEditor?.insertReference(output); showReferences = false; }
   async function previewMessage(): Promise<void> {
-    if (!workflowId || !draft) return; busy = true; nodeError = '';
+    if (readOnly || !workflowId || !draft) return; busy = true; nodeError = '';
     try { const data = await workflowApiRequest<{ preview: Record<string, unknown> }>(`/v1/workflows/${encodeURIComponent(workflowId)}/steps/${encodeURIComponent(draft.id)}/preview`, { method: 'POST', body: JSON.stringify({ node: draft, input: {}, upstream_outputs: testOutputs }) }); preview = data.preview; }
     catch (error) { failForUser(error, 'output_preview_failed'); } finally { busy = false; }
   }
@@ -748,14 +750,14 @@
         title={isCheck(draft) ? tr('add_check') : draft.type === 'app_skill_action' ? (isAskAi(draft) ? tr('ask_ai') : summary(draft)) : kind(draft)}
         eyebrow={draft.type === 'app_skill_action' && !isAskAi(draft) ? kind(draft) : ''}
         subtitle={draft.type === 'app_skill_action' ? location(draft) : ''}
-        backLabel={isAskAi(draft) || isCheck(draft) ? tr('next_step') : isMessage(draft) && chooseChat ? tr('add_action') : draft.type === 'app_skill_action' ? tr('back_to_app_skill') : ''}
+        backLabel={guestTemplate ? '' : isAskAi(draft) || isCheck(draft) ? tr('next_step') : isMessage(draft) && chooseChat ? tr('add_action') : draft.type === 'app_skill_action' ? tr('back_to_app_skill') : ''}
         showBackLabel={isAskAi(draft) || isCheck(draft)}
         backIconSize={24}
         iconStyle={isCheck(draft) ? assetIconStyle('workflow-check', 33, 'var(--color-font-button)') : isMessage(draft) && chooseChat ? assetIconStyle('chat', 19, 'var(--color-font-button)') : primaryNodeIconStyle(draft)}
         colored={draft.type === 'app_skill_action' || isTrigger(draft) || isMessage(draft) || isCheck(draft)}
-        showDelete={persistedDraft}
-        canMoveUp={persistedDraft && canMoveWorkflowNode(graph, draft.id, 'up')}
-        canMoveDown={persistedDraft && canMoveWorkflowNode(graph, draft.id, 'down')}
+        showDelete={!readOnly && persistedDraft}
+        canMoveUp={!readOnly && persistedDraft && canMoveWorkflowNode(graph, draft.id, 'up')}
+        canMoveDown={!readOnly && persistedDraft && canMoveWorkflowNode(graph, draft.id, 'down')}
         {deleteArmed}
         disabled={busy || testStatus === 'processing'}
         closeLabel={tr('close')}
@@ -769,6 +771,7 @@
         onMoveDown={() => moveDraft('down')}
         onClose={() => closeEditor()}
       />
+      <fieldset class="editor-fields" disabled={readOnly}>
       {#if isTrigger(draft)}
         <h3>{@render editorFieldLabel('date_time', tr('date_time'), { type:'string', format:'date-time' })}</h3><div class="field-grid">
           <label>{@render editorFieldLabel('repeat', tr('repeat'), { type:'string' })}<SettingsDropdown dataTestid="workflow-time-trigger-schedule" value={String(schedule.type ?? 'daily')} options={[{value:'once',label:tr('once')},{value:'hourly',label:tr('hourly')},{value:'daily',label:tr('daily')},{value:'weekly',label:tr('weekly')}]} ariaLabel={tr('repeat')} onChange={type => scheduleTypePatch(type, schedule)}/></label>
@@ -782,13 +785,13 @@
       {:else if isAskAi(draft)}
         <div class="ask-ai-content">
         <WorkflowVariablePicker outputs={eligibleOutputs} sources={variableSources} selectedSourceId={selectedVariableSource}
-          query={showReferences ? mentionQuery : ''} disabled={busy || testStatus === 'processing'}
+          query={showReferences ? mentionQuery : ''} disabled={readOnly || busy || testStatus === 'processing'}
           onSelectSource={selectVariableSource} onInsert={addAskReference}/>
         <div class="ask-ai-input" data-testid="workflow-ask-ai-input">
-          <WorkflowMessageEditor bind:this={messageEditor} value={askInstruction()} {outputs} placeholder={tr('ask_ai_placeholder')} disabled={busy || testStatus === 'processing'} onChange={updateAskInstruction} onMentionTrigger={updateMention}/>
+          <WorkflowMessageEditor bind:this={messageEditor} value={askInstruction()} {outputs} placeholder={tr('ask_ai_placeholder')} disabled={readOnly || busy || testStatus === 'processing'} onChange={updateAskInstruction} onMentionTrigger={updateMention}/>
         </div>
         <div class="ask-ai-actions">
-          <fieldset class="ask-ai-model" data-testid="workflow-ask-ai-model" disabled={busy || testStatus === 'processing'}>
+          <fieldset class="ask-ai-model" data-testid="workflow-ask-ai-model" disabled={readOnly || busy || testStatus === 'processing'}>
             <ComposerModelSelector selection={String(record(draft.config?.input).model ?? 'auto')} onSelect={updateAskModel} onOpenDetails={openAskModelDetails}/>
           </fieldset>
         <div class="test-control ask-ai-test-control">
@@ -800,7 +803,7 @@
         </div>
       {:else if draft.type === 'app_skill_action'}
         <h4 class="input-heading" data-testid="workflow-input-heading"><span class="section-icon" data-testid="workflow-input-icon"><Download size={18} aria-hidden="true"/></span>{tr('input')}</h4>
-        {#if draftCapability?.metadata.input_schema}<WorkflowSchemaFields schema={draftCapability.metadata.input_schema} value={draft.config?.input} {outputs} path={draft.id} appId={String(draft.config?.app_id ?? '')} timezone={workflowTimezone(draft)} onChange={value => patch({ input: value })}/>{:else}<p>{loadError || tr('schema_unavailable')}</p>{/if}
+        {#if draftCapability?.metadata.input_schema}<WorkflowSchemaFields disabled={readOnly} schema={draftCapability.metadata.input_schema} value={draft.config?.input} {outputs} path={draft.id} appId={String(draft.config?.app_id ?? '')} timezone={workflowTimezone(draft)} onChange={value => patch({ input: value })}/>{:else}<p>{loadError || tr('schema_unavailable')}</p>{/if}
         <div class="test-control">
           {#if testStatus === 'processing'}<button type="button" class="quiet test" data-testid="workflow-test-action" disabled><Play size={16}/>{tr('test_action')}</button>{#if testingRunId}<button type="button" class="quiet" onclick={() => void stopTest()}><Stop size={16}/>{tr('stop')}</button>{/if}
           {:else}<button type="button" class="quiet test" data-testid="workflow-test-action" disabled={!workflowId || draftCapability?.metadata.workflow?.test_allowed === false || !draftCapability} onclick={() => void testNode()}><Play size={16}/>{tr(testOutputs[draft.id] ? 'test_again' : 'test_action')}<span class="credits-coin-icon" aria-hidden="true"></span><span>{draftCapability?.metadata.cost?.fixed ?? draftCapability?.metadata.cost?.per_unit?.credits ?? tr('variable_cost')}</span></button>{/if}
@@ -820,29 +823,29 @@
       {:else if isCheck(draft)}
         <h2 class="if-heading">{tr('if')}</h2>
         <div class="check-fields">
-          <SettingsDropdown rich value={draft.config?.mode === 'ai' ? 'ai' : checkSourceId()} options={checkSourceOptions} placeholder={tr('select_check_source')} ariaLabel={tr('select_check_source')} dataTestid="workflow-check-source" disabled={busy || testStatus === 'processing'} onChange={chooseCheckSource}/>
+          <SettingsDropdown rich value={draft.config?.mode === 'ai' ? 'ai' : checkSourceId()} options={checkSourceOptions} placeholder={tr('select_check_source')} ariaLabel={tr('select_check_source')} dataTestid="workflow-check-source" disabled={readOnly || busy || testStatus === 'processing'} onChange={chooseCheckSource}/>
           {#if draft.config?.mode !== 'ai' && checkSourceId()}
-            <SettingsDropdown rich value={String(predicate.left ?? '')} options={checkFieldOptions(checkSourceId(), predicate.left)} placeholder={tr('select_output')} ariaLabel={tr('select_output')} dataTestid="workflow-check-variable" disabled={busy || testStatus === 'processing'} onChange={chooseCheckField}/>
+            <SettingsDropdown rich value={String(predicate.left ?? '')} options={checkFieldOptions(checkSourceId(), predicate.left)} placeholder={tr('select_output')} ariaLabel={tr('select_output')} dataTestid="workflow-check-variable" disabled={readOnly || busy || testStatus === 'processing'} onChange={chooseCheckField}/>
             {#if predicate.left}
-              <SettingsDropdown rich value={String(predicate.op === 'ne' ? 'neq' : predicate.op ?? '')} options={operators(predicate.left).map(op => ({ value: op, label: tr(`operator_${op === 'neq' ? 'ne' : op}`), iconText: operatorSymbol(op), iconBackground: appGradient('events') }))} placeholder={tr('compare_type')} ariaLabel={tr('compare_type')} dataTestid="workflow-check-operator" disabled={busy || testStatus === 'processing'} onChange={chooseCheckOperator}/>
+              <SettingsDropdown rich value={String(predicate.op === 'ne' ? 'neq' : predicate.op ?? '')} options={operators(predicate.left).map(op => ({ value: op, label: tr(`operator_${op === 'neq' ? 'ne' : op}`), iconText: operatorSymbol(op), iconBackground: appGradient('events') }))} placeholder={tr('compare_type')} ariaLabel={tr('compare_type')} dataTestid="workflow-check-operator" disabled={readOnly || busy || testStatus === 'processing'} onChange={chooseCheckOperator}/>
             {/if}
             {#if predicate.op && predicate.op !== 'exists'}
-              <SettingsDropdown rich value={compareSourceId()} options={compareSourceOptions(predicate.left)} ariaLabel={tr('compare_source')} dataTestid="workflow-check-compare-source" disabled={busy || testStatus === 'processing'} onChange={chooseCompareSource}/>
+              <SettingsDropdown rich value={compareSourceId()} options={compareSourceOptions(predicate.left)} ariaLabel={tr('compare_source')} dataTestid="workflow-check-compare-source" disabled={readOnly || busy || testStatus === 'processing'} onChange={chooseCompareSource}/>
               {#if compareSourceId() !== 'literal'}
-                <SettingsDropdown rich value={typeof predicate.right === 'string' ? predicate.right : ''} options={checkFieldOptions(compareSourceId(), predicate.right, predicate.left)} placeholder={tr('select_output')} ariaLabel={tr('compare_variable')} dataTestid="workflow-check-compare-variable" disabled={busy || testStatus === 'processing'} onChange={right => predicatePatch({ right })}/>
+                <SettingsDropdown rich value={typeof predicate.right === 'string' ? predicate.right : ''} options={checkFieldOptions(compareSourceId(), predicate.right, predicate.left)} placeholder={tr('select_output')} ariaLabel={tr('compare_variable')} dataTestid="workflow-check-compare-variable" disabled={readOnly || busy || testStatus === 'processing'} onChange={right => predicatePatch({ right })}/>
               {:else if sourceSchema(predicate.left)?.type === 'boolean'}
-                <SettingsDropdown rich value={String(predicate.right)} options={[{ value:'true', label:tr('true'), iconText:'✓', iconBackground:appGradient('events') },{ value:'false', label:tr('false'), iconText:'×', iconBackground:appGradient('events') }]} ariaLabel={tr('compare_value')} disabled={busy || testStatus === 'processing'} onChange={value => predicatePatch({ right:value === 'true' })}/>
+                <SettingsDropdown rich value={String(predicate.right)} options={[{ value:'true', label:tr('true'), iconText:'✓', iconBackground:appGradient('events') },{ value:'false', label:tr('false'), iconText:'×', iconBackground:appGradient('events') }]} ariaLabel={tr('compare_value')} disabled={readOnly || busy || testStatus === 'processing'} onChange={value => predicatePatch({ right:value === 'true' })}/>
               {:else}
-                <input aria-label={tr('compare_value')} type={scalarCheckType(sourceSchema(predicate.left)) === 'number' ? 'number' : 'text'} value={String(predicate.right ?? '')} disabled={busy || testStatus === 'processing'} oninput={event => predicatePatch({ right:scalarCheckType(sourceSchema(predicate.left)) === 'number' && event.currentTarget.value !== '' ? Number(event.currentTarget.value) : event.currentTarget.value })}/>
+                <input aria-label={tr('compare_value')} type={scalarCheckType(sourceSchema(predicate.left)) === 'number' ? 'number' : 'text'} value={String(predicate.right ?? '')} disabled={readOnly || busy || testStatus === 'processing'} oninput={event => predicatePatch({ right:scalarCheckType(sourceSchema(predicate.left)) === 'number' && event.currentTarget.value !== '' ? Number(event.currentTarget.value) : event.currentTarget.value })}/>
               {/if}
             {/if}
           {/if}
         </div>
         {#if draft.config?.mode === 'ai'}
           <div class="ai-check-content">
-            <label>{tr('check_result')}<SettingsDropdown value={isOptionsCheck(draft) ? 'options' : 'boolean'} options={[{value:'boolean',label:tr('check_result_boolean')},{value:'options',label:tr('check_result_options')}]} ariaLabel={tr('check_result')} dataTestid="workflow-check-result-type" disabled={busy || testStatus === 'processing'} onChange={resultType}/></label>
+            <label>{tr('check_result')}<SettingsDropdown value={isOptionsCheck(draft) ? 'options' : 'boolean'} options={[{value:'boolean',label:tr('check_result_boolean')},{value:'options',label:tr('check_result_options')}]} ariaLabel={tr('check_result')} dataTestid="workflow-check-result-type" disabled={readOnly || busy || testStatus === 'processing'} onChange={resultType}/></label>
             {#if isOptionsCheck(draft)}
-              <label>{tr('check_selection_mode')}<SettingsDropdown value={String(draft.config?.selection_mode ?? 'single')} options={[{value:'single',label:tr('check_select_one')},{value:'multiple',label:tr('check_select_multiple')}]} ariaLabel={tr('check_selection_mode')} dataTestid="workflow-check-selection-mode" disabled={busy || testStatus === 'processing'} onChange={selectionMode}/></label>
+              <label>{tr('check_selection_mode')}<SettingsDropdown value={String(draft.config?.selection_mode ?? 'single')} options={[{value:'single',label:tr('check_select_one')},{value:'multiple',label:tr('check_select_multiple')}]} ariaLabel={tr('check_selection_mode')} dataTestid="workflow-check-selection-mode" disabled={readOnly || busy || testStatus === 'processing'} onChange={selectionMode}/></label>
               <div class="check-options" data-testid="workflow-check-options">
                 {#each checkOptions(draft) as option, index (option.id)}
                   <div class="check-option" data-option-id={option.id}>
@@ -856,8 +859,8 @@
                 <button type="button" class="quiet" data-testid="workflow-check-add-option" disabled={checkOptions(draft).length >= 10} onclick={() => patch({ options: [...checkOptions(draft!), newCheckOption()] })}>{tr('add_option')}</button>
               </div>
             {/if}
-            <WorkflowVariablePicker outputs={eligibleOutputs} sources={variableSources} selectedSourceId={selectedVariableSource} query={showReferences ? mentionQuery : ''} disabled={busy || testStatus === 'processing'} onSelectSource={selectVariableSource} onInsert={addAiCheckReference}/>
-            <WorkflowMessageEditor bind:this={messageEditor} value={String(draft.config?.question ?? '')} {outputs} placeholder={tr('ai_check_placeholder')} disabled={busy || testStatus === 'processing'} onChange={updateAiCheckQuestion} onMentionTrigger={updateMention}/>
+            <WorkflowVariablePicker outputs={eligibleOutputs} sources={variableSources} selectedSourceId={selectedVariableSource} query={showReferences ? mentionQuery : ''} disabled={readOnly || busy || testStatus === 'processing'} onSelectSource={selectVariableSource} onInsert={addAiCheckReference}/>
+            <WorkflowMessageEditor bind:this={messageEditor} value={String(draft.config?.question ?? '')} {outputs} placeholder={tr('ai_check_placeholder')} disabled={readOnly || busy || testStatus === 'processing'} onChange={updateAiCheckQuestion} onMentionTrigger={updateMention}/>
             <p class="reminder">{tr(isOptionsCheck(draft) ? 'ai_check_options_guidance' : 'ai_check_guidance')}</p>
           </div>
         {/if}
@@ -879,18 +882,20 @@
           <div class="message-content">
           <button class="quiet target" type="button" onclick={() => { chooseChat = true; void loadChats(); }}>{tr('to')}: {summary(draft)}</button>
           <label>{@render editorFieldLabel('chat_title', tr('chat_title'), { type:'string' })}<input data-testid="workflow-message-title" value={String(draft.config?.title ?? '')} oninput={event => patch({ title: event.currentTarget.value })}/></label>
-          <WorkflowVariablePicker outputs={eligibleOutputs} sources={variableSources} selectedSourceId={selectedVariableSource} query={showReferences ? mentionQuery : ''} disabled={busy || testStatus === 'processing'} onSelectSource={selectVariableSource} onInsert={addReference}/>
+          <WorkflowVariablePicker outputs={eligibleOutputs} sources={variableSources} selectedSourceId={selectedVariableSource} query={showReferences ? mentionQuery : ''} disabled={readOnly || busy || testStatus === 'processing'} onSelectSource={selectVariableSource} onInsert={addReference}/>
           <div class="message-input" data-testid="workflow-send-message-input">
-            <WorkflowMessageEditor bind:this={messageEditor} value={messageTemplate} {outputs} placeholder={tr('message_placeholder')} disabled={busy || testStatus === 'processing'} onChange={value => patch({ message: value })} onMentionTrigger={updateMention}/>
+            <WorkflowMessageEditor bind:this={messageEditor} value={messageTemplate} {outputs} placeholder={tr('message_placeholder')} disabled={readOnly || busy || testStatus === 'processing'} onChange={value => patch({ message: value })} onMentionTrigger={updateMention}/>
           </div>
           <button class="quiet" type="button" data-testid="workflow-preview-message" disabled={busy || !String(draft.config?.title ?? '').trim()} onclick={() => void previewMessage()}>{tr('preview_message')}</button>
           {#if preview}<div class="message-preview" data-testid="workflow-message-preview">{#if preview.title}<h4>{String(preview.title)}</h4>{/if}{#each Array.isArray(preview.parts) ? preview.parts : [{text: preview.text ?? preview.message}] as part}{@const item = record(part)}{#if item.text}<p>{String(item.text)}</p>{:else if item.value !== undefined}<WorkflowValueView value={item.value} appId={String(item.app_id ?? '')}/>{/if}{/each}</div>{/if}
           </div>
         {/if}
       {:else}<WorkflowValueView value={draft.config}/>{/if}
+      </fieldset>
+      {#if guestTemplate}<div class="guest-customize" data-testid="workflow-guest-customize"><p>{tr('signup_customize')}</p><button type="button" class="primary" data-testid="workflow-guest-signup" onclick={guestTemplate.onSignup}>{tr('signup')}</button></div>{/if}
       {#if nodeError}<p class="error" role="alert">{nodeError}</p>{/if}
       {#if paidSaveValidation}<p class="reminder validation-cost" data-testid="workflow-save-validation-cost">{tr('save_validation_cost')}</p>{/if}
-      {#if !chooseChat}{#if isCheck(draft) && draft.config?.mode === 'ai' && earlierActionOutputs.length > 0 && aiCheckSelectedInputs.length === 0}<p class="reminder ai-check-save-hint" data-testid="workflow-ai-check-save-hint">{tr('ai_check_add_variable')}</p>{/if}{#if missingEarlierActionReference && !(isCheck(draft) && draft.config?.mode === 'ai')}<p class="reminder ai-check-save-hint" data-testid="workflow-variable-required">{tr('earlier_action_variable_required')}</p>{/if}<div class="save-row"><button type="button" class="primary" data-testid="workflow-node-save" disabled={busy || testStatus === 'processing' || !aiCheckCanSave || !loopCanSave || missingEarlierActionReference || (isCheck(draft) && draft.config?.mode !== 'ai' && !exactCheckCanSave)} onclick={() => void saveNode()}>{tr(busy ? 'saving' : 'save')}</button></div>{/if}
+      {#if !readOnly && !chooseChat}{#if isCheck(draft) && draft.config?.mode === 'ai' && earlierActionOutputs.length > 0 && aiCheckSelectedInputs.length === 0}<p class="reminder ai-check-save-hint" data-testid="workflow-ai-check-save-hint">{tr('ai_check_add_variable')}</p>{/if}{#if missingEarlierActionReference && !(isCheck(draft) && draft.config?.mode === 'ai')}<p class="reminder ai-check-save-hint" data-testid="workflow-variable-required">{tr('earlier_action_variable_required')}</p>{/if}<div class="save-row"><button type="button" class="primary" data-testid="workflow-node-save" disabled={busy || testStatus === 'processing' || !aiCheckCanSave || !loopCanSave || missingEarlierActionReference || (isCheck(draft) && draft.config?.mode !== 'ai' && !exactCheckCanSave)} onclick={() => void saveNode()}>{tr(busy ? 'saving' : 'save')}</button></div>{/if}
     </div>
   {/if}
 {/snippet}
@@ -940,6 +945,10 @@
 <svelte:window onpointermove={movePointerDrag} onpointerup={finishPointerDrag} />
 
 <style>
+  .editor-fields:disabled :global(input:disabled), .editor-fields:disabled :global(textarea:disabled), .editor-fields:disabled :global(select:disabled), .editor-fields:disabled :global(.workflow-message-editor.disabled) { opacity:1; }
+  .editor-fields { display:contents; border:0; padding:0; margin:0; min-width:0; }
+  .guest-customize { display:flex; align-items:center; justify-content:center; gap:var(--spacing-8); flex-wrap:wrap; margin-top:var(--spacing-12); text-align:center; }
+  .guest-customize p { margin:0; }
   .editor.check-editor{background:var(--color-grey-10);overflow:visible;gap:1rem}
   .check-editor .if-heading{font-size:2rem;line-height:1.25;font-weight:650}
   .check-editor .check-fields{width:min(19rem,100%);gap:.65rem}

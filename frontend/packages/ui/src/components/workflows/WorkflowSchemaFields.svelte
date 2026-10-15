@@ -16,10 +16,11 @@
 
   type UiMetadata = { control?: string; start_field?: string; end_field?: string; min_offset_days?: number; max_offset_days?: number; max_span_days?: number; location_mode?: string; latitude_field?: string; longitude_field?: string; city_field?: string; clear_fields?: string[]; hidden?: boolean; basic?: boolean };
   type LocationConfig = { mode: 'weather' | 'events' | 'home' | 'city' | 'place'; text: string; latitude?: string; longitude?: string; cityField?: string; clearFields?: string[] };
-  let { schema, value, onChange, outputs = [], path = 'input', appId = '', timezone, appsMode = false }: {
-    schema: Schema; value: unknown; onChange: (value: unknown) => void; outputs?: Output[]; path?: string; appId?: string; timezone: string; appsMode?: boolean;
+  let { schema, value, onChange: onValueChange, disabled = false, outputs = [], path = 'input', appId = '', timezone, appsMode = false }: {
+    schema: Schema; value: unknown; onChange: (value: unknown) => void; disabled?: boolean; outputs?: Output[]; path?: string; appId?: string; timezone: string; appsMode?: boolean;
   } = $props();
 
+  const onChange = (next: unknown) => { if (!disabled) onValueChange(next); };
   let expanded = $state<Record<string, boolean>>({});
   let expandedVariables = $state<Record<string, boolean>>({});
   let stringEditors = $state<Record<string, { insertReference: (output: Output) => void } | undefined>>({});
@@ -288,6 +289,7 @@
         <WorkflowMessageEditor
           bind:this={stringEditors[id]}
           compact
+          {disabled}
           {id}
           value={stringEditorValue(current)}
           {outputs}

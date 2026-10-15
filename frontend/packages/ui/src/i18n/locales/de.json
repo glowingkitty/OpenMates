@@ -25818,6 +25818,12 @@
       },
       "website_change_pending_limit": {
         "text": "Zu viele Änderungen warten auf Auswertung oder Zustellung. Die letzte erfolgreiche Version wurde beibehalten."
+      },
+      "signup_customize": {
+        "text": "Registriere dich, um den Workflow anzupassen"
+      },
+      "signup": {
+        "text": "Registrieren"
       }
     },
     "completion": {

@@ -4,10 +4,16 @@ import { getLandingOrigins } from './landingOrigins';
 describe('landing destinations', () => {
 	// contract-test: supporting surface=gui.web assertions=marketing-landing.destinations
 	it('keeps the temporary landing page connected to its own app deployment', () => {
-		for (const origin of ['https://openmates.org', 'https://app.dev.openmates.org', 'http://localhost:5173']) {
+		for (const origin of ['https://openmates.org', 'http://localhost:5173']) {
 			expect(getLandingOrigins(new URL(`${origin}/landing`))).toEqual({
 				appBaseUrl: origin, websiteBaseUrl: origin
 			});
+		}
+	});
+	// contract-test: supporting surface=gui.web assertions=marketing-landing.destinations
+	it('routes app compatibility wordmarks to the corresponding public website', () => {
+		for (const [app, website] of [['https://app.dev.openmates.org', 'https://landing.dev.openmates.org'], ['https://app.openmates.org', 'https://openmates.org']]) {
+			expect(getLandingOrigins(new URL(app + '/news'))).toEqual({ appBaseUrl: app, websiteBaseUrl: website });
 		}
 	});
 	// contract-test: supporting surface=gui.web assertions=marketing-landing.destinations

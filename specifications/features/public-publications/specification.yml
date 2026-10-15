@@ -1,11 +1,11 @@
 schema_version: 1
 id: feature.public-publications
-version: 2
+version: 3
 status: draft
 title: Public News, Blog, Press, and Social Publications
-summary: 'OpenMates publishes localized, crawlable news and blog archives with durable detail pages, external
-  press links, and first-party social-post records built from reviewed marketing content without exposing private
-  marketing operations.
+summary: 'OpenMates publishes localized, crawlable news and blog archives with durable detail pages, external press
+  links, and first-party social-post records built from reviewed marketing content without exposing private marketing
+  operations.
 
   '
 scope:
@@ -14,8 +14,8 @@ scope:
   - Product release and update news migrated from released OpenMates announcements.
   - External press coverage that links to the publisher's original article.
   - Official OpenMates social posts imported from Buffer with per-platform permalinks.
-  - Markdown publication metadata, adjacent-media grouping, durable public media, SEO metadata, structured
-    data, feeds, and sitemap discovery.
+  - Markdown publication metadata, adjacent-media grouping, durable public media, SEO metadata, structured data,
+    feeds, and sitemap discovery.
   - News and press email eligibility through the existing newsletter system.
   excludes:
   - Sending or scheduling social posts from the public-publication pipeline.
@@ -120,62 +120,61 @@ models:
 assertions:
 - id: public-publications.routes.localized-archives
   type: behavior
-  must: Public /news and /blog indexes and their detail pages render without authentication in English and
-    German, order entries newest first, use stable slugs, show recent same-kind entries in publication navigation,
-    and make external press entries open their original publisher URL in a new tab instead of an OpenMates
-    detail page.
+  must: Public /news and /blog indexes and their detail pages render without authentication in English and German,
+    order entries newest first, use stable slugs, show recent same-kind entries in publication navigation, and make
+    external press entries open their original publisher URL in a new tab instead of an OpenMates detail page.
   depends_on:
   - models.PublicPublication
   - examples.localized_routes
 - id: public-publications.seo.crawlable
   type: behavior
-  must: Every published news, blog, and first-party social detail page renders meaningful server HTML with
-    unique title and description metadata, canonical and English/German alternate URLs, appropriate schema.org
-    JSON-LD, Open Graph metadata, and a dated sitemap or feed entry so search engines and AI discovery systems
-    can find the public content.
+  must: Every published news, blog, and first-party social detail page renders meaningful server HTML with unique
+    title and description metadata, canonical and English/German alternate URLs, appropriate schema.org JSON-LD,
+    Open Graph metadata, and a dated sitemap or feed entry so search engines and AI discovery systems can find the
+    public content.
   depends_on:
   - models.PublicPublication
   - examples.seo_discovery
 - id: public-publications.authoring.public-boundary
   type: privacy
-  must: Authors may keep Markdown, media references, drafts, and operational metadata in the private marketing
-    repository, while the public OpenMates build consumes only a reviewed, versioned, atomic allowlisted manifest
-    and never exposes credentials, drafts, internal notes, private author data, Buffer account identifiers,
-    or unpublished campaign data.
+  must: Authors may keep Markdown, media references, drafts, and operational metadata in the private marketing repository,
+    while the public OpenMates build consumes only a reviewed, versioned, atomic allowlisted manifest and never
+    exposes credentials, drafts, internal notes, private author data, Buffer account identifiers, or unpublished
+    campaign data.
   depends_on:
   - models.PublicPublicationManifest
   - examples.public_boundary
 - id: public-publications.content.media-groups
   type: behavior
   must: A run of standalone image or video links separated only by whitespace or blank lines becomes one ordered
-    accessible media group, while prose, ordinary links, headings, lists, quotes, or code terminate the group
-    and retain normal Markdown meaning.
+    accessible media group, while prose, ordinary links, headings, lists, quotes, or code terminate the group and
+    retain normal Markdown meaning.
   depends_on:
   - models.MediaGroup
   - examples.media_grouping
 - id: public-publications.news.released-announcements
   type: behavior
-  must: The initial news archive migrates existing released OpenMates version and product announcements into
-    localized stable news entries, preserves or redirects published legacy entry points where they exist, and
-    excludes unreleased claims or demo-only fixture dates.
+  must: The initial news archive migrates existing released OpenMates version and product announcements into localized
+    stable news entries, preserves or redirects published legacy entry points where they exist, and excludes unreleased
+    claims or demo-only fixture dates.
   depends_on:
   - models.PublicPublication
   - examples.announcement_migration
 - id: public-publications.social.official-backfill
   type: privacy
-  must: A read-only Buffer import may backfill only posts from configured official OpenMates channels, combine
-    matching platform publications into one logical post, expose each exact platform permalink as a separate
-    accessible icon link that opens in a new tab, sanitize imported data through the public allowlist, and
-    serve an owned durable media copy whenever one is available.
+  must: A read-only Buffer import may backfill only posts from configured official OpenMates channels, combine matching
+    platform publications into one logical post, expose each exact platform permalink as a separate accessible icon
+    link that opens in a new tab, sanitize imported data through the public allowlist, and serve an owned durable
+    media copy whenever one is available.
   depends_on:
   - models.SocialSyndication
   - models.PublicPublicationManifest
   - examples.social_backfill
 - id: public-publications.delivery.explicit-channels
   type: behavior
-  must: Publishing or editing public content never automatically sends email or creates social posts; released
-    news and press may be deliberately selected for the existing news-and-updates email category, while blog
-    publication has no email-notification path.
+  must: Publishing or editing public content never automatically sends email or creates social posts; released news
+    and press may be deliberately selected for the existing news-and-updates email category, while blog publication
+    has no email-notification path.
   depends_on:
   - models.PublicPublication
   - examples.delivery_channels
@@ -189,15 +188,16 @@ assertions:
   - examples.media_delivery
 - id: public-publications.controls.consistent-navigation
   type: behavior
-  must: News and Blog text links appear in the shared publication header with active opacity 1 and inactive
-    opacity 0.5. The archive omits a duplicate Blog or Newsroom title block, colored square and its spacer.
-    Search, press-kit download, press inquiries, show more and newsletter controls use visible native SVG glyphs
-    with accessible labels. Blog social destinations use clickable native platform-icon buttons consistent
-    with social detail controls. Article and social detail close controls are fixed at the top right, translucent,
-    and match the web-app fullscreen embed close geometry and color transition after scrolling below the banner,
-    including navigation from social to article without remounting. External press cards use verified original
-    publisher titles translated naturally per locale and reviewed locally served article header assets rather
-    than publisher hotlinks.
+  must: News and Blog text links appear in the shared publication header with active opacity 1 and inactive opacity
+    0.5. Public News and Blog indexes and detail pages omit the hamburger and archive sidebar entirely, including
+    their web-app compatibility routes. The archive also omits a duplicate Blog or Newsroom title block, colored
+    square and its spacer. Search and cards remain available in the main content. Search, press-kit download, press
+    inquiries, show more and newsletter controls use visible native SVG glyphs with accessible labels. Blog social
+    destinations use clickable native platform-icon buttons consistent with social detail controls. Article and
+    social detail close controls are fixed at the top right, translucent, and match the web-app fullscreen embed
+    close geometry and color transition after scrolling below the banner, including navigation from social to article
+    without remounting. External press cards use verified original publisher titles translated naturally per locale
+    and reviewed locally served article header assets rather than publisher hotlinks.
   depends_on:
   - examples.publication_controls
 applies_to:

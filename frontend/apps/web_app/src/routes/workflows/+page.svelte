@@ -1693,7 +1693,7 @@
 									/>
 									<div id="tabpanel-template" data-testid="workflow-template-panel" role="tabpanel" aria-label="Workflow template">
 										<div data-testid="workflow-editor">
-											<WorkflowGraphRenderer graph={guestTemplate.graph} readOnly onChange={() => undefined} onSave={null}/>
+											<WorkflowGraphRenderer graph={guestTemplate.graph} readOnly guestTemplate={{ onSignup: () => { isInSignupProcess.set(true); loginInterfaceOpen.set(true); } }} onChange={() => undefined} onSave={null}/>
 										</div>
 									</div>
 								{:else if provisionalFullscreen}

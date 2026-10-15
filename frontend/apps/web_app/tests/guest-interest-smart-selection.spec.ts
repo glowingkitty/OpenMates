@@ -4,6 +4,8 @@ export {};
 const { test, expect } = require('./helpers/cookie-audit');
 const { getE2EDebugUrl } = require('./signup-flow-helpers');
 
+const landingExamples = require('../../../packages/ui/src/generated/landingExampleChats.generated.json');
+
 const storageKey = 'openmates.guest_interest_tags.v1';
 const retiredIntroChatIds = ['demo-for-everyone', 'demo-for-developers', 'demo-who-develops-openmates'];
 const selectedTags = ['software_development', 'privacy_personal_data', 'automation_workflows', 'project_management'];
@@ -21,6 +23,32 @@ async function visibleExampleIds(page: any): Promise<string[]> {
 }
 
 test.describe('Guest interests and real example chats', () => {
+	// contract-test: direct surface=gui.web assertions=landing-onboarding.uses-real-chat-shell,landing-onboarding.guest-examples,marketing-landing.example-catalog-alignment
+	test('cold guest boot and reload show the shared greeting and exact landing defaults', async ({ page }: { page: any }) => {
+		await page.goto(getE2EDebugUrl('/robots.txt'), { waitUntil: 'domcontentloaded' });
+		await page.evaluate(async () => {
+			localStorage.clear();
+			sessionStorage.clear();
+			for (const database of await indexedDB.databases()) {
+				if (database.name) await new Promise<void>((resolve, reject) => {
+					const request = indexedDB.deleteDatabase(database.name!);
+					request.onsuccess = () => resolve();
+					request.onerror = () => reject(request.error);
+				});
+			}
+		});
+		await openGuestWelcome(page);
+		const expectedIds = landingExamples.map((example: { chatId: string }) => example.chatId);
+		await expect(page.getByTestId('chat-welcome-heading')).toHaveText('Hey there!');
+		await expect(page.getByTestId('guest-interest-prompt')).toHaveText('Continue where you left off');
+		await expect.poll(() => visibleExampleIds(page)).toEqual(expectedIds);
+		await page.reload({ waitUntil: 'domcontentloaded' });
+		await expect(page.getByTestId('chat-welcome-heading')).toHaveText('Hey there!');
+		await expect.poll(() => visibleExampleIds(page)).toEqual(expectedIds);
+		await expect(page.getByTestId('guest-interest-select-interests')).toBeVisible();
+		await expect(page.getByTestId('guest-show-all-examples')).toBeVisible();
+	});
+
 	// contract-test: direct surface=gui.web assertions=landing-onboarding.uses-real-chat-shell,landing-onboarding.guest-examples,daily-inspiration.guest-isolated,public-example-chats.catalog.discoverable
 	test('four interests rank real examples and remain in session storage', async ({ page }: { page: any }) => {
 		await openGuestWelcome(page);

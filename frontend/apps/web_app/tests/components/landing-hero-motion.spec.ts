@@ -16,18 +16,66 @@ const APP = 'https://app.dev.openmates.org';
 
 const expectSensitiveDataMarker = async (highlight: import('@playwright/test').Locator) => {
   const styles = await highlight.evaluate(element => {
+    const marker = getComputedStyle(element, '::before');
     const probe = document.createElement('span');
-    probe.style.cssText = 'position:absolute;visibility:hidden;color:var(--color-font-primary);background-image:linear-gradient(rgba(250,204,21,.35),rgba(250,204,21,.35));border-radius:2px;padding:0 2px';
+    probe.style.cssText = 'position:absolute;visibility:hidden;color:var(--color-font-primary);background:rgba(250,204,21,.35);border-radius:2px;padding:0 2px';
     element.append(probe);
-    const read = (node: Element) => {
-      const style = getComputedStyle(node);
-      return { color: style.color, background: style.backgroundImage, radius: style.borderRadius, padding: style.padding };
+    const expected = getComputedStyle(probe);
+    const result = {
+      actual: { color: getComputedStyle(element).color, background: marker.backgroundColor, radius: marker.borderRadius },
+      expected: { color: expected.color, background: expected.backgroundColor, radius: expected.borderRadius },
+      position: marker.position, layer: marker.zIndex, transform: marker.transform,
+      textBackground: getComputedStyle(element).backgroundColor,
     };
-    const result = { actual: read(element), expected: read(probe) };
     probe.remove();
     return result;
   });
   expect(styles.actual).toEqual(styles.expected);
+  expect(styles.position).toBe('absolute');
+  expect(styles.layer).toBe('-1');
+  expect(styles.textBackground).toBe('rgba(0, 0, 0, 0)');
+  expect(styles.transform).toBe('matrix(1, 0, 0, 1, 0, 0)');
+};
+
+const scrollToFeature = async (page: import('@playwright/test').Page, id: string, offset = 0) => {
+  await page.getByTestId('landing-scroll-container').evaluate((element, target) => {
+    const section = element.querySelector<HTMLElement>(`#${target.id}`)!;
+    const top = section.getBoundingClientRect().top - element.getBoundingClientRect().top + element.scrollTop;
+    element.scrollTo({ top: top + target.offset, behavior: 'auto' });
+  }, { id, offset });
+};
+
+const expectSectionAtTop = async (section: import('@playwright/test').Locator) => {
+  await expect.poll(() => section.evaluate(element => Math.abs(element.getBoundingClientRect().top - element.closest('.scroll-container')!.getBoundingClientRect().top))).toBeLessThan(3);
+};
+
+// Wait for the browser's media change event and the component's subsequent
+// frame work. Back-to-back emulation commands can otherwise be coalesced,
+// leaving the rail in manual momentum while the test assumes natural drift.
+const settleRailMotionPreference = async (page: import('@playwright/test').Page, preference: 'reduce' | 'no-preference') => {
+  await page.getByTestId('landing-app-rail').evaluate((element, preference) => {
+    element.setAttribute('data-motion-preference-ready', 'pending');
+    const query = matchMedia('(prefers-reduced-motion: reduce)');
+    const settle = () => requestAnimationFrame(() => requestAnimationFrame(() => {
+      element.setAttribute('data-motion-preference-ready', query.matches ? 'reduce' : 'no-preference');
+    }));
+    if (query.matches === (preference === 'reduce')) settle();
+    else query.addEventListener('change', settle, { once: true });
+  }, preference);
+  await page.emulateMedia({ reducedMotion: preference });
+  const rail = page.getByTestId('landing-app-rail');
+  await expect(rail).toHaveAttribute('data-motion-preference-ready', preference);
+  if (preference === 'reduce') {
+    const transforms = await rail.locator('.rail-track').evaluate(async element => {
+      const samples: string[] = [];
+      for (let frame = 0; frame < 3; frame++) {
+        await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+        samples.push(getComputedStyle(element).transform);
+      }
+      return samples;
+    });
+    expect(new Set(transforms).size).toBe(1);
+  }
 };
 
 const preview = (width: number, theme = 'light', props?: object) =>
@@ -45,11 +93,11 @@ test.describe('iPad scrolling', () => {
   test.use({ hasTouch: true });
   // contract-test: direct surface=gui.web assertions=marketing-landing.hero-app-rail
   test('iPad landing native glyphs stay rendered after scrolling away and back', async ({ page }, testInfo) => {
-    test.setTimeout(75_000);
+    test.setTimeout(90_000);
     await page.setViewportSize({ width: 820, height: 1180 });
     await page.emulateMedia({ reducedMotion: 'no-preference' });
     await page.goto(preview(820), { waitUntil: 'domcontentloaded' });
-    await waitForComponentPreview(page, 30_000);
+    await waitForComponentPreview(page, 60_000);
     const rail = page.getByTestId('landing-app-rail');
     const scroller = page.getByTestId('landing-scroll-container');
     const images = rail.locator('.rail-glyph');
@@ -157,7 +205,8 @@ test('landing hero entrance staggers its content, settles, and respects reduced 
 
 for (const available of [true, false]) {
   // contract-test: direct surface=gui.web assertions=marketing-landing.composer-focus
-  test(`composer changes its prompt after three actual app changes (${available ? 'available' : 'unavailable'})`, async ({ page }) => {
+  test(`composer changes its prompt only after three natural app changes (${available ? 'available' : 'unavailable'})`, async ({ page }) => {
+    test.setTimeout(60_000);
     await page.route('**/v1/settings/server-status', route => route.fulfill({ json: { anonymous_free_usage: { active: available, can_send_text: available } } }));
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto(preview(1440), { waitUntil: 'domcontentloaded' });
@@ -172,18 +221,55 @@ for (const available of [true, false]) {
     const alternative = `${touch ? 'Tap' : 'Click'} to ask anything`;
     await rail.focus();
     for (const direction of ['ArrowRight', 'ArrowLeft']) {
-      await rail.press(direction);
-      await expect(composer).toHaveText(direction === 'ArrowRight' ? primary : alternative);
-      const active = await rail.getAttribute('data-active-app');
-      // Selecting the current app must not consume another change.
-      await rail.locator(`.rail-group:nth-child(2) [data-app-id="${active}"]`).evaluate((node: HTMLButtonElement) => node.click());
-      await expect(composer).toHaveText(direction === 'ArrowRight' ? primary : alternative);
-      await rail.press(direction);
-      await expect(composer).toHaveText(direction === 'ArrowRight' ? primary : alternative);
-      await rail.press(direction);
-      await expect(composer).toHaveText(direction === 'ArrowRight' ? alternative : primary);
-      await expect(composer).toHaveAttribute('href', destination);
+      for (let change = 0; change < 6; change++) {
+        await rail.press(direction);
+        await expect(composer).toHaveText(primary);
+      }
     }
+    // Pointer swipes can cross several indices without changing the label.
+    const swipeBounds = await rail.boundingBox();
+    expect(swipeBounds).not.toBeNull();
+    for (let swipe = 0; swipe < 3; swipe++) {
+      await page.mouse.move(swipeBounds!.x + swipeBounds!.width * .7, swipeBounds!.y + swipeBounds!.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(swipeBounds!.x + swipeBounds!.width * .25, swipeBounds!.y + swipeBounds!.height / 2, { steps: 6 });
+      await page.mouse.up();
+      await expect(composer).toHaveText(primary);
+    }
+    // Clicking another app and reselecting it are both manual progression.
+    for (const index of [2, 4, 6, 6]) {
+      await rail.locator('.rail-group:nth-child(2) .rail-icon').nth(index).evaluate((node: HTMLButtonElement) => node.click());
+      await expect(composer).toHaveText(primary);
+    }
+    await rail.evaluate(element => {
+      element.setAttribute('data-composer-observations', '[]');
+      new MutationObserver(() => {
+        const observations = JSON.parse(element.getAttribute('data-composer-observations')!) as { app: string | null; label: string }[];
+        observations.push({ app: element.getAttribute('data-active-app'), label: document.querySelector('[data-testid="landing-compose"]')!.textContent!.trim() });
+        element.setAttribute('data-composer-observations', JSON.stringify(observations));
+      }).observe(element, { attributes: true, attributeFilter: ['data-active-app'] });
+    });
+    const observations = () => rail.evaluate(element => JSON.parse(element.getAttribute('data-composer-observations')!) as { app: string | null; label: string }[]);
+    await settleRailMotionPreference(page, 'no-preference');
+    const bounds = await rail.boundingBox();
+    expect(bounds).not.toBeNull();
+    await page.mouse.move(bounds!.x + bounds!.width * .6, bounds!.y + bounds!.height / 2);
+    await page.mouse.wheel(220, 0);
+    // One manual wheel gesture coasts across multiple apps. Neither direct
+    // movement nor subsequent inertia may consume natural progression counts.
+    await expect.poll(async () => (await observations()).length, { timeout: 3500 }).toBeGreaterThanOrEqual(3);
+    expect((await observations()).every(item => item.label === primary)).toBe(true);
+    await expect(composer).toHaveText(primary);
+    // Stop manual momentum via the supported accessibility preference before
+    // observing a fresh uninterrupted run of actual automatic app changes.
+    await settleRailMotionPreference(page, 'reduce');
+    await rail.evaluate(element => element.setAttribute('data-composer-observations', '[]'));
+    await settleRailMotionPreference(page, 'no-preference');
+    await expect.poll(async () => (await observations()).length, { timeout: 25_000 }).toBeGreaterThanOrEqual(6);
+    const natural = (await observations()).slice(0, 6);
+    expect(natural.every((item, index) => index === 0 || item.app !== natural[index - 1].app)).toBe(true);
+    expect(natural.map(item => item.label)).toEqual([primary, primary, alternative, alternative, alternative, primary]);
+    await expect(composer).toHaveAttribute('href', destination);
     await expect(composer.locator('.composer-ai svg path')).toHaveCount(1);
     await expect(composer.locator('.composer-mic svg linearGradient stop')).toHaveCount(2);
     const colors = await composer.evaluate(element => {
@@ -208,7 +294,16 @@ test('hero privacy marker settles accessibly and browser return restarts renderi
   await waitForComponentPreview(page, 30_000);
   const highlight = page.getByTestId('landing-privacy-highlight');
   await expect(highlight).toHaveText('privacy first');
-  await expect.poll(() => highlight.evaluate(element => getComputedStyle(element).backgroundSize)).toBe('100% 100%');
+  await expect.poll(() => highlight.evaluate(element => getComputedStyle(element, '::before').transform)).toBe('matrix(1, 0, 0, 1, 0, 0)');
+  const markerMotion = await highlight.evaluate(element => {
+    const style = getComputedStyle(element, '::before');
+    const animation = element.getAnimations({ subtree: true }).find(item =>
+      (item.effect as KeyframeEffect | null)?.getKeyframes().some(frame => String(frame.transform).includes('scaleX')));
+    return { name: style.animationName, origin: style.transformOrigin, frames: (animation?.effect as KeyframeEffect | null)?.getKeyframes().map(frame => String(frame.transform)) };
+  });
+  expect(markerMotion.name).toContain('privacy-marker');
+  expect(markerMotion.origin).toMatch(/^0px /);
+  expect(markerMotion.frames).toEqual(['scaleX(0)', 'scaleX(1)']);
   await expectSensitiveDataMarker(highlight);
   const scroller = page.getByTestId('landing-scroll-container');
   await expect(page.getByTestId('landing-hero-media')).toHaveCSS('transform', 'none');
@@ -236,51 +331,182 @@ test('hero privacy marker settles accessibly and browser return restarts renderi
   await scroller.evaluate(element => element.scrollTo({ top: element.clientHeight * 2, behavior: 'auto' }));
   await expect(page.getByTestId('landing-feature-privacy')).toHaveClass(/revealed/);
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await expect(highlight).toHaveCSS('animation-name', 'none');
-  await expect(highlight).toHaveCSS('background-size', '100% 100%');
+  await expect.poll(() => highlight.evaluate(element => getComputedStyle(element, '::before').animationName)).toBe('none');
+  await expectSensitiveDataMarker(highlight);
 });
 
 for (const width of [390, 1440]) {
   // contract-test: direct surface=gui.web assertions=marketing-landing.independent-scroll,marketing-landing.six-feature-viewport
-  test(`native section settling reserves composer space and leaves tall sections scrollable (${width}px)`, async ({ page }) => {
+  test(`native free scrolling keeps its reading position and section arrows preserve clearance (${width}px)`, async ({ page }) => {
     await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto(preview(width), { waitUntil: 'domcontentloaded' });
     await waitForComponentPreview(page, 30_000);
     const scroller = page.getByTestId('landing-scroll-container');
-    const expectedSnapType = await scroller.evaluate(element => {
-      // Browsers can omit the default proximity keyword when serializing CSSOM.
-      // Compare explicit proximity using the same engine, still rejecting mandatory.
-      const probe = document.createElement('div');
-      probe.style.cssText = 'position:absolute;visibility:hidden;scroll-snap-type:y proximity';
-      element.append(probe);
-      const expected = getComputedStyle(probe).scrollSnapType;
-      probe.remove();
-      return expected;
-    });
-    await expect(scroller).toHaveCSS('scroll-snap-type', expectedSnapType);
+    await expect(scroller).toHaveCSS('scroll-snap-type', 'none');
+    await expect(scroller).toHaveCSS('overscroll-behavior-y', 'auto');
+    const geometry = await scroller.evaluate(element => [...element.querySelectorAll<HTMLElement>('.feature')].map(section => ({ snap: getComputedStyle(section).scrollSnapAlign, bottomPadding: parseFloat(getComputedStyle(section).paddingBottom) })));
+    expect(geometry.every(section => section.snap === 'none' && section.bottomPadding >= 112)).toBe(true);
     const modelChoice = page.getByTestId('landing-feature-model-choice');
     await expect(modelChoice.getByTestId('landing-model-selection-link')).toHaveAttribute('href', `${APP}/blog`);
     await expect(modelChoice.getByTestId('landing-data-ownership-link')).toHaveAttribute('href', `${APP}/blog`);
-    const geometry = await scroller.evaluate(element => [...element.querySelectorAll<HTMLElement>('.feature')].map(section => ({ height: section.offsetHeight, viewport: element.clientHeight, snap: getComputedStyle(section).scrollSnapAlign, bottomPadding: parseFloat(getComputedStyle(section).paddingBottom) })));
-    expect(geometry.every(section => section.bottomPadding >= 112)).toBe(true);
-    for (const section of geometry) expect(section.snap).toBe(section.height <= section.viewport + 1 ? 'start' : 'none');
     const feature = page.getByTestId('landing-feature-actionable');
+    await scrollToFeature(page, 'actionable', -137);
+    const before = await scroller.evaluate(element => element.scrollTop);
+    await expect.poll(() => feature.evaluate(element => element.getBoundingClientRect().top - element.closest('.scroll-container')!.getBoundingClientRect().top)).toBeGreaterThan(130);
+    // Real WebKit wheel input follows native scrolling. Observe cancellation only;
+    // never prevent an event or replace the browser's wheel/momentum behavior.
     await scroller.evaluate(element => {
-      const section = element.querySelector<HTMLElement>('#actionable')!;
-      element.scrollTo({ top: section.offsetTop - element.offsetTop - 20, behavior: 'auto' });
+      element.setAttribute('data-wheel-observed', '0');
+      element.setAttribute('data-wheel-cancelled', 'false');
+      element.addEventListener('wheel', event => {
+        queueMicrotask(() => {
+          element.setAttribute('data-wheel-observed', String(Number(element.getAttribute('data-wheel-observed')) + 1));
+          if (event.defaultPrevented) element.setAttribute('data-wheel-cancelled', 'true');
+        });
+      }, { passive: true });
     });
-    if (geometry[0].snap === 'start') {
-      await expect.poll(() => feature.evaluate(element => Math.abs(element.getBoundingClientRect().top - element.closest('.scroll-container')!.getBoundingClientRect().top))).toBeLessThan(2);
-      const bounds = await feature.evaluate(element => ({ copy: element.querySelector('.feature-copy')!.getBoundingClientRect().bottom, composer: document.querySelector('[data-testid="landing-compose"]')!.getBoundingClientRect().top }));
-      expect(bounds.copy).toBeLessThan(bounds.composer);
-    } else {
-      const before = await scroller.evaluate(element => element.scrollTop);
-      await scroller.evaluate(element => element.scrollBy({ top: 100, behavior: 'auto' }));
-      await expect.poll(() => scroller.evaluate(element => element.scrollTop)).toBeGreaterThan(before + 90);
+    const bounds = await scroller.boundingBox();
+    expect(bounds).not.toBeNull();
+    await page.mouse.move(bounds!.x + bounds!.width * .72, bounds!.y + bounds!.height * .65);
+    for (const delta of [70, 55, 35]) await page.mouse.wheel(0, delta);
+    await expect.poll(() => scroller.evaluate(element => element.scrollTop)).toBeGreaterThan(before + 80);
+    await expect.poll(async () => Number(await scroller.getAttribute('data-wheel-observed'))).toBeGreaterThan(0);
+    await expect(scroller).toHaveAttribute('data-wheel-cancelled', 'false');
+    const positions: number[] = [];
+    await expect.poll(async () => {
+      positions.push(await scroller.evaluate(element => element.scrollTop));
+      return positions.length >= 3 && Math.max(...positions.slice(-3)) - Math.min(...positions.slice(-3)) < 2;
+    }, { intervals: [100, 200, 300] }).toBe(true);
+    const restingOffset = await feature.evaluate(element => element.getBoundingClientRect().top - element.closest('.scroll-container')!.getBoundingClientRect().top);
+    expect(Math.abs(restingOffset)).toBeGreaterThan(5);
+    const url = page.url();
+    await expect(page.getByTestId('landing-next-section')).toBeVisible();
+    await page.getByTestId('landing-next-section').click();
+    await expectSectionAtTop(page.getByTestId('landing-feature-privacy'));
+    expect(page.url()).toBe(url);
+    await page.getByTestId('landing-previous-section').click();
+    await expectSectionAtTop(feature);
+    expect(page.url()).toBe(url);
+    const clearance = await feature.evaluate(element => {
+      const root = element.closest('.landing-page')!;
+      const heading = element.querySelector('h2')!.getBoundingClientRect();
+      const paragraph = element.querySelector('.story-copy p')!.getBoundingClientRect();
+      return { headingTop: heading.top, paragraphBottom: paragraph.bottom,
+        previousBottom: root.querySelector('[data-testid="landing-previous-section"]')!.getBoundingClientRect().bottom,
+        composerTop: root.querySelector('[data-testid="landing-compose"]')!.getBoundingClientRect().top };
+    });
+    expect(clearance.headingTop).toBeGreaterThan(clearance.previousBottom);
+    expect(clearance.paragraphBottom).toBeLessThan(clearance.composerTop);
+    // Tall phone sections retain native internal reading space below the fold.
+    if (width === 390) {
+      const top = await scroller.evaluate(element => element.scrollTop);
+      // The preceding click left the pointer on the fixed previous-section
+      // button outside the scroller. Send native wheel input over its content.
+      await page.mouse.move(bounds!.x + bounds!.width * .72, bounds!.y + bounds!.height * .65);
+      await page.mouse.wheel(0, 120);
+      await expect.poll(() => scroller.evaluate(element => element.scrollTop)).toBeGreaterThan(top + 80);
     }
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await waitForComponentPreview(page, 30_000);
+    await expect.poll(() => scroller.evaluate(element => element.scrollTop)).toBeLessThan(2);
+    await expect(page.getByTestId('landing-previous-section')).toHaveCount(0);
+  });
+
+  // contract-test: direct surface=gui.web assertions=marketing-landing.section-stories,marketing-landing.independent-scroll
+  test(`section stories show natural requests and clicks, then preserve completed reading views (${width}px)`, async ({ page }) => {
+    test.setTimeout(75_000);
+    await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await page.goto(preview(width), { waitUntil: 'domcontentloaded' });
+    await waitForComponentPreview(page, 30_000);
+    const actionable = page.getByTestId('landing-feature-actionable');
+    const privacy = page.getByTestId('landing-feature-privacy');
+    await expect(actionable).toHaveAttribute('data-story-state', 'pending');
+    await expect(privacy).toHaveAttribute('data-story-state', 'pending');
+    const url = page.url();
+    await page.getByTestId('landing-scroll-cue').click();
+    await expect(actionable).toHaveAttribute('data-story-state', 'playing');
+    const story = actionable.getByTestId('landing-feature-animation');
+    await expect(story).toHaveAttribute('data-active-stage', 'user-request');
+    await expect(story).toContainText('Find tech events in Berlin');
+    await expect(actionable.getByTestId('landing-skip-actionable')).toBeVisible();
+    await expect(actionable.locator('.story-copy')).toHaveCount(0);
+    await expect(actionable.getByTestId('device-screenshots')).toHaveCount(0);
+    await expect(story).toHaveAttribute('data-active-stage', 'assistant-response', { timeout: 4000 });
+    await expect(story).toContainText('Of course, here you go:');
+    await expect(story).toHaveAttribute('data-active-stage', 'event-preview', { timeout: 4000 });
+    await expect(story.getByTestId('landing-actionable-event-preview')).toContainText('DEPIN DAY BERLIN');
+    await expect(story).toHaveAttribute('data-interaction-state', 'preview-targeted', { timeout: 2500 });
+    await expect(story).toHaveAttribute('data-interaction-state', 'preview-clicked', { timeout: 2000 });
+    await expect(story).toHaveAttribute('data-active-stage', 'luma-cta', { timeout: 2500 });
+    await expect(story.getByTestId('landing-actionable-luma-button')).toHaveText('Open on Luma');
+    await expect(story).toHaveAttribute('data-interaction-state', 'cta-clicked', { timeout: 2200 });
+    await expect(actionable).toHaveAttribute('data-story-state', 'complete', { timeout: 2500 });
+    await expect(actionable.locator('.story-copy p')).toBeVisible();
+    await expect(actionable.getByTestId('device-screenshots')).toBeVisible();
+    await expect(actionable.getByTestId('landing-explore-apps')).toHaveAttribute('href', `${APP}/#apps`);
+    await expect(story).toHaveCount(0);
+    await page.getByTestId('landing-next-section').click();
+    await expect(privacy).toHaveAttribute('data-story-state', 'playing');
+    await expect(privacy.getByTestId('landing-feature-animation')).toContainText('Only your devices can decrypt all your data.');
+    await expect(privacy.locator('.story-copy')).toHaveCount(0);
+    await privacy.getByTestId('landing-skip-privacy').click();
+    await expect(privacy).toHaveAttribute('data-story-state', 'complete');
+    await expect(privacy.locator('.story-copy p')).toBeVisible();
+    await expect(privacy.getByTestId('device-screenshots')).toBeVisible();
+    await expect(privacy.getByTestId('landing-feature-animation')).toHaveCount(0);
+    await page.getByTestId('landing-previous-section').click();
+    await expectSectionAtTop(actionable);
+    await expect(actionable).toHaveAttribute('data-story-state', 'complete');
+    await expect(actionable.getByTestId('landing-skip-actionable')).toHaveCount(0);
+    await page.getByTestId('landing-next-section').click();
+    await expectSectionAtTop(privacy);
+    await expect(privacy).toHaveAttribute('data-story-state', 'complete');
+    await expect(privacy.getByTestId('landing-skip-privacy')).toHaveCount(0);
+    expect(page.url()).toBe(url);
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await waitForComponentPreview(page, 30_000);
+    await expect.poll(() => page.getByTestId('landing-scroll-container').evaluate(element => element.scrollTop)).toBeLessThan(2);
+    await expect(actionable).toHaveAttribute('data-story-state', 'pending');
+    await expect(privacy).toHaveAttribute('data-story-state', 'pending');
   });
 }
+
+// contract-test: direct surface=gui.web assertions=marketing-landing.section-stories
+test('desktop privacy story naturally completes every encryption, PII and permission scene', async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.goto(preview(1440), { waitUntil: 'domcontentloaded' });
+  await waitForComponentPreview(page, 30_000);
+  await scrollToFeature(page, 'privacy');
+  const privacy = page.getByTestId('landing-feature-privacy');
+  const story = privacy.getByTestId('landing-feature-animation');
+  await expect(story).toHaveAttribute('data-active-stage', 'saved-data-copy');
+  await expect(story).toHaveAttribute('data-active-stage', 'encryption-lock', { timeout: 3500 });
+  await expect(story.locator('.locked')).toBeVisible();
+  await expect(story).toHaveAttribute('data-active-stage', 'pii-copy', { timeout: 5000 });
+  await expect(story).toHaveAttribute('data-active-stage', 'pii-detection', { timeout: 3500 });
+  await expect(story.locator('[data-pii-state]')).toHaveAttribute('data-pii-state', 'highlighted', { timeout: 1500 });
+  await expect(story.locator('[data-pii-state]')).toHaveAttribute('data-pii-state', 'placeholder', { timeout: 2000 });
+  await expect(story).toContainText('[EMAIL_1]');
+  await expect(story).toHaveAttribute('data-active-stage', 'originals-copy', { timeout: 2500 });
+  await expect(story).toHaveAttribute('data-active-stage', 'pii-reveal', { timeout: 3500 });
+  await expect(story).toContainText('[EMAIL_1]');
+  await expect(story.locator('.pii-value.revealed')).toHaveText('alex@example.com', { timeout: 2000 });
+  await expect(story).toHaveAttribute('data-active-stage', 'personalized-copy', { timeout: 3000 });
+  await expect(story).toHaveAttribute('data-active-stage', 'trip-request', { timeout: 3500 });
+  await expect(story).toContainText('Recommended places for my next trip?');
+  await expect(story).toHaveAttribute('data-active-stage', 'memory-permission', { timeout: 3500 });
+  const permission = story.getByTestId('app-settings-memories-permission-card');
+  await expect(permission).toContainText('Include these memories in this chat, for a more personalized response?');
+  await expect(permission).toContainText('Trips');
+  await expect(privacy).toHaveAttribute('data-story-state', 'complete', { timeout: 5500 });
+  await expect(privacy.locator('.story-copy p')).toBeVisible();
+  await expect(privacy.getByTestId('device-screenshots')).toBeVisible();
+  await expect(story).toHaveCount(0);
+});
 
 test.describe('touch landing composer', () => {
   test.use({ hasTouch: true });
@@ -293,7 +519,10 @@ test.describe('touch landing composer', () => {
     const rail = page.getByTestId('landing-app-rail');
     await rail.focus();
     for (let change = 0; change < 3; change++) await rail.press('ArrowRight');
-    await expect(page.getByTestId('landing-compose')).toHaveText('Tap to ask anything');
+    await expect(page.getByTestId('landing-compose')).toHaveText('Test for free');
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await expect(page.getByTestId('landing-compose')).toHaveText('Tap to ask anything', { timeout: 15_000 });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.evaluate(() => localStorage.setItem('preferredLanguage', 'de'));
     await page.reload({ waitUntil: 'domcontentloaded' });
     await waitForComponentPreview(page, 30_000);

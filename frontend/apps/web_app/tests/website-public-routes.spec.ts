@@ -117,6 +117,8 @@ function watchPrivateStartup(page: import('@playwright/test').Page) {
 
 const site = (pathname: string) => `${website}${pathname}`;
 async function assertPublicHeader(page: import('@playwright/test').Page) {
+  await expect(page.getByTestId('sidebar-toggle')).toHaveCount(0);
+  await expect(page.getByRole('complementary', { name: /archive/i })).toHaveCount(0);
   const header = page.getByTestId('public-site-header');
   await expect(header).toBeVisible();
   await expect(header.getByRole('link', { name: 'OpenMates home' })).toHaveAttribute('href', site('/'));
@@ -191,6 +193,11 @@ for (const width of [390, 1440]) {
       await section.scrollIntoViewIfNeeded();
       await expect(section).toHaveClass(/revealed/);
       await expect(section.getByRole('heading')).toHaveCSS('opacity', '1');
+      if (id === 'actionable' || id === 'privacy') {
+        const skip = section.getByTestId(`landing-skip-${id}`);
+        if (await skip.count()) await skip.click();
+        await expect(section).toHaveAttribute('data-story-state', 'complete');
+      }
       await expect(section.locator('.feature-example')).toHaveCSS('opacity', '1');
     }
     expect(errors, 'website errors after opening a real app example').toEqual([]);
@@ -273,8 +280,6 @@ for (const width of [390, 1440]) {
       const route = `/${section}/${record.slug}`;
       await page.goto(site(route), { waitUntil: 'domcontentloaded' });
       await assertPublicHeader(page);
-      await page.getByTestId('sidebar-toggle').click();
-      await expect(page.getByTestId('sidebar-toggle')).toHaveAttribute('aria-expanded', 'true');
       await page.getByTestId('landing-language-button').click();
       await page.getByTestId('landing-language-panel').getByRole('button', { name: 'Deutsch', exact: true }).click();
       await expect(page).toHaveURL(site(`/de${route}`));
@@ -409,7 +414,9 @@ for (const { width, height } of [{ width: 390, height: 844 }, { width: 1440, hei
     const aiVisual = page.getByTestId('landing-hero-ai-icon');
     await expect(aiVisual).toHaveAttribute('aria-hidden', 'true');
     await expect(aiVisual).toHaveCSS('animation-name', 'none');
-    expect(await aiVisual.locator('.hero-ai-glyph').evaluate(element => getComputedStyle(element).maskImage)).toContain('/icons/ai.svg');
+    await expect(aiVisual.locator('.hero-ai-glyph svg')).toBeVisible();
+    await expect(aiVisual.locator('.hero-ai-glyph svg path')).toHaveCount(1);
+    await expect(aiVisual.locator('.hero-ai-glyph')).toHaveCSS('mask-image', 'none');
     await expect(composer).toBeVisible();
     const before = await composer.boundingBox();
     expect(before).not.toBeNull();

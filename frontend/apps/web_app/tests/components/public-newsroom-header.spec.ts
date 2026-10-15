@@ -12,8 +12,8 @@ const proofContract = defineVideoProof({
     { id: 'article', text: 'Blog articles use the same header, with readable content and independent scrolling.', checkpoint: 'article', devices: ['web-phone', 'web-laptop'] },
   ],
   assertions: [
-    { id: 'landing.public-newsroom-header', checkpoint: 'index', visual: 'The full wordmark and app-root CTA fit on the viewport; language options remain usable above an open archive.', devices: ['web-phone', 'web-laptop'] },
-    { id: 'landing.public-article-header', checkpoint: 'article', visual: 'Articles keep the same public header and archive navigation without duplicate branding, overlap or horizontal overflow.', devices: ['web-phone', 'web-laptop'] },
+    { id: 'landing.public-newsroom-header', checkpoint: 'index', visual: 'The full wordmark and app-root CTA fit on the viewport; language options remain usable above the searchable publication list.', devices: ['web-phone', 'web-laptop'] },
+    { id: 'landing.public-article-header', checkpoint: 'article', visual: 'Articles keep the same public header and card navigation without a hamburger or sidebar, overlap or horizontal overflow.', devices: ['web-phone', 'web-laptop'] },
   ],
   tutorial: { readingWordsPerSecond: 3, minimumHoldMs: 900, maximumHoldMs: 2500 },
 });
@@ -45,6 +45,11 @@ for (const { width, height } of [
     const root = page.getByTestId('newsroom-surface');
     const language = header.getByTestId('landing-language-button');
     const archive = page.getByRole('complementary', { name: 'Newsroom archive' });
+    const expectNoSidebar = async () => {
+      await expect(page.getByTestId('sidebar-toggle')).toHaveCount(0);
+      await expect(root.locator('.sidebar-layer, .publication-header')).toHaveCount(0);
+      await expect(archive).toHaveCount(0);
+    };
     await expect(header.getByRole('link', { name: 'OpenMates home' })).toHaveAttribute('href', 'https://landing.dev.openmates.org/');
     await expect(header.locator('.wordmark')).toHaveText('OpenMates');
     await expect(header.locator('.wordmark')).toHaveCSS('font-size', '20px');
@@ -61,26 +66,24 @@ for (const { width, height } of [
     await expect(blogLink).toHaveCSS('opacity', '0.5');
     await expect(header.locator('.github-link svg')).toBeVisible();
     await expect(language.locator('svg')).toBeVisible();
-    await expect(root.locator('.publication-header .logo-link')).toBeHidden();
+    await expectNoSidebar();
+    await expect.poll(() => root.evaluate(shell => {
+      const panel = shell.querySelector('.main-panel');
+      return (panel?.getBoundingClientRect().width ?? 0) / shell.clientWidth;
+    })).toBeGreaterThan(0.9);
     await expect(root.locator('.section-actions svg')).toHaveCount(3);
     await expect(root.locator('.center-actions svg')).toHaveCount(2);
     await expect(root.getByRole('button', { name: 'Subscribe to news', exact: true }).locator('svg')).toHaveAttribute('data-icon', 'mail');
-    const toggleSize = await page.getByTestId('sidebar-toggle').evaluate(el => ({ width: el.offsetWidth, height: el.offsetHeight }));
-    expect(toggleSize.width).toBe(41);
-    expect(toggleSize.height).toBe(41);
     for (const icon of await root.locator('.section-actions svg, .center-actions svg').all()) {
       await expect(icon).toBeVisible();
       expect(await icon.evaluate(node => node.getBoundingClientRect().width)).toBeGreaterThan(0);
     }
-    await expect(archive).toBeHidden();
-    await page.getByTestId('sidebar-toggle').click();
-    await expect(archive).toBeVisible();
-    await page.getByTestId('sidebar-search').click();
-    const archiveSearch = page.getByTestId('sidebar-search-input');
-    await expect(archiveSearch).toBeFocused();
-    await archiveSearch.fill('Health');
-    await expect(archive.getByText('The Health app, redesigned')).toBeVisible();
-    await expect(archive.getByText('New skills for the Code app')).toHaveCount(0);
+    await page.getByTestId('newsroom-search-toggle').click();
+    const search = page.getByTestId('newsroom-search-input');
+    await expect(search).toBeFocused();
+    await search.fill('Health');
+    await expect(page.getByTestId('newsroom-card-health-app-redesigned')).toBeVisible();
+    await expect(page.getByTestId('newsroom-card-new-code-skills')).toHaveCount(0);
     await language.click();
     const panel = page.getByTestId('landing-language-panel');
     await expect(panel).toBeVisible();
@@ -98,8 +101,10 @@ for (const { width, height } of [
     await page.keyboard.press('Escape');
     await expect(panel).toHaveCount(0);
     await expect(language).toBeFocused();
-    await archive.getByRole('button', { name: 'Close Newsroom navigation', exact: true }).click();
-    await expect(archive).toBeHidden();
+    await page.getByTestId('newsroom-search-toggle').click();
+    await expect(page.getByTestId('newsroom-search-input')).toHaveCount(0);
+    await expect(page.getByTestId('newsroom-card-new-code-skills')).toBeVisible();
+    await expectNoSidebar();
     await language.hover();
     await expect(language).toHaveCSS('scale', '1');
     await proof.assert('landing.public-newsroom-header', async () => {
@@ -125,7 +130,8 @@ for (const { width, height } of [
     await waitForComponentPreview(page);
     await expect(root).toHaveAttribute('data-view', 'blog-post');
     await expect(root.locator('.article-body')).toBeVisible();
-    await expect(root.locator('.publication-header .logo-link')).toHaveAttribute('href', 'https://landing.dev.openmates.org/blog');
+    await expectNoSidebar();
+    await expect(blogLink).toHaveAttribute('href', 'https://landing.dev.openmates.org/blog');
     await expect(blogLink).toHaveAttribute('aria-current', 'page');
     await expect(blogLink).toHaveCSS('opacity', '1');
     await expect(newsLink).toHaveCSS('opacity', '0.5');
@@ -161,8 +167,20 @@ for (const { width, height } of [
     expect(errors).toEqual([]);
     await testInfo.attach(`public-blog-article-${width}px`, { body: await page.screenshot(), contentType: 'image/png' });
     await proof.checkpoint('article');
+    // Related cards keep the close node mounted through a detail-to-detail change.
+    await page.getByTestId('newsroom-card-health-app-redesigned').click();
+    await expect(root).toHaveAttribute('data-view', 'release');
+    await expectNoSidebar();
+    await expect(root.locator('.publication-scroll')).toHaveJSProperty('scrollTop', 0);
+    await expect(close).toHaveCSS('color', 'rgb(255, 255, 255)');
+    await close.click();
+    await expect(root).toHaveAttribute('data-view', 'news');
+    await page.getByTestId('newsroom-card-workflow-best-practices').click();
+    await expect(root).toHaveAttribute('data-view', 'blog-post');
     await close.click();
     await expect(root).toHaveAttribute('data-view', 'blog');
+    await expectNoSidebar();
+    await expect(page.getByTestId('newsroom-search-toggle')).toBeVisible();
     for (const platform of ['instagram', 'mastodon', 'linkedin']) {
       const link = page.getByTestId(`publication-follow-${platform}`);
       await expect(link).toHaveAttribute('href', /^https:\/\//);
@@ -180,15 +198,16 @@ for (const { width, height } of [
     expect((await close.boundingBox())!.y).toBe(socialCloseBefore.y);
     await close.click();
     await expect(root).toHaveAttribute('data-view', 'news');
-    // Keep the surface and close button mounted through social -> article.
-    // At scrollTop=0, scrollTo(0) emits no event to repair a stale overlay state.
+    // Open articles through the public list after closing a social post.
     await page.getByTestId('newsroom-card-workflow-social').click();
     await expect(root).toHaveAttribute('data-view', 'social-post');
     await root.locator('.publication-scroll').evaluate(el => { el.scrollTop = 0; });
     await expect(close).not.toHaveCSS('color', 'rgb(255, 255, 255)');
-    await page.getByTestId('sidebar-toggle').click();
-    await archive.getByRole('button').filter({ hasText: 'The Health app, redesigned' }).click();
+    await close.click();
+    await expect(root).toHaveAttribute('data-view', 'news');
+    await page.getByTestId('newsroom-card-health-app-redesigned').click();
     await expect(root).toHaveAttribute('data-view', 'release');
+    await expectNoSidebar();
     await expect(root.getByRole('button', { name: 'Subscribe to news', exact: true }).locator('svg')).toHaveAttribute('data-icon', 'mail');
     await expect(root.locator('.publication-scroll')).toHaveJSProperty('scrollTop', 0);
     await expect(close).toHaveCSS('color', 'rgb(255, 255, 255)');

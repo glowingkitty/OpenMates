@@ -1,17 +1,18 @@
 schema_version: 1
-specification: feature.landing-onboarding@5
+specification: feature.landing-onboarding@6
 web_welcome:
 - id: ordinary-guest-welcome
   given: Sam opens the web app signed out.
   when: The new-chat welcome finishes loading.
-  then: The normal Daily Inspiration banner, composer, Select interests and Show all example chats are
-    available in the existing chat shell, with no expanded intro or timed promotional slides.
+  then: The normal Daily Inspiration banner, composer, Select interests and Show all example chats are available
+    in the existing chat shell, with no expanded intro or timed promotional slides. The localized Hey there greeting
+    and Continue where you left off are visible; cached account details never replace the guest greeting.
 examples_discovery:
 - id: all-real-examples
   given: Sam is signed out and has selected an interest.
   when: Sam chooses Show all example chats and opens one.
-  then: All ordinary real examples remain discoverable, with interest ranking where applicable, and the
-    selected real shared chat opens independently of any Daily Inspiration card.
+  then: All ordinary real examples remain discoverable, with interest ranking where applicable, and the selected
+    real shared chat opens independently of any Daily Inspiration card.
 legacy_intro_retirement:
 - id: retired-intro-paths
   given: Sam follows a saved /intro/for-everyone link or an old demo-for-developers chat fragment.
@@ -21,23 +22,22 @@ primary_slogan:
 - id: english-positioning
   given: Alex inspects the English page title, social preview and descriptive metadata.
   when: Alex opens the signed-out web welcome.
-  then: The existing English title and social headline remain consistent, the longer descriptive copy
-    stays in metadata and README introductions, and no expanded overlay is added.
+  then: The existing English title and social headline remain consistent, the longer descriptive copy stays in metadata
+    and README introductions, and no expanded overlay is added.
 apple_parity:
 - id: apple-ordinary-welcome
   given: Sam opens the Apple app signed out while public defaults are still loading.
   when: The new-chat welcome appears.
-  then: Normal Daily Inspirations appear immediately through the synchronous public fallback. Existing
-    topic selection, login and shell navigation remain visible; no marketing header, story slide or signup
-    slide appears.
+  then: Normal Daily Inspirations appear immediately through the synchronous public fallback. Existing topic selection,
+    login and shell navigation remain visible; no marketing header, story slide or signup slide appears.
 - id: apple-topic-selection-and-proof
   given: Sam sees the native public example catalog with an Events example and an unrelated Artemis example.
   when: Sam selects the Events topic, skips selection, and the native UI test verifies both states.
-  then: Only the matching existing Events example appears after selection; skipping restores the unfiltered
-    catalog. The native test links directly to landing-onboarding.apple-web-parity.
+  then: Only the matching existing Events example appears after selection; skipping restores the unfiltered catalog.
+    The native test links directly to landing-onboarding.apple-web-parity.
 historical_native_references:
 - id: prior-native-test-metadata
   given: A retained native test file still names a former onboarding story assertion.
   when: A contract metadata index reads the old ID.
-  then: The ID resolves for traceability, while current native behavior is judged by the ordinary-welcome
-    Apple assertion rather than a retired marketing story.
+  then: The ID resolves for traceability, while current native behavior is judged by the ordinary-welcome Apple
+    assertion rather than a retired marketing story.

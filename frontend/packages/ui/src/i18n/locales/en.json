@@ -27524,6 +27524,12 @@
       },
       "website_change_pending_limit": {
         "text": "Too many changes are waiting for evaluation or delivery. The last successful version was kept."
+      },
+      "signup_customize": {
+        "text": "Signup to customize workflow"
+      },
+      "signup": {
+        "text": "Signup"
       }
     },
     "completion": {

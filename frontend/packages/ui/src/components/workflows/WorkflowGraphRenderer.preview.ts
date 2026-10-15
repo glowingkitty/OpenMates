@@ -704,5 +704,12 @@ export const variants = {
     }) }, jobsSearchCapability),
   },
   typedControls: { ...defaultProps, graph: typedControlsGraph, capabilityFixtures: typedControlsCapabilities },
+  guestTemplate: {
+    ...skillVariant(weeklyEventsGraph(), eventsSearchCapability),
+    readOnly: true,
+    guestTemplate: { onSignup: () => window.dispatchEvent(new CustomEvent('workflow-guest-preview-signup')) },
+    // Keep a callable persistence fixture to prove the guest mode blocks writes itself.
+    onSave: async () => { window.dispatchEvent(new CustomEvent('workflow-guest-preview-save')); },
+  },
   readonly: { ...defaultProps, readOnly: true, onSave: null },
 };

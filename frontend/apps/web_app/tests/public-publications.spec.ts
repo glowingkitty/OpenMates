@@ -1,6 +1,26 @@
 import { expect, test } from './helpers/cookie-audit';
 
 test.describe('public news, blog, and social publications', () => {
+	// contract-test: direct surface=gui.web assertions=marketing-landing.destinations,marketing-landing.public-content,marketing-landing.language-theme
+	test('app legal compatibility route uses the shared public header', async ({ page }) => {
+		await page.goto('/legal/privacy?lang=de', { waitUntil: 'domcontentloaded' });
+		const header = page.getByTestId('public-site-header');
+		await expect(header).toBeVisible();
+		await expect(header.locator('.wordmark')).toHaveText('OpenMates');
+		const home = header.getByRole('link', { name: 'OpenMates home' });
+		const homeHref = await home.getAttribute('href');
+		const canonical = await page.locator('link[rel="canonical"]').getAttribute('href');
+		expect(homeHref).toBe(`${new URL(canonical!).origin}/`);
+		await expect(header.getByTestId('landing-open-web-app')).toHaveAttribute('href', `${new URL(page.url()).origin}/`);
+		await expect(header.getByTestId('landing-open-web-app')).toHaveText('Web-App öffnen');
+		await expect(page.getByTestId('sidebar-toggle')).toHaveCount(0);
+		await expect(page.locator('.legal-document article h1')).toBeVisible();
+		await header.getByTestId('landing-language-button').click();
+		const options = header.getByTestId('landing-language-panel');
+		await expect(options.getByRole('button', { name: 'English', exact: true })).toBeVisible();
+		await expect(options.getByRole('button', { name: 'Deutsch', exact: true })).toBeVisible();
+	});
+
 	// contract-test: direct surface=gui.web assertions=public-publications.seo.crawlable
 	test('sends one article preview with a reachable image to crawlers', async ({ request }) => {
 		for (const path of [
@@ -46,7 +66,7 @@ test.describe('public news, blog, and social publications', () => {
 		await expect(authorLink).toHaveAttribute('target', '_blank');
 		await expect(authorLink.locator('img')).toHaveAttribute('src', '/publications/authors/marco.jpg');
 		await expect(page.getByRole('heading', { name: 'Latest news' })).toBeVisible();
-		await expect(page.locator('.publication-header .logo-link')).toHaveAttribute('href', '/blog');
+		await expect(page.getByTestId('public-site-header').getByRole('link', { name: 'Blog', exact: true })).toHaveAttribute('href', /\/blog$/);
 		await expect.poll(() => images.first().evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true);
 		const size = await images.first().evaluate((image) => image.getBoundingClientRect().toJSON());
 		expect(size.width / size.height).toBeCloseTo(16 / 9, 1);
@@ -61,7 +81,7 @@ test.describe('public news, blog, and social publications', () => {
 		await expect(page.getByText('Marco', { exact: true })).toBeVisible();
 		await expect(page.getByText('Gründer von OpenMates.', { exact: true })).toBeVisible();
 		await expect(page.getByRole('heading', { name: 'Neueste Meldungen' })).toBeVisible();
-		await expect(page.locator('.publication-header .logo-link')).toHaveAttribute('href', '/de/blog');
+		await expect(page.getByTestId('public-site-header').getByRole('link', { name: 'Blog', exact: true })).toHaveAttribute('href', /\/de\/blog$/);
 	});
 
 
@@ -70,7 +90,9 @@ test.describe('public news, blog, and social publications', () => {
 		for (const route of ['/news', '/blog', '/social/workflow-automation-webinar']) {
 			await page.goto(route, { waitUntil: 'domcontentloaded' });
 			await expect(page.getByTestId('newsroom-surface')).toBeVisible();
-			await expect(page.getByTestId('sidebar-toggle').locator('svg')).toBeVisible();
+			await expect(page.getByTestId('sidebar-toggle')).toHaveCount(0);
+			await expect(page.getByRole('complementary')).toHaveCount(0);
+			await expect(page.getByTestId('public-site-header')).toBeVisible();
 			for (const theme of ['light', 'dark']) {
 				await page.evaluate((value) => document.documentElement.dataset.theme = value, theme);
 				const styles = await page.getByTestId('newsroom-surface').evaluate((surface) => {
@@ -89,21 +111,15 @@ test.describe('public news, blog, and social publications', () => {
 					await expect(page.locator('.publication-hero')).not.toHaveCSS('padding-left', '0px');
 				}
 			}
-			await expect(page.locator('.publication-header .logo-link')).toHaveAttribute('href', route === '/blog' ? '/blog' : '/news');
+			await expect(page.getByTestId('public-site-header').getByRole('link', { name: route === '/blog' ? 'Blog' : 'News', exact: true })).toHaveAttribute('href', route === '/blog' ? /\/blog$/ : /\/news$/);
 		}
 	});
 
 	// contract-test: direct surface=gui.web assertions=public-publications.routes.localized-archives
-	test('keeps the archive closed initially and searches every publication section', async ({ page }) => {
+	test('omits sidebar navigation and searches every publication section', async ({ page }) => {
 		await page.goto('/news', { waitUntil: 'domcontentloaded' });
-		await expect(page.getByRole('complementary', { name: 'Newsroom archive' })).toBeHidden();
-		await page.getByTestId('sidebar-toggle').click();
-		await page.getByTestId('sidebar-search').click();
-		const sidebarSearch = page.getByTestId('sidebar-search-input');
-		await expect(sidebarSearch).toBeFocused();
-		await sidebarSearch.fill('v0.11');
-		await expect(page.getByRole('complementary', { name: 'Newsroom archive' }).getByText(/v0.11/)).toBeVisible();
-		await page.getByTestId('sidebar-toggle').click();
+		await expect(page.getByTestId('sidebar-toggle')).toHaveCount(0);
+		await expect(page.getByRole('complementary')).toHaveCount(0);
 		await page.getByTestId('newsroom-search-toggle').click();
 		const search = page.getByTestId('newsroom-search-input');
 		await expect(search).toBeFocused();
@@ -112,6 +128,13 @@ test.describe('public news, blog, and social publications', () => {
 		await expect(page.getByRole('heading', { name: 'Press coverage' })).toBeVisible();
 		await expect(page.getByRole('heading', { name: 'Latest blog posts' })).toBeVisible();
 		await expect(page.getByTestId('newsroom-card-news-introducing-openmates-v011')).toHaveCount(0);
+		await page.getByTestId('newsroom-search-toggle').click();
+		await page.getByTestId('newsroom-card-news-introducing-openmates-v011').click();
+		await expect(page).toHaveURL(/\/news\/introducing-openmates-v011$/);
+		await expect(page.getByTestId('sidebar-toggle')).toHaveCount(0);
+		await expect(page.getByRole('complementary')).toHaveCount(0);
+		await page.getByTestId('publication-detail-close').click();
+		await expect(page).toHaveURL(/\/news$/);
 	});
 
 	// contract-test: direct surface=gui.web assertions=public-publications.routes.localized-archives,public-publications.seo.crawlable,public-publications.news.released-announcements

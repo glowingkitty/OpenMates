@@ -7,7 +7,7 @@ import { privacyPolicyChat } from '@repo/public-site/legal/documents/privacy-pol
 import { termsOfUseChat } from '@repo/public-site/legal/documents/terms-of-use';
 import { imprintChat } from '@repo/public-site/legal/documents/imprint';
 import MarkdownIt from 'markdown-it';
-import { getSiteOrigin } from '$lib/backendUrl';
+import { getLandingOrigins } from '$lib/landingOrigins';
 
 const markdown = new MarkdownIt({ html: false, linkify: true });
 const definitions = {
@@ -25,18 +25,14 @@ export const load: PageServerLoad = ({ params, setHeaders, url, request }) => {
   const title = t(definition.chat.title);
   const description = t(definition.chat.description);
   const body = definition.build(t, { lastUpdated: definition.chat.metadata.lastUpdated, locale });
-  let websiteOrigin = getSiteOrigin(url);
-  if (env.PUBLIC_LANDING_WEBSITE_URL) {
-    try {
-      const configured = new URL(env.PUBLIC_LANDING_WEBSITE_URL);
-      if (configured.protocol === 'http:' || configured.protocol === 'https:') websiteOrigin = configured.origin;
-    } catch {
-      // Serve the legal document from this app until a valid website origin is configured.
-    }
-  }
+  const origins = getLandingOrigins(url, {
+    webapp: env.PUBLIC_LANDING_WEBAPP_URL,
+    website: env.PUBLIC_LANDING_WEBSITE_URL
+  });
+  const websiteOrigin = origins.websiteBaseUrl;
   const canonicalUrl = `${websiteOrigin}/legal/${slug}`;
   const isDevHost = websiteOrigin !== url.origin || url.hostname.includes('.dev.') || url.hostname.startsWith('dev.') || url.hostname.endsWith('.vercel.app') || url.hostname === 'localhost' || url.hostname === '127.0.0.1';
   const jsonLd = JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebPage', name: title, description, url: canonicalUrl, inLanguage: locale, publisher: { '@type': 'Organization', name: 'OpenMates', url: websiteOrigin } });
   setHeaders({ 'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=604800' });
-  return { slug, locale, title, description, keywords: definition.chat.keywords, bodyHtml: markdown.render(body), canonicalUrl, websiteOrigin, jsonLd, isDevHost };
+  return { ...origins, slug, locale, title, description, keywords: definition.chat.keywords, bodyHtml: markdown.render(body), canonicalUrl, websiteOrigin, jsonLd, isDevHost };
 };

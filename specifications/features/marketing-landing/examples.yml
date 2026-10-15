@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.marketing-landing@9
+specification: feature.marketing-landing@10
 scrolling:
 - id: visitor-controls-reading-time
   given: Alex opens the standalone website while signed out and JavaScript is unavailable.
@@ -10,72 +10,63 @@ scrolling:
   when: Its emitted browser modules and transferred JavaScript are inspected.
   then: The build contains public-site UI and content only; it contains no app authentication, chat sync, account
     database or message editor, and its compressed client size is reported.
-- id: responsive-proximity-settling
-  assertion_ids:
-  - marketing-landing.independent-scroll
-  given: A laptop feature section fits between the header and composer; a narrow-phone section is taller than
-    that available space.
-  when: Alex scrolls near each section boundary.
-  then: The fitting section settles fully into view without being covered by fixed controls. The taller section
-    allows normal reading and scrolling through all content before a nearby next section settles; neither view
-    advances with time.
 layout:
 - id: phone-reduced-motion
   given: Sam opens the website on a phone with reduced motion enabled.
   when: Sam explores the hero, features and publication rows.
-  then: Readable static copy and device images stack without horizontal page overflow; links remain reachable
-    and scrolling controls the reading pace. As each section enters view, its heading, copy and imagery appear
-    in a gentle stagger while Alex keeps control of scrolling; reduced motion shows them immediately.
+  then: Readable static copy and device images stack without horizontal page overflow; links remain reachable and
+    scrolling controls the reading pace. As each section enters view, its heading, copy and imagery appear in a
+    gentle stagger while Alex keeps control of scrolling; reduced motion shows them immediately.
 - id: six-full-screen-sections
   given: Alex scrolls the six website feature sections on a laptop, then opens the page on a phone.
   when: Alex reaches No ecosystem lock in and compares its device images.
-  then: The six sections appear actionable, privacy, model choice, workflows, devices and open source; each
-    occupies a viewport. Large desktop devices may crop intentionally, phones show only phone imagery, and
-    the model selector captures are real with multiple providers, export and ownership explained. As each section
-    enters view, its heading, copy and imagery appear in a gentle stagger while Alex keeps control of scrolling;
-    reduced motion shows them immediately.
+  then: The six sections appear actionable, privacy, model choice, workflows, devices and open source; each occupies
+    a viewport. Large desktop devices may crop intentionally, phones show only phone imagery, and the model selector
+    captures are real with multiple providers, export and ownership explained. As each section enters view, its
+    heading, copy and imagery appear in a gentle stagger while Alex keeps control of scrolling; reduced motion shows
+    them immediately.
 destinations:
 - id: website-app-links
   given: Alex visits landing.dev.openmates.org while signed out.
-  when: Alex selects Open Web App, Explore Apps, Explore Workflows, an official social icon or the TestFlight
-    testing link.
+  when: Alex selects Open Web App, Explore Apps, Explore Workflows, an official social icon or the TestFlight testing
+    link.
   then: Open Web App reaches the configured dev app root; Explore and social links open new tabs; the TestFlight
     link scrolls to newsletter signup. The full wordmark returns to the website home, with no workspace tabs.
 - id: shared-compact-header
   given: Sam visits the website home, news, blog or legal pages on a 320-pixel phone or a wide desktop.
   when: Sam reads the landing browser tab, then uses the header and opens language selection.
-  then: The complete OpenMates wordmark remains visible, the orange Open Web App pill sits at the right, and
-    the language icon immediately before it has an accessible current-language name without visible EN or DE
-    text. The language panel stays within the screen. GitHub remains visible and accessible on the narrow phone.
-    Blog links stay on the website and non-HTTP origin overrides are rejected. The landing tab and social previews
-    say OpenMates — Your privacy first AI team mates.
+  then: The complete OpenMates wordmark remains visible, the orange Open Web App pill sits at the right, and the
+    language icon immediately before it has an accessible current-language name without visible EN or DE text. The
+    language panel stays within the screen. GitHub remains visible and accessible on the narrow phone. Blog links
+    stay on the website and non-HTTP origin overrides are rejected. The landing tab and social previews say OpenMates
+    — Your privacy first AI team mates.
 catalog_alignment:
 - id: matching-default-examples
-  given: Alex sees Events, Travel and Code first on the landing page and has not selected interests in the
-    web app.
+  given: Alex sees Events, Travel and Code first on the landing page and has not selected interests in the web app.
   when: Alex opens the web-app welcome screen and browses its default example cards.
-  then: The same Events, Travel and Code conversations lead the complete landing example set in the same order.
-    Alex's own local conversation remains ahead of the examples, and selecting interests or Show all still
-    works.
+  then: Every metadata-selected landing app-wheel example appears in exactly the same order, with no unlinked catalog
+    extras or truncation. Alex's own local conversation remains ahead of the examples; explicit interest ranking
+    and Show all still work. A cold boot and reload both preserve that default selection.
 - id: retain-capability-coverage
-  given: Two older chats demonstrate image search, neither is linked on the landing page, and one separate
-    chat is the only demonstration of speech generation.
+  given: Two older chats demonstrate image search, neither is linked on the landing page, and one separate chat
+    is the only demonstration of speech generation.
   when: The public example catalog is cleaned up.
   then: One successful image-search example and the sole speech-generation example remain. The redundant image-search
-    chat disappears from discovery, direct example pages and interest mappings. Landing-linked examples and
-    their child conversations remain available.
+    chat disappears from discovery, direct example pages and interest mappings. Landing-linked examples and their
+    child conversations remain available.
 hero_entrance:
 - id: staged-first-impression
   given: Sam opens the landing page in a fresh tab with normal motion enabled.
   when: The hero first appears.
-  then: The AI icon and heading fade and settle into view first, followed by the user message, app row and
-    In seconds text, then the scroll cue. The message input appears after its availability check, and the finished
-    layout is fully visible without shifted or overlapping elements.
+  then: The AI icon and heading fade and settle into view first, followed by the user message, app row and In seconds
+    text, then the scroll cue. The message input appears after its availability check, and the finished layout is
+    fully visible without shifted or overlapping elements. The yellow privacy marker draws left to right behind
+    the text without covering the glyphs.
 - id: reduced-motion-and-return
   given: Alex either requests reduced motion or returns to the landing tab after opening an example chat.
   when: Alex reads the hero and scrolls to the next section.
-  then: Reduced motion shows the complete hero immediately. Returning to the tab leaves the completed entrance
-    visible and does not restart it or interfere with scrolling.
+  then: Reduced motion shows the complete hero immediately. Returning to the tab leaves the completed entrance visible
+    and does not restart it or interfere with scrolling.
 - id: return-from-event
   assertion_ids:
   - marketing-landing.hero-entrance
@@ -91,57 +82,58 @@ composer:
 - id: unavailable-testing-signup
   given: Free testing is disabled, its global budget is exhausted, or the availability check cannot finish.
   when: Alex visits the landing page and the check settles or reaches its timeout.
-  then: The input appears with Try out now, or Jetzt ausprobieren in German, and opens the existing signup
-    entry. Reduced motion shows the input without a fade or movement, and no free testing is advertised.
+  then: The input appears with Try out now, or Jetzt ausprobieren in German, and opens the existing signup entry.
+    Reduced motion shows the input without a fade or movement, and no free testing is advertised.
 - id: three-app-label-cycle
   assertion_ids:
   - marketing-landing.composer-focus
   given: The availability check has settled and Sam uses touch while Alex uses a pointer.
-  when: The highlighted app actually changes three times, then three more times.
-  then: The label smoothly changes to Tap to ask anything or Click to ask anything, then back to the availability-derived
-    CTA. German labels are localized, the destination stays unchanged, and placeholder and microphone colors
-    match the app.
+  when: Sam manually swipes through several apps or Alex selects icons, then the automatic wheel progresses through
+    three actual highlighted-app changes, then three more.
+  then: Manual interaction and its momentum keep the input label unchanged. Natural automatic progression smoothly
+    changes it to Tap to ask anything or Click to ask anything, then back to the availability-derived CTA. German labels are localized, the destination stays unchanged, and placeholder and microphone colors match
+    the app.
 screenshots:
 - id: real-safe-device-images
-  given: The personal dev account displays events, privacy and Workflows, and the same chat on desktop and
-    mobile web.
+  given: The personal dev account displays events, privacy and Workflows, and the same chat on desktop and mobile
+    web.
   when: These views and the public OpenMates repository are prepared as website images.
-  then: Large phone/laptop SVG frames contain matching real captures, including cross-device and open-source
-    sections; images have useful alternative text, omit private account details and label mobile web truthfully.
-    Phone frames have a neutral bezel with no orange border.
+  then: Large phone/laptop SVG frames contain matching real captures, including cross-device and open-source sections;
+    images have useful alternative text, omit private account details and label mobile web truthfully. Phone frames
+    have a neutral bezel with no orange border.
 public_content:
 - id: all-upcoming-events-and-human-detail
   given: Published events include an ongoing free workshop, a future paid meetup and a finished event.
   when: Alex scrolls the events row and opens a card; Jo opens its public SEO page in a normal browser.
-  then: Both unfinished events appear, the finished event does not, no Browse link appears, and both visitors
-    reach the real app event detail while the SEO document remains readable to crawlers.
+  then: Both unfinished events appear, the finished event does not, no Browse link appears, and both visitors reach
+    the real app event detail while the SEO document remains readable to crawlers.
 - id: public-website-content-and-empty-events
   given: News releases and blog posts are published, and all events have finished.
   when: Sam visits the website news, blog and privacy/terms pages and scrolls to events.
-  then: News and blog retain their published content, legal pages show the full readable documents without
-    a chat shell, and events show an honest empty state.
+  then: News and blog retain their published content, legal pages show the full readable documents without a chat
+    shell, and events show an honest empty state.
 hero:
 - id: one-seamless-capability-rail
-  given: Alex opens the hero on a phone, short landscape screen, tall portrait tablet or large desktop and
-    leaves it running for several complete cycles.
+  given: Alex opens the hero on a phone, short landscape screen, tall portrait tablet or large desktop and leaves
+    it running for several complete cycles.
   when: The ordered capability icons, including Docs and Mindmaps, pass through the rail.
-  then: One icon row moves without a visible reset, uses faded edges and a matching natural request. Internal
-    workspaces, OpenMates and Plants are absent; only apps with admitted successful capability examples appear.
-    Resizing the page and resuming after a background tab preserve continuous movement and matching highlighting.
-    The hero shows the existing AI icon with a soft gradient glow and gentle vertical hover; no phone or laptop
-    appears there. Its heading, bubble and icons fill a proportionate amount of space without excessive gaps,
-    oversized elements, clipping or overlap, including German prompts. Each app begins and ends its highlight
-    at equal distances to either side of In seconds.
+  then: One icon row moves without a visible reset, uses faded edges and a matching natural request. Internal workspaces,
+    OpenMates and Plants are absent; only apps with admitted successful capability examples appear. Resizing the
+    page and resuming after a background tab preserve continuous movement and matching highlighting. The hero shows
+    the existing AI icon with a soft gradient glow and gentle vertical hover; no phone or laptop appears there.
+    Its heading, bubble and icons fill a proportionate amount of space without excessive gaps, oversized elements,
+    clipping or overlap, including German prompts. Each app begins and ends its highlight at equal distances to
+    either side of In seconds.
 - id: ordered-capability-rail
   given: Alex opens the German landing hero.
   when: The rail passes Events, Travel, Code, Home, Health, Social Media, Fitness, Mail, Jobs, Docs and Mindmaps.
-  then: The headline reads “Deine KI-Teamkollegen\nmit Privatsphäre” with the app highlight centered beneath
-    In seconds; prompts are short generic capability requests each linked to a matching existing example chat,
-    without an added link icon. The icon corners have the same proportional shape as the signup background.
-    OpenMates, Projects, Tasks, Plans, Reminders, Workflows and Plants are absent. The responsive bubble keeps
-    its position while fading, and the aligned scroll cue remains readable. Every shown app has a real successful
-    capability example; unpublished entries are absent. Selecting an icon centers it under In seconds. With
-    reduced motion, the AI icon, glow and section content are static.
+  then: The headline reads “Deine KI-Teamkollegen\nmit Privatsphäre” with the app highlight centered beneath In
+    seconds; prompts are short generic capability requests each linked to a matching existing example chat, without
+    an added link icon. The icon corners have the same proportional shape as the signup background. OpenMates, Projects,
+    Tasks, Plans, Reminders, Workflows and Plants are absent. The responsive bubble keeps its position while fading,
+    and the aligned scroll cue remains readable. Every shown app has a real successful capability example; unpublished
+    entries are absent. Selecting an icon centers it under In seconds. With reduced motion, the AI icon, glow and
+    section content are static.
 - id: ipad-stable-glyphs-and-highlight
   assertion_ids:
   - marketing-landing.hero-app-rail
@@ -170,20 +162,19 @@ metadata_defaults:
 - id: app-owned-defaults
   assertion_ids:
   - marketing-landing.app-metadata-defaults
-  given: Travel metadata declares its available train-search capability, Find train connections caption and
-    a real chat showing a natural train-search request.
+  given: Travel metadata declares its available train-search capability, Find train connections caption and a real
+    chat showing a natural train-search request.
   when: The public website is built and a visitor selects Travel.
   then: The compiled app catalogue supplies that caption and example destination without a runtime app metadata
     request or a separate landing mapping. The message opens the real train example.
 - id: reject-unrelated-or-unsuccessful-defaults
   assertion_ids:
   - marketing-landing.app-metadata-defaults
-  given: A Calendar example summarizes only pasted events, while a Finance example invokes Math rather than
-    a Finance capability and a Maps example finds no restaurants meeting its required amenities.
+  given: A Calendar example summarizes only pasted events, while a Finance example invokes Math rather than a Finance
+    capability and a Maps example finds no restaurants meeting its required amenities.
   when: The public landing examples are reviewed and the website catalogue is built.
-  then: Those entries stay unpublished; the supplied-events Calendar example is removed. The build rejects
-    any published default missing a successful matching capability instead of promoting a generic or failed
-    response.
+  then: Those entries stay unpublished; the supplied-events Calendar example is removed. The build rejects any published
+    default missing a successful matching capability instead of promoting a generic or failed response.
 preferences:
 - id: dark-startup-without-flash
   given: Alex previously chose dark theme and opens the website or /landing on a cold start.
@@ -194,3 +185,26 @@ preferences:
   when: Sam selects Deutsch and later reloads the page.
   then: The panel offers supported-language names only, the preference persists and available public translations
     apply; there are no account, payment, chat or synchronization settings.
+native_navigation:
+- id: phone-free-scroll-and-arrows
+  given: Alex swipes down a long landing section on a phone, then reaches its next-section arrow.
+  when: Alex releases the swipe and later activates the arrow.
+  then: Native momentum continues freely after release. Only the arrow activation scrolls to the next section; fixed
+    controls do not cover its content and the address gains no section fragment.
+- id: reload-and-explicit-newsletter-entry
+  given: Sam has used previous and next arrows to read several sections, or initially followed an explicit newsletter
+    link.
+  when: Sam reloads the landing page.
+  then: The consumed anchor and reading position are absent from the address, and the hero appears at the top. A
+    first-arrival newsletter link still reaches signup once before that reload.
+section_stories:
+- id: first-actionable-completes-once
+  given: Alex opens the landing page with normal motion and reaches Actionable chats for the first time.
+  when: Alex watches the request, event-preview and pointer-click sequence finish, visits Privacy, then returns.
+  then: The icon and heading first appear above Skip animation and the animated demonstration. Completion fades
+    to the body, Explore apps link and large device screenshots; returning keeps that final content without replay.
+- id: privacy-skip-and-reduced-motion
+  given: Sam first enters Privacy & safety or opens the page with reduced motion.
+  when: Sam activates Skip animation, or reads the reduced-motion view.
+  then: The existing privacy body, learn-more links and device screenshots become readable without waiting; no later
+    visit replays the story. Example-chat links are muted grey text with no decorative emoji.

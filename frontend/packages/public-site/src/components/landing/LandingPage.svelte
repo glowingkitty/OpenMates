@@ -1,5 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { fade } from 'svelte/transition';
+  import LandingFeatureAnimation from './LandingFeatureAnimation.svelte';
   import LandingNativeIcon from './LandingNativeIcon.svelte';
   import { landingAppExamples, type LandingPublication } from './landingPageContent';
   import DeviceScreenshots from '../DeviceScreenshots.svelte';
@@ -37,6 +39,21 @@
   let composerAlternative = $state(false);
   let touchDevice = $state(false);
   let composerLabel = $derived(composerAlternative ? (touchDevice ? copy.askAnythingTouch : copy.askAnythingDesktop) : (freeUsageAvailable ? copy.tryFree : copy.tryNow));
+  type StorySection = 'actionable' | 'privacy';
+  let storyStates = $state<Record<StorySection, 'pending' | 'playing' | 'finishing' | 'complete'>>({ actionable: 'pending', privacy: 'pending' });
+  let activeStory = $state<StorySection | null>(null);
+  let showSectionNavigation = $state(false);
+  let hasNextSection = $state(true);
+  let navigateSection = (_direction: number) => {};
+  let scrollToSection = (_id: string) => {};
+  const storyTransitionTimers: number[] = [];
+  function finishStory(section: StorySection): void {
+    if (storyStates[section] === 'complete' || storyStates[section] === 'finishing') return;
+    if (reducedMotion) { storyStates[section] = 'complete'; return; }
+    storyStates[section] = 'finishing';
+    // Fade the full-width demonstration before changing to the device layout.
+    storyTransitionTimers.push(window.setTimeout(() => { storyStates[section] = 'complete'; }, 220));
+  }
   let landingRoot: HTMLDivElement;
   let scrollContainer: HTMLElement;
   let railWindow: HTMLDivElement;
@@ -83,6 +100,47 @@
     document.documentElement.dir = 'ltr';
 
     touchDevice = window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
+    // Section navigation is local UI state. Consume incoming public anchors once,
+    // and never persist a reading position in the address bar or restore it on reload.
+    const previousRestoration = history.scrollRestoration;
+    history.scrollRestoration = 'manual';
+    const incomingSection = window.location.hash.slice(1);
+    const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
+    const isReload = navigation?.type === 'reload';
+    if (incomingSection) history.replaceState(history.state, '', window.location.pathname + window.location.search);
+    scrollContainer.scrollTop = 0;
+    const sectionTargets = () => [...scrollContainer.querySelectorAll<HTMLElement>('.hero, .feature, .newsletter-reveal, .publication-row, .site-footer')];
+    let sectionIndex = 0;
+    const sectionTop = (element: HTMLElement) => element.getBoundingClientRect().top - scrollContainer.getBoundingClientRect().top + scrollContainer.scrollTop;
+    const updateSectionState = () => {
+      const sections = sectionTargets();
+      const viewport = scrollContainer.getBoundingClientRect();
+      const readingLine = viewport.top + viewport.height * .4;
+      sectionIndex = Math.max(0, sections.findLastIndex(section => section.getBoundingClientRect().top <= readingLine));
+      showSectionNavigation = scrollContainer.scrollTop >= sections[0].offsetHeight - 8;
+      hasNextSection = sectionIndex < sections.length - 1;
+      const selected = sections[sectionIndex];
+      const key = selected?.id;
+      activeStory = key === 'actionable' || key === 'privacy' ? key : null;
+      if (activeStory && storyStates[activeStory] === 'pending') storyStates[activeStory] = 'playing';
+    };
+    const moveTo = (element: HTMLElement) => scrollContainer.scrollTo({ top: sectionTop(element), behavior: reducedMotion ? 'auto' : 'smooth' });
+    navigateSection = direction => {
+      const sections = sectionTargets();
+      moveTo(sections[Math.min(sections.length - 1, Math.max(0, sectionIndex + direction))]);
+    };
+    scrollToSection = id => {
+      const section = sectionTargets().find(section => section.id === id || (id === 'newsletter' && section.id === 'testflight-signup'));
+      if (section) moveTo(section);
+    };
+    const initialFrame = requestAnimationFrame(() => {
+      // Explicit newsletter entry links work on first arrival, then disappear
+      // from the URL. Reloading this page always starts at the hero.
+      if (!isReload && ['newsletter', 'testflight-signup'].includes(incomingSection)) scrollToSection(incomingSection);
+      else scrollContainer.scrollTop = 0;
+      updateSectionState();
+    });
+
     const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
     let frame = 0;
     let position = 0;
@@ -95,6 +153,7 @@
     const momentumDecayMs = 550;
     const maxVelocity = 0.02;
     let velocity = automaticVelocity;
+    let progressionSource: 'automatic' | 'manual-momentum' = 'automatic';
     let lastWheelTime = 0;
     let pointer: { id: number; x: number; y: number; position: number; dragging: boolean; lastX: number; lastTime: number; velocity: number } | null = null;
     let suppressClick = false;
@@ -126,12 +185,14 @@
     };
 
     const modulo = (value: number) => ((value % orderedApps.length) + orderedApps.length) % orderedApps.length;
-    const setActive = (index: number) => {
+    const setActive = (index: number, automatic: boolean) => {
       if (index !== activeIndex) {
         activeIndex = index;
         promptHasChanged = true;
-        appChangeCount += 1;
-        if (appChangeCount % 3 === 0) composerAlternative = !composerAlternative;
+        if (automatic) {
+          appChangeCount += 1;
+          if (appChangeCount % 3 === 0) composerAlternative = !composerAlternative;
+        }
       }
     };
     const renderRail = () => {
@@ -152,8 +213,9 @@
     selectApp = (index: number) => {
       if (!orderedApps.length) return;
       velocity = automaticVelocity;
+      progressionSource = 'automatic';
       target = index + Math.round((position - index) / orderedApps.length) * orderedApps.length;
-      setActive(index);
+      setActive(index, false);
       if (reducedMotion) {
         position = target;
         target = null;
@@ -174,11 +236,17 @@
           pauseUntil = now + 2000;
         }
       } else if (!reducedMotion && !document.hidden && !pointer?.dragging && now >= pauseUntil) {
+        // Manual momentum must finish blending before index changes can count
+        // toward the composer prompt. Treat drift within 1% as fully settled.
+        if (progressionSource === 'manual-momentum' && Math.abs(velocity - automaticVelocity) <= automaticVelocity * 0.01) {
+          velocity = automaticVelocity;
+          progressionSource = 'automatic';
+        }
         // Integrate exponential friction so release momentum blends into the usual drift.
         const decay = Math.exp(-elapsed / momentumDecayMs);
         position += automaticVelocity * elapsed + (velocity - automaticVelocity) * momentumDecayMs * (1 - decay);
         velocity = automaticVelocity + (velocity - automaticVelocity) * decay;
-        setActive(modulo(Math.round(position)));
+        setActive(modulo(Math.round(position)), progressionSource === 'automatic');
       }
       renderRail();
       frame = 0;
@@ -195,7 +263,8 @@
       velocity = now - lastWheelTime > 100 ? sample : velocity * 0.35 + sample * 0.65;
       lastWheelTime = now;
       position += horizontal / pitch;
-      setActive(modulo(Math.round(position)));
+      progressionSource = 'manual-momentum';
+      setActive(modulo(Math.round(position)), false);
       pauseUntil = 0;
       renderRail();
       scheduleFrame();
@@ -220,7 +289,8 @@
       pointer.lastX = event.clientX;
       pointer.lastTime = now;
       position = pointer.position - dx / pitch;
-      setActive(modulo(Math.round(position)));
+      progressionSource = 'manual-momentum';
+      setActive(modulo(Math.round(position)), false);
       pauseUntil = 0;
       renderRail();
     };
@@ -251,11 +321,13 @@
     };
     const onScroll = () => {
       revealVisibleSections();
-
+      updateSectionState();
     };
     const updateMotion = () => {
       reducedMotion = motionQuery.matches;
+      if (reducedMotion) { storyStates.actionable = 'complete'; storyStates.privacy = 'complete'; }
       velocity = automaticVelocity;
+      progressionSource = 'automatic';
       if (reducedMotion && target !== null) {
         position = target;
         target = null;
@@ -304,17 +376,11 @@
       suspendRendering();
       heroEntranceComplete = true;
       velocity = automaticVelocity;
+      progressionSource = 'automatic';
       target = null;
       pauseUntil = 0;
       measureRail();
       updateMotion();
-    };
-    const updateSectionSnap = () => {
-      for (const section of scrollContainer.querySelectorAll<HTMLElement>('.hero, .feature, .newsletter-reveal, .publication-row')) {
-        // Native proximity snap only applies to sections fitting the viewport.
-        // Tall phone sections retain ordinary, uninterrupted scrolling.
-        section.classList.toggle('section-snap', section.offsetHeight <= scrollContainer.clientHeight + 1);
-      }
     };
     const onVisibilityChange = () => {
       if (document.hidden) suspendRendering();
@@ -324,15 +390,18 @@
     window.addEventListener('focus', resumeRendering);
     window.addEventListener('pageshow', resumeRendering);
     window.addEventListener('pagehide', suspendRendering);
-    const resizeObserver = new ResizeObserver(() => { measureRail(); revealVisibleSections(); updateSectionSnap(); });
+    const resizeObserver = new ResizeObserver(() => { measureRail(); revealVisibleSections(); updateSectionState(); });
     resizeObserver.observe(railWindow);
     resizeObserver.observe(scrollContainer);
     scrollContainer.querySelectorAll<HTMLElement>('.hero, .feature, .newsletter-reveal, .publication-row').forEach(section => resizeObserver.observe(section));
-    updateSectionSnap();
+    updateSectionState();
     measureRail();
     updateMotion();
     return () => {
       cancelAnimationFrame(frame);
+      cancelAnimationFrame(initialFrame);
+      storyTransitionTimers.forEach(timer => window.clearTimeout(timer));
+      history.scrollRestoration = previousRestoration;
       resizeObserver.disconnect();
       observer?.disconnect();
       motionQuery.removeEventListener('change', updateMotion);
@@ -387,32 +456,52 @@
             {/each}
           </div>
         </div>
-        <a class="scroll-cue" href="#actionable" data-testid="landing-scroll-cue"><span class="scroll-cue-content"><svg class="cue-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg><span>{copy.scroll}</span><svg class="cue-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></span></a>
+        <a class="scroll-cue" href="#actionable" onclick={(event) => { event.preventDefault(); scrollToSection('actionable'); }} data-testid="landing-scroll-cue"><span class="scroll-cue-content"><svg class="cue-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg><span>{copy.scroll}</span><svg class="cue-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></span></a>
       </section>
 
-      <section class="feature feature-media" id="actionable" aria-labelledby="actionable-title" data-testid="landing-feature-actionable" data-reveal>
+      <section class="feature feature-media" class:story-playing={storyStates.actionable !== 'complete'} class:story-finishing={storyStates.actionable === 'finishing'} data-story-state={storyStates.actionable} id="actionable" aria-labelledby="actionable-title" data-testid="landing-feature-actionable" data-reveal>
         <div class="feature-copy">
           <span class="feature-icon search-icon" aria-hidden="true" data-testid="landing-feature-icon"></span>
           <h2 id="actionable-title">{copy.actionableTitle1}<br />{copy.actionableTitle2}</h2>
-          <p>{copy.actionableBody}</p>
-          <a class="text-link" href={appUrl('/#apps')} target="_blank" rel="noopener noreferrer" data-testid="landing-explore-apps">{copy.exploreApps}</a>
+          {#if storyStates.actionable === 'complete'}
+            <div class="story-copy" in:fade={{ duration: reducedMotion ? 0 : 360 }}><p>{copy.actionableBody}</p>
+              <a class="text-link" href={appUrl('/#apps')} target="_blank" rel="noopener noreferrer" data-testid="landing-explore-apps">{copy.exploreApps}</a></div>
+          {:else}<button class="skip-animation" type="button" onclick={() => finishStory('actionable')} data-testid="landing-skip-actionable">{copy.skipAnimation}</button>{/if}
         </div>
-        <div class="feature-example" data-testid="landing-feature-media-actionable">
+        <div class="story-surface">
+          {#if storyStates.actionable === 'complete'}
+        <div in:fade={{ duration: reducedMotion ? 0 : 400, delay: reducedMotion ? 0 : 180 }} class="feature-example" data-testid="landing-feature-media-actionable">
           <DeviceScreenshots baseKey="events" desktopAlt="OpenMates web chat searching for AI events in Berlin" mobileAlt="OpenMates mobile view of an events chat" />
-          <a class="example-link" href={appUrl('/#chat-id=example-ai-workshops-meetups-berlin')}>{copy.openExample} ↗</a>
+          <a class="example-link" target="_blank" rel="noopener noreferrer" href={appUrl('/#chat-id=example-ai-workshops-meetups-berlin')}>{copy.openExample}</a>
+        </div>
+          {:else}
+            <div class="story-stage" out:fade={{ duration: reducedMotion ? 0 : 240 }}>
+              <LandingFeatureAnimation section="actionable" active={activeStory === 'actionable' && storyStates.actionable === 'playing'} language={chosenLanguage} onComplete={() => finishStory('actionable')} />
+            </div>
+          {/if}
         </div>
       </section>
 
-      <section class="feature feature-media" id="privacy" aria-labelledby="privacy-title" data-testid="landing-feature-privacy" data-reveal>
+      <section class="feature feature-media" class:story-playing={storyStates.privacy !== 'complete'} class:story-finishing={storyStates.privacy === 'finishing'} data-story-state={storyStates.privacy} id="privacy" aria-labelledby="privacy-title" data-testid="landing-feature-privacy" data-reveal>
         <div class="feature-copy">
           <span class="feature-icon security-icon" aria-hidden="true" data-testid="landing-feature-icon"></span>
           <h2 id="privacy-title">{copy.privacyTitle1}<br />{copy.privacyTitle2}</h2>
-          <p>{copy.privacyBody}</p>
-          <div class="feature-links"><a class="text-link" href={siteUrl('/blog')}>{copy.privacyLink}</a><a class="text-link" href={siteUrl('/blog')}>{copy.safetyLink}</a></div>
+          {#if storyStates.privacy === 'complete'}
+            <div class="story-copy" in:fade={{ duration: reducedMotion ? 0 : 360 }}><p>{copy.privacyBody}</p>
+              <div class="feature-links"><a class="text-link" href={siteUrl('/blog')}>{copy.privacyLink}</a><a class="text-link" href={siteUrl('/blog')}>{copy.safetyLink}</a></div></div>
+          {:else}<button class="skip-animation" type="button" onclick={() => finishStory('privacy')} data-testid="landing-skip-privacy">{copy.skipAnimation}</button>{/if}
         </div>
-        <div class="feature-example" data-testid="landing-feature-media-privacy">
+        <div class="story-surface">
+          {#if storyStates.privacy === 'complete'}
+        <div in:fade={{ duration: reducedMotion ? 0 : 400, delay: reducedMotion ? 0 : 180 }} class="feature-example" data-testid="landing-feature-media-privacy">
           <DeviceScreenshots baseKey="privacy" desktopAlt="OpenMates web chat with personal data replaced by placeholders" mobileAlt="OpenMates mobile chat highlighting personal data" />
-          <a class="example-link" href={appUrl('/#chat-id=example-plumber-message-email-phone')}>{copy.openExample} ↗</a>
+          <a class="example-link" target="_blank" rel="noopener noreferrer" href={appUrl('/#chat-id=example-plumber-message-email-phone')}>{copy.openExample}</a>
+        </div>
+          {:else}
+            <div class="story-stage" out:fade={{ duration: reducedMotion ? 0 : 240 }}>
+              <LandingFeatureAnimation section="privacy" active={activeStory === 'privacy' && storyStates.privacy === 'playing'} language={chosenLanguage} onComplete={() => finishStory('privacy')} />
+            </div>
+          {/if}
         </div>
       </section>
 
@@ -435,7 +524,7 @@
         </div>
         <div class="feature-example" data-testid="landing-feature-media-workflows">
           <DeviceScreenshots baseKey="workflows" desktopAlt="OpenMates workflow workspace" mobileAlt="OpenMates workflow view on mobile" />
-          <a class="example-link" href={appUrl('/#chat-id=example-library-book-return-workflow')}>{copy.openExample} ↗</a>
+          <a class="example-link" target="_blank" rel="noopener noreferrer" href={appUrl('/#chat-id=example-library-book-return-workflow')}>{copy.openExample}</a>
         </div>
       </section>
 
@@ -446,7 +535,7 @@
           <p>{copy.devicesBody}</p>
           <div class="feature-links">
             <a class="text-link" href={appUrl('/')}>{copy.startWebApp}</a>
-            <a class="text-link" href="#testflight-signup">{copy.testflight}</a>
+            <a class="text-link" href="#testflight-signup" onclick={(event) => { event.preventDefault(); scrollToSection('testflight-signup'); }}>{copy.testflight}</a>
             <a class="text-link" href={siteUrl('/blog')}>{copy.developers}</a>
           </div>
         </div>
@@ -494,6 +583,10 @@
         <nav aria-label="Footer navigation"><a href={siteUrl('/legal/privacy')}>{copy.privacy}</a><a href={siteUrl('/legal/terms')}>{copy.terms}</a><a href={siteUrl('/legal/imprint')}>{copy.imprint}</a></nav>
       </footer>
     </main>
+    {#if showSectionNavigation}
+      <button class="section-nav section-nav-previous" type="button" aria-label={copy.previousSection} onclick={() => navigateSection(-1)} data-testid="landing-previous-section"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 14 6-6 6 6" /></svg></button>
+      {#if hasNextSection}<button class="section-nav section-nav-next" type="button" aria-label={copy.nextSection} onclick={() => navigateSection(1)} data-testid="landing-next-section"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 10 6 6 6-6" /></svg></button>{/if}
+    {/if}
     {#if freeUsageAvailable !== null}
       <a class="composer-link" href={appUrl(freeUsageAvailable ? '/#compose' : '/#signup/basics')} data-testid="landing-compose" aria-label={composerLabel}><span class="composer-ai" aria-hidden="true"><LandingNativeIcon name="ai" /></span><span class="composer-label" data-testid="landing-compose-label" aria-live="polite">{#key composerLabel}<span class="composer-label-text">{composerLabel}</span>{/key}</span><span class="composer-mic" aria-hidden="true"><LandingNativeIcon name="microphone" gradient /></span></a>
     {/if}
@@ -505,7 +598,7 @@
   a { color: inherit; text-decoration: none; }
   a:focus-visible { outline: 3px solid var(--color-primary-start); outline-offset: 3px; }
   .viewport-container { position: relative; flex: 1; min-height: 0; container-type: size; margin: 0 var(--spacing-10) var(--spacing-10); overflow: hidden; border-radius: var(--radius-6); background: var(--color-grey-0); box-shadow: var(--shadow-md); }
-  .scroll-container { width: 100%; height: 100%; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scroll-behavior: smooth; scroll-snap-type: y proximity; scroll-padding-bottom: 100px; }
+  .scroll-container { width: 100%; height: 100%; overflow-x: hidden; overflow-y: auto; overscroll-behavior-y: auto; scroll-behavior: auto; scroll-snap-type: none; -webkit-overflow-scrolling: touch; scroll-padding-bottom: 156px; }
   /* Width and height both constrain the composition: tall tablets can grow while short laptops still fit. */
   .hero { --hero-ai-size: clamp(64px, min(24cqw, 16cqh), 256px); position: relative; height: 100%; box-sizing: border-box; padding: 12px clamp(12px, 2cqw, 32px) 100px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: clamp(8px, min(2cqw, 1.4cqh), 18px); overflow: hidden; text-align: center; background: linear-gradient(135deg, var(--color-primary-start), var(--color-primary-end)); color: var(--color-font-button); }
   .hero > * { flex-shrink: 0; }
@@ -537,7 +630,7 @@
   @keyframes hero-entrance { from { opacity: 0; transform: translateY(12px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
   .hero-entrance-complete .hero-ai-entrance, .hero-entrance-complete .hero h1, .hero-entrance-complete .hero-prompt-entrance, .hero-entrance-complete .hero-speed, .hero-entrance-complete .rail-window, .hero-entrance-complete .scroll-cue { animation: none; }
   .cue-arrow { display: block; flex: 0 0 1em; width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
-  @keyframes cue-pulse { from { opacity: .72; } to { opacity: 1; } }
+  @keyframes cue-pulse { from { opacity: .3; } to { opacity: .8; } }
   .composer-link { position: absolute; z-index: 5; left: 50%; bottom: max(var(--spacing-8), env(safe-area-inset-bottom)); transform: translateX(-50%); width: min(629px, calc(100% - 30px)); min-height: 64px; box-sizing: border-box; padding: 0 var(--spacing-12); display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-8); border-radius: 32px; background: var(--color-grey-blue); color: var(--color-font-primary); font-weight: 700; box-shadow: 0 4px 12px color-mix(in srgb, var(--color-grey-100) 8%, transparent); text-align: center; animation: composer-enter 550ms cubic-bezier(.2, .75, .25, 1) both; }
   @keyframes composer-enter { from { opacity: 0; transform: translate(-50%, 24px); } to { opacity: 1; transform: translate(-50%, 0); } }
   .composer-link:hover { box-shadow: var(--shadow-lg); }
@@ -545,10 +638,21 @@
   .composer-label { color: var(--color-font-tertiary); min-width: 0; }
   .composer-label-text { display: inline-block; animation: composer-label-enter 280ms ease-out both; }
   @keyframes composer-label-enter { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-  .scroll-container :global(.section-snap) { scroll-snap-align: start; }
-  .privacy-highlight { position: relative; display: inline; isolation: isolate; color: var(--color-font-primary); border-radius: 2px; padding: 0 2px; box-decoration-break: clone; -webkit-box-decoration-break: clone; background: linear-gradient(rgba(250, 204, 21, .35), rgba(250, 204, 21, .35)) left center / 100% 100% no-repeat; animation: privacy-marker 850ms 600ms ease-out both; }
-  @keyframes privacy-marker { from { background-size: 0% 100%; color: var(--color-font-button); } to { background-size: 100% 100%; color: var(--color-font-primary); } }
-  .feature { min-height: 100%; width: 100%; margin: 0 auto; padding: clamp(48px, 5vw, 96px) clamp(32px, 6vw, 112px) max(112px, env(safe-area-inset-bottom)); box-sizing: border-box; overflow: hidden; }
+  .privacy-highlight { position: relative; display: inline-block; isolation: isolate; color: var(--color-font-primary); border-radius: 2px; padding: 0 2px; }
+  /* Keep the marker on its own layer behind the glyphs, including in WebKit. */
+  .privacy-highlight::before { content: ''; position: absolute; z-index: -1; inset: .04em 0 -.04em; border-radius: inherit; background: rgba(250, 204, 21, .35); transform: scaleX(1); transform-origin: left center; animation: privacy-marker 850ms 600ms ease-out both; }
+  @keyframes privacy-marker { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+  .section-nav { position: absolute; z-index: 6; left: 50%; transform: translateX(-50%); display: grid; place-items: center; width: 41px; height: 41px; min-width: 0; min-height: 0; margin: 0; padding: var(--spacing-4); box-sizing: border-box; border: 1px solid var(--color-grey-30); border-radius: var(--radius-full); background: var(--color-grey-20); color: var(--color-primary-start); box-shadow: var(--shadow-md); cursor: pointer; scale: 1; filter: none; }
+  .section-nav:hover { background: var(--color-grey-30); }.section-nav:focus-visible { outline: 3px solid var(--color-primary-start); outline-offset: 2px; }
+  .section-nav-previous { top: var(--spacing-6); }.section-nav-next { bottom: calc(max(var(--spacing-8), env(safe-area-inset-bottom)) + 64px + var(--spacing-6)); }
+  .section-nav svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+  .feature.story-playing { grid-template-columns: minmax(0, 1fr); justify-items: center; align-content: center; gap: var(--spacing-12); text-align: center; }
+  .story-playing .feature-copy { max-width: 48rem; }.story-playing .feature-icon { margin-inline: auto; }.story-playing h2 { margin-bottom: var(--spacing-6); }
+  .story-stage, .skip-animation { transition: opacity 200ms ease-out; }.story-finishing .story-stage, .story-finishing .skip-animation { opacity: 0; pointer-events: none; }
+  .story-surface { display: grid; min-width: 0; width: 100%; }.story-surface > :global(*) { grid-area: 1 / 1; min-width: 0; }.story-stage { width: min(100%, 58rem); margin-inline: auto; }
+  .skip-animation { min-width: 0; min-height: 0; margin: 0; padding: var(--spacing-4); border: 0; background: transparent; color: var(--color-grey-60); font: inherit; font-size: var(--font-size-small); cursor: pointer; box-shadow: none; }.skip-animation:hover { color: var(--color-font-primary); text-decoration: underline; }
+
+  .feature { min-height: 100%; width: 100%; margin: 0 auto; padding: clamp(48px, 5vw, 96px) clamp(32px, 6vw, 112px) max(156px, env(safe-area-inset-bottom)); box-sizing: border-box; overflow: hidden; }
   .feature-media { display: grid; grid-template-columns: minmax(280px, .72fr) minmax(0, 1.28fr); align-items: center; gap: clamp(28px, 4vw, 76px); }
   .feature-copy { max-width: 480px; }.feature-later .feature-copy { max-width: 580px; }
   .feature-icon { display: block; width: 48px; height: 48px; margin-bottom: var(--spacing-8); background: var(--color-primary-start); -webkit-mask: var(--feature-icon-url) center / 80% no-repeat; mask: var(--feature-icon-url) center / 80% no-repeat; }
@@ -559,7 +663,7 @@
   .text-link:hover, .example-link:hover, .site-footer a:hover { text-decoration: underline; }
   .feature-example { min-width: 0; width: 100%; }
   @media (min-width: 901px) { .feature-example :global(.device-screenshots) { width: 118%; } }
-  .example-link { display: block; width: fit-content; margin: var(--spacing-8) 0 0 auto; font-size: var(--font-size-small); font-weight: 700; }
+  .example-link { display: block; width: fit-content; margin: var(--spacing-8) 0 0 auto; font-size: var(--font-size-small); font-weight: 500; color: var(--color-grey-70); }
   :global(.reveal-ready) .feature-icon, :global(.reveal-ready) .feature-copy h2, :global(.reveal-ready) .feature-copy p, :global(.reveal-ready) .feature-copy .text-link, :global(.reveal-ready) .feature-example { transition: opacity 700ms cubic-bezier(.2, .75, .25, 1), transform 700ms cubic-bezier(.2, .75, .25, 1); }
   :global(.reveal-ready) .feature-copy p, :global(.reveal-ready) .feature-copy .text-link { transition-delay: 90ms; }
   :global(.reveal-ready) .feature-example { transition-delay: 180ms; }
@@ -587,7 +691,7 @@
   .site-footer nav { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--spacing-8); font-size: var(--font-size-small); color: var(--color-font-tertiary); }.social-links { display: flex; flex-wrap: wrap; gap: var(--spacing-4); }
   .social-links a { display: inline-grid; place-items: center; width: 38px; height: 38px; border-radius: var(--radius-full); background: var(--color-grey-20); }.social-links a:hover { background: var(--color-grey-blue); }.social-icon { display: block; width: 22px; height: 22px; background: var(--color-grey-80); mask: var(--social-icon-url) center / contain no-repeat; -webkit-mask: var(--social-icon-url) center / contain no-repeat; }
   @media (max-width: 900px) { .feature-media { grid-template-columns: 1fr; }.feature-copy, .feature-later .feature-copy { max-width: 680px; }.feature-example, .feature-later .feature-example { width: 100%; margin: 0 auto; } }
-  @media (max-width: 760px) { .viewport-container { margin: 0 var(--spacing-4) var(--spacing-4); }.feature { min-height: 100%; padding: var(--spacing-20) var(--spacing-8) max(112px, env(safe-area-inset-bottom)); gap: var(--spacing-16); }.feature h2 { margin-bottom: var(--spacing-12); }.publication-row { grid-template-columns: 1fr; gap: var(--spacing-12); padding: var(--spacing-16) var(--spacing-8); }.site-footer { flex-direction: column; align-items: flex-start; padding: var(--spacing-16) var(--spacing-8); }.site-footer nav { justify-content: flex-start; } }
+  @media (max-width: 760px) { .viewport-container { margin: 0 var(--spacing-4) var(--spacing-4); }.feature { min-height: 100%; padding: max(72px, var(--spacing-20)) var(--spacing-8) max(156px, env(safe-area-inset-bottom)); gap: var(--spacing-16); }.feature h2 { margin-bottom: var(--spacing-12); }.publication-row { grid-template-columns: 1fr; gap: var(--spacing-12); padding: var(--spacing-16) var(--spacing-8); }.site-footer { flex-direction: column; align-items: flex-start; padding: var(--spacing-16) var(--spacing-8); }.site-footer nav { justify-content: flex-start; } }
   @media (max-width: 440px) { .scroll-cue-content { gap: var(--spacing-4); }.publication-cards { grid-template-columns: 1fr; }.publication-card img { height: 170px; } }
   /* Phone sizing balances readable copy with breathing room. The compact rule
      follows panel height after the header and mobile browser chrome take space. */
@@ -619,5 +723,5 @@
     .rail-window { grid-column: 1 / -1; width: 100%; height: 64px; --icon-size: 48px; --icon-gap: 18px; }
     .scroll-cue { grid-column: 1 / -1; min-height: 24px; font-size: 12px; }
   }
-  @media (prefers-reduced-motion: reduce) { .scroll-container { scroll-behavior: auto; }.privacy-highlight, .composer-label-text, .composer-link, .hero-ai-entrance, .hero h1, .hero-prompt-entrance, .hero-speed, .rail-window, .rail-track, .scroll-cue, .scroll-cue-content, .prompt-bubble, .hero-ai-visual, .hero-ai-visual::before { animation: none !important; }.rail-icon, :global(.reveal-ready) .feature-icon, :global(.reveal-ready) .feature-copy h2, :global(.reveal-ready) .feature-copy p, :global(.reveal-ready) .feature-copy .text-link, :global(.reveal-ready) .feature-example, :global(.newsletter-reveal.reveal-ready), :global(.publication-row.reveal-ready) .publication-intro, :global(.publication-row.reveal-ready) .event-cards, :global(.publication-row.reveal-ready) .publication-cards, :global(.publication-row.reveal-ready) .empty-publication { transition: none !important; }.hero-visual { transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .scroll-container { scroll-behavior: auto; }.privacy-highlight::before, .composer-label-text, .composer-link, .hero-ai-entrance, .hero h1, .hero-prompt-entrance, .hero-speed, .rail-window, .rail-track, .scroll-cue, .scroll-cue-content, .prompt-bubble, .hero-ai-visual, .hero-ai-visual::before { animation: none !important; }.rail-icon, :global(.reveal-ready) .feature-icon, :global(.reveal-ready) .feature-copy h2, :global(.reveal-ready) .feature-copy p, :global(.reveal-ready) .feature-copy .text-link, :global(.reveal-ready) .feature-example, :global(.newsletter-reveal.reveal-ready), :global(.publication-row.reveal-ready) .publication-intro, :global(.publication-row.reveal-ready) .event-cards, :global(.publication-row.reveal-ready) .publication-cards, :global(.publication-row.reveal-ready) .empty-publication { transition: none !important; }.hero-visual { transform: none; } }
 </style>

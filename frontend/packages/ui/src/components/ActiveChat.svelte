@@ -184,6 +184,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         rankExampleChatIdsByInterests,
     } from '../demo_chats/guestSmartSelection';
     import type { InterestTagId } from '../demo_chats/interestTags';
+    import { selectDefaultGuestExampleChats } from '../demo_chats/defaultGuestExampleChats';
     import { topicPreferencesStore } from '../stores/topicPreferencesStore';
     import type { OpenMatesEvent } from '../data/openmatesEvents';
     import {
@@ -809,7 +810,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     
     // Get username from the store using Svelte 5 $derived
     // Use empty string for non-authenticated users - translation will handle "Hey there!" vs "Hey {username}!"
-    let username = $derived($userProfile.username || '');
+    let username = $derived($authStore.isAuthenticated ? ($userProfile.username || '') : '');
     let isAdminUser = $derived($userProfile.is_admin === true);
 
     // Split translation strings that include <br> into safe text parts for rendering.
@@ -3771,7 +3772,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         }
 
         if (selectedTagIds.length === 0) {
-            return [...localMetas, ...communityMetas.slice(0, RECENT_CHATS_TOTAL)];
+            return [...localMetas, ...selectDefaultGuestExampleChats(communityMetas, (meta) => meta.chat.chat_id)];
         }
 
         const rankedExampleIds = rankExampleChatIdsByInterests(
@@ -14387,16 +14388,14 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 									avatarTestId="chats-workspace-team-avatar"
 									iconTestId="guest-workspace-icon"
 								/>
-									{#if $authStore.isAuthenticated}
-                                        <h2>
+                                        <h2 data-testid="chat-welcome-heading">
                                             {#each welcomeHeadingParts as part, index}
                                                 <span>{part}</span>{#if index < welcomeHeadingParts.length - 1}<br>{/if}
                                             {/each}
                                         </h2>
-                                    {/if}
                                     {#if !$authStore.isAuthenticated}
                                         <p class="guest-interest-prompt" data-testid="guest-interest-prompt" transition:fade={fadeParams}>
-                                            {#if hasAnonymousRecentChats && !guestInterestSelectorVisible}
+                                            {#if !guestInterestSelectorVisible}
                                                 {$text('chats.resume_last_chat.title')}
                                             {:else}
                                                 {#each guestInterestHeadingParts as part, index}

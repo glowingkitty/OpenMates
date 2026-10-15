@@ -300,26 +300,29 @@
   data-view={view}
   data-locale={locale}
 >
-  <div class="sidebar-layer" class:open={sidebarOpen}>
-    <PublicationSidebar
-      label={pageLabel}
-      {latestLabel}
-      items={sidebarItems}
-      onOpen={openItem}
-      onClose={() => (sidebarOpen = false)}
-    />
-  </div>
+  {#if !publicHeader}
+    <div class="sidebar-layer" class:open={sidebarOpen}>
+      <PublicationSidebar
+        label={pageLabel}
+        {latestLabel}
+        items={sidebarItems}
+        onOpen={openItem}
+        onClose={() => (sidebarOpen = false)}
+      />
+    </div>
+  {/if}
 
   <div class="main-panel">
-    <PublicationHeader
-      label={pageLabel}
-      homeHref={indexHref}
-      primaryCtaLabel={view === "release" ? data.tryItLabel : data.openAppLabel}
-      onPrimaryCta={() => act(view === "release" ? "try-feature" : "open-app")}
-      onToggleSidebar={() => (sidebarOpen = !sidebarOpen)}
-      {sidebarOpen}
-      navigationOnly={!!publicHeader}
-    />
+    {#if !publicHeader}
+      <PublicationHeader
+        label={pageLabel}
+        homeHref={indexHref}
+        primaryCtaLabel={view === "release" ? data.tryItLabel : data.openAppLabel}
+        onPrimaryCta={() => act(view === "release" ? "try-feature" : "open-app")}
+        onToggleSidebar={() => (sidebarOpen = !sidebarOpen)}
+        {sidebarOpen}
+      />
+    {/if}
 
     {#if !isIndex}
       <button type="button" class="detail-close" class:over-header={closeOverHeader} class:ready={closeReady}
@@ -608,6 +611,8 @@
     gap: 0;
   }
   .newsroom-shell.has-public-header {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
     position: relative;
     z-index: 0;
     height: calc(100dvh - var(--public-header-height, 70px));

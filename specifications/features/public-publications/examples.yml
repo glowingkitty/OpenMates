@@ -1,41 +1,41 @@
 schema_version: 1
-specification: feature.public-publications@2
+specification: feature.public-publications@3
 localized_routes:
 - id: german-news-navigation
   assertion_ids:
   - public-publications.routes.localized-archives
   given: A visitor opens the German news archive with several published releases and one external press report.
   when: They open a release and then select the press report from the newest-first publication navigation.
-  then: The release has its own German detail page and recent-news navigation, while the press report opens
-    the publisher's original URL in a new tab.
+  then: The release has its own German detail page and recent-news navigation, while the press report opens the
+    publisher's original URL in a new tab.
 - id: blog-archive-and-detail
   assertion_ids:
   - public-publications.routes.localized-archives
   given: One reviewed example blog post is published in English and German.
   when: A logged-out visitor follows it from /blog to its stable detail URL.
-  then: Both pages render the localized post, and the blog navigation contains only recent blog posts ordered
-    newest first.
+  then: Both pages render the localized post, and the blog navigation contains only recent blog posts ordered newest
+    first.
 seo_discovery:
 - id: localized-release-discovery
   assertion_ids:
   - public-publications.seo.crawlable
   given: A release is published with English and German content, an image, and publication dates.
   when: A crawler requests either localized detail URL without running client JavaScript.
-  then: It receives meaningful article HTML, unique metadata, a matching canonical URL, reciprocal language
-    alternates, NewsArticle structured data, social preview metadata, and a dated sitemap or feed entry.
+  then: It receives meaningful article HTML, unique metadata, a matching canonical URL, reciprocal language alternates,
+    NewsArticle structured data, social preview metadata, and a dated sitemap or feed entry.
 - id: social-post-discovery
   assertion_ids:
   - public-publications.seo.crawlable
   given: An official OpenMates social post is published on several networks and archived as one public post.
   when: A crawler requests the social detail URL.
-  then: The first-party text and owned media description are present in server HTML with SocialMediaPosting
-    structured data and a canonical OpenMates URL.
+  then: The first-party text and owned media description are present in server HTML with SocialMediaPosting structured
+    data and a canonical OpenMates URL.
 public_boundary:
 - id: reviewed-manifest-only
   assertion_ids:
   - public-publications.authoring.public-boundary
-  given: A private marketing folder contains a published post, a draft, campaign notes, Buffer identifiers,
-    and credentials used by maintainers.
+  given: A private marketing folder contains a published post, a draft, campaign notes, Buffer identifiers, and
+    credentials used by maintainers.
   when: The public publication manifest is generated and deployed.
   then: It contains only the reviewed published fields and public asset references; the draft, notes, identifiers,
     credentials, and private author data are absent.
@@ -57,11 +57,11 @@ announcement_migration:
 - id: released-versions-only
   assertion_ids:
   - public-publications.news.released-announcements
-  given: Existing announcement sources include released OpenMates versions, localized copy, legacy links, and
-    preview fixtures with future dates.
+  given: Existing announcement sources include released OpenMates versions, localized copy, legacy links, and preview
+    fixtures with future dates.
   when: The initial news manifest is generated.
-  then: Released announcements become localized stable news entries, legacy public links continue to resolve
-    or redirect, and preview-only dates and unreleased claims are excluded.
+  then: Released announcements become localized stable news entries, legacy public links continue to resolve or
+    redirect, and preview-only dates and unreleased claims are excluded.
 social_backfill:
 - id: one-post-many-platforms
   assertion_ids:
@@ -69,16 +69,16 @@ social_backfill:
   given: Buffer reports the same OpenMates announcement on Bluesky, Instagram, and Mastodon with an exact permalink
     for each channel and a shared video.
   when: The read-only backfill runs.
-  then: One logical social detail page exposes three labelled platform icon links in new tabs and serves the
-    reviewed durable video copy from OpenMates-controlled storage.
+  then: One logical social detail page exposes three labelled platform icon links in new tabs and serves the reviewed
+    durable video copy from OpenMates-controlled storage.
 - id: reject-nonofficial-and-private-fields
   assertion_ids:
   - public-publications.social.official-backfill
-  given: The Buffer response also contains an unrelated account, internal account identifiers, private author
-    data, and a temporary media URL.
+  given: The Buffer response also contains an unrelated account, internal account identifiers, private author data,
+    and a temporary media URL.
   when: The public record is produced.
-  then: The unrelated post and private fields are absent, and the temporary media URL is not published unless
-    it has been copied and approved under the durable public media prefix.
+  then: The unrelated post and private fields are absent, and the temporary media URL is not published unless it
+    has been copied and approved under the durable public media prefix.
 delivery_channels:
 - id: blog-does-not-email
   assertion_ids:
@@ -91,31 +91,29 @@ delivery_channels:
   - public-publications.delivery.explicit-channels
   given: A release is public and eligible for the existing news-and-updates newsletter category.
   when: It is published or later corrected.
-  then: No email is sent unless a maintainer separately and explicitly selects that release for a newsletter
-    campaign.
+  then: No email is sent unless a maintainer separately and explicitly selects that release for a newsletter campaign.
 media_delivery:
 - id: anonymous-read-without-storage-control
   assertion_ids:
   - public-publications.media.read-only-delivery
   given: A visitor loads a publication with media stored under the dedicated public newsroom prefix.
   when: Their browser requests the asset directly from Hetzner S3.
-  then: The object can be read without credentials, while bucket listing, writes, deletes, unrelated prefixes,
-    and publisher credentials remain unavailable to the browser.
+  then: The object can be read without credentials, while bucket listing, writes, deletes, unrelated prefixes, and
+    publisher credentials remain unavailable to the browser.
 publication_controls:
 - id: archive-header-and-native-controls
   assertion_ids:
   - public-publications.controls.consistent-navigation
   given: Sam opens the English news archive and the German blog archive on a phone and desktop.
-  when: Sam switches News and Blog and uses the search, press-kit, inquiry, show-more, newsletter and social
-    controls.
-  then: The active header link has opacity 1 and the other 0.5; no duplicate title block or spacer appears.
-    Utility and social icons render as accessible native SVG controls, and verified press titles and locally
-    served header images link to the original publisher.
+  when: Sam switches News and Blog and uses the search, press-kit, inquiry, show-more, newsletter and social controls.
+  then: The active header link has opacity 1 and the other 0.5; no duplicate title block or spacer appears. Utility
+    and social icons render as accessible native SVG controls, and verified press titles and locally served header
+    images link to the original publisher. No hamburger or archive sidebar is mounted on either index or detail
+    pages, including compatibility app routes; main-content search and cards remain usable.
 - id: same-mounted-detail-close
   assertion_ids:
   - public-publications.controls.consistent-navigation
-  given: Alex opens a social detail and then navigates to a news article without remounting the publication
-    view.
+  given: Alex opens a social detail and then navigates to a news article without remounting the publication view.
   when: Alex scrolls below each banner and uses the close control.
   then: The translucent close button stays fixed at the top right with the same geometry and below-banner color
     transition as fullscreen embeds in the app; it renders and works on both detail types.

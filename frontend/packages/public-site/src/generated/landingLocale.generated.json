@@ -60,7 +60,10 @@
     "askAnythingDesktop": "Click to ask anything",
     "askAnythingTouch": "Tap to ask anything",
     "modelSelectionLink": "Learn more about AI model selection",
-    "dataOwnershipLink": "Learn more about your rights to own your data"
+    "dataOwnershipLink": "Learn more about your rights to own your data",
+    "skipAnimation": "Skip animation",
+    "previousSection": "Previous section",
+    "nextSection": "Next section"
   },
   "de": {
     "language": "Sprache",
@@ -123,6 +126,9 @@
     "askAnythingDesktop": "Klicken und alles fragen",
     "askAnythingTouch": "Tippen und alles fragen",
     "modelSelectionLink": "Mehr über die Auswahl von KI-Modellen",
-    "dataOwnershipLink": "Mehr über dein Recht auf deine eigenen Daten"
+    "dataOwnershipLink": "Mehr über dein Recht auf deine eigenen Daten",
+    "skipAnimation": "Animation überspringen",
+    "previousSection": "Vorheriger Abschnitt",
+    "nextSection": "Nächster Abschnitt"
   }
 }

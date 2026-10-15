@@ -1,0 +1,27 @@
+schema_version: 2
+id: public-site-section-followup-oct15
+title: Polish landing sections and restore guest workspace parity
+goal: Implement those additional fixes
+status: implementing
+profile: concise
+scope:
+- Native landing scrolling, transient section navigation, behind-text highlight, subdued example links and first-visit
+  actionable/privacy story transitions copied from main.
+- Public News/Blog omit hamburger and sidebar and share public header across standalone and app compatibility routes.
+- Guest workflow nodes use the actual read-only editor and signup affordance; guest Chat welcome shows greeting
+  and exact landing default examples.
+- Audit closely related earlier correction requests for concrete omissions.
+excluded:
+- Production domain cutover.
+- Anonymous workflow execution or writes.
+- New animations for the other sections.
+checks:
+  required:
+  - Focused isolated component checks for landing, publications, workflow guest editor and Chat welcome.
+  - Targeted isolated cold-boot/reload guest example and publication compatibility route checks after component
+    checks.
+  - Narrow unit/lint/build checks and updated Specification/Plan validation.
+decisions:
+- Existing explicit instructions authorize these Specification updates without repeated approval.
+- Use main production story sequences in lightweight public-only components; no OpenMates inference model override.
+- Remove automatic section snap to preserve native mobile momentum; only explicit arrows request smooth scrolling.

@@ -2803,3 +2803,15 @@ sidebar.templates:
   en: "Templates"
   de: "Vorlagen"
   verified_by_human: []
+
+builder.signup_customize:
+  context: Invitation below the read-only guest Workflow node editor
+  en: "Signup to customize workflow"
+  de: "Registriere dich, um den Workflow anzupassen"
+  verified_by_human: []
+
+builder.signup:
+  context: Orange signup action in the guest Workflow node editor
+  en: "Signup"
+  de: "Registrieren"
+  verified_by_human: []
