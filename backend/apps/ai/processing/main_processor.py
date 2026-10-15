@@ -6085,6 +6085,15 @@ async def handle_main_processing(
                      and "web-read" in allowed_tool_names),
         has_source_urls=has_http_source_url(request_data.current_user_content),
     )
+    if delegated_primary_read.enabled and request_data.current_user_content is None:
+        # Server-dispatched children carry their assigned prompt in history.
+        # Use only that latest user prompt; tool/private-app output is not input authority.
+        for assigned_message in reversed(request_data.message_history):
+            assigned_role = assigned_message.get("role") if isinstance(assigned_message, dict) else getattr(assigned_message, "role", None)
+            if assigned_role == "user":
+                assigned_content = assigned_message.get("content") if isinstance(assigned_message, dict) else getattr(assigned_message, "content", None)
+                delegated_primary_read.has_source_urls = has_http_source_url(assigned_content)
+                break
     task_queue_guard_retries = 0
     answer_recovery = AnswerRecoveryState()
     protocol_guard_recovery_started = False

@@ -1529,6 +1529,11 @@ def test_deep_research_verifier_failure_is_honest_and_synthesis_qualifies_claims
     assert "never claim completed verification" in prompt
     context["research_stage"] = "synthesis"
     prompt = stream_consumer._build_sub_chat_completion_context(context)
+    assert "Check the three research reports against primary sources yourself" in prompt
+    assert "Only present claims as confirmed where the sources directly support" in prompt
+    assert "independent verifier report below" not in prompt
+    context["research_context"] = {"expected_sub_chat_ids": [], "completed": {}}
+    prompt = stream_consumer._build_sub_chat_completion_context(context)
     assert "Only treat claims as confirmed where the verifier directly supports" in prompt
     assert "Short Answer and Bottom Line" in prompt
     assert "proposed settlement is not a court-approved judgment" in prompt
@@ -1851,3 +1856,63 @@ def test_research_verifier_embed_only_three_reports_resolve_scoped_urls_and_excl
         assert stream_consumer._research_source_url("http://127.0.0.1/private") is None
         assert stream_consumer._research_source_url("file:///private") is None
     asyncio.run(run())
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.full-instruction
+@pytest.mark.parametrize("failed", [False, True])
+def test_deep_research_three_reports_resume_parent_once_without_verifier(monkeypatch, failed):
+    request, context = _verifier_test_context()
+    template = context["completed"]["research-child"]
+    children = ["research-a", "research-b", "research-c"]
+    context["expected_sub_chat_ids"] = children
+    context["completed"] = {child: {**template, "chat_id": child} for child in children}
+    if failed:
+        context["completed"][children[-1]]["failed"] = True
+    acknowledged = False
+
+    async def execute(operation, payload):
+        nonlocal acknowledged
+        if operation == "claim_parent_continuation":
+            return {"research_stage": "failed" if failed else "synthesis", "root_chat_id": request.chat_id,
+                "root_turn_id": request.root_turn_id, "research_batch_id": "initial-batch", "verifier_batch_id": None,
+                "dispatch_required": not acknowledged, "continuation_task_id": "parent-synthesis-task"}
+        assert operation == "mark_parent_continuation_dispatched"
+        assert payload["batch_id"] == "initial-batch"
+        acknowledged = True
+        return {}
+
+    service = SimpleNamespace(execute=AsyncMock(side_effect=execute))
+    monkeypatch.setattr(stream_consumer, "DirectusService", lambda: SimpleNamespace(close=AsyncMock()))
+    monkeypatch.setattr(stream_consumer, "SubChatOrchestrationService", lambda _: service)
+    verifier = AsyncMock(side_effect=AssertionError("New research must use the existing parent for source checks"))
+    monkeypatch.setattr(stream_consumer, "_dispatch_research_verifier", verifier)
+    sent = []
+    def send(**kwargs):
+        sent.append(kwargs)
+        return SimpleNamespace(id=kwargs["task_id"])
+    monkeypatch.setattr(stream_consumer.celery_config.app, "send_task", send)
+    cache = SimpleNamespace(set=AsyncMock(return_value=True))
+
+    async def complete_twice():
+        for _ in range(2):
+            assert await stream_consumer._dispatch_sub_chat_parent_continuation(cache_service=cache,
+                pending_context=context, parent_chat_id=request.chat_id, durable_batch_id="initial-batch", log_prefix="[test]")
+    asyncio.run(complete_twice())
+    verifier.assert_not_awaited()
+    assert len(sent) == 1
+    assert sent[0]["task_id"] == "parent-synthesis-task"
+    payload = sent[0]["kwargs"]["request_data_dict"]
+    assert payload["active_focus_id"] == "web-research"
+    assert payload["is_sub_chat_continuation"] is True
+    expected_consumed = children[:-1] if failed else children
+    assert payload["recovery_consumed_child_ids"] == expected_consumed
+    authority = cache.set.await_args.args[1]
+    assert authority["consumption_task_ids"] == {child: "parent-synthesis-task" for child in expected_consumed}
+    prompt = payload["message_history"][-1]["content"]
+    if failed:
+        assert "did not complete successfully" in prompt
+        assert "never claim completed verification" in prompt
+        assert context["research_stage"] == "failed"
+    else:
+        assert "primary sources yourself" in prompt
+        assert "independent verifier report below" not in prompt

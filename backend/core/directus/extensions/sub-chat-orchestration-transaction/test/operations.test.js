@@ -240,8 +240,32 @@ function verifierPrepare(claim) {
 }
 
 // contract-test: supporting surface=rest_api assertions=focus-modes.full-instruction
-test('deep research claims one deterministic verifier with a reserved slot and stable retry identity', async () => {
+test('three successful research children release one parent synthesis with no verifier batch', async () => {
   const db = researchDatabase();
+  const first = await executeOperation(db, 'claim_parent_continuation', researchClaim);
+  assert.equal(first.research_stage, 'synthesis');
+  assert.equal(first.dispatch_required, true);
+  assert.equal(first.verifier_child_id, undefined);
+  assert.equal(first.verifier_batch_id, null);
+  await assert.rejects(executeOperation(db, 'prepare_batch', verifierPrepare({ ...first,
+    verifier_batch_id: CHILD_ID, verifier_child_id: USER_ID })),
+    (error) => error.code === 'verification_spawn_forbidden');
+  await executeOperation(db, 'mark_parent_continuation_dispatched', {
+    ...researchClaim, continuation_task_id: first.continuation_task_id,
+  });
+  const replay = await executeOperation(db, 'claim_parent_continuation', researchClaim);
+  assert.equal(replay.continuation_task_id, first.continuation_task_id);
+  assert.equal(replay.dispatch_required, false);
+  assert.equal(db.rows.sub_chat_orchestration_batches.length, 1);
+  assert.equal(db.rows.sub_chat_orchestration_children.length, 3);
+  assert.equal(db.rows.sub_chat_orchestrations[0].descendant_count, 3);
+  assert.equal(db.rows.sub_chat_orchestrations[0].credit_limit, 2000);
+  assert.equal(db.rows.chats.length, 0);
+});
+
+// contract-test: supporting surface=rest_api assertions=focus-modes.full-instruction
+test('legacy research claims one deterministic verifier with a reserved slot and stable retry identity', async () => {
+  const db = researchDatabase('verification_due');
   const first = await executeOperation(db, 'claim_parent_continuation', researchClaim);
   const replay = await executeOperation(db, 'claim_parent_continuation', researchClaim);
   assert.equal(first.research_stage, 'verification_due');
@@ -261,7 +285,7 @@ test('deep research claims one deterministic verifier with a reserved slot and s
 
 // contract-test: supporting surface=rest_api assertions=focus-modes.full-instruction
 test('research verifier rejects wrong owner, claim, depth, identity and multiple children', async () => {
-  const db = researchDatabase();
+  const db = researchDatabase('verification_due');
   const claim = await executeOperation(db, 'claim_parent_continuation', researchClaim);
   const request = verifierPrepare(claim);
   for (const changes of [
@@ -276,7 +300,7 @@ test('research verifier rejects wrong owner, claim, depth, identity and multiple
 
 // contract-test: supporting surface=rest_api assertions=focus-modes.full-instruction
 test('research verifier terminal success alone releases synthesis and initial retry cannot bypass it', async () => {
-  const db = researchDatabase();
+  const db = researchDatabase('verification_due');
   const claim = await executeOperation(db, 'claim_parent_continuation', researchClaim);
   await executeOperation(db, 'prepare_batch', verifierPrepare(claim));
   const verifierBatch = db.rows.sub_chat_orchestration_batches.find((batch) => batch.id === claim.verifier_batch_id);
@@ -288,11 +312,17 @@ test('research verifier terminal success alone releases synthesis and initial re
   assert.equal(synthesis.research_stage, 'synthesis');
   assert.equal(synthesis.dispatch_required, true);
   assert.equal((await executeOperation(db, 'claim_parent_continuation', researchClaim)).dispatch_required, false);
+  await executeOperation(db, 'mark_parent_continuation_dispatched', {
+    ...researchClaim, batch_id: verifierBatch.id, continuation_task_id: synthesis.continuation_task_id,
+  });
+  const replay = await executeOperation(db, 'claim_parent_continuation', { ...researchClaim, batch_id: verifierBatch.id });
+  assert.equal(replay.dispatch_required, false);
+  assert.equal(replay.continuation_task_id, synthesis.continuation_task_id);
 });
 
 // contract-test: supporting surface=rest_api assertions=focus-modes.full-instruction
 test('research verifier failed terminal batch permits only a failed stage', async () => {
-  const db = researchDatabase();
+  const db = researchDatabase('verification_due');
   const claim = await executeOperation(db, 'claim_parent_continuation', researchClaim);
   await executeOperation(db, 'prepare_batch', verifierPrepare(claim));
   const batch = db.rows.sub_chat_orchestration_batches.find((item) => item.id === claim.verifier_batch_id);
@@ -331,7 +361,7 @@ test('deep research legacy roots remain final-only and ordinary continuation spa
 
 // contract-test: supporting surface=rest_api assertions=focus-modes.full-instruction
 test('research verifier live paid work cannot be failed by a stale dispatch acknowledgement', async () => {
-  const db = researchDatabase();
+  const db = researchDatabase('verification_due');
   const claim = await executeOperation(db, 'claim_parent_continuation', researchClaim);
   await executeOperation(db, 'prepare_batch', verifierPrepare(claim));
   db.rows.sub_chat_orchestration_children.find((child) => child.child_chat_id === claim.verifier_child_id).state = 'running';
@@ -344,7 +374,7 @@ test('research verifier live paid work cannot be failed by a stale dispatch ackn
 
 // contract-test: supporting surface=rest_api assertions=focus-modes.full-instruction
 test('deep research initializes only new roots and preserves the global descendant ceiling', async () => {
-  const db = researchDatabase();
+  const db = researchDatabase('verification_due');
   const fresh = await executeOperation(db, 'create_root', { protocol_version: 1,
     orchestration_id: '88888888-8888-4888-8888-888888888888', hashed_user_id: OWNER,
     root_chat_id: RESEARCH_CHAT, root_turn_id: RESEARCH_TURN, deep_research: true });
@@ -356,4 +386,27 @@ test('deep research initializes only new roots and preserves the global descenda
   await assert.rejects(executeOperation(db, 'prepare_batch', verifierPrepare(claim)),
     (error) => error.code === 'descendant_limit_exceeded');
   assert.equal(db.rows.chats.length, 0);
+});
+
+
+// contract-test: supporting surface=rest_api assertions=focus-modes.full-instruction
+test('legacy research running verifier preserves initial acknowledgement repair after dispatch', async () => {
+  const db = researchDatabase('verification_due');
+  const initial = await executeOperation(db, 'claim_parent_continuation', researchClaim);
+  await executeOperation(db, 'prepare_batch', verifierPrepare(initial));
+  const child = db.rows.sub_chat_orchestration_children.find((row) => row.child_chat_id === initial.verifier_child_id);
+  child.state = 'running';
+  // Dispatch succeeded, but its initial-batch acknowledgement was lost.
+  const retry = await executeOperation(db, 'claim_parent_continuation', researchClaim);
+  assert.equal(retry.research_stage, 'verification_running');
+  assert.equal(retry.verifier_child_state, 'running');
+  assert.equal(retry.dispatch_required, true);
+  assert.equal(retry.continuation_task_id, initial.continuation_task_id);
+  assert.equal(retry.verifier_child_id, initial.verifier_child_id);
+  await executeOperation(db, 'mark_parent_continuation_dispatched', {
+    ...researchClaim, continuation_task_id: retry.continuation_task_id,
+  });
+  assert.equal((await executeOperation(db, 'claim_parent_continuation', researchClaim)).dispatch_required, false);
+  assert.equal(db.rows.sub_chat_orchestration_children.length, 4);
+  assert.equal(db.rows.chats.length, 1);
 });

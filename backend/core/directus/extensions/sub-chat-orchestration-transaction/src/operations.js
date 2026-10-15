@@ -621,7 +621,7 @@ async function claimParentContinuation(database, raw, now) {
       if (root.status !== 'active' || new Date(root.expires_at) <= now) fail(409, 'orchestration_not_active');
       const children = await trx(CHILDREN).where({ orchestration_id: orchestrationId, batch_id: batchId });
       const successful = children.length === batch.child_count && children.every((child) => child.state === 'completed');
-      if (batchId === root.research_batch_id && stage === 'research') stage = successful ? 'verification_due' : 'failed';
+      if (batchId === root.research_batch_id && stage === 'research') stage = successful ? 'synthesis' : 'failed';
       else if (batchId === root.verifier_batch_id && stage === 'verification_running') stage = successful ? 'synthesis' : 'failed';
       else if (batchId !== root.research_batch_id && batchId !== root.verifier_batch_id) fail(409, 'research_batch_mismatch');
       if (stage !== root.research_stage) {
@@ -634,7 +634,9 @@ async function claimParentContinuation(database, raw, now) {
     return {
       batch_id: batchId, continuation_task_id: continuationTaskId,
       dispatch_required: !batch.continuation_dispatched_at
-        && !(stage === 'synthesis' && batchId === root.research_batch_id), research_stage: stage,
+        // Only legacy verifier runs reserve final synthesis for the verifier batch.
+        && !(stage === 'synthesis' && root.verifier_batch_id && batchId === root.research_batch_id), research_stage: stage,
+      verifier_batch_id: root.verifier_batch_id ?? null,
       verifier_child_state: verifierChild?.state ?? null, research_batch_id: root.research_batch_id ?? null,
       root_chat_id: root.root_chat_id, root_turn_id: root.root_turn_id,
       ...(stage === 'verification_due' || stage === 'verification_running' ? {

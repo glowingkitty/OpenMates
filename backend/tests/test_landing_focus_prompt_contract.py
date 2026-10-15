@@ -50,7 +50,7 @@ def test_deep_research_delegation_instruction_survives_legacy_translation_path()
 
 
 # contract-test: supporting surface=rest_api assertions=focus-modes.full-instruction
-def test_deep_research_runtime_keeps_full_authored_prompt_and_independent_verification() -> None:
+def test_deep_research_runtime_keeps_full_authored_prompt_and_parent_source_checks() -> None:
     runtime, canonical = _focus_instructions("web", "research", "research")
     authored = (ROOT / "backend/apps/web/focus_modes/research/SKILL.md").read_text().split(
         "## System prompt\n", 1,
@@ -60,13 +60,17 @@ def test_deep_research_runtime_keeps_full_authored_prompt_and_independent_verifi
     assert runtime.startswith(canonical)
     assert runtime.count("## ") == 6
     assert "Delegate exactly three distinct angles in parallel" in runtime
-    assert "the server dispatches exactly one independent source-verification child" in runtime
-    assert "Neither a continuation nor a delegated research or verification child may start additional sub-chats" in runtime
-    assert "Reconcile the source-verification child's findings before final synthesis" in runtime
+    assert "the parent synthesizes their reports and uses web-read" in runtime
+    assert "Do not start a fourth child or a paid repair batch" in runtime
+    assert "ground material claims in primary sources with source-scoped qualifications" in runtime
+    assert "Neither a continuation nor a delegated research child may start additional sub-chats" in runtime
+    assert "Reconcile the three research reports and their primary-source evidence before final synthesis" in runtime
     assert "A document titled Proposed Final Judgment does not establish court approval" in runtime
     assert "including the short answer and bottom line" in runtime
     assert "Before reporting an important quantitative, causal, or legal finding, use web-read" in runtime
-    assert "Return the complete audit before explanatory prose" in runtime
+    assert "compact numbered claim/evidence ledger" in runtime
+    assert "before the final conclusion" in runtime
+    assert "independent source-verification child" not in runtime
     assert "Claims omitted from or cut off in the audit remain unverified" in runtime
     assert "metric or denominator, assumptions, and observed result versus modeled counterfactual" in runtime
     assert "Benefits, profits, and incentives alone do not establish intent or causal share" in runtime

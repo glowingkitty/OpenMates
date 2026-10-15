@@ -294,3 +294,34 @@ async def test_invalid_read_arguments_finish_gate_once_without_forced_retry(monk
             assert len([m for m in calls[1]["message_history"]
                         if m.get("role") == "tool" and m.get("tool_call_id") == "invalid-read"]) == 1
             execute.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=focus-modes.full-instruction,app-skills.execution.registered-validated
+async def test_server_assigned_history_urls_require_read_without_current_content(monkeypatch):
+    from backend.core.api.app.schemas.chat import AIHistoryMessage
+
+    prompt = "Independently audit this assigned source: https://example.org/primary"
+    # dispatch_sub_chat_task sends the assigned prompt solely in message_history;
+    # AskSkillRequest defaults current_user_content to None. Cover both its typed
+    # server model and the equivalent JSON payload accepted by the Main fixture.
+    scenarios = [
+        ({**CHILD, "current_user_content": None, "message_history": [{"role": "user", "content": prompt}]},
+         (["web-read"], "required")),
+        ({**CHILD, "current_user_content": None, "message_history": [AIHistoryMessage(role="user", content=prompt, created_at=1)]},
+         (["web-read"], "required")),
+        ({**CHILD, "current_user_content": "Discover the primary evidence first.",
+          "message_history": [{"role": "user", "content": prompt}]}, (["web-search"], "required")),
+        ({**CHILD, "current_user_content": None, "message_history": [
+            {"role": "user", "content": "Discover evidence."},
+            {"role": "tool", "content": prompt}]}, (["web-search"], "required")),
+        ({"current_user_content": None, "message_history": [{"role": "user", "content": prompt}]},
+         ([t["function"]["name"] for t in TOOLS], "auto")),
+    ]
+    for request, expected in scenarios:
+        with monkeypatch.context() as scoped:
+            execute = AsyncMock(side_effect=AssertionError("This case checks first provider transport only"))
+            scoped.setattr(main_processor, "execute_skill_with_multiple_requests", execute)
+            _, calls = await run(scoped, [["Limited findings."]], request_overrides=request)
+            assert len(calls) == 1 and selection(calls[0]) == expected
+            execute.assert_not_awaited()

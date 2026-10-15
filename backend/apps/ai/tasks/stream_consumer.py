@@ -1080,7 +1080,7 @@ async def _dispatch_sub_chat_parent_continuation(
             await directus_service.close()
             # A duplicate initial completion must not delete the replacement verifier context.
             return not (claim.get("research_stage")
-                        and (durable_batch_id == claim.get("research_batch_id")
+                        and ((claim.get("verifier_batch_id") and durable_batch_id == claim.get("research_batch_id"))
                              or claim.get("research_stage") in {"verification_due", "verification_running"}))
         continuation_task_id = claim["continuation_task_id"]
         stage = claim.get("research_stage")
@@ -1497,14 +1497,20 @@ def _build_sub_chat_completion_context(pending_context: dict[str, Any]) -> str:
     if parent_request_data.get("active_focus_id") == "web-research":
         if pending_context.get("research_stage") == "failed":
             lines.extend([
-                "Independent source verification did not complete successfully. State this limitation clearly.",
+                "Research or independent source verification did not complete successfully. State this limitation clearly.",
                 "Do not present provisional research claims as independently verified or confirmed. Give only a qualified limited answer; never claim completed verification.",
             ])
-        elif pending_context.get("research_stage") == "synthesis":
+        elif pending_context.get("research_stage") == "synthesis" and isinstance(pending_context.get("research_context"), dict):
             lines.extend([
                 "The independent verifier report below controls evidence status in your final synthesis.",
                 "Only treat claims as confirmed where the verifier directly supports that status. Omit or qualify unsupported precision, causality, legal conclusions and period/window mismatches beside each claim, including Short Answer and Bottom Line.",
                 "A complaint is an allegation; a proposed settlement is not a court-approved judgment. Preserve the verifier's primary-source qualifications.",
+            ])
+        elif pending_context.get("research_stage") == "synthesis":
+            lines.extend([
+                "Check the three research reports against primary sources yourself before final synthesis. Use web-read where needed; do not start another sub-chat.",
+                "Only present claims as confirmed where the sources directly support them. Omit or qualify unsupported precision, causality, legal conclusions and period/window mismatches beside each claim, including Short Answer and Bottom Line.",
+                "A complaint is an allegation; a proposed settlement is not a court-approved judgment. Preserve primary-source qualifications.",
             ])
         research_context = pending_context.get("research_context")
         if isinstance(research_context, dict):
