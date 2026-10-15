@@ -4362,3 +4362,253 @@ const markFollowerPending = async (database, preflightId) => executeOperation(da
   database.rows.messages[0].updated_at += 1;
   assert.deepEqual(await executeOperation(database, 'verify_routing_admission', routingBody()), { authorized: false });
  });
+
+const batchOutput = (index, overrides = {}) => ({
+  protocol_version: 1,
+  record_id: `018fcccc-cccc-7ccc-8ccc-${index.toString(16).padStart(12, '0')}`,
+  hashed_user_id: OWNER, root_chat_id: CHAT_ID, target_chat_id: CHAT_ID,
+  turn_id: TURN_ID, preflight_id: PREFLIGHT_ID, inference_task_id: TASK_ID,
+  subject_id: `batch-subject-${index}`, output_kind: 'embed', output_version: 1,
+  chat_key_version: 1, sealed_payload: SEALED_OUTPUT, content_commitment: 'e'.repeat(64),
+  ...overrides,
+});
+const replayBatchOutput = (output) => Object.fromEntries([
+  'protocol_version', 'record_id', 'hashed_user_id', 'root_chat_id', 'target_chat_id',
+  'preflight_id', 'subject_id', 'output_kind', 'output_version', 'content_commitment',
+].map((field) => [field, output[field]]));
+const batchBody = (outputs) => ({ protocol_version: 1, outputs });
+
+// contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery
+test('sealed output batches commit and probe in requested order with one transaction each', async () => {
+  const database = fakeDatabase(producerSeed());
+  const outputs = [batchOutput(2), batchOutput(1)];
+  const result = await executeOperation(database, 'create_sealed_outputs', batchBody(outputs));
+  assert.deepEqual(result.outputs, outputs.map((output) => ({
+    record_id: output.record_id, state: 'PENDING', idempotent: false,
+  })));
+  assert.equal(database.transactions, 1);
+  assert.deepEqual(database.rows.chat_recovery_outputs.map((row) => row.id), outputs.map((row) => row.record_id));
+  const probes = [outputs[1], batchOutput(3), outputs[0]].map(replayBatchOutput);
+  const replay = await executeOperation(database, 'get_replay_outputs', batchBody(probes));
+  assert.equal(database.transactions, 2);
+  assert.deepEqual(replay.outputs.map((receipt) => [receipt.record_id, receipt.status]), [
+    [outputs[1].record_id, 'PENDING'], [batchOutput(3).record_id, 'ABSENT'], [outputs[0].record_id, 'PENDING'],
+  ]);
+  assert.equal(replay.outputs[0].sealed_payload, SEALED_OUTPUT);
+});
+
+// contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery
+test('sealed output batch retries retain first randomized seal and reject changed content atomically', async () => {
+  const database = fakeDatabase(producerSeed());
+  const outputs = [batchOutput(1), batchOutput(2)];
+  await executeOperation(database, 'create_sealed_outputs', batchBody(outputs));
+  const exact = await executeOperation(database, 'create_sealed_outputs', batchBody(outputs));
+  assert.ok(exact.outputs.every((receipt) => receipt.idempotent));
+  const changedSeal = JSON.stringify({ v: 2, epk: b64(32, 8), nonce: b64(12, 9), ciphertext: b64(17, 10) });
+  const retry = await executeOperation(database, 'create_sealed_outputs', batchBody(outputs.map((output) => ({
+    ...output, sealed_payload: changedSeal,
+  }))));
+  assert.deepEqual(retry.outputs.map((receipt) => receipt.sealed_payload), [SEALED_OUTPUT, SEALED_OUTPUT]);
+  const before = structuredClone(database.rows);
+  await assert.rejects(executeOperation(database, 'create_sealed_outputs', batchBody([
+    batchOutput(3), { ...outputs[1], content_commitment: 'f'.repeat(64) },
+  ])), (error) => error.code === 'replay_output_mismatch');
+  assert.deepEqual(database.rows, before);
+});
+
+// contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery
+test('second sealed output failure rolls back the complete batch', async () => {
+  const database = fakeDatabase(producerSeed(), {
+    operation: 'insert', table: 'chat_recovery_outputs', occurrence: 2,
+  });
+  const before = structuredClone(database.rows);
+  await assert.rejects(executeOperation(database, 'create_sealed_outputs', batchBody([
+    batchOutput(1), batchOutput(2),
+  ])), /injected insert:chat_recovery_outputs failure/);
+  assert.deepEqual(database.rows, before);
+  assert.equal(database.transactions, 1);
+  const invalidSecond = fakeDatabase(producerSeed());
+  await assert.rejects(executeOperation(invalidSecond, 'create_sealed_outputs', batchBody([
+    batchOutput(1), batchOutput(2, { sealed_payload: 'invalid' }),
+  ])), (error) => error.code === 'invalid_sealed_payload');
+  assert.deepEqual(invalidSecond.rows.chat_recovery_outputs, []);
+});
+
+// contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery
+test('output batches reject mixed identity, duplicate records and malformed protocol before transactions', async () => {
+  const changedFields = {
+    hashed_user_id: 'f'.repeat(64), root_chat_id: JOB_ID, target_chat_id: JOB_ID,
+    preflight_id: JOB_ID, turn_id: JOB_ID, inference_task_id: JOB_ID, chat_key_version: 2,
+    producer_intent_id: PRODUCER_TASK, producer_task_name: 'apps.images.tasks.generate_image',
+    producer_kwargs_binding: 'd'.repeat(64),
+  };
+  for (const [operation, convert] of [
+    ['create_sealed_outputs', (output) => output], ['get_replay_outputs', replayBatchOutput],
+  ]) {
+    for (const [field, value] of Object.entries(changedFields)) {
+      if (operation === 'get_replay_outputs' && !Object.hasOwn(replayBatchOutput(batchOutput(1)), field)) continue;
+      const database = fakeDatabase(producerSeed());
+      await assert.rejects(executeOperation(database, operation, batchBody([
+        convert(batchOutput(1)), convert(batchOutput(2, { [field]: value })),
+      ])), (error) => error.code === 'mixed_output_batch_identity');
+      assert.equal(database.transactions, 0);
+    }
+    for (const outputs of [[], [convert(batchOutput(1)), convert(batchOutput(1))],
+      Array.from({ length: 33 }, (_, index) => convert(batchOutput(index)))]) {
+      const database = fakeDatabase(producerSeed());
+      await assert.rejects(executeOperation(database, operation, batchBody(outputs)), ProtocolError);
+      assert.equal(database.transactions, 0);
+    }
+    await assert.rejects(executeOperation(fakeDatabase(producerSeed()), operation, batchBody([
+      { ...convert(batchOutput(1)), protocol_version: 2 },
+    ])), (error) => error.code === 'client_update_required');
+  }
+});
+
+// contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery
+test('output batches enforce total UTF8 bytes and inline storage while accepting 32 entries', async () => {
+  const database = fakeDatabase(producerSeed());
+  const outputs = Array.from({ length: 32 }, (_, index) => batchOutput(index));
+  assert.equal((await executeOperation(database, 'create_sealed_outputs', batchBody(outputs))).outputs.length, 32);
+  for (const operation of ['create_sealed_outputs', 'get_replay_outputs']) {
+    const oversized = operation === 'create_sealed_outputs'
+      ? outputs.map((output) => ({ ...output, sealed_payload: 'é'.repeat(9000) }))
+      : outputs.map((output) => ({ ...replayBatchOutput(output), subject_id: 'é'.repeat(9000) }));
+    const body = batchBody(oversized);
+    assert.ok(JSON.stringify(body).length < 512 * 1024);
+    assert.ok(Buffer.byteLength(JSON.stringify(body)) > 512 * 1024);
+    await assert.rejects(executeOperation(fakeDatabase(producerSeed()), operation, body),
+      (error) => error.code === 'output_batch_too_large' && error.status === 413);
+  }
+  await assert.rejects(executeOperation(fakeDatabase(producerSeed()), 'create_sealed_outputs', batchBody([
+    batchOutput(1, { payload_s3_key: 'external-key' }),
+  ])), (error) => error.code === 'invalid_output_storage');
+  const external = batchOutput(1, { payload_s3_key: 'external-key' });
+  delete external.sealed_payload;
+  await assert.rejects(executeOperation(fakeDatabase(producerSeed()), 'create_sealed_outputs', batchBody([external])),
+    (error) => error.code === 'invalid_output_storage');
+});
+
+// contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery
+test('output batches retain account, deletion, preflight and current chat authority fences', async () => {
+  const fences = [
+    [(seed) => { seed.chat_recovery_account_fences = [{ id: OWNER }]; }, 'account_recovery_fenced'],
+    [(seed) => { seed.chat_turn_preflights[0].deletion_invalidated_at = new Date(); }, 'inference_not_running'],
+    [(seed) => { seed.chat_turn_preflights[0].state = 'TERMINAL'; }, 'inference_not_running'],
+    [(seed) => { seed.chats[0].storage_state = 'deleting'; }, 'chat_not_found'],
+    [(seed) => { seed.chats[0].hashed_user_id = 'f'.repeat(64); }, 'chat_not_found'],
+    [(seed) => {
+      seed.chats[0].hashed_team_id = TEAM_HASH;
+      seed.teams = [{ hashed_team_id: TEAM_HASH, status: 'active' }];
+      seed.team_memberships = [{ hashed_team_id: TEAM_HASH, hashed_user_id: OWNER, status: 'revoked', role: 'member' }];
+    }, 'chat_not_found'],
+  ];
+  for (const [mutate, code] of fences) {
+    for (const [operation, convert] of [
+      ['create_sealed_outputs', (output) => output], ['get_replay_outputs', replayBatchOutput],
+    ]) {
+      const seed = producerSeed();
+      mutate(seed);
+      const database = fakeDatabase(seed);
+      await assert.rejects(executeOperation(database, operation, batchBody([
+        convert(batchOutput(1)), convert(batchOutput(2)),
+      ])), (error) => error.code === code);
+      assert.deepEqual(database.rows.chat_recovery_outputs, []);
+    }
+  }
+});
+
+// contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery
+test('producer batch preserves child identity, first seal and permanent deletion fence on retries', async () => {
+  const database = fakeDatabase(producerSeed());
+  const producer = producerBody();
+  await executeOperation(database, 'register_output_producer', producer);
+  const childId = '018fdddd-dddd-7ddd-8ddd-dddddddddddd';
+  await executeOperation(database, 'register_output_producer_child', {
+    protocol_version: 1, producer_intent_id: PRODUCER_TASK, task_name: producer.task_name,
+    kwargs_binding: producer.kwargs_binding, ordinal: 1,
+    subject_id: childId, output_kind: 'embed', output_version: 1,
+  });
+  const outputs = [PRODUCER_EMBED, childId].map((subject_id, index) => batchOutput(index, {
+    subject_id, producer_intent_id: PRODUCER_TASK, producer_ordinal: index,
+    producer_task_name: producer.task_name, producer_kwargs_binding: producer.kwargs_binding,
+  }));
+  const beforeTransactions = database.transactions;
+  await executeOperation(database, 'create_sealed_outputs', batchBody(outputs));
+  assert.equal(database.transactions, beforeTransactions + 1);
+  const changedSeal = JSON.stringify({ v: 2, epk: b64(32, 8), nonce: b64(12, 9), ciphertext: b64(17, 10) });
+  const retry = await executeOperation(database, 'create_sealed_outputs', batchBody(outputs.map((output) => ({
+    ...output, sealed_payload: changedSeal,
+  }))));
+  assert.deepEqual(retry.outputs.map((receipt) => receipt.sealed_payload), [SEALED_OUTPUT, SEALED_OUTPUT]);
+  await assert.rejects(executeOperation(database, 'create_sealed_outputs', batchBody([
+    outputs[0], { ...outputs[1], subject_id: PRODUCER_EMBED },
+  ])), (error) => error.code === 'producer_output_identity_mismatch');
+  await assert.rejects(executeOperation(database, 'create_sealed_outputs', batchBody([
+    outputs[0], { ...outputs[1], content_commitment: 'f'.repeat(64) },
+  ])), (error) => error.code === 'producer_content_mismatch');
+  database.rows.chat_recovery_chat_deletion_fences = [{ id: CHAT_ID }];
+  const before = structuredClone(database.rows);
+  await assert.rejects(executeOperation(database, 'create_sealed_outputs', batchBody(outputs)),
+    (error) => error.code === 'producer_chat_deleted');
+  assert.deepEqual(database.rows, before);
+});
+
+// contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery
+test('randomized sealed retries recheck existing root and target authority before returning first seal', async () => {
+  const childId = '018fdddd-dddd-7ddd-8ddd-dddddddddddd';
+  const changedSeal = JSON.stringify({ v: 2, epk: b64(32, 8), nonce: b64(12, 9), ciphertext: b64(17, 10) });
+  const cases = [
+    ['root removed', (rows) => { rows.chats = rows.chats.filter((row) => row.id !== CHAT_ID); }, 'chat_not_found'],
+    ['target removed', (rows) => { rows.chats = rows.chats.filter((row) => row.id !== childId); }, 'chat_not_found'],
+    ['root revoked', (rows) => { rows.chats[0].hashed_user_id = 'f'.repeat(64); }, 'chat_not_found'],
+    ['target revoked', (rows) => { rows.chats[1].hashed_user_id = 'f'.repeat(64); }, 'chat_not_found'],
+    ['root deleting', (rows) => { rows.chats[0].storage_state = 'deleting'; }, 'chat_not_found'],
+    ['target deleting', (rows) => { rows.chats[1].storage_state = 'deleting'; }, 'chat_not_found'],
+    ['output deleted', (rows) => { rows.chat_recovery_outputs[0].deleted_at = new Date(); }, 'sealed_output_invalidated'],
+    ['output tombstoned', (rows) => { rows.chat_recovery_outputs[0].state = 'DELETED'; }, 'sealed_output_invalidated'],
+    ['target Team scope changed', (rows) => {
+      rows.chats[1].hashed_team_id = TEAM_HASH;
+      rows.teams = [{ hashed_team_id: TEAM_HASH, status: 'active' }];
+      rows.team_memberships = [{ hashed_team_id: TEAM_HASH, hashed_user_id: OWNER, status: 'active', role: 'member' }];
+    }, 'sealed_output_invalidated'],
+  ];
+  for (const [label, mutate, code] of cases) {
+    for (const batch of [false, true]) {
+      const seed = producerSeed();
+      seed.chats.push({ id: childId, hashed_user_id: OWNER });
+      seed.sub_chat_orchestration_children = [{ child_chat_id: childId, orchestration_id: JOB_ID, inference_task_id: TASK_ID }];
+      seed.sub_chat_orchestrations = [{ id: JOB_ID, root_chat_id: CHAT_ID, hashed_user_id: OWNER }];
+      const database = fakeDatabase(seed);
+      const output = batchOutput(1, { target_chat_id: childId });
+      await executeOperation(database, 'create_sealed_output', output);
+      mutate(database.rows);
+      const before = structuredClone(database.rows);
+      const retry = { ...output, sealed_payload: changedSeal };
+      await assert.rejects(executeOperation(database, batch ? 'create_sealed_outputs' : 'create_sealed_output',
+        batch ? batchBody([retry]) : retry), (error) => error.code === code, `${label}, batch=${batch}`);
+      assert.deepEqual(database.rows, before);
+    }
+  }
+});
+
+// contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery
+test('randomized sealed retries reject revoked Team membership before returning stored ciphertext', async () => {
+  for (const batch of [false, true]) {
+    const seed = producerSeed();
+    seed.chats[0].hashed_team_id = TEAM_HASH;
+    seed.teams = [{ hashed_team_id: TEAM_HASH, status: 'active' }];
+    seed.team_memberships = [{ hashed_team_id: TEAM_HASH, hashed_user_id: OWNER, status: 'active', role: 'member' }];
+    const database = fakeDatabase(seed);
+    const output = batchOutput(1);
+    await executeOperation(database, 'create_sealed_output', output);
+    database.rows.team_memberships[0].status = 'revoked';
+    const retry = { ...output, sealed_payload: JSON.stringify({
+      v: 2, epk: b64(32, 8), nonce: b64(12, 9), ciphertext: b64(17, 10),
+    }) };
+    const before = structuredClone(database.rows);
+    await assert.rejects(executeOperation(database, batch ? 'create_sealed_outputs' : 'create_sealed_output',
+      batch ? batchBody([retry]) : retry), (error) => error.code === 'chat_not_found');
+    assert.deepEqual(database.rows, before);
+  }
+});

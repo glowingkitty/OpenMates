@@ -18,7 +18,7 @@ import {
 import { chatDB } from "./db";
 import { getApiEndpoint, storageArchiveFetch } from "../config/api";
 import { userDB } from "./userDB";
-import { chatKeyManager } from "./encryption/ChatKeyManager";
+import { chatKeyManager, computeKeyFingerprint } from "./encryption/ChatKeyManager";
 import { ensureChatKeySafeForWrite } from "./chatKeyWriteGuard";
 import { webSocketService } from "./websocketService";
 import { aiTypingStore } from "../stores/aiTypingStore";
@@ -74,6 +74,79 @@ function buildRecoveryMessagePreview(content: string): string {
 }
 
 class RecoveryEventTimeoutError extends Error {}
+// Only explicit gateway/service failures and canonical receipt timeouts qualify.
+// Identity, authorization, cryptography and generic store rejections never do.
+class RecoveryCanonicalTransientError extends Error { readonly code = "canonical_recovery_transient"; }
+function canonicalReadError(operation: string, status: number): Error {
+  const message = `${operation} (${status}).`;
+  return [502, 503, 504].includes(status)
+    ? new RecoveryCanonicalTransientError(message) : new Error(message);
+}
+class RecoveryParentVisibilityDeferredError extends Error {
+  constructor(readonly parentEmbedId: string) { super("Canonical recovered child embed remained unavailable after valid store receipt."); }
+}
+type PendingCanonicalRetry = {
+  output: AvailableRecoveryOutput; ownerId: string; keyFingerprint: string; generation: number; parentEmbedId?: string;
+};
+const pendingCanonicalRetries = new Map<string, PendingCanonicalRetry>();
+const consumedCanonicalRetries = new Set<string>();
+const activeCanonicalRetries = new Set<string>();
+const hydratedRecoveryTurns = new Set<string>();
+const acknowledgedCanonicalParents = new Set<string>();
+const parentIdentity = (output: AvailableRecoveryOutput, parentId: string) =>
+  `${output.root_chat_id}:${output.turn_id}:${output.target_chat_id}:${parentId}`;
+const MAX_PENDING_CANONICAL_RETRIES = 128;
+const MAX_RECENT_CANONICAL_IDENTITIES = 128;
+function rememberRecentCanonicalIdentity(identities: Set<string>, identity: string, pinned: (value: string) => boolean): boolean {
+  if (identities.has(identity)) identities.delete(identity);
+  else if (identities.size >= MAX_RECENT_CANONICAL_IDENTITIES) {
+    const oldest = [...identities].find((value) => !pinned(value));
+    if (oldest === undefined) return false;
+    identities.delete(oldest);
+  }
+  identities.add(identity);
+  return true;
+}
+const recoveryTurnIdentity = (chatId: string, turnId: string) => `${chatId}:${turnId}`;
+
+async function retryHydratedCanonicalOutputs(service: ChatSynchronizationService, chatId: string, turnId: string): Promise<void> {
+  const turn = recoveryTurnIdentity(chatId, turnId);
+
+  for (const [recordId, retry] of pendingCanonicalRetries) {
+    if (recoveryTurnIdentity(retry.output.root_chat_id, retry.output.turn_id) !== turn) continue;
+    if (retry.parentEmbedId
+      ? !acknowledgedCanonicalParents.has(parentIdentity(retry.output, retry.parentEmbedId))
+      : !hydratedRecoveryTurns.has(turn)) continue;
+    // Keep queued/in-flight attempts pinned: capacity pressure must never
+    // erase their consumed identity and turn a transient error into a loop.
+    if (!rememberRecentCanonicalIdentity(consumedCanonicalRetries, recordId,
+      (id) => activeCanonicalRetries.has(id) || pendingCanonicalRetries.has(id))) continue;
+    pendingCanonicalRetries.delete(recordId);
+    activeCanonicalRetries.add(recordId);
+    try {
+      if (retry.generation !== recoveryLifecycleGeneration) continue;
+      const root = await chatDB.getChat(chatId);
+      const key = await chatKeyManager.getKey(chatId);
+      const ownerId = root?.user_id || (await userDB.getUserProfile())?.user_id;
+      if (retry.generation !== recoveryLifecycleGeneration || !root || !key
+        || ownerId !== retry.ownerId || computeKeyFingerprint(key) !== retry.keyFingerprint
+        || (root.team_id ? await computeSHA256(root.team_id) : null) !== (retry.output.root_hashed_team_id ?? null)) continue;
+      if (retry.generation !== recoveryLifecycleGeneration) continue;
+      await handleRecoveryOutputsAvailableImpl(service, { outputs: [retry.output] });
+    } finally {
+      if (retry.generation === recoveryLifecycleGeneration) activeCanonicalRetries.delete(recordId);
+    }
+  }
+}
+function noteHydratedRecoveryTurn(service: ChatSynchronizationService, chatId: string, turnId: string): void {
+  // Pending identities pin their readiness; otherwise retain only recent turns.
+  if (!rememberRecentCanonicalIdentity(hydratedRecoveryTurns, recoveryTurnIdentity(chatId, turnId),
+    (turn) => [...pendingCanonicalRetries.values()].some((retry) =>
+      recoveryTurnIdentity(retry.output.root_chat_id, retry.output.turn_id) === turn))) return;
+  void retryHydratedCanonicalOutputs(service, chatId, turnId).catch((error) => {
+    console.error("[ChatSyncService:Recovery] Canonical retry scheduling failed:", error);
+  });
+}
 
 class RecoveryStaleJobError extends Error {}
 class RecoveryForegroundDeferredError extends Error {}
@@ -102,6 +175,11 @@ function assertRecoverySession(generation: number): void {
 }
 
 export function resetRecoveryLifecycleImpl(): void {
+  pendingCanonicalRetries.clear();
+  consumedCanonicalRetries.clear();
+  activeCanonicalRetries.clear();
+  hydratedRecoveryTurns.clear();
+  acknowledgedCanonicalParents.clear();
   clearPersonalChatTurnBarriers();
   clearRecoveryFinalTimestamps();
   recoveryLifecycleGeneration += 1;
@@ -266,7 +344,7 @@ export async function sendEmbedStoreWithReceipt(
   const confirmation = new Promise<RecoveredEmbedReceipt>((resolve, reject) => {
     const timer = window.setTimeout(() => {
       stop();
-      reject(new RecoveryEventTimeoutError(`Canonical ${eventType} confirmation timed out.`));
+      reject(new RecoveryCanonicalTransientError(`Canonical ${eventType} confirmation timed out.`));
     }, CHAT_RECOVERY_EVENT_TIMEOUT_MS);
     const onConfirmed = (raw: unknown) => {
       const event = raw as Record<string, unknown>;
@@ -313,7 +391,7 @@ async function sendEmbedKeysWithReceipt(
   const confirmation = new Promise<void>((resolve, reject) => {
     const timer = window.setTimeout(() => {
       stop();
-      reject(new RecoveryEventTimeoutError("Canonical embed key confirmation timed out."));
+      reject(new RecoveryCanonicalTransientError("Canonical embed key confirmation timed out."));
     }, CHAT_RECOVERY_EVENT_TIMEOUT_MS);
     const onConfirmed = (raw: unknown) => {
       const event = raw as Record<string, unknown>;
@@ -350,7 +428,7 @@ async function verifyExactCanonicalEmbedWrappers(
   const response = await storageArchiveFetch(getApiEndpoint(
     `/v1/embeds/chats/${encodeURIComponent(output.target_chat_id)}/embeds/${encodeURIComponent(keySubject)}${query}`,
   ), { credentials: "include" });
-  if (!response.ok) throw new Error(`Canonical embed wrapper read failed (${response.status}).`);
+  if (!response.ok) throw canonicalReadError("Canonical embed wrapper read failed", response.status);
   const page = await response.json() as { embed_keys?: Array<Record<string, unknown>> };
   const hashedSubject = await computeSHA256(keySubject);
   const hashedChat = await computeSHA256(output.target_chat_id);
@@ -389,7 +467,7 @@ async function readRecoveredCanonicalEmbed(
     `/v1/embeds/chats/${encodeURIComponent(output.target_chat_id)}/embeds/${encodeURIComponent(output.subject_id)}${query}`,
   ), { credentials: "include" });
   if (response.status === 404) return null;
-  if (!response.ok) throw new Error(`Canonical embed read failed (${response.status}).`);
+  if (!response.ok) throw canonicalReadError("Canonical embed read failed", response.status);
   const page = await response.json() as { embed?: Record<string, unknown> };
   const embed = page.embed;
   if (!embed || embed.embed_id !== output.subject_id) throw new Error("Canonical embed identity mismatch.");
@@ -410,7 +488,7 @@ async function readRecoveredCanonicalEmbed(
     const versionResponse = await storageArchiveFetch(getApiEndpoint(
       `/v1/embeds/${encodeURIComponent(output.subject_id)}/versions/${output.output_version}?${versionQuery}`,
     ), { credentials: "include" });
-    if (!versionResponse.ok) throw new Error(`Canonical historical embed read failed (${versionResponse.status}).`);
+    if (!versionResponse.ok) throw canonicalReadError("Canonical historical embed read failed", versionResponse.status);
     const history = await versionResponse.json() as {
       embed_id?: string; version_number?: number; rows?: EmbedVersionMeta[];
     };
@@ -497,6 +575,7 @@ async function readRecoveredCanonicalDiff(
   ), { credentials: "include" });
   if (response.status === 404) return null;
   if (!response.ok) {
+    if ([502, 503, 504].includes(response.status)) throw canonicalReadError("Canonical diff read failed", response.status);
     const error = await response.json().catch(() => null) as { detail?: unknown } | null;
     if (isUnwrittenInitialDiffRead(response.status, error?.detail, output.output_version)) return null;
     const detail = typeof error?.detail === "string" ? error.detail.slice(0, 80) : "unknown";
@@ -600,7 +679,12 @@ async function persistRecoveredEmbed(
   const savedDigest = await readRecoveredCanonicalEmbed(
     output, content.content, content.type, content.message_id, embedKey,
   );
-  if (!savedDigest) throw new Error("Canonical recovered embed remained unavailable after store receipt.");
+  if (!savedDigest) {
+    // A child GET requires its finished parent and wrappers. A valid durable
+    // child receipt alone cannot make that dependency visible.
+    if (writeReceipt && parentEmbedId) throw new RecoveryParentVisibilityDeferredError(parentEmbedId);
+    throw new Error("Canonical recovered embed remained unavailable after store receipt.");
+  }
   if (writeReceipt && (writeReceipt.source !== savedDigest.source || writeReceipt.digest !== savedDigest.digest)) {
     throw new Error("Canonical recovered embed receipt did not match its reread.");
   }
@@ -952,6 +1036,7 @@ export async function handleRecoveryJobsAvailableImpl(
           const currentChat = await chatDB.getChat(job.chat_id);
           await chatDB.updateChat(chatAfterRecoveredReply(currentChat, terminalChat, terminalChat.messages_v, Math.floor(Date.now() / 1000)));
           completePersonalChatTurn(job.chat_id, job.turn_id, terminalChat.messages_v);
+          if (generation === recoveryLifecycleGeneration) noteHydratedRecoveryTurn(serviceInstance, job.chat_id, job.turn_id);
         } else {
           failMatchingPersonalChatTurn(job.chat_id, job.turn_id, new Error('Terminal reply has not hydrated locally.'));
         }
@@ -1099,6 +1184,7 @@ export async function handleRecoveryJobsAvailableImpl(
       const updatedChat = chatAfterRecoveredReply(currentChat, persistBaseChat, committedVersion, now);
       await chatDB.updateChat(updatedChat);
       completePersonalChatTurn(job.chat_id, job.turn_id, committedVersion);
+      if (generation === recoveryLifecycleGeneration) noteHydratedRecoveryTurn(serviceInstance, job.chat_id, job.turn_id);
       const taskInfo = serviceInstance.activeAITasks?.get(job.chat_id);
       const taskMatchesRecoveryMessage = taskInfo?.taskId === job.assistant_message_id;
       if (taskMatchesRecoveryMessage) {
@@ -1201,6 +1287,7 @@ async function processRecoveryOutputsAvailable(
     await (async () => {
     if (!output.record_id || recoveryOutputsInProgress.has(output.record_id)) return;
     recoveryOutputsInProgress.add(output.record_id);
+    let canonicalRetryContext: { ownerId: string; keyFingerprint: string } | null = null;
     try {
       assertRecoverySession(generation);
       const rootChat = await chatDB.getChat(output.root_chat_id);
@@ -1266,6 +1353,7 @@ async function processRecoveryOutputsAvailable(
       if (!await ensureChatKeySafeForWrite(output.target_chat_id, rootKey, "child output recovery", { reportFailure: false })) return;
       assertRecoverySession(generation);
       if (output.output_kind === "embed" || output.output_kind === "diff") {
+        canonicalRetryContext = { ownerId, keyFingerprint: computeKeyFingerprint(rootKey) };
         await withCanonicalEmbedWrite(output.subject_id, async (lease) => {
           const canonicalReceipt = await persistRecoveredEmbed(output, content, rootKey, ownerId);
           const acknowledged = await requestRecoveryEvent(
@@ -1276,6 +1364,15 @@ async function processRecoveryOutputsAvailable(
           if (acknowledged.state !== "ACKNOWLEDGED") throw new Error("Recovered embed was not acknowledged.");
           markAcknowledgedRecoveredEmbed(lease, output.target_chat_id, output.output_version);
         });
+        assertRecoverySession(generation);
+        if (output.output_kind === "embed" && rememberRecentCanonicalIdentity(
+          acknowledgedCanonicalParents, parentIdentity(output, output.subject_id),
+          (identity) => [...pendingCanonicalRetries.values()].some((retry) =>
+            !!retry.parentEmbedId && parentIdentity(retry.output, retry.parentEmbedId) === identity))) {
+          void retryHydratedCanonicalOutputs(serviceInstance, output.root_chat_id, output.turn_id).catch((error) => {
+            console.error("[ChatSyncService:Recovery] Parent-ready retry scheduling failed:", error);
+          });
+        }
         serviceInstance.dispatchEvent(new CustomEvent("embedUpdated", {
           detail: { embed_id: output.subject_id, chat_id: output.target_chat_id,
             status: "finished", version_number: output.output_version, isProcessing: false },
@@ -1378,9 +1475,25 @@ async function processRecoveryOutputsAvailable(
         deferredRecoveryOutputs.set(output.record_id, output);
         return;
       }
-      if (!(error instanceof RecoveryStaleJobError)) console.error("[ChatSyncService:Recovery] Output recovery failed:", error);
+      if ((error instanceof RecoveryCanonicalTransientError || error instanceof RecoveryParentVisibilityDeferredError) && canonicalRetryContext
+        && !consumedCanonicalRetries.has(output.record_id)
+        && pendingCanonicalRetries.size < MAX_PENDING_CANONICAL_RETRIES
+        && generation === recoveryLifecycleGeneration) {
+        pendingCanonicalRetries.set(output.record_id, { output, ...canonicalRetryContext, generation,
+          ...(error instanceof RecoveryParentVisibilityDeferredError ? { parentEmbedId: error.parentEmbedId } : {}),
+        });
+      }
+      if (!(error instanceof RecoveryStaleJobError)) console.error("[ChatSyncService:Recovery] Output recovery failed:", {
+        record_id: output.record_id, root_chat_id: output.root_chat_id, turn_id: output.turn_id,
+      }, error);
     } finally {
       recoveryOutputsInProgress.delete(output.record_id);
+      // Completion may have hydrated while the failed canonical request was in flight.
+      if (pendingCanonicalRetries.has(output.record_id)) {
+        void retryHydratedCanonicalOutputs(serviceInstance, output.root_chat_id, output.turn_id).catch((error) => {
+          console.error("[ChatSyncService:Recovery] Canonical retry scheduling failed:", error);
+        });
+      }
     }
     })();
   }

@@ -113,6 +113,17 @@ assertions:
     type: behavior
     must: When an authenticated user's acknowledged settings enable email for an eligible notification kind and a decrypted notification address is available, a due notification event dispatches at most one email delivery request for that logical event, including when the web or native client is offline.
     depends_on: [models.NotificationSettings, models.NotificationEvent, examples.email_delivery]
+  - id: notifications.delivery.foreground-chat-suppression
+    type: behavior
+    must: >
+      Completed chat responses suppress both chat email and push while an authenticated
+      web app is in the foreground or a human interactive TUI remains open, including
+      new chats before their chat identifier is selected and subsequent responses.
+      Presence covers that user's chats and uses fresh per-connection leases; background,
+      closed, disconnected, expired, headless and noninteractive clients do not suppress
+      delivery. Other users' presence never suppresses a recipient's notifications.
+      Existing Team access, channel preferences and non-chat notification rules remain authoritative.
+    depends_on: [models.NotificationEvent]
   - id: notifications.delivery.push-enabled
     type: behavior
     must: Web and Apple push delivery is attempted only for granted, registered, non-revoked subscriptions whose user preferences allow the notification kind; unsupported or denied platforms degrade to retained history and any other enabled channels without fabricating push success.

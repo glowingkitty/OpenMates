@@ -47,6 +47,8 @@ const MAX_CONTENT_BYTES = 16 * 1024 * 1024;
 const MAX_AVAILABLE_JOBS = 100;
 const MAX_CHAT_FENCE_LOOKUP = 100;
 const MAX_INLINE_OUTPUT_BYTES = 256 * 1024;
+const MAX_OUTPUT_BATCH_ENTRIES = 32;
+const MAX_OUTPUT_BATCH_BYTES = 512 * 1024;
 const OUTPUT_KINDS = new Set(['message', 'embed', 'diff', 'summary', 'checkpoint']);
 const PRODUCER_OUTPUT_KINDS = new Set(['embed', 'diff']);
 const MAX_PRODUCER_CHILDREN = 32;
@@ -164,6 +166,8 @@ const OPERATION_FIELDS = Object.freeze({
     'protocol_version', 'job_id', 'hashed_user_id', 'chat_id', 'turn_id',
     'preflight_id', 'inference_task_id', 'assistant_message_id', 'chat_key_version', 'sealed_payload',
   ]),
+  create_sealed_outputs: new Set(['protocol_version', 'outputs']),
+  get_replay_outputs: new Set(['protocol_version', 'outputs']),
   create_sealed_output: new Set([
     'protocol_version', 'record_id', 'hashed_user_id', 'root_chat_id', 'target_chat_id',
     'turn_id', 'preflight_id', 'inference_task_id', 'subject_id', 'output_kind',
@@ -4049,7 +4053,59 @@ async function getProducerOutput(database, raw) {
   });
 }
 
-async function getReplayOutput(database, raw) {
+// Batches retain every single-output authority check inside one shared transaction.
+function outputBatch(raw, operation, singleOperation) {
+  const body = operationBody(raw, operation);
+  if (!Array.isArray(body.outputs) || body.outputs.length < 1
+    || body.outputs.length > MAX_OUTPUT_BATCH_ENTRIES) fail(400, 'invalid_output_batch');
+  if (Buffer.byteLength(JSON.stringify(body), 'utf8') > MAX_OUTPUT_BATCH_BYTES) {
+    fail(413, 'output_batch_too_large');
+  }
+  const outputs = body.outputs.map((output) => operationBody(output, singleOperation));
+  const ids = new Set();
+  const identityFields = [
+    'hashed_user_id', 'root_chat_id', 'target_chat_id', 'preflight_id',
+    'turn_id', 'inference_task_id', 'chat_key_version',
+    'producer_intent_id', 'producer_task_name', 'producer_kwargs_binding',
+  ];
+  for (const output of outputs) {
+    const id = uuid(output.record_id, 'invalid_record_id');
+    if (ids.has(id)) fail(400, 'duplicate_output_record');
+    ids.add(id);
+    if (identityFields.some((field) => output[field] !== outputs[0][field])) {
+      fail(400, 'mixed_output_batch_identity');
+    }
+    if (singleOperation === 'create_sealed_output'
+      && (output.sealed_payload === undefined || output.payload_s3_key !== undefined)) {
+      fail(400, 'invalid_output_storage');
+    }
+  }
+  return outputs;
+}
+
+async function getReplayOutputs(database, raw) {
+  const outputs = outputBatch(raw, 'get_replay_outputs', 'get_replay_output');
+  return database.transaction(async (trx) => {
+    const receipts = [];
+    for (const output of outputs) {
+      receipts.push({ ...await getReplayOutput(database, output, trx), record_id: output.record_id });
+    }
+    return { outputs: receipts };
+  });
+}
+
+async function createSealedOutputs(database, raw, now) {
+  const outputs = outputBatch(raw, 'create_sealed_outputs', 'create_sealed_output');
+  return database.transaction(async (trx) => {
+    const receipts = [];
+    for (const output of outputs) {
+      receipts.push(await createSealedOutput(database, output, now, false, trx));
+    }
+    return { outputs: receipts };
+  });
+}
+
+async function getReplayOutput(database, raw, transaction = null) {
   const body = operationBody(raw, 'get_replay_output');
   const identity = {
     id: uuid(body.record_id, 'invalid_record_id'),
@@ -4062,7 +4118,7 @@ async function getReplayOutput(database, raw) {
     output_version: integer(body.output_version, 'invalid_output_version'),
     content_commitment: hexDigest(body.content_commitment, 'invalid_content_commitment'),
   };
-  return database.transaction(async (trx) => {
+  const run = async (trx) => {
     await requireUnfencedRecoveryAccount(trx, identity.hashed_user_id);
     await lockRecoveryChats(trx, identity.root_chat_id, identity.target_chat_id);
     const preflight = await trx(PREFLIGHTS).where({ id: identity.preflight_id }).forUpdate().first();
@@ -4078,7 +4134,8 @@ async function getReplayOutput(database, raw) {
       fail(409, 'replay_output_mismatch');
     }
     return { status: row.state, ...producerOutputReceipt(row) };
-  });
+  };
+  return transaction ? run(transaction) : database.transaction(run);
 }
 
 function producerOutputReceipt(row) {
@@ -4093,7 +4150,7 @@ function producerOutputReceipt(row) {
   };
 }
 
-async function createSealedOutput(database, raw, now, preparing = false) {
+async function createSealedOutput(database, raw, now, preparing = false, transaction = null) {
   const body = operationBody(raw, preparing ? 'prepare_sealed_output' : 'create_sealed_output');
   const identity = {
     hashed_user_id: string(body.hashed_user_id, 'invalid_owner', 64),
@@ -4155,7 +4212,7 @@ async function createSealedOutput(database, raw, now, preparing = false) {
       verifiedRegions = [...new Set(body.payload_verified_regions)].sort();
     }
   }
-  return database.transaction(async (trx) => {
+  const run = async (trx) => {
     await requireUnfencedRecoveryAccount(trx, identity.hashed_user_id);
     await lockRecoveryChats(trx, identity.root_chat_id, identity.target_chat_id);
     let producer = null;
@@ -4197,6 +4254,11 @@ async function createSealedOutput(database, raw, now, preparing = false) {
       if (producer && (existing.producer_intent_id !== producerId
         || Number(existing.producer_ordinal) !== producerOrdinal
         || existing.content_commitment !== contentCommitment)) fail(409, 'producer_content_mismatch');
+      const currentRoot = await authorizedOutputChat(trx, identity.root_chat_id, identity.hashed_user_id);
+      const currentTarget = await authorizedOutputChat(trx, identity.target_chat_id, identity.hashed_user_id);
+      if ((currentRoot.hashed_team_id || null) !== (existing.root_hashed_team_id || null)
+        || (currentTarget.hashed_team_id || null) !== (currentRoot.hashed_team_id || null)
+        || existing.deleted_at || existing.state === 'DELETED') fail(409, 'sealed_output_invalidated');
       if ((producer || contentCommitment) && existing.sealed_payload_digest !== payloadDigest) {
         if (existing.deleted_at || existing.state === 'DELETED') fail(409, 'producer_output_invalidated');
         return producerOutputReceipt(existing);
@@ -4205,11 +4267,6 @@ async function createSealedOutput(database, raw, now, preparing = false) {
         || existing.payload_s3_key !== payloadKey
         || existing.payload_storage !== (external ? 's3' : 'inline')
         || Number(existing.payload_size_bytes) !== payloadSize) fail(409, 'sealed_output_mismatch');
-      const currentRoot = await authorizedOutputChat(trx, identity.root_chat_id, identity.hashed_user_id);
-      const currentTarget = await authorizedOutputChat(trx, identity.target_chat_id, identity.hashed_user_id);
-      if ((currentRoot.hashed_team_id || null) !== (existing.root_hashed_team_id || null)
-        || (currentTarget.hashed_team_id || null) !== (currentRoot.hashed_team_id || null)
-        || existing.deleted_at || existing.state === 'DELETED') fail(409, 'sealed_output_invalidated');
       if (preparing && existing.state === 'PREPARING') {
         const leaseUntil = new Date(now.getTime() + 90_000);
         await trx(OUTPUTS).where({ id: recordId, state: 'PREPARING' }).update({ writer_lease_until: leaseUntil });
@@ -4260,7 +4317,8 @@ async function createSealedOutput(database, raw, now, preparing = false) {
       writer_lease_until: preparing ? new Date(now.getTime() + 90_000) : null,
     });
     return { record_id: recordId, state: preparing ? 'PREPARING' : 'PENDING', idempotent: false };
-  });
+  };
+  return transaction ? run(transaction) : database.transaction(run);
 }
 
 async function listPendingOutputs(database, raw) {
@@ -5233,7 +5291,9 @@ export const operations = Object.freeze({
   close_output_producer: closeOutputProducer,
   classify_untagged_output_producer: classifyUntaggedOutputProducer,
   get_producer_output: getProducerOutput,
-  get_replay_output: getReplayOutput,
+  get_replay_output: (database, raw) => getReplayOutput(database, raw),
+  get_replay_outputs: getReplayOutputs,
+  create_sealed_outputs: createSealedOutputs,
   create_sealed_output: createSealedOutput, list_pending_outputs: listPendingOutputs,
   prepare_sealed_output: (database, raw, now) => createSealedOutput(database, raw, now, true),
   get_pending_output: getPendingOutput,

@@ -11,7 +11,9 @@ import uuid
 import random
 import string
 import re
-from typing import Dict, Any, Optional, List, Tuple
+from typing import Dict, Any, Optional, List, Tuple, AsyncIterator
+from contextlib import asynccontextmanager
+from contextvars import ContextVar
 from datetime import datetime, timezone
 
 from toon_format import encode, decode
@@ -48,6 +50,10 @@ from backend.shared.python_utils.chat_recovery_context import (
 )
 
 logger = logging.getLogger(__name__)
+
+_pending_finished_embed_batch: ContextVar[dict[str, Any] | None] = ContextVar(
+    "pending_finished_embed_batch", default=None,
+)
 
 EMBED_CACHE_TTL_SECONDS = 259200
 APPLICATION_ARTIFACT_DEPENDENCY_MANIFESTS = {"package.json"}
@@ -5228,6 +5234,7 @@ class EmbedService:
     def _generate_embed_ref_slug(
         child_type: str,
         result: Dict[str, Any],
+        *, stable_embed_id: str | None = None,
     ) -> str:
         """
         Generate a short, descriptive embed_ref slug for a child embed result.
@@ -5247,6 +5254,7 @@ class EmbedService:
         Args:
             child_type: The embed type string ("website", "place", "connection", etc.)
             result: The raw result dict for this child embed.
+            stable_embed_id: Optional recovery-bound identity for repeatable fallback refs.
 
         Returns:
             A short descriptive slug with 3-char random suffix, e.g. "wikipedia.org-k8D".
@@ -5277,7 +5285,7 @@ class EmbedService:
             url = url.split(":")[0]
             return url.lower()[:40]
 
-        suffix = _random_suffix()
+        suffix = hashlib.sha256(stable_embed_id.encode()).hexdigest()[:8] if stable_embed_id else _random_suffix()
         slug = ""
 
         try:
@@ -5694,76 +5702,177 @@ class EmbedService:
                 logger.warning(f"{log_prefix} Could not retrieve original embed metadata for {embed_id} and no request_metadata provided")
 
             if is_composite:
-                for child_index, result in enumerate(embed_results):
-                    # Determine per-result child type (may override default for YouTube URLs in web search)
-                    child_type = EmbedService._get_per_result_child_type(
-                        default_child_type, result, app_id, skill_id
-                    )
+                async with self._defer_completed_embed_publications() as batch:
+                    for child_index, result in enumerate(embed_results):
+                        # Determine per-result child type (may override default for YouTube URLs in web search)
+                        child_type = EmbedService._get_per_result_child_type(
+                            default_child_type, result, app_id, skill_id
+                        )
 
-                    child_type, enriched_result = await self._enrich_repo_result_if_needed(
-                        child_type, result, log_prefix
-                    )
+                        child_type, enriched_result = await self._enrich_repo_result_if_needed(
+                            child_type, result, log_prefix
+                        )
 
-                    # Generate embed_id for child
-                    child_embed_id = self._registered_child_embed_id(embed_id, child_index)
+                        # Generate embed_id for child
+                        child_embed_id = self._registered_child_embed_id(embed_id, child_index)
 
-                    # DEBUG: Log the result BEFORE flattening to see if thumbnail/meta_url exist
-                    logger.info(
-                        f"{log_prefix} [EMBED_DEBUG] Child embed {child_embed_id} - RAW result keys: {list(result.keys())}, "
-                        f"has_thumbnail={'thumbnail' in result}, "
-                        f"has_meta_url={'meta_url' in result}"
-                    )
+                        # DEBUG: Log the result BEFORE flattening to see if thumbnail/meta_url exist
+                        logger.info(
+                            f"{log_prefix} [EMBED_DEBUG] Child embed {child_embed_id} - RAW result keys: {list(result.keys())}, "
+                            f"has_thumbnail={'thumbnail' in result}, "
+                            f"has_meta_url={'meta_url' in result}"
+                        )
 
-                    # Use pre-generated embed_ref from result dict if present (single source of truth).
-                    # main_processor.py pre-generates slugs in results_with_refs BEFORE building
-                    # the tool_result_content_str, so the LLM sees the SAME slug that ends up in
-                    # the child embed TOON — preventing the slug-mismatch bug where two independent
-                    # random suffixes are generated for the same logical result.
-                    # Fall back to generating a new slug only if embed_ref is missing (e.g., for
-                    # non-composite skills or code paths that bypass the pre-generation step).
-                    result_with_ref = dict(enriched_result)
-                    result_for_embed = apply_learning_mode_cap_to_embed_result(
-                        child_type,
-                        result_with_ref,
-                        learning_mode_context,
-                    )
-                    if "embed_ref" in result_for_embed:
-                        child_embed_ref = result_for_embed["embed_ref"]
-                        logger.debug(f"{log_prefix} Reusing pre-generated embed_ref for child embed" if hosting_graph
-                                     else f"{log_prefix} Reusing pre-generated embed_ref '{child_embed_ref}' for child embed")
-                    else:
-                        child_embed_ref = self._generate_embed_ref_slug(child_type, enriched_result)
-                        result_for_embed["embed_ref"] = child_embed_ref
+                        # Use pre-generated embed_ref from result dict if present (single source of truth).
+                        # main_processor.py pre-generates slugs in results_with_refs BEFORE building
+                        # the tool_result_content_str, so the LLM sees the SAME slug that ends up in
+                        # the child embed TOON — preventing the slug-mismatch bug where two independent
+                        # random suffixes are generated for the same logical result.
+                        # Fall back to generating a new slug only if embed_ref is missing (e.g., for
+                        # non-composite skills or code paths that bypass the pre-generation step).
+                        result_with_ref = dict(enriched_result)
+                        result_for_embed = apply_learning_mode_cap_to_embed_result(
+                            child_type,
+                            result_with_ref,
+                            learning_mode_context,
+                        )
+                        if "embed_ref" in result_for_embed:
+                            child_embed_ref = result_for_embed["embed_ref"]
+                            logger.debug(f"{log_prefix} Reusing pre-generated embed_ref for child embed" if hosting_graph
+                                         else f"{log_prefix} Reusing pre-generated embed_ref '{child_embed_ref}' for child embed")
+                        else:
+                            child_embed_ref = self._generate_embed_ref_slug(
+                                child_type, enriched_result,
+                                stable_embed_id=child_embed_id if active_recovery_output_context.get() is not None else None,
+                            )
+                            result_for_embed["embed_ref"] = child_embed_ref
 
-                    # Inject app_id and skill_id into child TOON so the frontend can
-                    # extract them when registering embed_ref → appId in the in-memory index.
-                    # Without this the inline badge gradient falls back to grey because
-                    # the child result dict only contains flight/event fields, not app metadata.
-                    result_for_embed["app_id"] = app_id
-                    result_for_embed["skill_id"] = skill_id
+                        # Inject app_id and skill_id into child TOON so the frontend can
+                        # extract them when registering embed_ref → appId in the in-memory index.
+                        # Without this the inline badge gradient falls back to grey because
+                        # the child result dict only contains flight/event fields, not app metadata.
+                        result_for_embed["app_id"] = app_id
+                        result_for_embed["skill_id"] = skill_id
+                        if hosting_graph:
+                            result_for_embed["type"] = "hosting_domain"
+
+                        # Convert result to TOON format (PLAINTEXT)
+                        flattened_result = result_for_embed if hosting_graph else _flatten_for_toon_tabular(result_for_embed)
+
+                        # DEBUG: Log the result AFTER flattening to see if thumbnail_original/meta_url_favicon exist
+                        logger.info(
+                            f"{log_prefix} [EMBED_DEBUG] Child embed {child_embed_id} - FLATTENED result keys: {list(flattened_result.keys())}, "
+                            f"has_thumbnail_original={'thumbnail_original' in flattened_result}, "
+                            f"has_meta_url_favicon={'meta_url_favicon' in flattened_result}"
+                        )
+
+                        content_toon = encode(flattened_result)
+
+                        # Calculate text length for child embed
+                        text_length_chars = len(content_toon)
+
+                        # Create child embed entry
+                        created_at = int(datetime.now().timestamp())
+                        child_embed_data = {
+                            "embed_id": child_embed_id,
+                            "type": child_type,
+                            "chat_id": chat_id,
+                            "message_id": message_id,
+                            "hashed_chat_id": hashed_chat_id,
+                            "hashed_message_id": hashed_message_id,
+                            "hashed_task_id": hashed_task_id,
+                            "status": "finished",
+                            "hashed_user_id": user_id_hash,
+                            "is_private": False,
+                            "is_shared": False,
+                            "encryption_mode": "client",
+                            "parent_embed_id": embed_id,  # CRITICAL: Set parent_embed_id for key inheritance
+                            "text_length_chars": text_length_chars,
+                            "created_at": created_at,
+                            "updated_at": created_at
+                        }
+
+                        # Encrypt with vault key for server-side cache
+                        encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                            content_toon,
+                            user_vault_key_id
+                        )
+                        child_embed_data["encrypted_content"] = encrypted_content
+
+                        # SEND PLAINTEXT TOON TO CLIENT via WebSocket
+                        # CRITICAL: Pass parent_embed_id so child embeds can use parent's key (key inheritance - Option A)
+                        # The send seals and caches the finished child before publishing.
+                        await self.send_embed_data_to_client(
+                            embed_id=child_embed_id,
+                            embed_type=child_type,
+                            content_toon=content_toon,  # PLAINTEXT TOON
+                            chat_id=chat_id,
+                            message_id=message_id,
+                            user_id=user_id,
+                            user_id_hash=user_id_hash,
+                            status="finished",
+                            task_id=task_id,
+                            text_length_chars=text_length_chars,
+                            created_at=created_at,
+                            updated_at=created_at,
+                            parent_embed_id=embed_id,  # Set parent_embed_id so frontend can use parent key
+                            log_prefix=log_prefix,
+                            check_cache_status=False,  # Skip cache check - we just created this embed
+                            app_id=app_id,  # Pass app_id so frontend can route to correct renderer
+                            skill_id=child_type,  # Use child_type as skill_id (e.g. "image_result", "web_result")
+                            producer_child_index=child_index,
+                            finished_cache_data=child_embed_data,
+                            finished_cache_vault_key_id=user_vault_key_id,
+                        )
+
+                        child_embed_ids.append(child_embed_id)
+                        logger.debug(f"{log_prefix} Created child embed {child_embed_id} (type: {child_type})")
+
+                    # Update parent embed with child embed_ids and results
+                    # Include original metadata (query, provider, etc.) for proper frontend rendering
+                    # CRITICAL: original_metadata must include query for web search embeds to display correctly
+                    parent_content = {
+                        "app_id": app_id,
+                        "skill_id": skill_id,
+                        "result_count": len(results),
+                        "embed_ids": child_embed_ids,
+                        "status": "finished",
+                        **original_metadata,  # Preserve query, provider, url, etc. from placeholder
+                        **EmbedService._build_parent_preview_metadata(app_id, skill_id, results),
+                    }
                     if hosting_graph:
-                        result_for_embed["type"] = "hosting_domain"
+                        parent_content.update(EmbedService._hosting_parent_metadata(
+                            hosting_group, embed_results, child_embed_ids, original_metadata,
+                        ))
+                    parent_content = EmbedService._sanitize_final_app_skill_content(app_id, skill_id, parent_content)
 
-                    # Convert result to TOON format (PLAINTEXT)
-                    flattened_result = result_for_embed if hosting_graph else _flatten_for_toon_tabular(result_for_embed)
-                    
-                    # DEBUG: Log the result AFTER flattening to see if thumbnail_original/meta_url_favicon exist
+                    # Log final parent content to verify query is included
                     logger.info(
-                        f"{log_prefix} [EMBED_DEBUG] Child embed {child_embed_id} - FLATTENED result keys: {list(flattened_result.keys())}, "
-                        f"has_thumbnail_original={'thumbnail_original' in flattened_result}, "
-                        f"has_meta_url_favicon={'meta_url_favicon' in flattened_result}"
+                        f"{log_prefix} Parent embed content includes: "
+                        f"query_present={'query' in parent_content}, "
+                        f"provider_present={'provider' in parent_content}, "
+                        f"providers_present={'providers' in parent_content}, "
+                        f"result_count={parent_content.get('result_count')}"
                     )
-                    
-                    content_toon = encode(flattened_result)
 
-                    # Calculate text length for child embed
-                    text_length_chars = len(content_toon)
+                    # Convert to TOON (PLAINTEXT)
+                    flattened_parent = parent_content if hosting_graph else _flatten_for_toon_tabular(parent_content)
+                    parent_content_toon = EmbedService._sanitize_finance_check_accounts_toon(encode(flattened_parent))
 
-                    # Create child embed entry
-                    created_at = int(datetime.now().timestamp())
-                    child_embed_data = {
-                        "embed_id": child_embed_id,
-                        "type": child_type,
+                    # Calculate text length for parent embed
+                    parent_text_length_chars = len(parent_content_toon)
+
+                    # Encrypt with vault key
+                    encrypted_parent_content, _ = await self.encryption_service.encrypt_with_user_key(
+                        parent_content_toon,
+                        user_vault_key_id
+                    )
+
+                    # Update parent embed in cache
+                    updated_at = int(datetime.now().timestamp())
+                    updated_embed_data = {
+                        "embed_id": embed_id,
+                        "type": "app_skill_use",
                         "chat_id": chat_id,
                         "message_id": message_id,
                         "hashed_chat_id": hashed_chat_id,
@@ -5774,159 +5883,63 @@ class EmbedService:
                         "is_private": False,
                         "is_shared": False,
                         "encryption_mode": "client",
-                        "parent_embed_id": embed_id,  # CRITICAL: Set parent_embed_id for key inheritance
-                        "text_length_chars": text_length_chars,
-                        "created_at": created_at,
-                        "updated_at": created_at
+                        "embed_ids": child_embed_ids,  # JSON array
+                        "encrypted_content": encrypted_parent_content,
+                        "text_length_chars": parent_text_length_chars,
+                        "created_at": updated_at,
+                        "updated_at": updated_at
                     }
 
-                    # Encrypt with vault key for server-side cache
-                    encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
-                        content_toon,
-                        user_vault_key_id
-                    )
-                    child_embed_data["encrypted_content"] = encrypted_content
-
-                    # SEND PLAINTEXT TOON TO CLIENT via WebSocket
-                    # CRITICAL: Pass parent_embed_id so child embeds can use parent's key (key inheritance - Option A)
-                    # The send seals and caches the finished child before publishing.
-                    await self.send_embed_data_to_client(
-                        embed_id=child_embed_id,
-                        embed_type=child_type,
-                        content_toon=content_toon,  # PLAINTEXT TOON
+                    # CRITICAL FIX: Send BEFORE updating cache to avoid duplicate prevention blocking
+                    # The send_embed_data_to_client with check_cache_status=True will check if cache
+                    # already has status=finished and skip. We need to send first, then update cache.
+                    # This ensures the client receives the parent embed data with embed_ids (child embeds)
+                    send_ok = await self.send_embed_data_to_client(
+                        embed_id=embed_id,
+                        embed_type="app_skill_use",
+                        content_toon=parent_content_toon,  # PLAINTEXT TOON
                         chat_id=chat_id,
                         message_id=message_id,
                         user_id=user_id,
                         user_id_hash=user_id_hash,
                         status="finished",
                         task_id=task_id,
-                        text_length_chars=text_length_chars,
-                        created_at=created_at,
-                        updated_at=created_at,
-                        parent_embed_id=embed_id,  # Set parent_embed_id so frontend can use parent key
+                        embed_ids=child_embed_ids,
+                        text_length_chars=parent_text_length_chars,
+                        created_at=updated_at,
+                        updated_at=updated_at,
                         log_prefix=log_prefix,
-                        check_cache_status=False,  # Skip cache check - we just created this embed
-                        app_id=app_id,  # Pass app_id so frontend can route to correct renderer
-                        skill_id=child_type,  # Use child_type as skill_id (e.g. "image_result", "web_result")
-                        producer_child_index=child_index,
-                        finished_cache_data=child_embed_data,
+                        check_cache_status=True,  # Enable deduplication check (will pass since cache still has "processing")
+                        app_id=app_id,
+                        skill_id=skill_id,
+                        producer_final_children=[
+                            {"subject_id": child_id, "output_kind": "embed", "output_version": 1}
+                            for child_id in child_embed_ids
+                        ],
+                        finished_cache_data=updated_embed_data,
                         finished_cache_vault_key_id=user_vault_key_id,
                     )
+                    await self._flush_completed_embed_publications(batch)
+                    if not send_ok:
+                        logger.error(
+                            f"{log_prefix} [EMBED_EVENT] FAILED to publish send_embed_data for composite embed {embed_id} "
+                            f"(status=finished, children={len(child_embed_ids)}). Client will not receive the finalized embed — "
+                            f"relying on client-side stale recovery (request_embed after 5s)."
+                        )
 
-                    child_embed_ids.append(child_embed_id)
-                    logger.debug(f"{log_prefix} Created child embed {child_embed_id} (type: {child_type})")
+                    logger.info(f"{log_prefix} Updated embed {embed_id} with {len(child_embed_ids)} child embeds (send_ok={send_ok})")
 
-                # Update parent embed with child embed_ids and results
-                # Include original metadata (query, provider, etc.) for proper frontend rendering
-                # CRITICAL: original_metadata must include query for web search embeds to display correctly
-                parent_content = {
-                    "app_id": app_id,
-                    "skill_id": skill_id,
-                    "result_count": len(results),
-                    "embed_ids": child_embed_ids,
-                    "status": "finished",
-                    **original_metadata,  # Preserve query, provider, url, etc. from placeholder
-                    **EmbedService._build_parent_preview_metadata(app_id, skill_id, results),
-                }
-                if hosting_graph:
-                    parent_content.update(EmbedService._hosting_parent_metadata(
-                        hosting_group, embed_results, child_embed_ids, original_metadata,
-                    ))
-                parent_content = EmbedService._sanitize_final_app_skill_content(app_id, skill_id, parent_content)
-                
-                # Log final parent content to verify query is included
-                logger.info(
-                    f"{log_prefix} Parent embed content includes: "
-                    f"query_present={'query' in parent_content}, "
-                    f"provider_present={'provider' in parent_content}, "
-                    f"providers_present={'providers' in parent_content}, "
-                    f"result_count={parent_content.get('result_count')}"
-                )
+                    # Schedule fallback persistence for parent and all child embeds
+                    # This ensures embeds are persisted even if the client doesn't send store_embed
+                    self._schedule_embed_persistence_fallback(embed_id)
+                    for cid in child_embed_ids:
+                        self._schedule_embed_persistence_fallback(cid)
 
-                # Convert to TOON (PLAINTEXT)
-                flattened_parent = parent_content if hosting_graph else _flatten_for_toon_tabular(parent_content)
-                parent_content_toon = EmbedService._sanitize_finance_check_accounts_toon(encode(flattened_parent))
-
-                # Calculate text length for parent embed
-                parent_text_length_chars = len(parent_content_toon)
-
-                # Encrypt with vault key
-                encrypted_parent_content, _ = await self.encryption_service.encrypt_with_user_key(
-                    parent_content_toon,
-                    user_vault_key_id
-                )
-
-                # Update parent embed in cache
-                updated_at = int(datetime.now().timestamp())
-                updated_embed_data = {
-                    "embed_id": embed_id,
-                    "type": "app_skill_use",
-                    "chat_id": chat_id,
-                    "message_id": message_id,
-                    "hashed_chat_id": hashed_chat_id,
-                    "hashed_message_id": hashed_message_id,
-                    "hashed_task_id": hashed_task_id,
-                    "status": "finished",
-                    "hashed_user_id": user_id_hash,
-                    "is_private": False,
-                    "is_shared": False,
-                    "encryption_mode": "client",
-                    "embed_ids": child_embed_ids,  # JSON array
-                    "encrypted_content": encrypted_parent_content,
-                    "text_length_chars": parent_text_length_chars,
-                    "created_at": updated_at,
-                    "updated_at": updated_at
-                }
-
-                # CRITICAL FIX: Send BEFORE updating cache to avoid duplicate prevention blocking
-                # The send_embed_data_to_client with check_cache_status=True will check if cache
-                # already has status=finished and skip. We need to send first, then update cache.
-                # This ensures the client receives the parent embed data with embed_ids (child embeds)
-                send_ok = await self.send_embed_data_to_client(
-                    embed_id=embed_id,
-                    embed_type="app_skill_use",
-                    content_toon=parent_content_toon,  # PLAINTEXT TOON
-                    chat_id=chat_id,
-                    message_id=message_id,
-                    user_id=user_id,
-                    user_id_hash=user_id_hash,
-                    status="finished",
-                    task_id=task_id,
-                    embed_ids=child_embed_ids,
-                    text_length_chars=parent_text_length_chars,
-                    created_at=updated_at,
-                    updated_at=updated_at,
-                    log_prefix=log_prefix,
-                    check_cache_status=True,  # Enable deduplication check (will pass since cache still has "processing")
-                    app_id=app_id,
-                    skill_id=skill_id,
-                    producer_final_children=[
-                        {"subject_id": child_id, "output_kind": "embed", "output_version": 1}
-                        for child_id in child_embed_ids
-                    ],
-                    finished_cache_data=updated_embed_data,
-                    finished_cache_vault_key_id=user_vault_key_id,
-                )
-                if not send_ok:
-                    logger.error(
-                        f"{log_prefix} [EMBED_EVENT] FAILED to publish send_embed_data for composite embed {embed_id} "
-                        f"(status=finished, children={len(child_embed_ids)}). Client will not receive the finalized embed — "
-                        f"relying on client-side stale recovery (request_embed after 5s)."
-                    )
-
-                logger.info(f"{log_prefix} Updated embed {embed_id} with {len(child_embed_ids)} child embeds (send_ok={send_ok})")
-
-                # Schedule fallback persistence for parent and all child embeds
-                # This ensures embeds are persisted even if the client doesn't send store_embed
-                self._schedule_embed_persistence_fallback(embed_id)
-                for cid in child_embed_ids:
-                    self._schedule_embed_persistence_fallback(cid)
-
-                return {
-                    "embed_id": embed_id,
-                    "child_embed_ids": child_embed_ids,
-                    "status": "finished"
-                }
+                    return {
+                        "embed_id": embed_id,
+                        "child_embed_ids": child_embed_ids,
+                        "status": "finished"
+                    }
 
             else:
                 # Single result - update embed with result content
@@ -6354,6 +6367,8 @@ class EmbedService:
     def _registered_child_embed_id(parent_embed_id: str, child_index: int) -> str:
         producer = active_verified_output_producer.get()
         if producer is None or producer.classification != "registered_ai":
+            # UUIDv5 is reserved for Project files and durably registered
+            # producer children. Ordinary chat children keep their UUIDv4 IDs.
             return str(uuid.uuid4())
         if child_index >= 32 or parent_embed_id != producer.primary_embed_id:
             raise RequiredRecoveryOutputError("Composite embed exceeds its registered producer intent")
@@ -6384,6 +6399,163 @@ class EmbedService:
             raise RequiredRecoveryOutputError("Registered embed output status is unavailable") from exc
         if not isinstance(existing, dict) or existing.get("status") != "ABSENT":
             raise RequiredRecoveryOutputError("Registered embed output already has a durable intent or receipt")
+
+    @asynccontextmanager
+    async def _defer_completed_embed_publications(self) -> AsyncIterator[dict[str, Any] | None]:
+        """Prepare ordinary composite results within this task's recovery scope."""
+        context = active_recovery_output_context.get()
+        if context is None or active_verified_output_producer.get() is not None:
+            yield None
+            return
+        if _pending_finished_embed_batch.get() is not None:
+            raise RequiredRecoveryOutputError("Nested composite recovery batches are unsupported")
+        batch = {"service": self, "context": context, "items": []}
+        token = _pending_finished_embed_batch.set(batch)
+        try:
+            yield batch
+            if batch["items"]:
+                raise RequiredRecoveryOutputError("Composite recovery batch was not flushed")
+        finally:
+            _pending_finished_embed_batch.reset(token)
+            batch["items"].clear()
+
+    async def _flush_completed_embed_publications(self, batch: dict[str, Any] | None) -> None:
+        """Seal every required child and parent before ordered cache/publication."""
+        if batch is None:
+            return
+        if (_pending_finished_embed_batch.get() is not batch or batch["service"] is not self
+                or active_recovery_output_context.get() is not batch["context"]
+                or active_verified_output_producer.get() is not None):
+            raise RequiredRecoveryOutputError("Composite recovery scope changed")
+        try:
+            await self._save_completed_embed_recovery_batch([item["payload"] for item in batch["items"]])
+            for item in batch["items"]:
+                if not await self._publish_prepared_embed(**item):
+                    raise RequiredRecoveryOutputError("Required composite embed delivery failed")
+            batch["items"].clear()
+        except RequiredRecoveryOutputError:
+            raise
+        except Exception as exc:
+            raise RequiredRecoveryOutputError("Composite embed recovery save or delivery failed") from exc
+
+    async def _save_completed_embed_recovery_batch(self, payloads: list[dict[str, Any]]) -> None:
+        """Probe and seal bounded ordinary outputs; retain specialized/S3 handling."""
+        context = active_recovery_output_context.get()
+        if context is None or active_verified_output_producer.get() is not None:
+            raise RequiredRecoveryOutputError("Composite recovery context is unavailable")
+        if not payloads:
+            return
+        data = [payload["payload"] for payload in payloads]
+        if (len({row["embed_id"] for row in data}) != len(data)
+                or len({row["message_id"] for row in data}) != 1
+                or any(row.get("chat_id") != context.target_chat_id
+                       or row.get("user_id") != context.owner_id for row in data)):
+            raise RequiredRecoveryOutputError("Composite recovery output identity mismatch")
+        if any(row.get("version_history_rows") for row in data):
+            for payload in payloads:
+                await self._save_completed_embed_recovery(payload)
+            return
+        # This fresh classification is shared by the bounded group, never cached
+        # as permission. Project-owned IDs still require their atomic envelope.
+        memberships = await self.directus_service.get_items(
+            "project_items", params={
+                "filter[item_type][_eq]": "embed",
+                "filter[target_id_hash][_in]": ",".join(hashlib.sha256(row["embed_id"].encode()).hexdigest() for row in data),
+                "fields": "id", "limit": 1,
+            }, admin_required=True, no_cache=True,
+        )
+        if memberships is None or memberships:
+            raise RequiredRecoveryOutputError("Project embed lacks approved atomic recovery envelope")
+        if not await self.cache_service.mark_ai_context_pending_persistence(context.owner_hash, context.target_chat_id):
+            raise RequiredRecoveryOutputError("Embed recovery working context could not be pinned")
+        from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+        from backend.shared.python_utils.chat_completion_recovery_job import build_sealed_recovery_output_data
+
+        recovery = ChatRecoveryService(self.directus_service)
+        probes = []
+        for row in data:
+            version = int(row.get("version_number") or 1)
+            stable = {key: value for key, value in row.items() if key not in ("createdAt", "updatedAt")}
+            canonical = json.dumps({"subject_id": row["embed_id"], "kind": "embed", "version": version,
+                                    "content": stable}, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+            probes.append({
+                "protocol_version": 1,
+                "record_id": str(uuid.uuid5(uuid.UUID(context.turn_id), f"{context.target_chat_id}:{row['embed_id']}:embed:{version}")),
+                "hashed_user_id": context.owner_hash, "preflight_id": context.preflight_id,
+                "root_chat_id": context.root_chat_id, "target_chat_id": context.target_chat_id,
+                "subject_id": row["embed_id"], "output_kind": "embed", "output_version": version,
+                "content_commitment": recovery.content_commitment(canonical),
+            })
+        receipts = await recovery.get_replay_outputs(probes)
+        pending = []
+        for row, probe, receipt in zip(data, probes, receipts, strict=True):
+            if receipt["status"] in {"PENDING", "ACKNOWLEDGED"}:
+                continue
+            if receipt["status"] != "ABSENT":
+                raise RequiredRecoveryOutputError("Embed recovery output is still preparing")
+            output = build_sealed_recovery_output_data(
+                owner_id=context.owner_id, owner_hash=context.owner_hash,
+                root_chat_id=context.root_chat_id, target_chat_id=context.target_chat_id,
+                turn_id=context.turn_id, preflight_id=context.preflight_id,
+                inference_task_id=context.inference_task_id, recovery_public_key=context.public_key,
+                chat_key_version=context.key_version, subject_id=row["embed_id"], output_kind="embed",
+                output_version=probe["output_version"], content=row,
+            )
+            output["content_commitment"] = probe["content_commitment"]
+            pending.append(output)
+        if any(len(output["sealed_payload"].encode("utf-8")) > 256 * 1024 for output in pending):
+            # Existing verified regional S3 intent/upload/commit protocol remains
+            # responsible for large records, including mixed-size result sets.
+            for payload in payloads:
+                await self._save_completed_embed_recovery(payload)
+            return
+        if pending:
+            await recovery.save_sealed_outputs(pending)
+
+    async def _publish_prepared_embed(
+        self, payload: dict[str, Any], *, user_id_hash: str,
+        finished_cache_data: dict[str, Any] | None,
+        finished_cache_vault_key_id: str | None, log_prefix: str,
+        required_delivery: bool,
+    ) -> bool:
+        """Publish an already-sealed payload after its normal cache/authority gates."""
+        data = payload["payload"]
+        embed_id, chat_id, message_id = data["embed_id"], data["chat_id"], data["message_id"]
+        user_id, status, embed_type = data["user_id"], data["status"], data["type"]
+        if status == "finished" and finished_cache_data is not None:
+            if (finished_cache_data.get("embed_id") != embed_id
+                    or finished_cache_data.get("status") != "finished"
+                    or finished_cache_data.get("chat_id", chat_id) != chat_id
+                    or finished_cache_data.get("message_id", message_id) != message_id):
+                raise RequiredRecoveryOutputError("Finished embed cache identity mismatch")
+            await self._cache_embed(
+                embed_id, finished_cache_data, chat_id, user_id_hash,
+                finished_cache_vault_key_id, user_id,
+            )
+
+        # Publish to Redis for WebSocket delivery
+        await self._require_finished_publication_authority(user_id_hash)
+        client = await self.cache_service.client
+        if client:
+            import json as json_lib
+            channel_key = f"websocket:user:{user_id_hash}"
+            await client.publish(channel_key, json_lib.dumps(payload))
+            logger.info(
+                f"{log_prefix} [EMBED_EVENT] Published send_embed_data event for embed {embed_id} "
+                f"(status={status}, type={embed_type}, chat_id={chat_id}, message_id={message_id})"
+            )
+
+            # Track finished embeds as pending client encryption
+            if status == "finished" and chat_id and message_id and not self._volatile_incognito_publication_required():
+                await self._track_pending_embed(user_id, embed_id, log_prefix)
+
+            return True
+        else:
+            logger.warning(f"{log_prefix} Redis client not available, skipping send_embed_data event")
+            if required_delivery:
+                raise RequiredRecoveryOutputError("Required finished embed delivery is unavailable")
+            return False
+
 
     async def _save_completed_embed_recovery(
         self, payload: dict[str, Any], *, producer_child_index: int | None = None,
@@ -6714,44 +6886,31 @@ class EmbedService:
             if owner_pii_mappings:
                 payload["payload"]["owner_pii_mappings"] = owner_pii_mappings
 
+            batch = _pending_finished_embed_batch.get()
+            if batch is not None and status == "finished" and encryption_mode == "client":
+                if (batch["service"] is not self or status != "finished" or encryption_mode != "client"
+                        or user_id_hash != batch["context"].owner_hash):
+                    raise RequiredRecoveryOutputError("Composite publication batch identity mismatch")
+                batch["items"].append({
+                    "payload": payload, "user_id_hash": user_id_hash,
+                    "finished_cache_data": finished_cache_data,
+                    "finished_cache_vault_key_id": finished_cache_vault_key_id,
+                    "log_prefix": log_prefix, "required_delivery": required_delivery,
+                })
+                # Internal preparation only; the enclosing composite cannot return
+                # or continue dependent work until its explicit durable flush.
+                return True
+
             if status == "finished" and encryption_mode == "client":
                 await self._save_completed_embed_recovery(
                     payload, producer_child_index=producer_child_index,
                     producer_final_children=producer_final_children,
                 )
-            if status == "finished" and finished_cache_data is not None:
-                if (finished_cache_data.get("embed_id") != embed_id
-                        or finished_cache_data.get("status") != "finished"
-                        or finished_cache_data.get("chat_id", chat_id) != chat_id
-                        or finished_cache_data.get("message_id", message_id) != message_id):
-                    raise RequiredRecoveryOutputError("Finished embed cache identity mismatch")
-                await self._cache_embed(
-                    embed_id, finished_cache_data, chat_id, user_id_hash,
-                    finished_cache_vault_key_id, user_id,
-                )
-
-            # Publish to Redis for WebSocket delivery
-            await self._require_finished_publication_authority(user_id_hash)
-            client = await self.cache_service.client
-            if client:
-                import json as json_lib
-                channel_key = f"websocket:user:{user_id_hash}"
-                await client.publish(channel_key, json_lib.dumps(payload))
-                logger.info(
-                    f"{log_prefix} [EMBED_EVENT] Published send_embed_data event for embed {embed_id} "
-                    f"(status={status}, type={embed_type}, chat_id={chat_id}, message_id={message_id})"
-                )
-
-                # Track finished embeds as pending client encryption
-                if status == "finished" and chat_id and message_id and not self._volatile_incognito_publication_required():
-                    await self._track_pending_embed(user_id, embed_id, log_prefix)
-
-                return True
-            else:
-                logger.warning(f"{log_prefix} Redis client not available, skipping send_embed_data event")
-                if required_delivery:
-                    raise RequiredRecoveryOutputError("Required finished embed delivery is unavailable")
-                return False
+            return await self._publish_prepared_embed(
+                payload, user_id_hash=user_id_hash, finished_cache_data=finished_cache_data,
+                finished_cache_vault_key_id=finished_cache_vault_key_id,
+                log_prefix=log_prefix, required_delivery=required_delivery,
+            )
 
         except RequiredRecoveryOutputError:
             raise
@@ -6863,262 +7022,267 @@ class EmbedService:
             if is_composite:
                 # CRITICAL: Generate parent_embed_id FIRST so child embeds can reference it
                 # This enables key inheritance: child embeds use parent's encryption key
-                producer = active_verified_output_producer.get()
-                parent_embed_id = (producer.primary_embed_id if producer is not None and producer.classification == "registered_ai"
-                                   else str(uuid.uuid4()))
+                async with self._defer_completed_embed_publications() as batch:
+                    producer = active_verified_output_producer.get()
+                    parent_embed_id = (producer.primary_embed_id if producer is not None and producer.classification == "registered_ai"
+                                       else str(uuid.uuid4()))
                 
-                for child_index, result in enumerate(embed_results):
-                    # Determine per-result child type (may override default for YouTube URLs in web search)
-                    child_type = EmbedService._get_per_result_child_type(
-                        default_child_type, result, app_id, skill_id
+                    for child_index, result in enumerate(embed_results):
+                        # Determine per-result child type (may override default for YouTube URLs in web search)
+                        child_type = EmbedService._get_per_result_child_type(
+                            default_child_type, result, app_id, skill_id
+                        )
+
+                        child_type, enriched_result = await self._enrich_repo_result_if_needed(
+                            child_type, result, log_prefix
+                        )
+
+                        # Generate embed_id for child
+                        child_embed_id = self._registered_child_embed_id(parent_embed_id, child_index)
+
+                        # Use pre-generated embed_ref from result dict if present (single source of truth).
+                        # main_processor.py pre-generates slugs in results_with_refs BEFORE building
+                        # the tool_result_content_str and passes them here via the results list.
+                        # This ensures the LLM's inline ref slug EXACTLY matches the slug stored in
+                        # the child embed TOON — preventing the slug-mismatch bug.
+                        # The embed_ref is injected INSIDE the encrypted TOON content so only the
+                        # client (after decryption) and the LLM (via filtered TOON) can see it.
+                        result_with_ref = dict(enriched_result)
+                        result_for_embed = apply_learning_mode_cap_to_embed_result(
+                            child_type,
+                            result_with_ref,
+                            learning_mode_context,
+                        )
+                        if "embed_ref" in result_for_embed:
+                            child_embed_ref = result_for_embed["embed_ref"]
+                            logger.debug(f"{log_prefix} Reusing pre-generated embed_ref for child embed" if hosting_graph
+                                         else f"{log_prefix} Reusing pre-generated embed_ref '{child_embed_ref}' for child embed")
+                        else:
+                            child_embed_ref = self._generate_embed_ref_slug(
+                                child_type, enriched_result,
+                                stable_embed_id=child_embed_id if active_recovery_output_context.get() is not None else None,
+                            )
+                            result_for_embed["embed_ref"] = child_embed_ref
+
+                        # Inject app_id and skill_id into child TOON so the frontend can
+                        # extract them when registering embed_ref → appId in the in-memory index.
+                        # Without this the inline badge gradient falls back to grey because
+                        # the child result dict only contains flight/event fields, not app metadata.
+                        result_for_embed["app_id"] = app_id
+                        result_for_embed["skill_id"] = skill_id
+                        if hosting_graph:
+                            result_for_embed["type"] = "hosting_domain"
+
+                        flattened_result = result_for_embed if hosting_graph else _flatten_for_toon_tabular(result_for_embed)
+                        content_toon = encode(flattened_result)
+
+                        # Calculate text length for child embed
+                        text_length_chars = len(content_toon)
+                        created_at = int(datetime.now().timestamp())
+
+                        # Create child embed entry
+                        # CRITICAL: Include parent_embed_id for key inheritance
+                        child_embed_data = {
+                            "embed_id": child_embed_id,
+                            "type": child_type,
+                            "chat_id": chat_id,
+                            "message_id": message_id,
+                            "hashed_chat_id": hashed_chat_id,
+                            "hashed_message_id": hashed_message_id,
+                            "hashed_task_id": hashed_task_id,
+                            "status": "finished",
+                            "hashed_user_id": user_id_hash,
+                            "is_private": False,
+                            "is_shared": False,
+                            "parent_embed_id": parent_embed_id,  # CRITICAL: Set parent for key inheritance
+                            "text_length_chars": text_length_chars,
+                            "created_at": created_at,
+                            "updated_at": created_at
+                        }
+
+                        # Encrypt with vault key for server-side cache
+                        encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                            content_toon,
+                            user_vault_key_id
+                        )
+                        child_embed_data["encrypted_content"] = encrypted_content
+
+                        # CRITICAL: Send child embed to client via WebSocket for client-side encryption and storage
+                        # The send seals and caches it before the client event.
+                        await self.send_embed_data_to_client(
+                            embed_id=child_embed_id,
+                            embed_type=child_type,
+                            content_toon=content_toon,  # PLAINTEXT TOON
+                            chat_id=chat_id,
+                            message_id=message_id,
+                            user_id=user_id,
+                            user_id_hash=user_id_hash,
+                            status="finished",
+                            task_id=task_id,
+                            text_length_chars=text_length_chars,
+                            created_at=created_at,
+                            updated_at=created_at,
+                            parent_embed_id=parent_embed_id,  # Set parent_embed_id so frontend can use parent key
+                            log_prefix=log_prefix,
+                            check_cache_status=False,  # Skip cache check - we just created this embed
+                            producer_child_index=child_index,
+                            finished_cache_data=child_embed_data,
+                            finished_cache_vault_key_id=user_vault_key_id,
+                        )
+
+                        child_embed_ids.append(child_embed_id)
+                        logger.debug(f"{log_prefix} Created child embed {child_embed_id} (type: {child_type}, parent: {parent_embed_id})")
+
+                    # Create parent app_skill_use embed
+                    # NOTE: parent_embed_id was already generated above (before child embeds)
+
+                    # Generate an embed_ref for the parent (composite skill result).
+                    # Format: "{app_id}-{skill_id}-{suffix}" so the LLM can refer to the
+                    # whole result set (e.g. "web-search-k8D") as well as individual items.
+                    parent_embed_ref = self._generate_embed_ref_slug(
+                        f"{app_id}-{skill_id}",
+                        safe_request_metadata,
                     )
 
-                    child_type, enriched_result = await self._enrich_repo_result_if_needed(
-                        child_type, result, log_prefix
-                    )
+                    # Parent embed content: metadata about the skill execution
+                    # Include request metadata (query, etc.) if provided for proper frontend rendering
+                    parent_content = {
+                        "app_id": app_id,
+                        "skill_id": skill_id,
+                        "result_count": len(results),
+                        "embed_ids": child_embed_ids,
+                        "status": "finished",
+                        "embed_ref": parent_embed_ref,
+                        **EmbedService._build_parent_preview_metadata(app_id, skill_id, results),
+                    }
 
-                    # Generate embed_id for child
-                    child_embed_id = self._registered_child_embed_id(parent_embed_id, child_index)
-
-                    # Use pre-generated embed_ref from result dict if present (single source of truth).
-                    # main_processor.py pre-generates slugs in results_with_refs BEFORE building
-                    # the tool_result_content_str and passes them here via the results list.
-                    # This ensures the LLM's inline ref slug EXACTLY matches the slug stored in
-                    # the child embed TOON — preventing the slug-mismatch bug.
-                    # The embed_ref is injected INSIDE the encrypted TOON content so only the
-                    # client (after decryption) and the LLM (via filtered TOON) can see it.
-                    result_with_ref = dict(enriched_result)
-                    result_for_embed = apply_learning_mode_cap_to_embed_result(
-                        child_type,
-                        result_with_ref,
-                        learning_mode_context,
-                    )
-                    if "embed_ref" in result_for_embed:
-                        child_embed_ref = result_for_embed["embed_ref"]
-                        logger.debug(f"{log_prefix} Reusing pre-generated embed_ref for child embed" if hosting_graph
-                                     else f"{log_prefix} Reusing pre-generated embed_ref '{child_embed_ref}' for child embed")
-                    else:
-                        child_embed_ref = self._generate_embed_ref_slug(child_type, enriched_result)
-                        result_for_embed["embed_ref"] = child_embed_ref
-
-                    # Inject app_id and skill_id into child TOON so the frontend can
-                    # extract them when registering embed_ref → appId in the in-memory index.
-                    # Without this the inline badge gradient falls back to grey because
-                    # the child result dict only contains flight/event fields, not app metadata.
-                    result_for_embed["app_id"] = app_id
-                    result_for_embed["skill_id"] = skill_id
+                    # Add request metadata (query, provider, etc.) if available
+                    if safe_request_metadata:
+                        if "query" in safe_request_metadata:
+                            parent_content["query"] = safe_request_metadata["query"]
+                        if app_id == "projects" and skill_id == "search":
+                            if safe_request_metadata.get("search_target") in {"files", "content"}:
+                                parent_content["search_target"] = safe_request_metadata["search_target"]
+                        if "provider" in safe_request_metadata:
+                            parent_content["provider"] = safe_request_metadata["provider"]
+                        if "providers" in safe_request_metadata:
+                            parent_content["providers"] = safe_request_metadata["providers"]
+                        # Add other user-visible request metadata needed to distinguish searches.
+                        for key in ["country", "search_lang", "safesearch", "start_date", "end_date", "time_range", "location"]:
+                            if key in safe_request_metadata:
+                                parent_content[key] = safe_request_metadata[key]
+                        if app_id == "jobs" and skill_id == "search":
+                            countries = safe_request_metadata.get("countries")
+                            if isinstance(countries, list):
+                                parent_content["countries"] = list(dict.fromkeys(
+                                    country for country in countries if isinstance(country, str) and country in {"DE", "SE"}
+                                ))
+                        if app_id == "maps" and skill_id == "search":
+                            for key in ("warnings", "filter_summary", "coverage", "search_context", "error", "search_status"):
+                                if key in safe_request_metadata:
+                                    parent_content[key] = safe_request_metadata[key]
                     if hosting_graph:
-                        result_for_embed["type"] = "hosting_domain"
+                        parent_content.update(EmbedService._hosting_parent_metadata(
+                            hosting_group, embed_results, child_embed_ids, safe_request_metadata,
+                        ))
+                        parent_content["status"] = hosting_status
+                    parent_content = EmbedService._sanitize_final_app_skill_content(app_id, skill_id, parent_content)
 
-                    flattened_result = result_for_embed if hosting_graph else _flatten_for_toon_tabular(result_for_embed)
-                    content_toon = encode(flattened_result)
-                    
-                    # Calculate text length for child embed
-                    text_length_chars = len(content_toon)
-                    created_at = int(datetime.now().timestamp())
-                    
-                    # Create child embed entry
-                    # CRITICAL: Include parent_embed_id for key inheritance
-                    child_embed_data = {
-                        "embed_id": child_embed_id,
-                        "type": child_type,
+                    # Convert to TOON
+                    flattened_parent = parent_content if hosting_graph else _flatten_for_toon_tabular(parent_content)
+                    parent_content_toon = EmbedService._sanitize_finance_check_accounts_toon(encode(flattened_parent))
+
+                    # Calculate text length for parent embed
+                    parent_text_length_chars = len(parent_content_toon)
+                    parent_created_at = int(datetime.now().timestamp())
+
+                    # Encrypt with vault key
+                    encrypted_parent_content, _ = await self.encryption_service.encrypt_with_user_key(
+                        parent_content_toon,
+                        user_vault_key_id
+                    )
+
+                    parent_embed_data = {
+                        "embed_id": parent_embed_id,
+                        "type": "app_skill_use",
                         "chat_id": chat_id,
                         "message_id": message_id,
                         "hashed_chat_id": hashed_chat_id,
                         "hashed_message_id": hashed_message_id,
                         "hashed_task_id": hashed_task_id,
-                        "status": "finished",
+                        "status": hosting_status,
                         "hashed_user_id": user_id_hash,
                         "is_private": False,
                         "is_shared": False,
-                        "parent_embed_id": parent_embed_id,  # CRITICAL: Set parent for key inheritance
-                        "text_length_chars": text_length_chars,
-                        "created_at": created_at,
-                        "updated_at": created_at
+                        "encryption_mode": "client",
+                        "embed_ids": child_embed_ids,  # JSON array
+                        "encrypted_content": encrypted_parent_content,
+                        "text_length_chars": parent_text_length_chars,
+                        "created_at": parent_created_at,
+                        "updated_at": parent_created_at
                     }
-                    
-                    # Encrypt with vault key for server-side cache
-                    encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
-                        content_toon,
-                        user_vault_key_id
-                    )
-                    child_embed_data["encrypted_content"] = encrypted_content
-                    
-                    # CRITICAL: Send child embed to client via WebSocket for client-side encryption and storage
-                    # The send seals and caches it before the client event.
+
+                    # CRITICAL: Send parent embed to client BEFORE caching to avoid duplicate prevention blocking
+                    # The cache will have status="finished" after caching, so send_embed_data_to_client's
+                    # default cache check would skip sending if we cached first.
                     await self.send_embed_data_to_client(
-                        embed_id=child_embed_id,
-                        embed_type=child_type,
-                        content_toon=content_toon,  # PLAINTEXT TOON
+                        embed_id=parent_embed_id,
+                        embed_type="app_skill_use",
+                        content_toon=parent_content_toon,  # PLAINTEXT TOON
                         chat_id=chat_id,
                         message_id=message_id,
                         user_id=user_id,
                         user_id_hash=user_id_hash,
-                        status="finished",
+                        status=hosting_status,
                         task_id=task_id,
-                        text_length_chars=text_length_chars,
-                        created_at=created_at,
-                        updated_at=created_at,
-                        parent_embed_id=parent_embed_id,  # Set parent_embed_id so frontend can use parent key
+                        embed_ids=child_embed_ids,
+                        text_length_chars=parent_text_length_chars,
+                        created_at=parent_created_at,
+                        updated_at=parent_created_at,
                         log_prefix=log_prefix,
-                        check_cache_status=False,  # Skip cache check - we just created this embed
-                        producer_child_index=child_index,
-                        finished_cache_data=child_embed_data,
+                        producer_final_children=(
+                            [{"subject_id": child_id, "output_kind": "embed", "output_version": 1}
+                             for child_id in child_embed_ids]
+                            if hosting_status == "finished" else None
+                        ),
+                        finished_cache_data=parent_embed_data if hosting_status == "finished" else None,
                         finished_cache_vault_key_id=user_vault_key_id,
                     )
-                    
-                    child_embed_ids.append(child_embed_id)
-                    logger.debug(f"{log_prefix} Created child embed {child_embed_id} (type: {child_type}, parent: {parent_embed_id})")
+                    await self._flush_completed_embed_publications(batch)
+                    if hosting_status != "finished":
+                        await self._cache_embed(parent_embed_id, parent_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
                 
-                # Create parent app_skill_use embed
-                # NOTE: parent_embed_id was already generated above (before child embeds)
+                    logger.info(f"{log_prefix} Created parent embed {parent_embed_id} with {len(child_embed_ids)} child embeds")
 
-                # Generate an embed_ref for the parent (composite skill result).
-                # Format: "{app_id}-{skill_id}-{suffix}" so the LLM can refer to the
-                # whole result set (e.g. "web-search-k8D") as well as individual items.
-                parent_embed_ref = self._generate_embed_ref_slug(
-                    f"{app_id}-{skill_id}",
-                    safe_request_metadata,
-                )
-
-                # Parent embed content: metadata about the skill execution
-                # Include request metadata (query, etc.) if provided for proper frontend rendering
-                parent_content = {
-                    "app_id": app_id,
-                    "skill_id": skill_id,
-                    "result_count": len(results),
-                    "embed_ids": child_embed_ids,
-                    "status": "finished",
-                    "embed_ref": parent_embed_ref,
-                    **EmbedService._build_parent_preview_metadata(app_id, skill_id, results),
-                }
+                    # Schedule fallback persistence for parent and all child embeds
+                    self._schedule_embed_persistence_fallback(parent_embed_id)
+                    for cid in child_embed_ids:
+                        self._schedule_embed_persistence_fallback(cid)
                 
-                # Add request metadata (query, provider, etc.) if available
-                if safe_request_metadata:
-                    if "query" in safe_request_metadata:
-                        parent_content["query"] = safe_request_metadata["query"]
-                    if app_id == "projects" and skill_id == "search":
-                        if safe_request_metadata.get("search_target") in {"files", "content"}:
-                            parent_content["search_target"] = safe_request_metadata["search_target"]
-                    if "provider" in safe_request_metadata:
-                        parent_content["provider"] = safe_request_metadata["provider"]
-                    if "providers" in safe_request_metadata:
-                        parent_content["providers"] = safe_request_metadata["providers"]
-                    # Add other user-visible request metadata needed to distinguish searches.
-                    for key in ["country", "search_lang", "safesearch", "start_date", "end_date", "time_range", "location"]:
-                        if key in safe_request_metadata:
-                            parent_content[key] = safe_request_metadata[key]
-                    if app_id == "jobs" and skill_id == "search":
-                        countries = safe_request_metadata.get("countries")
-                        if isinstance(countries, list):
-                            parent_content["countries"] = list(dict.fromkeys(
-                                country for country in countries if isinstance(country, str) and country in {"DE", "SE"}
-                            ))
-                    if app_id == "maps" and skill_id == "search":
-                        for key in ("warnings", "filter_summary", "coverage", "search_context", "error", "search_status"):
-                            if key in safe_request_metadata:
-                                parent_content[key] = safe_request_metadata[key]
-                if hosting_graph:
-                    parent_content.update(EmbedService._hosting_parent_metadata(
-                        hosting_group, embed_results, child_embed_ids, safe_request_metadata,
-                    ))
-                    parent_content["status"] = hosting_status
-                parent_content = EmbedService._sanitize_final_app_skill_content(app_id, skill_id, parent_content)
+                    # Generate embed reference JSON
+                    # CRITICAL: Include app_id and skill_id so frontend can properly group embeds
+                    # by app+skill type (e.g., web.search embeds grouped separately from code.get_docs).
+                    # ALSO include query/provider when available so the UI can render the query
+                    # even if the parent embed content is delayed or missing metadata.
+                    embed_reference_payload = {
+                        "type": "app_skill_use",
+                        "embed_id": parent_embed_id,
+                        "app_id": app_id,
+                        "skill_id": skill_id
+                    }
+                    # Include query and provider from request_metadata if available
+                    # This enables the frontend to display the query text immediately in grouped embeds
+                    if safe_request_metadata:
+                        for key in ["query", "provider", "providers", "start_date", "end_date", "time_range", "location"]:
+                            if safe_request_metadata.get(key):
+                                embed_reference_payload[key] = safe_request_metadata[key]
+                    embed_reference = json.dumps(embed_reference_payload)
                 
-                # Convert to TOON
-                flattened_parent = parent_content if hosting_graph else _flatten_for_toon_tabular(parent_content)
-                parent_content_toon = EmbedService._sanitize_finance_check_accounts_toon(encode(flattened_parent))
-                
-                # Calculate text length for parent embed
-                parent_text_length_chars = len(parent_content_toon)
-                parent_created_at = int(datetime.now().timestamp())
-                
-                # Encrypt with vault key
-                encrypted_parent_content, _ = await self.encryption_service.encrypt_with_user_key(
-                    parent_content_toon,
-                    user_vault_key_id
-                )
-                
-                parent_embed_data = {
-                    "embed_id": parent_embed_id,
-                    "type": "app_skill_use",
-                    "chat_id": chat_id,
-                    "message_id": message_id,
-                    "hashed_chat_id": hashed_chat_id,
-                    "hashed_message_id": hashed_message_id,
-                    "hashed_task_id": hashed_task_id,
-                    "status": hosting_status,
-                    "hashed_user_id": user_id_hash,
-                    "is_private": False,
-                    "is_shared": False,
-                    "encryption_mode": "client",
-                    "embed_ids": child_embed_ids,  # JSON array
-                    "encrypted_content": encrypted_parent_content,
-                    "text_length_chars": parent_text_length_chars,
-                    "created_at": parent_created_at,
-                    "updated_at": parent_created_at
-                }
-                
-                # CRITICAL: Send parent embed to client BEFORE caching to avoid duplicate prevention blocking
-                # The cache will have status="finished" after caching, so send_embed_data_to_client's
-                # default cache check would skip sending if we cached first.
-                await self.send_embed_data_to_client(
-                    embed_id=parent_embed_id,
-                    embed_type="app_skill_use",
-                    content_toon=parent_content_toon,  # PLAINTEXT TOON
-                    chat_id=chat_id,
-                    message_id=message_id,
-                    user_id=user_id,
-                    user_id_hash=user_id_hash,
-                    status=hosting_status,
-                    task_id=task_id,
-                    embed_ids=child_embed_ids,
-                    text_length_chars=parent_text_length_chars,
-                    created_at=parent_created_at,
-                    updated_at=parent_created_at,
-                    log_prefix=log_prefix,
-                    producer_final_children=(
-                        [{"subject_id": child_id, "output_kind": "embed", "output_version": 1}
-                         for child_id in child_embed_ids]
-                        if hosting_status == "finished" else None
-                    ),
-                    finished_cache_data=parent_embed_data if hosting_status == "finished" else None,
-                    finished_cache_vault_key_id=user_vault_key_id,
-                )
-                if hosting_status != "finished":
-                    await self._cache_embed(parent_embed_id, parent_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
-                
-                logger.info(f"{log_prefix} Created parent embed {parent_embed_id} with {len(child_embed_ids)} child embeds")
-
-                # Schedule fallback persistence for parent and all child embeds
-                self._schedule_embed_persistence_fallback(parent_embed_id)
-                for cid in child_embed_ids:
-                    self._schedule_embed_persistence_fallback(cid)
-                
-                # Generate embed reference JSON
-                # CRITICAL: Include app_id and skill_id so frontend can properly group embeds
-                # by app+skill type (e.g., web.search embeds grouped separately from code.get_docs).
-                # ALSO include query/provider when available so the UI can render the query
-                # even if the parent embed content is delayed or missing metadata.
-                embed_reference_payload = {
-                    "type": "app_skill_use",
-                    "embed_id": parent_embed_id,
-                    "app_id": app_id,
-                    "skill_id": skill_id
-                }
-                # Include query and provider from request_metadata if available
-                # This enables the frontend to display the query text immediately in grouped embeds
-                if safe_request_metadata:
-                    for key in ["query", "provider", "providers", "start_date", "end_date", "time_range", "location"]:
-                        if safe_request_metadata.get(key):
-                            embed_reference_payload[key] = safe_request_metadata[key]
-                embed_reference = json.dumps(embed_reference_payload)
-                
-                return {
-                    "parent_embed_id": parent_embed_id,
-                    "embed_reference": embed_reference,
-                    "child_embed_ids": child_embed_ids
-                }
+                    return {
+                        "parent_embed_id": parent_embed_id,
+                        "embed_reference": embed_reference,
+                        "child_embed_ids": child_embed_ids
+                    }
             
             else:
                 # Non-composite result - create single app_skill_use embed

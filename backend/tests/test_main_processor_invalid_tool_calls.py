@@ -377,6 +377,18 @@ async def _run_mocked_protocol_guard_main_processor(
     )
     monkeypatch.setattr(main_processor, "model_history_token_budget", lambda *_args, **_kwargs: history_budget)
     monkeypatch.setattr(main_processor, "generate_tools_from_apps", lambda **_kwargs: generated_tools or [])
+    # This loop fixture owns fake integration boundaries; never make real IPC
+    # requests while exercising tool parsing, fallback and prompt behavior.
+    monkeypatch.setattr(main_processor, "fetch_related_chat_summaries", AsyncMock(return_value=[]))
+    from backend.apps.workflows.skills import saved_workflow_context
+    monkeypatch.setattr(saved_workflow_context, "saved_workflow_metadata", lambda *_args, **_kwargs: [])
+    from backend.core.api.app.services.cache import CacheService
+    monkeypatch.setattr(
+        CacheService, "get_discovered_apps_metadata",
+        AsyncMock(return_value=discovered_apps_metadata or {}),
+    )
+    from backend.shared.python_utils.recent_work_summary_client import RecentWorkSummaryClient
+    monkeypatch.setattr(RecentWorkSummaryClient, "_post", AsyncMock(return_value=None))
     monkeypatch.setattr(main_processor, "evaluate_task_queue_post_turn", no_task_queue_retry)
     monkeypatch.setattr(main_processor, "resolve_sub_chat_depth", lambda _request: resolved_chat_depth)
     monkeypatch.setattr(main_processor, "has_transcribed_web_audio_recording", lambda _history: False)
@@ -2380,3 +2392,40 @@ async def test_actual_safety_fixture_survives_every_answer_recovery_provider_req
         for key in ("base_ethics_instruction", "base_privacy_instruction"):
             assert actual[key] in call["system_prompt"]
     assert main_processor.ANSWER_RECOVERY_INSTRUCTION in calls[-1]["system_prompt"]
+
+
+@pytest.mark.parametrize("container_present", [True, False])
+def test_diff_prompt_shared_config_prefers_container_with_repository_fallback(monkeypatch, tmp_path, container_present):
+    container_config = tmp_path / "embed_types.yml"
+    if container_present:
+        container_config.write_text(
+            "embed_types:\n  - id: container-artifact\n    content_catalog:\n"
+            "      enabled: true\n      diff_editable: true\n", encoding="utf-8")
+
+    def lookup(value):
+        return container_config if value == "/shared/config/embed_types.yml" else Path(value)
+
+    monkeypatch.setattr(main_processor, "Path", lookup)
+    main_processor._diffable_embed_types_from_shared_config.cache_clear()
+    try:
+        result = main_processor._diffable_embed_types_from_shared_config()
+        if container_present:
+            assert result == {"container-artifact"}
+        else:
+            assert "sheet" in result
+    finally:
+        main_processor._diffable_embed_types_from_shared_config.cache_clear()
+
+
+def test_diff_prompt_shared_config_reports_container_read_failure(monkeypatch, tmp_path, caplog):
+    container_config = tmp_path / "embed_types.yml"
+    container_config.write_text("embed_types: [invalid", encoding="utf-8")
+    monkeypatch.setattr(main_processor, "Path", lambda _value: container_config)
+    monkeypatch.setattr(main_processor.logger, "handlers", [caplog.handler])
+    monkeypatch.setattr(main_processor.logger, "propagate", False)
+    main_processor._diffable_embed_types_from_shared_config.cache_clear()
+    try:
+        assert main_processor._diffable_embed_types_from_shared_config() == set()
+        assert "Could not read shared embed type metadata" in caplog.text
+    finally:
+        main_processor._diffable_embed_types_from_shared_config.cache_clear()

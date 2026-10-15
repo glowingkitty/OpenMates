@@ -51,6 +51,7 @@ RECOVERY_OPERATIONS = {
     "mark_inference_failed",
     "create_sealed_job",
     "create_sealed_output",
+    "create_sealed_outputs",
     "prepare_sealed_output",
     "register_output_producer",
     "register_legacy_output_producer",
@@ -61,6 +62,7 @@ RECOVERY_OPERATIONS = {
     "classify_untagged_output_producer",
     "get_producer_output",
     "get_replay_output",
+    "get_replay_outputs",
     "register_authorized_rerender",
     "register_authorized_direct_skill",
     "complete_authorized_direct_skill",
@@ -180,6 +182,119 @@ class ChatRecoveryService:
         result.pop("payload_s3_key", None)
         return result
 
+    async def get_replay_outputs(self, data: list[Mapping[str, Any]]) -> list[dict[str, Any]]:
+        """Probe inline same-record outputs in bounded, ordered transactions."""
+        return await self._inline_output_batches("get_replay_outputs", data)
+
+    async def save_sealed_outputs(self, data: list[Mapping[str, Any]]) -> list[dict[str, Any]]:
+        """Commit inline envelopes before callers publish any dependent output."""
+        return await self._inline_output_batches("create_sealed_outputs", data)
+
+    async def _inline_output_batches(
+        self, operation: str, data: list[Mapping[str, Any]],
+    ) -> list[dict[str, Any]]:
+        if not isinstance(data, list):
+            raise TypeError("Output batch must be a list")
+        chunks: list[list[dict[str, Any]]] = []
+        chunk: list[dict[str, Any]] = []
+        ids: set[str] = set()
+        identity_fields = (
+            "hashed_user_id", "root_chat_id", "target_chat_id", "preflight_id",
+            "turn_id", "inference_task_id", "chat_key_version", "producer_intent_id",
+            "producer_task_name", "producer_kwargs_binding",
+        )
+        first: dict[str, Any] | None = None
+
+        def request_size(outputs: list[dict[str, Any]]) -> int:
+            # Include the RPC envelope and default JSON whitespace/ASCII escaping,
+            # conservatively bounding the actual HTTP client's serialization.
+            return len(json.dumps({"operation": operation, "data": {
+                "protocol_version": 1, "outputs": outputs,
+            }}).encode("utf-8"))
+
+        # Validate the entire request before issuing even its first transaction.
+        for entry in data:
+            if not isinstance(entry, Mapping):
+                raise TypeError("Output batch entries must be mappings")
+            body = dict(entry)
+            record_id = body.get("record_id")
+            if body.get("protocol_version") != 1 or not isinstance(record_id, str) or not record_id:
+                raise ValueError("Invalid output batch identity")
+            if record_id in ids:
+                raise ValueError("Duplicate output batch record")
+            ids.add(record_id)
+            if first is None:
+                first = body
+            if any(body.get(field) != first.get(field) for field in identity_fields):
+                raise ValueError("Mixed output batch identity")
+            if "payload_s3_key" in body:
+                raise ValueError("Output batches require inline storage")
+            if operation == "create_sealed_outputs":
+                payload = body.get("sealed_payload")
+                if not isinstance(payload, str) or len(payload.encode("utf-8")) > 256 * 1024:
+                    raise ValueError("Output batch requires bounded inline sealed payloads")
+            if request_size([body]) > 512 * 1024:
+                raise ValueError("Output batch entry exceeds request limit")
+            if chunk and (len(chunk) == 32 or request_size([*chunk, body]) > 512 * 1024):
+                chunks.append(chunk)
+                chunk = []
+            chunk.append(body)
+        if chunk:
+            chunks.append(chunk)
+
+        receipts: list[dict[str, Any]] = []
+        for chunk in chunks:
+            result = await self.execute(operation, {"protocol_version": 1, "outputs": chunk})
+            outputs = result.get("outputs")
+            if not isinstance(outputs, list) or len(outputs) != len(chunk):
+                raise RuntimeError("Malformed output batch response")
+            for body, receipt in zip(chunk, outputs):
+                if not isinstance(receipt, dict) or receipt.get("record_id") != body["record_id"]:
+                    raise RuntimeError("Malformed output batch response identity")
+                state_key = "status" if operation == "get_replay_outputs" else "state"
+                allowed = (
+                    ("ABSENT", "PREPARING", "PENDING", "ACKNOWLEDGED")
+                    if state_key == "status" else ("PENDING", "ACKNOWLEDGED")
+                )
+                if receipt.get(state_key) not in allowed:
+                    raise RuntimeError("Malformed output batch response state")
+                if "state" in receipt and receipt["state"] != receipt[state_key]:
+                    raise RuntimeError("Malformed output batch response state")
+                payload = receipt.get("sealed_payload")
+                if operation == "get_replay_outputs" and receipt.get("payload_storage") == "s3":
+                    # A probe can discover a large output sealed by an earlier
+                    # attempt. Preserve its status without fetching private bytes.
+                    key = receipt.get("payload_s3_key")
+                    digest = receipt.get("sealed_payload_digest")
+                    size = receipt.get("payload_size_bytes")
+                    regions = receipt.get("payload_verified_regions")
+                    if isinstance(regions, str) and len(regions) <= 4096:
+                        try:
+                            regions = json.loads(regions)
+                        except ValueError:
+                            regions = None
+                    if (payload is not None
+                            or receipt.get("status") == "ABSENT"
+                            or (key is not None and (not isinstance(key, str) or not 1 <= len(key) <= 1024))
+                            or (receipt.get("status") == "PENDING" and key is None)
+                            or not isinstance(digest, str) or len(digest) != 64
+                            or any(char not in "0123456789abcdef" for char in digest)
+                            or type(size) is not int or not 1 <= size <= 24 * 1024 * 1024
+                            or not (
+                                (receipt.get("status") == "PREPARING" and regions is None)
+                                or (isinstance(regions, list) and 1 <= len(regions) <= 32
+                                    and all(isinstance(region, str) and 1 <= len(region) <= 128 for region in regions))
+                            )):
+                        raise RuntimeError("Malformed output batch S3 metadata")
+                else:
+                    if (receipt.get("payload_storage") not in (None, "inline")
+                            or receipt.get("payload_s3_key") is not None):
+                        raise RuntimeError("Output batch response requires inline storage")
+                    if payload is not None and (not isinstance(payload, str) or len(payload.encode("utf-8")) > 256 * 1024):
+                        raise RuntimeError("Oversize output batch response payload")
+                receipts.append(receipt)
+        return receipts
+
     async def save_sealed_output(
         self, data: Mapping[str, Any], *, s3_service: Any | None = None,
     ) -> dict[str, Any]:
@@ -188,6 +303,17 @@ class ChatRecoveryService:
         payload = body.get("sealed_payload")
         if not isinstance(payload, str):
             raise ValueError("sealed output is missing")
+        raw = payload.encode("utf-8")
+        if len(raw) <= 256 * 1024:
+            # Atomic create validates identity/commitment and reuses the first
+            # sealed receipt, so inline persistence needs no additional probe.
+            receipt = await self.execute("create_sealed_output", body)
+            record_id = receipt.get("record_id")
+            if (not isinstance(record_id, str) or not record_id
+                    or (body.get("producer_intent_id") is None and record_id != body.get("record_id"))
+                    or receipt.get("state") not in ("PENDING", "ACKNOWLEDGED")):
+                raise RuntimeError("Malformed inline sealed output receipt")
+            return receipt
         if body.get("producer_intent_id") is not None:
             probe = await self.get_producer_output({
                 "protocol_version": body["protocol_version"],
@@ -218,9 +344,6 @@ class ChatRecoveryService:
                 return probe
             if probe.get("status") != "ABSENT":
                 raise RuntimeError("Sealed output upload is already being prepared")
-        raw = payload.encode("utf-8")
-        if len(raw) <= 256 * 1024:
-            return await self.execute("create_sealed_output", body)
         if s3_service is None:
             raise RuntimeError("Large sealed output requires regional S3 before dependent work")
         from backend.core.api.app.services.bounded_archive_io import put_verified_bytes

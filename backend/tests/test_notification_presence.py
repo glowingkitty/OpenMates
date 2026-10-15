@@ -134,7 +134,7 @@ def test_human_presence_is_fresh_and_scoped():
 
         await report_presence(cache, "u", "cli", "cli", True, interactive=True, chat_id="chat-a", now=100)
         assert await has_active_human(cache, "u", "chat-a", now=101)
-        assert not await has_active_human(cache, "u", "chat-b", now=101)
+        assert await has_active_human(cache, "u", "chat-b", now=101)
         assert not await has_active_human(cache, "u", "chat-a", now=100 + LEASE_SECONDS)
 
         await report_presence(cache, "u", "automation", "cli", True, interactive=False, chat_id="chat-a", now=200)

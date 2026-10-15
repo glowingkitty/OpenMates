@@ -5625,10 +5625,19 @@ def process_ai_skill_ask_task(
         # Provider transports belong to this task's event loop. Close them while
         # that loop is alive; cleanup must never replace the task outcome.
         try:
-            from backend.apps.ai.llm_providers.google_client import close_google_clients_for_current_loop
+            from backend.apps.ai.llm_providers.google_client import (
+                close_google_clients_for_current_loop,
+                release_google_clients_for_loop,
+            )
 
             loop.run_until_complete(close_google_clients_for_current_loop())
         except Exception:
             logger.warning("Provider transport cleanup failed", exc_info=True)
+        finally:
+            # SDK destructors must run after run_until_complete stops the loop.
+            try:
+                release_google_clients_for_loop(loop)
+            except Exception:
+                logger.warning("Provider client ownership release failed", exc_info=True)
         loop.close()
         logger.info(f"[Task ID: {task_id}] Async event loop closed.")

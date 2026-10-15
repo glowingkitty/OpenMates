@@ -218,6 +218,25 @@ async def _run(admin: httpx.Client, email: str, user: dict) -> None:
         finally:
             await clear_presence(cache, user_id, "probe-web-connection")
 
+        # Both channels suppress at completion, before a new TUI chat has an
+        # active-chat selection. Exercise the real Redis lease and API gate.
+        from types import SimpleNamespace
+        from backend.core.api.app.routes.websockets import _send_push_notification_if_enabled
+        from backend.core.api.app.services.notification_presence import has_active_human
+        for client_type in ("web", "cli"):
+            connection = f"probe-foreground-{client_type}"
+            await report_presence(cache, user_id, connection, client_type, True,
+                                  interactive=client_type == "cli", chat_id=None)
+            try:
+                for response_kind in ("new-chat", "follow-up"):
+                    assert not await enqueue(str(uuid.uuid4()), preview=f"{response_kind}-MUST-NOT-EMAIL")
+                    assert not await _send_push_notification_if_enabled(
+                        SimpleNamespace(state=SimpleNamespace(cache_service=cache)),
+                        user_id, chat_id, "MUST-NOT-PUSH")
+            finally:
+                await clear_presence(cache, user_id, connection)
+            assert not await has_active_human(cache, user_id, chat_id)
+
         # Installed Apple clients declare lifecycle without client_type. Their
         # existing headers classify that declaration, and foreground elsewhere
         # still suppresses the real delayed worker globally. A headerless SDK

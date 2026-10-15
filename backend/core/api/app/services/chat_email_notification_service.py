@@ -87,6 +87,10 @@ async def enqueue_chat_email(
         return False
     if not await notification_chat_access(directus_service, user_id, chat_id, team_id):
         return False
+    # Suppress at completion as well as dispatch: closing the app after reading
+    # a response must not turn that completed response into a delayed email.
+    if await has_active_human(cache_service, user_id, chat_id):
+        return False
     user = await load_notification_user(directus_service, user_id)
     if not user or user.get("status") != "active" or not notification_category_enabled(user, "aiResponses"):
         return False
@@ -122,6 +126,8 @@ async def enqueue_chat_email(
             pass  # Optional content must never prevent the content-free email.
     client = await cache_service.client
     key = candidate_key(user_id, chat_id, message_id)
+    if await has_active_human(cache_service, user_id, chat_id):
+        return False
     accepted = await client.set(key, json.dumps(candidate), nx=True, ex=CANDIDATE_TTL)
     if not accepted:
         return False

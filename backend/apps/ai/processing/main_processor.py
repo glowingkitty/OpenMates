@@ -400,7 +400,8 @@ def _omit_fact_question_format_guidance(
         and learning_mode["enabled"] is False
     ):
         return False
-    # An unselected Project candidate/catalog is discovery metadata. The
+    # Unselected Project and Task catalogues are discovery metadata. The
+    # Task guard above already rejects explicit or unknown dependencies.
     # context_fast_path proof excludes selected Project context; reject its
     # documents, binding, and routing state explicitly below.
     if any(getattr(request, key, None) for key in (
@@ -409,7 +410,7 @@ def _omit_fact_question_format_guidance(
         "project_routing_focus_id",
         "mentioned_settings_memories_cleartext", "focus_phase_state",
         "connected_account_directory", "connected_account_token_refs",
-        "connected_account_permission_state", "related_task_candidates",
+        "connected_account_permission_state",
     )):
         return False
     if any(getattr(preprocessing, key, None) for key in (
@@ -861,7 +862,9 @@ def _diffable_embed_types_from_apps_metadata(apps_metadata: Any) -> set[str]:
 @lru_cache(maxsize=1)
 def _diffable_embed_types_from_shared_config() -> set[str]:
     diffable_types: set[str] = set()
-    shared_config_path = Path(__file__).resolve().parents[4] / "shared/config/embed_types.yml"
+    shared_config_path = Path("/shared/config/embed_types.yml")
+    if not shared_config_path.exists():
+        shared_config_path = Path(__file__).resolve().parents[4] / "shared/config/embed_types.yml"
     try:
         shared_config = yaml.safe_load(shared_config_path.read_text(encoding="utf-8")) or {}
     except Exception as exc:
@@ -5520,9 +5523,18 @@ async def handle_main_processing(
                 part for part in prompt_parts if part and part not in research_only_prompt_parts
             )
 
-    if _omit_fact_question_format_guidance(
+    omit_optional_fact_guidance = _omit_fact_question_format_guidance(
         request_data, preprocessing_results, user_overrides, available_tools_for_llm,
-    ):
+    )
+    task_discovery = getattr(request_data, "related_task_candidates", None)
+    logger.info(
+        "%s [FACT_PROMPT] eligibility omit_optional=%s fast_context=%s plain_prose=%s task_discovery_count=%s",
+        log_prefix, omit_optional_fact_guidance,
+        bool(getattr(preprocessing_results, "context_fast_path", False)),
+        getattr(preprocessing_results, "plain_prose_response", False) is True,
+        len(task_discovery) if isinstance(task_discovery, list) else -1,
+    )
+    if omit_optional_fact_guidance:
         # All three prompts derive from the same surviving parts. The app and
         # deep-link sections apply only when this proven turn has no such intent.
         prompt_parts, stable_prefix_parts = _without_optional_fact_format_sections(

@@ -358,10 +358,19 @@ def process_ai_stage_one_task(self, request_data_dict: dict, skill_config_dict: 
             logger.warning("Compact routing unavailable (diagnostic_failed); using main routing")
     finally:
         try:
-            from backend.apps.ai.llm_providers.google_client import close_google_clients_for_current_loop
+            from backend.apps.ai.llm_providers.google_client import (
+                close_google_clients_for_current_loop,
+                release_google_clients_for_loop,
+            )
             loop.run_until_complete(close_google_clients_for_current_loop())
         except Exception:
-            pass
+            logger.warning("Provider transport cleanup failed", exc_info=True)
+        finally:
+            # SDK destructors must run after run_until_complete stops the loop.
+            try:
+                release_google_clients_for_loop(loop)
+            except Exception:
+                logger.warning("Provider client ownership release failed", exc_info=True)
         loop.close()
     kwargs = {"request_data_dict": request_data_dict, "skill_config_dict": skill_config_dict}
     if legacy_batch_proof is not None:

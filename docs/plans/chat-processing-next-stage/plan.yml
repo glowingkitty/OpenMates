@@ -3,108 +3,194 @@ profile: concise
 id: chat-processing-next-stage
 title: Prepared privacy context and faster reliable chat processing
 status: implementing
-goal: >-
-  Ok let's go ahead with implementing the plan. But ensure that we still update
-  the chat header and show the followup requests once they arrive (but yes agree
-  they shouldn't delay the main chat completion but should be seen as separate steps).
+goal: Ok let's go ahead with implementing the plan. But ensure that we still update the chat header and show the
+  followup requests once they arrive (but yes agree they shouldn't delay the main chat completion but should be
+  seen as separate steps).
 parent_plan: ../chat-latency-improvements/plan.yml
 approvals:
   specification:
     status: approved
-    basis: The user approved the listed implementation semantics; exact updated bundle fingerprints are recorded with this Plan-backed approval.
+    basis: The user approved the listed implementation semantics; exact updated bundle fingerprints are recorded
+      with this Plan-backed approval.
   plan:
     status: approved
-    basis: The user explicitly approved implementation, retaining late chat-header and follow-up updates as independent steps.
+    basis: The user explicitly approved implementation, retaining late chat-header and follow-up updates as independent
+      steps.
 implementation_authorized: true
 approved_by_user: true
 specifications:
-  - feature.ai-model-routing
-  - feature.chats
-  - feature.chat-processing-feedback
+- feature.ai-model-routing
+- feature.chats
+- feature.chat-processing-feedback
+- architecture.storage-lifecycle
+- feature.notifications
 research_basis:
   source_revision: 428df4265ea7037167264491f40dfde49218e3a7
   measured_revision: cb1a4e0544e3b95d35ace902f99b22f29590df06
   observations:
-    - The factual fast path retains configured ethics but missing ethics in a partial instruction bundle does not fail closed.
-    - The production factual main prompt has no unconditional dedicated privacy instruction; privacy controls exist in code.
-    - The exact screenshot wording capital of france? fails the WH and objective-shape guards, retaining optional prompt guidance and Task setup despite being factual.
-    - Combined admission already carries privacy-filtered processing text and client-encrypted durable message data.
-    - Fresh Personal Memory and account-settings snapshot cost 219 ms in the retained warm TUI sample.
-    - Earlier encryption-envelope timings were 7-25 ms; the later 51-ms preflight aggregate is not isolated encryption.
-    - Current warm-up does not preload and compile this complete privacy snapshot.
-    - No aggregate Personal Memory/settings revision exists in the inspected path; push invalidation is incomplete.
-    - Live Directus cache/schema vendor files match the profiled files and schema freezing remains unset.
+  - The factual fast path retains configured ethics but missing ethics in a partial instruction bundle does not
+    fail closed.
+  - The production factual main prompt has no unconditional dedicated privacy instruction; privacy controls exist
+    in code.
+  - The exact screenshot wording capital of france? fails the WH and objective-shape guards, retaining optional
+    prompt guidance and Task setup despite being factual.
+  - Combined admission already carries privacy-filtered processing text and client-encrypted durable message data.
+  - Fresh Personal Memory and account-settings snapshot cost 219 ms in the retained warm TUI sample.
+  - Earlier encryption-envelope timings were 7-25 ms; the later 51-ms preflight aggregate is not isolated encryption.
+  - Current warm-up does not preload and compile this complete privacy snapshot.
+  - No aggregate Personal Memory/settings revision exists in the inspected path; push invalidation is incomplete.
+  - Live Directus cache/schema vendor files match the profiled files and schema freezing remains unset.
 proposed_changes:
   required_instructions:
-    - Ethics is mandatory on every answer-producing request, including initial requests, follow-ups, contextual paths and recovery; unavailable ethics prevents inference.
-    - Validate required instruction sections at startup and cache read; reload invalid cached bundles and stop before inference if required sections remain unavailable.
-    - Add a compact mandatory privacy instruction consistent with existing client redaction, authorized context and tool boundaries.
+  - Ethics is mandatory on every answer-producing request, including initial requests, follow-ups, contextual paths
+    and recovery; unavailable ethics prevents inference.
+  - Validate required instruction sections at startup and cache read; reload invalid cached bundles and stop before
+    inference if required sections remain unavailable.
+  - Add a compact mandatory privacy instruction consistent with existing client redaction, authorized context and
+    tool boundaries.
   directus:
-    - Verify and publish the prepared development-only frozen-schema candidate, preserving schema and permission invalidation.
-    - Measure actual admission and snapshot improvements before deciding whether more hot-path database work should bypass generic Directus request middleware.
+  - Verify and publish the prepared development-only frozen-schema candidate, preserving schema and permission invalidation.
+  - Measure actual admission and snapshot improvements before deciding whether more hot-path database work should
+    bypass generic Directus request middleware.
   privacy_warmup:
-    triggers: [composer_focus, microphone_activation, authenticated_tui_startup]
+    triggers:
+    - composer_focus
+    - microphone_activation
+    - authenticated_tui_startup
     preload:
-      - Personal Memory ciphertext and relevant encrypted account settings.
-      - Client-side decrypted privacy settings and custom personal-data entries in RAM.
-      - Compiled detection options, prepared key/wrapper and privacy runtime.
-      - Authenticated send connection and existing authorized discovery caches.
-    data_retention: Two sliding hours while the scope remains valid; decrypted privacy material remains device-local in RAM.
-    binding: API, account, current session authority, device, Personal/Team scope, key epoch/fingerprint, local privacy preferences and snapshot revision.
-    invalidation: Logout, scope/key/session changes, relevant mutation events, reconnect uncertainty or revision mismatch.
+    - Personal Memory ciphertext and relevant encrypted account settings.
+    - Client-side decrypted privacy settings and custom personal-data entries in RAM.
+    - Compiled detection options, prepared key/wrapper and privacy runtime.
+    - Authenticated send connection and existing authorized discovery caches.
+    data_retention: Two sliding hours while the scope remains valid; decrypted privacy material remains device-local
+      in RAM.
+    binding: API, account, current session authority, device, Personal/Team scope, key epoch/fingerprint, local
+      privacy preferences and snapshot revision.
+    invalidation: Logout, scope/key/session changes, relevant mutation events, reconnect uncertainty or revision
+      mismatch.
     recommended_freshness:
-      - Add a durable aggregate privacy-context generation covering every Personal Memory create/update/delete and relevant encrypted-settings write.
-      - Ensure Directus, REST, WebSocket, import and administrative writes update it atomically; database enforcement is preferred where application coverage cannot be complete.
-      - Produce each warm snapshot and its generation from a consistent read; mismatched before/after generations must not certify a snapshot.
-      - On Send validate current authority and generation before transmitting privacy-filtered content; unchanged returns a fresh turn/socket-bound receipt without reloading bodies.
-      - Mutation events improve readiness but do not replace authoritative validation; cache eviction or missing generation must never mean unchanged.
-      - Preserve one-use receipt, rate-limit, recovery and compatibility boundaries; unsupported or uncertain paths use the existing full snapshot.
-    smaller_alternative: Conditional snapshot digest using existing authoritative reads; useful as a limited diagnostic but it may not remove the 219-ms database/authority cost.
+    - Add a durable aggregate privacy-context generation covering every Personal Memory create/update/delete and
+      relevant encrypted-settings write.
+    - Ensure Directus, REST, WebSocket, import and administrative writes update it atomically; database enforcement
+      is preferred where application coverage cannot be complete.
+    - Produce each warm snapshot and its generation from a consistent read; mismatched before/after generations
+      must not certify a snapshot.
+    - On Send validate current authority and generation before transmitting privacy-filtered content; unchanged
+      returns a fresh turn/socket-bound receipt without reloading bodies.
+    - Mutation events improve readiness but do not replace authoritative validation; cache eviction or missing generation
+      must never mean unchanged.
+    - Preserve one-use receipt, rate-limit, recovery and compatibility boundaries; unsupported or uncertain paths
+      use the existing full snapshot.
+    smaller_alternative: Conditional snapshot digest using existing authoritative reads; useful as a limited diagnostic
+      but it may not remove the 219-ms database/authority cost.
   send_path:
-    - Keep the existing paired processing-text and encrypted-durability frame.
-    - Overlap independent key/recovery preparation with privacy validation and parallelize independent encrypted fields.
-    - Keep required journal/admission durability before billable inference; defer optional synchronization and metadata.
+  - Keep the existing paired processing-text and encrypted-durability frame.
+  - Overlap independent key/recovery preparation with privacy validation and parallelize independent encrypted fields.
+  - Keep required journal/admission durability before billable inference; defer optional synchronization and metadata.
   backend_preparation:
-    - Generalize compact factual prompt eligibility using validated routing intent and actual response requirements rather than a narrow question-word whitelist; retain context, artifact, interaction, override and safety boundaries.
-    - Apply efficient instruction assembly and preparation to same-chat follow-ups as well as initial requests; retain the history needed for pronouns, references and active context, and acquire complete authoritative context when an existing-chat path lacks the first-turn proof.
-    - Prefetch cached Mate configuration during independent eligibility checks rather than parsing it after Jev.
-    - Reuse completed preparation only with exact turn/context/revision binding; preserve fresh spending, consent and execution gates.
-    - Avoid repeated active-summary work and unnecessary resource bodies; incomplete context retains the complete path.
+  - Generalize compact factual prompt eligibility using validated routing intent and actual response requirements
+    rather than a narrow question-word whitelist; retain context, artifact, interaction, override and safety boundaries.
+  - Apply efficient instruction assembly and preparation to same-chat follow-ups as well as initial requests; retain
+    the history needed for pronouns, references and active context, and acquire complete authoritative context when
+    an existing-chat path lacks the first-turn proof.
+  - Prefetch cached Mate configuration during independent eligibility checks rather than parsing it after Jev.
+  - Reuse completed preparation only with exact turn/context/revision binding; preserve fresh spending, consent
+    and execution gates.
+  - Avoid repeated active-summary work and unnecessary resource bodies; incomplete context retains the complete
+    path.
   completion:
-    - Separate response-complete, encrypted-reply-persisted and metadata-complete milestones.
-    - End active processing UI on the authoritative response terminal event; release send locks after required persistence, independently of title/summary/chips.
-    - Preserve intermediate tool-cycle continuation, route/turn fences, metadata ordering and bounded listener cleanup.
-    - Continue applying chat-header title/summary and follow-up suggestion updates when they arrive after response completion; metadata subscriptions remain owned and late results cannot overwrite a newer turn or another account/chat.
+  - Separate response-complete, encrypted-reply-persisted and metadata-complete milestones.
+  - End active processing UI on the authoritative response terminal event; release send locks after required persistence,
+    independently of title/summary/chips.
+  - Preserve intermediate tool-cycle continuation, route/turn fences, metadata ordering and bounded listener cleanup.
+  - Continue applying chat-header title/summary and follow-up suggestion updates when they arrive after response
+    completion; metadata subscriptions remain owned and late results cannot overwrite a newer turn or another account/chat.
 implementation_order:
-  - Required instruction validation and detailed snapshot/admission phase instrumentation.
-  - Frozen Directus schema compatibility verification and scoped development deployment.
-  - Prepared privacy snapshot, authoritative generation and unchanged validation across web and CLI/TUI.
-  - Narrow duplicate-read/configuration and SDK completion/listener fixes.
-  - Provider connection/cache/route investigation only if the new timing breakdown identifies it as dominant.
+- Required instruction validation and detailed snapshot/admission phase instrumentation.
+- Frozen Directus schema compatibility verification and scoped development deployment.
+- Prepared privacy snapshot, authoritative generation and unchanged validation across web and CLI/TUI.
+- Narrow duplicate-read/configuration and SDK completion/listener fixes.
+- Provider connection/cache/route investigation only if the new timing breakdown identifies it as dominant.
 required_checks:
-  - Real production instruction fixtures and captured mocked provider requests retain complete ethics/privacy; missing required sections prevent inference.
-  - Real inference uses configured default Gemini resolution without a benchmark model override; record actual model, thinking policy, provider invocation and usage separately from mocked correctness tests.
-  - Real same-chat sequence includes What is the capital of Spain?, And France?, and And Germany?; verify correct context and measure each request independently to Mate feedback, authored text, required persistence and readiness.
-  - Real inference also exercises a shorthand first request such as capital of france? and a contextual/tool follow-up after Berlin events, without discarding necessary history or tools.
-  - Equivalent factual phrasing, shorthand such as capital of france?, and approved language variants receive the same eligible compact path; action, private/contextual, code/artifact, learning and interactive controls retain their required instructions.
-  - Memory create/update/delete, settings mutation, lost events, reconnect, account/Team/key switches and missing/reset generation invalidate prepared privacy data.
-  - Concurrent writes cannot produce a snapshot certified with the wrong generation; cold/miss/unsupported paths remain correct.
-  - Redaction and encrypted storage/recovery preserve original content and mappings; lost ACK retries keep one message and one billable turn.
-  - Schema/permission invalidation, current access and budget checks remain authoritative with frozen schema.
-  - Final response clears active UI without waiting for delayed postprocessor metadata; continuation and required persistence retain correct state.
-  - Delayed title, summary and follow-up suggestions still render and persist after main completion, including metadata arriving during a subsequent same-chat request or after navigation.
-  - WebSocket observers remain bounded through success, cancellation, timeout, disconnect and repeated turns.
-  - Every real-inference run audits client errors, received error frames and correlated API/routing/main-worker logs; request-related errors must be fixed before that run counts as accepted.
+- Real production instruction fixtures and captured mocked provider requests retain complete ethics/privacy; missing
+  required sections prevent inference.
+- Real inference uses configured default Gemini resolution without a benchmark model override; record actual model,
+  thinking policy, provider invocation and usage separately from mocked correctness tests.
+- Real same-chat sequence includes What is the capital of Spain?, And France?, and And Germany?; verify correct
+  context and measure each request independently to Mate feedback, authored text, required persistence and readiness.
+- Real inference also exercises a shorthand first request such as capital of france? and a contextual/tool follow-up
+  after Berlin events, without discarding necessary history or tools.
+- Equivalent factual phrasing, shorthand such as capital of france?, and approved language variants receive the
+  same eligible compact path; action, private/contextual, code/artifact, learning and interactive controls retain
+  their required instructions.
+- Memory create/update/delete, settings mutation, lost events, reconnect, account/Team/key switches and missing/reset
+  generation invalidate prepared privacy data.
+- Concurrent writes cannot produce a snapshot certified with the wrong generation; cold/miss/unsupported paths remain
+  correct.
+- Redaction and encrypted storage/recovery preserve original content and mappings; lost ACK retries keep one message
+  and one billable turn.
+- Schema/permission invalidation, current access and budget checks remain authoritative with frozen schema.
+- Final response clears active UI without waiting for delayed postprocessor metadata; continuation and required
+  persistence retain correct state.
+- Delayed title, summary and follow-up suggestions still render and persist after main completion, including metadata
+  arriving during a subsequent same-chat request or after navigation.
+- WebSocket observers remain bounded through success, cancellation, timeout, disconnect and repeated turns.
+- Every real-inference run audits client errors, received error frames and correlated API/routing/main-worker logs;
+  request-related errors must be fixed before that run counts as accepted.
 verification_order:
-  - After approval run focused local units/builds, followed by the narrow affected isolated GitHub CI fixtures; reuse matching prepared images/schema and passing input-identical evidence.
-  - Deploy and run one new default-Gemini Spain TUI diagnostic first; inspect its phases before another inference if it misses.
-  - Once promising, measure a small recorded warm/cold cohort and default-Gemini same-chat factual follow-ups, then Berlin TUI plus its contextual follow-up; repeat the affected ordinary and follow-up scenarios on web afterward.
-  - Only after ordinary acceptance test a Focus-mode request and a remote-access Project summary, retaining TUI-before-web ordering.
-  - After two failures of the same approach require new evidence before another reproduction.
+- After approval run focused local units/builds, followed by the narrow affected isolated GitHub CI fixtures; reuse
+  matching prepared images/schema and passing input-identical evidence.
+- Deploy and run one new default-Gemini Spain TUI diagnostic first; inspect its phases before another inference
+  if it misses.
+- Once promising, measure a small recorded warm/cold cohort and default-Gemini same-chat factual follow-ups, then
+  Berlin TUI plus its contextual follow-up; repeat the affected ordinary and follow-up scenarios on web afterward.
+- Only after ordinary acceptance test a Focus-mode request and a remote-access Project summary, retaining TUI-before-web
+  ordering.
+- After two failures of the same approach require new evidence before another reproduction.
 acceptance_criteria:
-  - Selected Mate appears within 1500 ms from Send, preferably within 1000 ms, on ordinary and subsequent Focus/Project scenarios.
-  - Initial and same-chat simple follow-up authored answers begin streaming within 2-3 seconds; selected-Mate feedback stays within1500 ms, with tool progress, required persistence and final metadata measured separately.
-  - Warm unchanged privacy context avoids full snapshot payload/decryption on Send; measure the small freshness check separately without promising zero latency.
-  - Processing indicators end promptly on authoritative response completion and remain independent of postprocessor metadata.
-  - No typing-time inference, cached positive permissions/balances, raw protected-PII transmission or unencrypted durable data.
-  - Real-inference acceptance requires no unresolved request-related client or backend errors in addition to correct answers and latency targets.
+- Selected Mate appears within a hard maximum of 2000 ms from Send for both new chats and same-chat follow-ups,
+  first on TUI and then web; 1500 ms remains the aim and faster is better, including subsequent Focus/Project scenarios.
+- Initial and same-chat simple follow-up authored answers begin streaming within 2-3 seconds; selected-Mate feedback
+  stays within the 2000 ms hard maximum with a 1500 ms aim; tool progress, required persistence and final metadata
+  are measured separately.
+- Warm unchanged privacy context avoids full snapshot payload/decryption on Send; measure the small freshness check
+  separately without promising zero latency.
+- Processing indicators end promptly on authoritative response completion and remain independent of postprocessor
+  metadata.
+- No typing-time inference, cached positive permissions/balances, raw protected-PII transmission or unencrypted
+  durable data.
+- Real-inference acceptance requires no unresolved request-related client or backend errors in addition to correct
+  answers and latency targets.
+approved_extensions:
+- date: '2026-10-15'
+  goal: Yes go ahead with improving the cms calls as suggested for the app skill (and check if the same optimization
+    should be applied to all other app skills as well, if so go ahead with that). And ensure the updated processing
+    flow is also deployed to web app.
+  scope:
+  - Shared ordinary composite recovery batches across metadata-driven app skills.
+  - Atomic idempotent inline saves across all existing recovery callers.
+  - Preserve current authorization, Project envelopes, first sealed receipts, large-output S3 and specialized producer
+    lifecycles.
+  - Deploy compatible backend/extension code and confirm web deployment readiness.
+  verification:
+  - Bounded ordered atomic batch, rollback, identity/commitment/revocation/deletion and S3 tests.
+  - Ten children plus parent use one lookup batch and one commit batch before ordered publication; retries retain
+    sealed bytes and child references.
+  - Provider-free isolated web composite recovery, typed acknowledgements, fullscreen order and canonical retrieval
+    after reload.
+  - Real inference remains automatic routing with no model/provider override; TUI before web and complete client/backend
+    request-error audit.
+
+- date: '2026-10-15'
+  goal: Suppress chat email and push while a foreground web tab or interactive TUI is open; keep Apple client changes out of scope.
+  scope:
+  - Fresh authenticated per-connection presence covers the recipient's chats before active-chat selection.
+  - Both notification channels recheck before enqueue and delivery; background, closed, expired and headless clients do not suppress.
+  - Fresh current-chat follow-up preparation and required recovery do not wait for unrelated account recovery.
+  - Explicitly transient canonical recovery errors retry once after matching terminal hydration with bounded state and unchanged security fences.
+  verification:
+  - Foreground/background/closure/expiry/rotation and queued-delivery races, isolated Mailpit and built SDK privacy/follow-up checks.
+  - Deterministic transient recovery, duplicate/terminal ordering, exhaustion, stale identity and rejection tests; isolated composite replay.
+  - Real new-chat and same-chat follow-up default-routing TUI measurements before web with request-related error audit.
+  deployment_deadline: '2026-10-15T15:00:00Z'
+  deployment_freeze_basis: User begins final manual web testing at 17:00 Europe/Berlin and requires no active deployments.

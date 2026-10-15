@@ -1109,3 +1109,242 @@ async def test_main_context_retry_uses_existing_record_before_randomized_seal(mo
         assert len(cache._client.published) == 1
     finally:
         active_recovery_output_context.reset(token)
+
+
+class _CompositeRecoveryDirectus:
+    base_url = "http://cms:8055"
+
+    def __init__(self):
+        self.rows = {}
+        self.calls = []
+        self.order = []
+        self.memberships = []
+        self.classifications = 0
+        self.fail_save = False
+
+    async def get_items(self, collection, *, params, admin_required, no_cache):
+        assert collection == "project_items" and admin_required and no_cache
+        assert params["filter[item_type][_eq]"] == "embed"
+        self.classifications += 1
+        return self.memberships
+
+    async def _make_api_request(self, method, url, **kwargs):
+        from backend.tests.test_chat_recovery_service import FakeResponse
+        assert method == "POST" and url.endswith("/chat-recovery-transaction")
+        body = kwargs["json"]
+        op = body["operation"]
+        self.calls.append(body)
+        self.order.append(op)
+        outputs = body["data"]["outputs"]
+        if op == "get_replay_outputs":
+            receipts = []
+            for output in outputs:
+                existing = self.rows.get(output["record_id"])
+                if existing and existing["content_commitment"] != output["content_commitment"]:
+                    return FakeResponse(409, {"error": {"code": "replay_output_mismatch"}})
+                receipts.append({"record_id": output["record_id"],
+                                 "status": "PENDING" if existing else "ABSENT"})
+        elif op == "create_sealed_outputs":
+            if self.fail_save:
+                return FakeResponse(503, {"error": {"code": "storage_unavailable"}})
+            self.rows.update({output["record_id"]: dict(output) for output in outputs})
+            receipts = [{"record_id": output["record_id"], "state": "PENDING"} for output in outputs]
+        else:
+            raise AssertionError(op)
+        return FakeResponse(200, {"data": {"outputs": receipts}})
+
+
+def _ordinary_composite_fixture(monkeypatch):
+    monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "bounded-composite-test-secret")
+    chat = "22222222-2222-4222-8222-222222222222"
+    _, public_key = derive_recovery_keypair("AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8", chat, 1)
+    context = RecoveryOutputContext(
+        owner_id="11111111-1111-4111-8111-111111111111", owner_hash="a" * 64,
+        root_chat_id=chat, target_chat_id=chat,
+        turn_id="33333333-3333-4333-8333-333333333333",
+        preflight_id="77777777-7777-4777-8777-777777777777",
+        inference_task_id="66666666-6666-4666-8666-666666666666",
+        public_key=public_key, key_version=1,
+    )
+    directus = _CompositeRecoveryDirectus()
+    cache = FakeCacheService({"embed_id": "embed-1", "status": "processing",
+                              "encrypted_content": encode({"query": "AI events in Berlin"})})
+    service = EmbedService(cache, directus, FakeEncryptionService())
+    service._schedule_embed_persistence_fallback = lambda _embed: None
+    publish = cache._client.publish
+
+    async def observed_publish(channel, message):
+        directus.order.append("publish")
+        return await publish(channel, message)
+
+    cache._client.publish = observed_publish
+    return service, cache, directus, context
+
+
+# contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery,chats.persistence.client-encrypted
+@pytest.mark.asyncio
+@pytest.mark.parametrize("app_id,skill_id,create", [
+    ("events", "search", False), ("web", "search", False),
+    ("news", "search", True), ("travel", "search_connections", True),
+])
+async def test_composite_recovery_batches_children_and_parent_before_ordered_publication(
+    monkeypatch, app_id, skill_id, create,
+):
+    service, cache, directus, context = _ordinary_composite_fixture(monkeypatch)
+    async def child_type(*_args, **_kwargs):
+        return "event"
+    monkeypatch.setattr(EmbedService, "get_composite_child_embed_type", child_type)
+    results = [{"title": f"Private event {i}", "embed_ref": f"event-{i}"} for i in range(10)]
+    token = active_recovery_output_context.set(context)
+    try:
+        args = dict(app_id=app_id, skill_id=skill_id, results=results, chat_id=context.target_chat_id,
+                    message_id="message-1", user_id=context.owner_id, user_id_hash=context.owner_hash,
+                    user_vault_key_id="vault-key", request_metadata={"query": "AI events in Berlin"})
+        if create:
+            result = await service.create_embeds_from_skill_results(**args)
+            parent = result["parent_embed_id"]
+        else:
+            result = await service.update_embed_with_results(embed_id="embed-1", **args)
+            parent = result["embed_id"]
+        assert len(result["child_embed_ids"]) == 10
+        assert [call["operation"] for call in directus.calls] == ["get_replay_outputs", "create_sealed_outputs"]
+        assert directus.classifications == 1 and len(directus.rows) == 11
+        assert directus.order[:2] == ["get_replay_outputs", "create_sealed_outputs"]
+        assert directus.order[2:] == ["publish"] * 11
+        published = [event["payload"] for _, event in cache._client.published]
+        assert [event["embed_id"] for event in published] == [*result["child_embed_ids"], parent]
+        assert all(event["parent_embed_id"] == parent for event in published[:-1])
+        assert [decode(event["content"])["embed_ref"] for event in published[:-1]] == [f"event-{i}" for i in range(10)]
+        assert published[-1]["embed_ids"] == result["child_embed_ids"]
+        assert "Private event" not in json.dumps(directus.calls)
+        assert all(f"embed:{embed}" in cache._client.values for embed in [parent, *result["child_embed_ids"]])
+    finally:
+        active_recovery_output_context.reset(token)
+
+
+# contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure", ["save", "project", "unknown_project"])
+async def test_composite_batch_failure_cannot_cache_or_publish_finished_results(monkeypatch, failure):
+    service, cache, directus, context = _ordinary_composite_fixture(monkeypatch)
+    directus.fail_save = failure == "save"
+    directus.memberships = [{"id": "project-owned"}] if failure == "project" else None if failure == "unknown_project" else []
+    async def child_type(*_args, **_kwargs):
+        return "event"
+    monkeypatch.setattr(EmbedService, "get_composite_child_embed_type", child_type)
+    token = active_recovery_output_context.set(context)
+    try:
+        with pytest.raises(RequiredRecoveryOutputError):
+            await service.update_embed_with_results(
+                embed_id="embed-1", app_id="events", skill_id="search",
+                results=[{"title": f"Event {i}"} for i in range(10)],
+                chat_id=context.target_chat_id, message_id="message-1", user_id=context.owner_id,
+                user_id_hash=context.owner_hash, user_vault_key_id="vault-key",
+            )
+        assert cache._client.published == [] and directus.rows == {}
+        assert list(cache._client.values) == ["embed:embed-1"]
+        assert json.loads(cache._client.values["embed:embed-1"])["status"] == "processing"
+    finally:
+        active_recovery_output_context.reset(token)
+    # A failed task must not leave a collector active in this coroutine.
+    assert service.send_embed_data_to_client.__globals__["_pending_finished_embed_batch"].get() is None
+
+
+# contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery
+@pytest.mark.asyncio
+async def test_composite_batch_retry_reuses_first_seal_before_randomized_sealing(monkeypatch):
+    service, cache, directus, context = _ordinary_composite_fixture(monkeypatch)
+    payload = {"payload": {"embed_id": "stable-embed", "chat_id": context.target_chat_id,
+                           "message_id": "message-1", "user_id": context.owner_id,
+                           "content": "original private result", "createdAt": 1}}
+    token = active_recovery_output_context.set(context)
+    try:
+        await service._save_completed_embed_recovery_batch([payload])
+        first = {key: dict(value) for key, value in directus.rows.items()}
+        from backend.shared.python_utils import chat_completion_recovery_job
+        def reject_sealing(**_kwargs):
+            raise AssertionError("same-result retry must reuse its original sealed receipt")
+        monkeypatch.setattr(chat_completion_recovery_job, "build_sealed_recovery_output_data", reject_sealing)
+        await service._save_completed_embed_recovery_batch([payload])
+        assert directus.rows == first
+        assert [call["operation"] for call in directus.calls] == [
+            "get_replay_outputs", "create_sealed_outputs", "get_replay_outputs",
+        ]
+        changed = {"payload": {**payload["payload"], "content": "different result"}}
+        with pytest.raises(Exception, match="replay_output_mismatch"):
+            await service._save_completed_embed_recovery_batch([changed])
+    finally:
+        active_recovery_output_context.reset(token)
+
+
+# contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery,chats.message.identity-idempotent
+@pytest.mark.asyncio
+@pytest.mark.parametrize("provided_refs", [False, True])
+async def test_composite_reexecution_cannot_replace_sealed_parent_with_new_child_ids(monkeypatch, provided_refs):
+    service, cache, directus, context = _ordinary_composite_fixture(monkeypatch)
+    async def child_type(*_args, **_kwargs):
+        return "event"
+    monkeypatch.setattr(EmbedService, "get_composite_child_embed_type", child_type)
+    publish = cache._client.publish
+    fail_publish = True
+    async def disconnected(channel, message):
+        if fail_publish:
+            raise RuntimeError("disconnected")
+        return await publish(channel, message)
+    cache._client.publish = disconnected
+    args = dict(embed_id="embed-1", app_id="events", skill_id="search",
+                results=[{"title": f"Event {i}", **({"embed_ref": f"event-{i}"} if provided_refs else {})} for i in range(10)],
+                chat_id=context.target_chat_id, message_id="message-1", user_id=context.owner_id,
+                user_id_hash=context.owner_hash, user_vault_key_id="vault-key")
+    token = active_recovery_output_context.set(context)
+    try:
+        with pytest.raises(RequiredRecoveryOutputError):
+            await service.update_embed_with_results(**args)
+        assert len(directus.rows) == 11 and cache._client.published == []
+        first = {key: dict(value) for key, value in directus.rows.items()}
+        fail_publish = False
+        # Reexecuting the builder allocates new ordinary child identities; it
+        # must not pretend that their changed parent references are a replay.
+        with pytest.raises(RequiredRecoveryOutputError, match="Composite embed recovery save or delivery failed"):
+            await service.update_embed_with_results(**args)
+        assert cache._client.published == []
+        assert directus.rows == first
+        assert [call["operation"] for call in directus.calls] == [
+            "get_replay_outputs", "create_sealed_outputs", "get_replay_outputs",
+        ]
+    finally:
+        active_recovery_output_context.reset(token)
+
+
+# contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery,projects.files.concurrent-chat-safety
+def test_ordinary_child_ids_do_not_enter_the_registered_or_project_uuid5_namespace(monkeypatch):
+    import uuid
+    from backend.core.api.app.services.embed_version_transaction_service import is_hosted_project_embed_id
+
+    _service, _cache, _directus, context = _ordinary_composite_fixture(monkeypatch)
+    parent = "22222222-2222-4222-8222-222222222222"
+    context_token = active_recovery_output_context.set(context)
+    producer_token = active_verified_output_producer.set(None)
+    try:
+        ordinary = [EmbedService._registered_child_embed_id(parent, index) for index in range(10)]
+        assert len(set(ordinary)) == 10
+        assert all(uuid.UUID(child).version == 4 and not is_hosted_project_embed_id(child) for child in ordinary)
+        intent = "33333333-3333-4333-8333-333333333333"
+        producer = VerifiedOutputProducer(
+            classification="registered_ai", intent_id=intent, task_id=intent,
+            task_name="apps.images.tasks.generate", kwargs_binding="f" * 64,
+            primary_embed_id=parent, primary_message_id="message-1", target_chat_id=context.target_chat_id,
+            owner_hash=context.owner_hash, hashed_team_id=None,
+        )
+        active_verified_output_producer.set(producer)
+        child = EmbedService._registered_child_embed_id(parent, 1)
+        assert uuid.UUID(child).version == 5
+        assert child == str(uuid.uuid5(uuid.UUID(intent), "embed-child:1"))
+        assert EmbedService._registered_child_embed_id(parent, 1) == child
+        with pytest.raises(RequiredRecoveryOutputError, match="registered producer intent"):
+            EmbedService._registered_child_embed_id(parent, 32)
+        with pytest.raises(RequiredRecoveryOutputError, match="registered producer intent"):
+            EmbedService._registered_child_embed_id("other-parent", 1)
+    finally:
+        active_verified_output_producer.reset(producer_token)
+        active_recovery_output_context.reset(context_token)

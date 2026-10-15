@@ -236,3 +236,10 @@ payload so sync can publish the parent-child relationship without dropping index
 - [Security](../core/security.md) — encryption tiers and key wrapping
 - [Sync](../data/sync.md) — embed sync across devices during login
 - [Message Previews & Grouping](./message-previews-grouping.md) — embed preview rendering
+
+
+### Bounded composite recovery persistence
+
+Ordinary saved-chat composite results share a task-scoped preparation batch: fresh Project classification and recovery pin, bounded existing-receipt lookup, randomized sealing only for absent records, and bounded atomic inline persistence. All required child and parent records seal before finished cache writes and ordered WebSocket delivery. Transactions preserve per-record current authority, deletion, stable identity and content commitments. Requests cap at 32 outputs/512 KiB; a failure rolls back that transaction and preserves previously committed chunks for retry. The existing large-S3 protocol and registered/volatile producer lifecycles remain authoritative for their outputs.
+
+Retries of one prepared ordinary composite retain its child IDs and fallback references under the existing parent identity, and reuse the first sealed envelope. Reexecuting the ordinary builder allocates new UUIDv4 children and cannot replace an already sealed parent with changed references. Registered producers retain their existing deterministic identities. The public embed delivery and canonical client-encryption/acknowledgement contracts are unchanged. See `docs/plans/chat-processing-next-stage/implemented-flow.md` for the full processing flow and measured-evidence boundaries.

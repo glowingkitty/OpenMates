@@ -129,3 +129,16 @@ focus_authoring_route:
   then: It routes to the authorized updated Workflow embed/Project workspace. Pending file persistence or a
     partial update is shown as pending/partial rather than complete success; private graph/chat text stays
     out of notification payloads.
+
+
+foreground_chat_delivery:
+  - id: open-human-client-suppresses-both-chat-channels
+    assertion_ids: [notifications.delivery.foreground-chat-suppression]
+    given: Alice is using an interactive TUI or a focused web app tab, with chat email and push enabled.
+    when: A response completes in a new chat before active-chat selection, or in an existing chat after a follow-up.
+    then: Neither chat email nor push is queued or delivered while her fresh human session remains active; her chat history still updates normally.
+  - id: absent-or-headless-client-preserves-chat-delivery
+    assertion_ids: [notifications.delivery.foreground-chat-suppression]
+    given: Alice's web tab is in the background and her TUI is closed; only a headless CLI or another user's session is connected.
+    when: Her chat response completes, or a previously queued notification reaches delivery after her presence lease expires.
+    then: Her enabled chat email and push can deliver according to existing preferences and access checks. Other notification categories keep their existing rules.

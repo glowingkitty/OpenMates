@@ -93,7 +93,7 @@ async def clear_presence(cache, user_id: str, connection_id: str) -> None:
 
 
 async def has_active_human(cache, user_id: str, chat_id: str, now: float | None = None) -> bool:
-    """Web/Apple foreground activity covers all chats; interactive CLI covers one."""
+    """Fresh foreground apps and interactive TUI sessions cover the user's chats."""
     client = await cache.client
     if client is None:
         return False
@@ -115,7 +115,7 @@ async def has_active_human(cache, user_id: str, chat_id: str, now: float | None 
             continue
         if lease.get("client_type") in {"web", "apple"}:
             return True
-        if lease.get("client_type") == "cli" and lease.get("interactive") is True and lease.get("chat_id") == chat_id:
+        if lease.get("client_type") == "cli" and lease.get("interactive") is True:
             return True
     return False
 

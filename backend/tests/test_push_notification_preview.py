@@ -56,6 +56,7 @@ def test_completion_dispatch_sanitizes_full_content_before_preview_limit(monkeyp
     celery = SimpleNamespace(send_task=Mock())
     monkeypatch.setitem(sys.modules, "backend.core.api.app.tasks.celery_config", SimpleNamespace(app=celery))
     notify = completion_dispatch()
+    monkeypatch.setattr("backend.core.api.app.services.notification_presence.has_active_human", AsyncMock(return_value=False))
     cache = SimpleNamespace(get_user_by_id=AsyncMock(return_value={
         "push_notification_enabled": True,
         "push_notification_subscription": '{"type":"apns","token":"synthetic"}',

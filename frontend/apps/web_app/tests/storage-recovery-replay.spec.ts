@@ -6,6 +6,8 @@ export {};
 const { test, expect } = require('./console-monitor');
 const { createSignupLogger, createStepScreenshotter, getTestAccount, getE2EDebugUrl, installE2EServerContentOverrideGate } = require('./signup-flow-helpers');
 const { loginToTestAccount, startNewChat, sendMessage } = require('./helpers/chat-test-helpers');
+const { observeRecoveryFrames, availableOutputs, requireActiveRecoveryDiscovery, focusRecoveryPage, requireForegroundRecoveryLifecycle } = require('./storage-recovery-fixtures');
+const { openFullscreen, closeFullscreen } = require('./helpers/embed-test-helpers');
 
 function requireSignedRecoveryProfile(): void {
 	if (process.env.E2E_STORAGE_CAPACITY !== '1') {
@@ -88,14 +90,21 @@ test('saved child message and summary replay through sealed output records after
 		expect(discovered.some((output: any) => output.output_kind === 'message' && output.message_role === 'user')).toBe(true);
 		expect(discovered.some((output: any) => output.output_kind === 'message' && output.message_role === 'assistant')).toBe(true);
 		expect(discovered.some((output: any) => output.output_kind === 'summary')).toBe(true);
+		const childChatIds = [...new Set(discovered.map((output: any) => output.target_chat_id))];
+		expect(childChatIds).toHaveLength(1);
+		expect(childChatIds[0]).not.toBe(chatId);
 		for (const { output_kind: kind, record_id: recordId } of discovered) {
 			const acknowledgedType = kind === 'message' ? 'recovery_output_persisted' : 'recovery_output_summary_persisted';
 			await expect.poll(() => frames.some((frame) => frame.direction === 'received'
 				&& frame.type === acknowledgedType && frame.payload.record_id === recordId
 				&& frame.payload.state === 'ACKNOWLEDGED'), { timeout: 120_000 }).toBe(true);
 		}
+		// These receipts restore the child, not the root chat we used for discovery.
+		await recovery.goto(getE2EDebugUrl(`/#chat-id=${encodeURIComponent(String(childChatIds[0]))}`), { waitUntil: 'domcontentloaded' });
+		await expect(recovery.getByTestId('message-user').filter({ hasText: 'Summarize this disposable synthetic storage task.' }).first()).toBeVisible();
+		await expect(recovery.getByTestId('message-assistant').filter({ hasText: 'Synthetic child storage result.' }).first()).toBeVisible();
 		await recovery.reload();
-		await expect(recovery.getByTestId('message-assistant').filter({ hasText: 'Synthetic child' }).first())
+		await expect(recovery.getByTestId('message-assistant').filter({ hasText: 'Synthetic child storage result.' }).first())
 			.toBeVisible({ timeout: 90_000 });
 	} finally {
 		await recoveryContext.close();
@@ -243,6 +252,10 @@ test('saved code embed and version diff replay with canonical ciphertext acknowl
 			await installE2EServerContentOverrideGate(updatePage, 'storage-recovery-replay');
 			await loginToTestAccount(updatePage, log, screenshot);
 			await updatePage.goto(getE2EDebugUrl(`/#chat-id=${encodeURIComponent(chatId)}`));
+			// Hydrate the existing response before the send helper captures its baseline.
+			// Otherwise the old response can masquerade as acceptance of this follow-up.
+			await expect(updatePage.locator(`[data-action="message-input"][data-current-chat-id="${chatId}"]`)).toBeVisible();
+			await expect(updatePage.getByTestId('message-assistant').first()).toBeVisible();
 			await sendMessage(updatePage,
 				'Apply the scripted patch to recovery_demo.py. STORAGE_CAPACITY_SCENARIO:recovery_diff <<<TEST_LIVE_MOCK:storage_capacity_v1>>>',
 				log, screenshot, 'storage-recovery-diff');
@@ -351,4 +364,236 @@ test('a failed durable child prompt save pauses dependent synthesis', async ({ p
 		&& pause.child_chat_id && pause.reason_code === 'durable_output_unavailable'),
 	{ timeout: 120_000 }).toBe(true);
 	expect(pauses.filter((pause) => pause.chat_id === chatId)).toHaveLength(1);
+});
+
+// contract-test: supporting surface=gui.web assertions=storage.background.complete-sealed-recovery,chats.persistence.client-encrypted
+test('ten-child composite replays every sealed embed with typed acknowledgements and ordered fullscreen after reload', async ({ browser }: { browser: any }, testInfo: any) => {
+	requireSignedRecoveryProfile();
+	test.setTimeout(360_000);
+	const baseURL = process.env.PLAYWRIGHT_TEST_BASE_URL ?? 'https://app.dev.openmates.org';
+	const origin = await browser.newContext({ baseURL });
+	const source = await origin.newPage();
+	const destination = await browser.newContext({ baseURL, recordVideo: { dir: testInfo.outputDir } });
+	const recovered = await destination.newPage();
+	const sourceFrames = observeRecoveryFrames(source, true);
+	const recoveryFrames = observeRecoveryFrames(recovered, true);
+	const log = createSignupLogger('storage-recovery-composite');
+	const screenshot = createStepScreenshotter(log);
+	let stage = 'source-login';
+	const consoleErrors: Array<Record<string, unknown>> = [];
+	// Observe only canonical protocol identities/status; never retain storage bodies,
+	// ciphertext, cookies, headers, query strings or server error descriptions.
+	const canonicalEvents: Array<Record<string, unknown>> = [];
+	const appendCanonicalEvent = (event: Record<string, unknown>) => {
+		canonicalEvents.push({ timestamp: Date.now(), ...event });
+		if (canonicalEvents.length > 160) canonicalEvents.shift();
+	};
+	const observeCanonicalProtocol = (page: any, context: string) => {
+		page.on('websocket', (socket: any) => {
+			for (const [direction, event] of [['sent', 'framesent'], ['received', 'framereceived']]) {
+				socket.on(event, (frame: any) => {
+					try {
+						const message = JSON.parse(String(frame.payload));
+						if (!/^(?:store_embed(?:_diff|_keys)?(?:_confirmed)?|error)$/.test(message.type)) return;
+						const payload = message.payload ?? {};
+						const ids = Object.fromEntries(['request_id', 'recovery_record_id', 'embed_id']
+							.filter((key) => /^[0-9a-f-]{36}$/i.test(payload[key] ?? '')).map((key) => [key, payload[key]]));
+						if (!Object.keys(ids).length) return;
+						const code = typeof payload.code === 'string' && /^[a-z][a-z0-9_]{0,79}$/.test(payload.code) ? payload.code : undefined;
+						appendCanonicalEvent({ context, direction, type: message.type, ...ids, ...(code ? { code } : {}) });
+					} catch { /* Ignore non-JSON protocol frames. */ }
+				});
+			}
+		});
+		page.on('response', (response: any) => {
+			if (response.request().method() !== 'GET') return;
+			const path = new URL(response.url()).pathname;
+			const match = path.match(/^\/v1\/embeds\/chats\/([0-9a-f-]{36})\/embeds\/([0-9a-f-]{36})$/i);
+			if (match) appendCanonicalEvent({ context, type: 'canonical_embed_get', chat_id: match[1], embed_id: match[2], status: response.status() });
+		});
+	};
+	observeCanonicalProtocol(source, 'source');
+	observeCanonicalProtocol(recovered, 'recovery');
+
+	const observeRecoveryConsole = (page: any, context: string) => page.on('console', async (entry: any) => {
+		const level = entry.type();
+		const text = entry.text();
+		if (!['error', 'warning'].includes(level) || !/\[[^\]]*Recovery[^\]]*\]/.test(text)) return;
+		const diagnostic: Record<string, unknown> = {
+			context, level, timestamp: new Date().toISOString(),
+			category: 'unclassified_recovery_error',
+			identities: [...new Set<string>(text.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g) ?? [])].slice(0, 4),
+		};
+		// Insert before awaiting handles so failure teardown retains the event.
+		consoleErrors.push(diagnostic);
+		if (consoleErrors.length > 20) consoleErrors.shift();
+		const details: Array<Record<string, unknown>> = [];
+		for (const handle of entry.args().slice(0, 4)) {
+			try {
+				const value = await handle.evaluate((raw: any) => {
+					if (!raw || typeof raw !== 'object') return null;
+					return Object.fromEntries(['name', 'code', 'message', 'stack', 'record_id', 'root_chat_id', 'turn_id', 'request_id']
+						.filter((key) => typeof raw[key] === 'string').map((key) => [key, raw[key].slice(0, 2048)]));
+				});
+				if (!value) continue;
+				const safe: Record<string, unknown> = {};
+				for (const key of ['record_id', 'root_chat_id', 'turn_id', 'request_id']) {
+					if (/^[0-9a-f-]{36}$/i.test(value[key] ?? '')) safe[key] = value[key];
+				}
+				if (/^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(value.name ?? '')) safe.name = value.name;
+				if (/^[a-z][a-z0-9_]{0,79}$/.test(value.code ?? '')) safe.code = value.code;
+				if (value.message) {
+					// Preserve internal recovery failures; never retain arbitrary thrown content.
+					safe.message = /^(Canonical|Recovery|Recovered|Acknowledged|Could not|Checkpoint)\b/.test(value.message)
+						? value.message.replace(/https?:\/\/\S+/g, '[url]').replace(/[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}/gi, '[id]')
+							.replace(/(failed \(\d+):[^)]*/g, '$1: [redacted]').slice(0, 240)
+						: '[redacted unclassified error]';
+				}
+				if (value.stack) safe.frames = (value.stack.match(/(?:chatSyncServiceHandlersRecovery|[^/\s]*\.js):\d+:\d+/g) ?? []).slice(0, 3);
+				if (Object.keys(safe).length) details.push(safe);
+			} catch { diagnostic.capture_error = 'console_handle_unavailable'; }
+		}
+		diagnostic.details = details;
+	});
+	observeRecoveryConsole(source, 'source');
+	observeRecoveryConsole(recovered, 'recovery');
+	const identitySummary = (raw: unknown) => {
+		const value: Record<string, any> = raw && typeof raw === 'object' ? raw as Record<string, any> : {};
+		return Object.fromEntries([
+		'direction', 'type', 'state', 'status', 'code', 'request_id', 'record_id', 'recovery_record_id',
+		'job_id', 'chat_id', 'root_chat_id', 'target_chat_id', 'subject_id', 'output_kind',
+		'output_version', 'message_role', 'is_foreground', 'canonical_source',
+	].flatMap((key) => {
+		const item = value[key];
+		return (typeof item === 'string' && /^[A-Za-z0-9_.:-]{1,128}$/.test(item))
+			|| typeof item === 'boolean' || (typeof item === 'number' && Number.isSafeInteger(item))
+			? [[key, item]] : [];
+		}));
+	};
+	const summarizeFrames = (frames: typeof sourceFrames) => {
+		const selected = frames.filter((frame: any) => /^recovery_/.test(frame.type)
+			|| /^native_client_lifecycle(?:_ack)?$/.test(frame.type));
+		return { total: selected.length, frames: selected.slice(-80).map((frame: any) => ({
+			...identitySummary({ ...frame.payload, direction: frame.direction, type: frame.type }),
+			...(Array.isArray(frame.payload.outputs) ? {
+				output_count: frame.payload.outputs.length,
+				outputs: frame.payload.outputs.slice(0, 32).map(identitySummary),
+			} : {}),
+		})) };
+	};
+	const expectedTitles = Array.from({ length: 10 }, (_, index) =>
+		`Synthetic Recovery Event ${String(index + 1).padStart(2, '0')}`);
+	const requireCalendar = async (page: any) => {
+		const view = page.getByTestId('embeds-map-view').filter({ hasText: expectedTitles[0] });
+		await expect(view).toBeVisible({ timeout: 90_000 });
+		await expect(view).toHaveAttribute('data-loading', 'false');
+		await expect(view.getByTestId('embeds-map-view-count')).toHaveText('10 shown');
+		const calendar = view.getByTestId('embeds-results-view-calendar');
+		await expect(calendar).toBeVisible();
+		const children = calendar.getByTestId('embeds-results-view-calendar-item');
+		await expect(children).toHaveCount(10);
+		await expect(children.locator('strong')).toHaveText(expectedTitles);
+		return children;
+	};
+	// Observe the real calendar interaction's identity without opening overlays
+	// or reading embed storage through a test-only path.
+	await recovered.addInitScript(() => {
+		(window as any).__compositeFullscreenIds = [];
+		document.addEventListener('embedfullscreen', (event) => {
+			const id = (event as CustomEvent).detail?.embedId;
+			if (typeof id === 'string') (window as any).__compositeFullscreenIds.push(id);
+		});
+	});
+	type CompositeOutput = { record_id: string; subject_id: string; output_kind: string };
+	const distinctEmbeds = (frames: typeof sourceFrames, chatId: string): CompositeOutput[] =>
+		[...new Map<string, CompositeOutput>(availableOutputs(frames, chatId)
+			.filter((output: CompositeOutput) => output.output_kind === 'embed')
+			.map((output: CompositeOutput) => [output.record_id, output] as const)).values()];
+	try {
+		await disconnectCanonicalWrites(source);
+		await installE2EServerContentOverrideGate(source, 'storage-recovery-replay');
+		await loginToTestAccount(source, log, screenshot);
+		await requireActiveRecoveryDiscovery(sourceFrames);
+		await startNewChat(source, log);
+		stage = 'source-send';
+		await sendMessage(source,
+			'Show ten synthetic 39C3 events, including past sessions. STORAGE_CAPACITY_SCENARIO:recovery_composite <<<TEST_LIVE_MOCK:storage_capacity_v1>>>',
+			log, screenshot, 'storage-recovery-composite-source');
+		const chatId = source.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1];
+		expect(chatId).toBeTruthy();
+		stage = 'source-sealed-records';
+		await expect.poll(() => distinctEmbeds(sourceFrames, chatId!).length,
+			{ timeout: 120_000, message: 'All ten children and their parent must be sealed before source disconnect' })
+			.toBe(11);
+		const sealedOutputs = distinctEmbeds(sourceFrames, chatId!);
+		expect(new Set(sealedOutputs.map((output) => output.subject_id)).size).toBe(11);
+		stage = 'source-calendar';
+		await requireCalendar(source);
+		await origin.close();
+
+		stage = 'recovery-login';
+		await focusRecoveryPage(recovered);
+		await loginToTestAccount(recovered, log, screenshot);
+		await recovered.goto(getE2EDebugUrl(`/#chat-id=${encodeURIComponent(chatId)}`));
+		stage = 'recovery-foreground-lifecycle';
+		await requireForegroundRecoveryLifecycle(recoveryFrames);
+		stage = 'recovery-record-discovery';
+		await expect.poll(() => distinctEmbeds(recoveryFrames, chatId!).map((output) => output.record_id).sort(),
+			{ timeout: 180_000, message: 'Fresh client must discover the same eleven sealed composite records' })
+			.toEqual(sealedOutputs.map((output) => output.record_id).sort());
+		for (const output of sealedOutputs) {
+			stage = `recovery-typed-ack:${output.record_id}`;
+			await expect.poll(() => recoveryFrames.some((frame: any) => frame.direction === 'sent'
+				&& frame.type === 'recovery_output_ack_embed' && frame.payload.record_id === output.record_id
+				&& /^[a-f0-9]{64}$/.test(frame.payload.canonical_digest ?? '')),
+			{ timeout: 120_000, message: 'Every composite record requires its typed canonical ciphertext acknowledgement' }).toBe(true);
+			await expect.poll(() => recoveryFrames.some((frame: any) => frame.direction === 'received'
+				&& frame.type === 'recovery_output_embed_acknowledged' && frame.payload.record_id === output.record_id
+				&& frame.payload.state === 'ACKNOWLEDGED'), { timeout: 120_000 }).toBe(true);
+		}
+		const sealedSubjectIds = sealedOutputs.map((output) => output.subject_id);
+		let firstChildIds: string[] | undefined;
+		for (const reload of [false, true]) {
+			stage = reload ? 'reloaded-calendar' : 'recovered-calendar';
+			if (reload) await recovered.reload();
+			const children = await requireCalendar(recovered);
+			const childIds: string[] = [];
+			for (let index = 0; index < 10; index += 1) {
+				stage = `${reload ? 'reloaded' : 'recovered'}-fullscreen-${index + 1}`;
+				const fullscreen = await openFullscreen(recovered, children.nth(index));
+				await expect(fullscreen.getByTestId('embed-header-title')).toHaveText(expectedTitles[index]);
+				const childId = await recovered.evaluate(() => (window as any).__compositeFullscreenIds.at(-1));
+				expect(typeof childId).toBe('string');
+				expect(sealedSubjectIds).toContain(childId);
+				childIds.push(childId);
+				if (index === 0 || index === 9) {
+					await screenshot(recovered, `composite-${reload ? 'reloaded' : 'recovered'}-child-${index + 1}-fullscreen`);
+				}
+				await closeFullscreen(recovered, fullscreen);
+			}
+			expect(new Set(childIds).size).toBe(10);
+			// The same ten authored children leave exactly one sealed parent.
+			expect(sealedSubjectIds.filter((id) => !childIds.includes(id))).toHaveLength(1);
+			if (reload) expect(childIds).toEqual(firstChildIds);
+			else firstChildIds = childIds;
+			await screenshot(recovered, reload ? 'composite-calendar-after-reload' : 'composite-calendar-recovered');
+		}
+
+		stage = 'completed';
+	} finally {
+		const diagnostic = { stage, source: summarizeFrames(sourceFrames), recovery: summarizeFrames(recoveryFrames), consoleErrors, canonicalEvents };
+		// Keep only identity/status metadata and cap the attachment at 256 KiB.
+		while (Buffer.byteLength(JSON.stringify(diagnostic, null, 2)) > 256 * 1024) {
+			diagnostic.source.frames = diagnostic.source.frames.slice(Math.ceil(diagnostic.source.frames.length / 2));
+			diagnostic.recovery.frames = diagnostic.recovery.frames.slice(Math.ceil(diagnostic.recovery.frames.length / 2));
+		}
+		try {
+			await testInfo.attach('composite-recovery-protocol', {
+				body: Buffer.from(JSON.stringify(diagnostic, null, 2)), contentType: 'application/json',
+			});
+		} finally {
+			await destination.close();
+			await origin.close().catch(() => undefined);
+		}
+	}
 });

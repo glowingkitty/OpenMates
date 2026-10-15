@@ -173,10 +173,10 @@ function linkedOpenTask(task: UserTaskRecord | null, chatId: string, planId: str
 
 /** Plan state is context only. Approval and chat linkage always come from fresh server records. */
 export async function collectAcceptedCliPlanContext(client: OpenMatesClient, chatId: string, options: TeamContextOptions,
-  ownedTaskRecords: UserTaskRecord[] = []): Promise<AcceptedPlanContext | null> {
+  ownedTaskRecords: UserTaskRecord[] = [], plansRead?: Promise<UserPlanRecord[]>): Promise<AcceptedPlanContext | null> {
   const candidates = new Map<string, string[]>();
   try {
-    const plans = await client.listUserPlans({ ...options, chatId, activeOnly: false });
+    const plans = await (plansRead ?? client.listUserPlans({ ...options, chatId, activeOnly: false }));
     for (const plan of plans.filter(plan => plan.primary_chat_id === chatId && approvedCurrentPlan(plan))
       .sort((a, b) => Number(b.updated_at ?? 0) - Number(a.updated_at ?? 0) || a.plan_id.localeCompare(b.plan_id))) candidates.set(plan.plan_id, []);
   } catch { /* Task-linked Plan discovery can still use owned current Task records. */ }
@@ -214,14 +214,33 @@ export async function collectAcceptedCliPlanContext(client: OpenMatesClient, cha
   return null;
 }
 
+/** Snapshot ownership only: discovered Task rows never become cached permissions. */
+function taskContextOwner(client: OpenMatesClient): () => void {
+  // Structural unit doubles predate the session API; production clients always have it.
+  if (typeof client.getSession !== "function") return () => {};
+  const identity = () => {
+    const session = client.getSession();
+    return createHash("sha256").update(JSON.stringify([session.apiUrl, session.hashedEmail,
+      session.sessionId, session.createdAt, session.masterKeyExportedB64, session.activeTeamId])).digest("hex");
+  };
+  const owner = identity();
+  return () => {
+    try { if (identity() === owner) return; } catch { /* Logout invalidates in-flight context. */ }
+    throw new Error("Task context workspace changed");
+  };
+}
+
 /** Current chat work precedes general discovery; dependency references never grant Task authority. */
 export async function collectRelatedCliTaskContext(client: OpenMatesClient, chatId: string, options: TeamContextOptions,
-  records: UserTaskRecord[], nowSeconds = Date.now() / 1000): Promise<RelatedTaskCandidate[]> {
+  records: UserTaskRecord[], nowSeconds = Date.now() / 1000, requiredIds: ReadonlySet<string> = new Set()): Promise<RelatedTaskCandidate[]> {
+  const assertTaskOwner = taskContextOwner(client);
   const owned = records.filter(record => typeof record.task_id === "string" && record.task_id.length > 0 && record.task_id.length <= 128
     && Number.isSafeInteger(record.version) && Number(record.version) >= 1);
   const linked = owned.filter(record => record.primary_chat_id === chatId && OPEN_LINKED_TASK_STATES.has(record.status)).sort((a, b) => a.task_id.localeCompare(b.task_id));
   const dependencies = new Set<string>();
-  if (typeof client.getTaskDependencies === "function") await Promise.all(linked.slice(0, 4).map(async task => {
+  const dependencySeeds = [...new Map([...linked, ...owned.filter(task => requiredIds.has(task.task_id))]
+    .map(task => [task.task_id, task])).values()].slice(0, 4);
+  if (typeof client.getTaskDependencies === "function") await Promise.all(dependencySeeds.map(async task => {
     try {
       const result = await client.getTaskDependencies(task.task_id, options);
       const ref = `task:${task.task_id}`;
@@ -231,10 +250,23 @@ export async function collectRelatedCliTaskContext(client: OpenMatesClient, chat
       }
     } catch { /* Missing dependency discovery leaves actual chat-linked work available. */ }
   }));
+  assertTaskOwner();
+  // Dependency targets may be older than, or absent from, the bounded directory.
+  const presentIds = new Set(owned.map(task => task.task_id));
+  if (typeof client.getUserTask === "function") {
+    await Promise.all([...dependencies].filter(id => !presentIds.has(id)).sort().slice(0, 24).map(async id => {
+      try {
+        const row = await client.getUserTask(id, options);
+        assertTaskOwner();
+        if (row?.task_id === id && Number.isSafeInteger(row.version) && Number(row.version) >= 1) owned.push(row);
+      } catch { /* An inaccessible dependency never grants context or authority. */ }
+    }));
+  }
+  assertTaskOwner();
   const changedAt = (record: UserTaskRecord) => Number(record.updated_at ?? record.created_at ?? 0);
   const priority = (record: UserTaskRecord): number => {
     if (record.primary_chat_id === chatId && OPEN_LINKED_TASK_STATES.has(record.status)) return 0;
-    if (dependencies.has(record.task_id)) return 1;
+    if (dependencies.has(record.task_id) || requiredIds.has(record.task_id)) return 1;
     if (record.status === "in_progress") return 2;
     if (["blocked", "done"].includes(record.status) && changedAt(record) >= nowSeconds - 1800) return 3;
     return 4;
@@ -250,6 +282,7 @@ export async function collectRelatedCliTaskContext(client: OpenMatesClient, chat
         revision: String(record.version), explicit_dependency: dependencies.has(record.task_id) });
     } catch { /* Unavailable private summary is omitted. The server validates current ownership and version. */ }
   }
+  assertTaskOwner();
   return candidates;
 }
 
@@ -258,6 +291,12 @@ export async function prepareCliJevContext(client: OpenMatesClient, chatId: stri
     onProjectRouting?: (context: CliJevContext) => void; onProjectRoutingError?: (error: unknown) => void;
     verifiedProjectCandidates?: NonNullable<CliJevContext["project_focus_candidates"]>;
     usePersonalRoutingDirectory?: boolean } = {}): Promise<CliJevContext> {
+  const assertTaskOwner = taskContextOwner(client);
+  // Start independent Plan discovery alongside Task and Project reads. Existing
+  // approved revision/linkage checks below still run against fresh exact records.
+  const plansRead = discovery.sdkMintedChatId ? Promise.resolve([] as UserPlanRecord[])
+    : typeof client.listUserPlans === "function"
+      ? client.listUserPlans({ ...options, chatId, activeOnly: false }).catch(() => []) : Promise.resolve([] as UserPlanRecord[]);
   let candidates: CliJevContext["project_focus_candidates"] = [];
   let active: Awaited<ReturnType<typeof loadActiveCliProjectContext>> = {};
   let tasks: RelatedTaskCandidate[] = [];
@@ -277,17 +316,40 @@ export async function prepareCliJevContext(client: OpenMatesClient, chatId: stri
       discovery.onProjectRouting?.({ project_focus_candidates: (discovery.verifiedProjectCandidates ?? supplied.project_focus_candidates ?? value).slice(0, 40) });
     }).catch(error => { discovery.onProjectRoutingError?.(error); }),
     (async () => {
-      const records = await client.listUserTasks({ ...options, limit: 500 });
-      ownedTaskRecords = records;
-      tasks = await collectRelatedCliTaskContext(client, chatId, options, records);
+      const taskClient = client as OpenMatesClient & {
+        listUserTaskDiscoveryPage?: (scope: TeamContextOptions) => Promise<UserTaskRecord[]>;
+      };
+      const [directory, linked] = await Promise.all([
+        taskClient.listUserTaskDiscoveryPage?.(options).catch(() => []) ?? Promise.resolve([]),
+        discovery.sdkMintedChatId ? Promise.resolve([]) : client.listUserTasks({ ...options, chatId, limit: 100 }).catch(() => []),
+      ]);
+      assertTaskOwner();
+      const records = new Map<string, UserTaskRecord>();
+      // The one fresh authorized directory page is only candidate inventory.
+      for (const record of [...directory.slice(0, 100), ...linked]) records.set(record.task_id, record);
+      const requiredIds = new Set([
+        ...(supplied.related_task_candidates ?? []).map(row => row.task_id),
+      ].filter(id => typeof id === "string" && id.length > 0 && id.length <= 128).slice(0, 24));
+      if (typeof client.getUserTask === "function") await Promise.all([...requiredIds].filter(id => !records.has(id)).map(async id => {
+        try {
+          const record = await client.getUserTask(id, options);
+          assertTaskOwner();
+          if (record?.task_id === id) records.set(id, record);
+        } catch { /* Supplied references are hints, never a permission bypass. */ }
+      }));
+      assertTaskOwner();
+      ownedTaskRecords = [...records.values()];
+      tasks = await collectRelatedCliTaskContext(client, chatId, options, ownedTaskRecords, Date.now() / 1000, requiredIds);
     })().catch(() => {}),
   ]);
+  assertTaskOwner();
   const acceptedPlan = discovery.sdkMintedChatId ? null
-    : await collectAcceptedCliPlanContext(client, chatId, options, ownedTaskRecords).catch(() => null);
+    : await collectAcceptedCliPlanContext(client, chatId, options, ownedTaskRecords, plansRead).catch(() => null);
+  assertTaskOwner();
   const catalog = await catalogReady;
   discovery.onRouting?.({ accepted_plan_context: acceptedPlan,
     project_focus_candidates: (discovery.verifiedProjectCandidates ?? supplied.project_focus_candidates ?? candidates).slice(0, 40),
-    related_task_candidates: (supplied.related_task_candidates ?? tasks).slice(0, 24),
+    related_task_candidates: tasks.slice(0, 24),
     project_focus_catalog: catalog.slice(0, 20) });
   await activeReady;
   const { projectId, focusCatalogComplete: _complete, ...loaded } = active;
@@ -304,10 +366,11 @@ export async function prepareCliJevContext(client: OpenMatesClient, chatId: stri
         || rule.document.length > 24_000 || documentChars + rule.document.length > 64_000 || documentIds.has(identity) || customDocuments.length >= 24) continue;
     documentChars += rule.document.length; documentIds.add(identity); customDocuments.push(rule);
   }
+  assertTaskOwner();
   return {
     accepted_plan_context: acceptedPlan,
     project_focus_candidates: (discovery.verifiedProjectCandidates ?? supplied.project_focus_candidates ?? candidates).slice(0, 40),
-    related_task_candidates: (supplied.related_task_candidates ?? tasks).slice(0, 24),
+    related_task_candidates: tasks.slice(0, 24),
     custom_memory_documents: customDocuments,
     project_focus_catalog: current ? (supplied.project_focus_catalog ?? loaded.project_focus_catalog ?? []).slice(0, 20) : [],
     project_focus_documents: current ? (supplied.project_focus_documents ?? loaded.project_focus_documents ?? []).slice(0, 20) : [],

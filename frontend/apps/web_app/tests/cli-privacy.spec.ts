@@ -31,8 +31,8 @@ test('optional offline anonymization controls never download or activate in head
   } finally { rmSync(directory, { recursive: true, force: true }); }
 });
 
-// contract-test: supporting surface=cli assertions=ai-model-routing.preprocessing.prepared-privacy
- test('built SDK prefetches encrypted privacy and validates generation before reusing prepared entries', async () => {
+// contract-test: supporting surface=cli assertions=ai-model-routing.preprocessing.prepared-privacy,chats.send.immediate-admission
+ test('built SDK prefetches encrypted privacy and scopes fresh follow-up history without account recovery', async () => {
   const { requireIsolatedCliBuild } = require('./cli-tui-proof-helpers');
   const { execFile } = require('node:child_process');
   const { promisify } = require('node:util');
@@ -42,6 +42,7 @@ test('optional offline anonymization controls never download or activate in head
   try {
     const result = await promisify(execFile)(process.execPath, [fixture, cli], { timeout: 30_000,
       env: { ...process.env, OPENMATES_STATE_DIR: path.join(directory, 'state'), OPENMATES_PRIVACY_DIR: path.join(directory, 'model') } });
-    expect(JSON.parse(result.stdout)).toEqual({ prepared: 1, unchanged: 1, full: 4, redacted: 5 });
+    expect(JSON.parse(result.stdout)).toEqual({ prepared: 1, unchanged: 3, full: 4, redacted: 7,
+      scopedMetadata: 2, scopedWindows: 2, taskDiscovery: 1 });
   } finally { rmSync(directory, { recursive: true, force: true }); }
  });

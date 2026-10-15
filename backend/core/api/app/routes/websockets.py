@@ -765,6 +765,11 @@ async def _send_push_notification_if_enabled(
         return False
 
     cache_service: CacheService = app.state.cache_service
+    from backend.core.api.app.services.notification_presence import has_active_human
+
+    if await has_active_human(cache_service, user_id, chat_id):
+        logger.debug(f"{log_prefix} Foreground human session active, skipping push")
+        return False
     cached_user = await cache_service.get_user_by_id(user_id)
     if not cached_user:
         # Native registration invalidates this profile after saving its targets.
@@ -810,6 +815,9 @@ async def _send_push_notification_if_enabled(
     push_body = preview_text if preview_text else "Your AI assistant has responded."
     push_url = f"/?chat={chat_id}"
     push_tag = f"ai-response-{chat_id}"
+
+    if await has_active_human(cache_service, user_id, chat_id):
+        return False
 
     try:
         from backend.core.api.app.tasks.celery_config import app as celery_app

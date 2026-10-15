@@ -1186,7 +1186,7 @@ describe("OpenMatesClient session API URL", () => {
       );
       const result = await client.createApiKey({ name: "SDK live test" });
 
-      assert.match(result.api_key, /^sk-api-[A-Za-z0-9]{32}$/);
+      assert.match(result.api_key, /^sk-api-[A-NP-Za-z1-9]{32}\.[A-NP-Za-z1-9]{32}$/);
       assert.deepEqual(result.key, { id: "key-1", full_access: true, scopes: {} });
       assert.ok(seenBody);
       assert.equal(seenBody.encrypted_name, result.crypto.encryptedName);
@@ -1401,6 +1401,10 @@ describe("OpenMatesClient session API URL", () => {
     let completedPayload: Record<string, any> | null = null;
 
     wsServer.once("connection", (socket: any) => {
+      socket.send(JSON.stringify({
+        type: "recovery_outputs_discovery_complete",
+        payload: { status: "completed" },
+      }));
       socket.on("message", (raw: Buffer) => {
         const frame = JSON.parse(raw.toString());
         if (frame.type === "phased_sync_request") {
@@ -1493,6 +1497,7 @@ describe("OpenMatesClient session API URL", () => {
     const syncPayloads: Record<string, any>[] = [];
 
     wsServer.on("connection", (socket: any) => {
+      socket.send(JSON.stringify({type:'recovery_outputs_discovery_complete',payload:{status:'completed'}}));
       socket.on("message", (raw: Buffer) => {
         const frame = JSON.parse(raw.toString());
         if (frame.type !== "phased_sync_request") return;
@@ -1580,6 +1585,10 @@ describe("OpenMatesClient session API URL", () => {
     };
 
     wsServer.on("connection", (socket: any) => {
+      socket.send(JSON.stringify({
+        type: "recovery_outputs_discovery_complete",
+        payload: { status: "completed" },
+      }));
       socket.on("message", (raw: Buffer) => {
         const frame = JSON.parse(raw.toString());
         captured.frameTypes.push(frame.type);
@@ -1728,6 +1737,10 @@ describe("OpenMatesClient session API URL", () => {
     let syncRequests = 0;
 
     wsServer.on("connection", (socket: any) => {
+      socket.send(JSON.stringify({
+        type: "recovery_outputs_discovery_complete",
+        payload: { status: "completed" },
+      }));
       socket.on("message", (raw: Buffer) => {
         const frame = JSON.parse(raw.toString());
         capturedFrameTypes.push(frame.type);
@@ -1811,6 +1824,10 @@ describe("OpenMatesClient session API URL", () => {
     let syncRequests = 0;
 
     wsServer.on("connection", (socket: any) => {
+      socket.send(JSON.stringify({
+        type: "recovery_outputs_discovery_complete",
+        payload: { status: "completed" },
+      }));
       socket.on("message", (raw: Buffer) => {
         const frame = JSON.parse(raw.toString());
         capturedFrameTypes.push(frame.type);
@@ -1887,6 +1904,7 @@ describe("memory type registry", () => {
       "ideabucket/processing_settings",
       "images/preferred_styles",
       "mail/writing_styles",
+      "openmates/memories",
       "reminder/saved_item_reminder_defaults",
       "study/learning_goals",
       "travel/preferred_activities",
@@ -3232,7 +3250,8 @@ describe("TUI one-shot send socket warmup", () => {
     let resolveFirstAuth!: () => void;
     const firstAuth = new Promise<void>(resolve => { resolveFirstAuth = resolve; });
     let stalledResponse: ServerResponse | null = null;
-    let upgrades = 0;
+    const upgradeTokens: Array<string | null> = [];
+    const wss = new WebSocketServer({ noServer: true });
     const server = createServer((request, response) => {
       response.setHeader("content-type", "application/json");
       if (request.url === "/v1/auth/session") {
@@ -3249,7 +3268,22 @@ describe("TUI one-shot send socket warmup", () => {
       response.writeHead(404);
       response.end(JSON.stringify({}));
     });
-    server.on("upgrade", (_request, socket) => { upgrades++; socket.destroy(); });
+    server.on("upgrade", (request, connection, head) => {
+      upgradeTokens.push(new URL(request.url ?? "/", "http://localhost").searchParams.get("token"));
+      wss.handleUpgrade(request, connection, head, socket => {
+        socket.send(JSON.stringify({ type: "server_capabilities", payload: {
+          capabilities: ["personal_memory_snapshot_v1"],
+        } }));
+        socket.on("message", raw => {
+          const frame = JSON.parse(raw.toString());
+          if (frame.type !== "personal_memory_snapshot") return;
+          socket.send(JSON.stringify({ type: "personal_memory_snapshot_result", payload: {
+            request_id: frame.payload.request_id, success: true,
+            personal_memories: { encrypted_settings: null, memories: [] },
+          } }));
+        });
+      });
+    });
     await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
     const address = server.address();
     assert.ok(address && typeof address === "object");
@@ -3271,10 +3305,12 @@ describe("TUI one-shot send socket warmup", () => {
       await new Promise<void>(resolve => setTimeout(resolve, 20));
       assert.equal(client.getSession()?.cookies.auth_refresh_token, "foreground-cookie");
       assert.equal((JSON.parse(readFileSync(sessionPath, "utf8")) as { cookies: { auth_refresh_token: string } }).cookies.auth_refresh_token, "foreground-cookie");
-      assert.equal(upgrades, 0);
+      assert.deepEqual(upgradeTokens, ["foreground-ws-token"]);
       client.endInteractiveViewerSession();
     } finally {
       stalledResponse?.end();
+      for (const socket of wss.clients) socket.terminate();
+      await new Promise<void>(resolve => wss.close(() => resolve()));
       server.closeAllConnections();
       await new Promise<void>(resolve => server.close(() => resolve()));
     }
@@ -5271,13 +5307,14 @@ describe("CLI saved-chat recovery preflight", () => {
     const recoveryJobId = "44444444-4444-4444-8444-444444444444";
     const rawChatKey = new Uint8Array(32).fill(7);
     const encryptedChatKey = await encryptBytesWithAesGcm(rawChatKey, new Uint8Array(32));
+    const canonicalChatMetadata = {id:chatId,encrypted_chat_key:encryptedChatKey,messages_v:7,
+      encrypted_active_focus_id:restoredFocus ? await encryptWithAesGcmCombined(restoredFocus,rawChatKey) : null};
     writeFileSync(join(stateDir, "sync_cache.json"), JSON.stringify({
       syncedAt: Date.now(),
       totalChatCount: 1,
       loadedChatCount: 1,
       chats: [{
-        details: { id: chatId, encrypted_chat_key: encryptedChatKey, messages_v: 7,
-          encrypted_active_focus_id: restoredFocus ? await encryptWithAesGcmCombined(restoredFocus, rawChatKey) : null },
+        details: {...canonicalChatMetadata,messages_v:6},
         messages: [],
       }],
       embeds: [],
@@ -5294,6 +5331,11 @@ describe("CLI saved-chat recovery preflight", () => {
     let sealedPayloadForTest: string | null = null;
     const wss = new WebSocketServer({ noServer: true });
     const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      if (request.method === 'POST' && request.url === '/v1/chats/metadata/batch') {
+        response.writeHead(200,{'content-type':'application/json'});
+        response.end(JSON.stringify({chats:[canonicalChatMetadata]}));
+        return;
+      }
       if (request.method === "POST" && request.url === "/v1/auth/session") {
         response.writeHead(200, { "content-type": "application/json" });
         response.end(JSON.stringify({

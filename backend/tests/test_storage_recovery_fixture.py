@@ -138,3 +138,82 @@ def test_child_prompt_save_failure_requires_current_signed_replay_marker(monkeyp
         should_fail_child_prompt_save(f"{prompt} <<<TEST_LIVE_MOCK:storage_capacity_v1>>>", user_id)
     monkeypatch.setenv("SERVER_ENVIRONMENT", "production")
     assert not should_fail_child_prompt_save(f"{prompt} {marker}", user_id)
+
+
+# contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery
+@pytest.mark.parametrize("model", ["gemini-test", "gpt-test"])
+def test_composite_recovery_fixture_uses_events_tool_then_final_answer(model: str) -> None:
+    request = {"role": "user", "content": "STORAGE_CAPACITY_SCENARIO:recovery_composite"}
+    preprocessing = generate_fixture("llm/preprocessing", {
+        "model": model, "messages": [request],
+        "tools": [{"function": {"name": "analyze_request_properties"}}],
+    })
+    assert preprocessing is not None
+    args = preprocessing["response"]["chunks"][0]["value"]["function_arguments_parsed"]
+    assert args["relevant_app_skills"] == ["events-search"]
+    assert args["enable_subchats"] is False
+
+    kwargs = {"model": model, "messages": [request],
+              "tools": [{"function": {"name": "events-search"}}]}
+    initial = generate_fixture("llm/main", kwargs)
+    assert initial is not None
+    call = initial["response"]["chunks"][0]["value"]
+    assert call["function_name"] == "events-search"
+    assert call["function_arguments_parsed"] == {"requests": [{
+        "query": "39c3", "conference": "39c3", "provider": "pretalx",
+        "past_events": True, "count": 10,
+    }]}
+    final = generate_fixture("llm/main", {**kwargs, "messages": [request, {
+        "role": "tool", "name": "events-search", "content": "Synthetic events returned.",
+    }]})
+    assert final is not None
+    assert final["response"]["chunks"][0] == {
+        "kind": "text", "value": "The ten synthetic recovery events are ready.",
+    }
+    assert generate_fixture("llm/main", {**kwargs, "tools": []}) is None
+    assert generate_fixture("llm/main", {**kwargs, "tools": [{"function": {"name": "web-search"}}]}) is None
+
+
+# contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery
+@pytest.mark.asyncio
+async def test_composite_recovery_pretalx_cassette_replays_ten_ordered_events_without_network() -> None:
+    import httpx
+    from pathlib import Path
+
+    from backend.apps.events.providers import pretalx
+    from backend.shared.testing.api_response_cache import ApiResponseCache
+    from backend.shared.testing.caching_http_transport import CachingHTTPTransport
+    from backend.shared.testing.mock_context import activate_mock_mode, deactivate_mock_mode
+
+    def forbidden_network(request):
+        raise AssertionError(f"Synthetic recovery must not contact {request.url}")
+
+    root = Path(__file__).resolve().parents[1] / "apps/ai/testing/api_cache"
+    cache = ApiResponseCache(root=root)
+    url = pretalx.CONFERENCES["39c3"]["schedule_url"]
+    fingerprint = cache.fingerprint_http_request(method="GET", url=url, body=None)
+    assert (root / "storage_capacity_v1/pretalx" / f"{fingerprint}.json").is_file()
+    activate_mock_mode("mock", "storage_capacity_v1")
+    try:
+        async with httpx.AsyncClient(transport=CachingHTTPTransport(
+            httpx.MockTransport(forbidden_network), cache, "pretalx",
+        )) as client:
+            response = await client.get(url)
+    finally:
+        deactivate_mock_mode()
+    assert response.status_code == 200
+    events = [pretalx._normalize_event(event, "39c3")
+              for event in pretalx._extract_schedule_events(response.json())]
+    ordered = pretalx._rank_events(events, "39c3", "39c3")
+    assert len(ordered) == len({event["id"] for event in ordered}) == 10
+    assert [event["title"] for event in ordered] == [
+        f"Synthetic Recovery Event {index:02d}" for index in range(1, 11)
+    ]
+    assert all(event["url"].startswith("https://example.test/") for event in ordered)
+    # Distinct sessions stay beyond the event skill's 90-minute semantic
+    # duplicate window even though their synthetic numbered titles are similar.
+    from datetime import datetime
+
+    starts = [datetime.fromisoformat(event["date_start"]) for event in ordered]
+    assert all((right - left).total_seconds() > 90 * 60
+               for left, right in zip(starts, starts[1:]))

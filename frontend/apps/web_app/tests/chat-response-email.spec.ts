@@ -10,8 +10,8 @@ const composeFile = path.join(root, 'test-results/ci-private/compose.json');
 test.describe('Chat response email on the disposable isolated stack', () => {
   test.setTimeout(240_000);
 
-  // contract-test: supporting surface=rest_api assertions=notifications.delivery.email-enabled,notifications.delivery.idempotent
-  test('sends consent-aware private mail through the real worker and Mailpit', () => {
+  // contract-test: supporting surface=rest_api assertions=notifications.delivery.email-enabled,notifications.delivery.idempotent,notifications.delivery.foreground-chat-suppression
+  test('suppresses foreground web and TUI chat notifications and sends eligible private mail', () => {
     test.skip(process.env.GITHUB_ACTIONS !== 'true' || process.env.RUNNER_ENVIRONMENT !== 'github-hosted'
       || process.env.CI_TEST_MODE !== 'e2e' || process.env.OPENMATES_CI_MAILPIT_URL !== 'http://127.0.0.1:8025',
       'Requires the runner-local isolated product and Mailpit stack');

@@ -3410,6 +3410,7 @@ export class OpenMatesClient {
   private readonly ownTeamDisplayNames = new Map<string, { name: string; expiresAt: number }>();
   private pendingWhoAmIAuthHandoff: PersonalSendAuthHandoff | null = null;
   private personalMemoryAuthHandoff: { snapshot: WeakRef<DecryptedMemoryEntry[]>; auth: PersonalSendAuthHandoff } | null = null;
+  private readonly scopedChatHistory = new WeakMap<object, SyncCache>();
   private personalMemoryReadInFlight: { ownerKey: string; promise: Promise<DecryptedMemoryEntry[]> } | null = null;
   private interactiveAdmissionEnabled = false;
   private interactiveAdmissionOwner: string | null = null;
@@ -7207,7 +7208,7 @@ export class OpenMatesClient {
   }
 
   /** Get decrypted messages for a chat resolved by UUID, prefix or title. */
-  async getChatMessages(query: string, options: TeamContextOptions & { preferCache?: boolean; maxHistoryPages?: number; signal?: AbortSignal; onMessages?: (result: {chat: ChatListItem; messages: DecryptedMessage[]}) => void } = {}): Promise<{
+  async getChatMessages(query: string, options: TeamContextOptions & { preferCache?: boolean; freshChatOnly?: boolean; maxHistoryPages?: number; signal?: AbortSignal; onMessages?: (result: {chat: ChatListItem; messages: DecryptedMessage[]}) => void } = {}): Promise<{
     chat: ChatListItem;
     messages: DecryptedMessage[];
     historyIncomplete?: boolean;
@@ -7215,8 +7216,11 @@ export class OpenMatesClient {
     const accountCurrent = this.captureTeamAccountOwner().isCurrent;
     const teamId = this.resolveTeamContext(options);
     const masterKey = Buffer.from(this.getMasterKeyBytes());
-    const localCache = options.preferCache ? loadSyncCache(teamId) : null;
-    let cache: SyncCache = localCache ?? (options.preferCache ? {
+    if (options.freshChatOnly && !CANONICAL_UUID_PATTERN.test(query)) {
+      throw new Error('Fresh scoped history requires a full chat UUID.');
+    }
+    const localCache = options.preferCache || options.freshChatOnly ? loadSyncCache(teamId) : null;
+    let cache: SyncCache = localCache ?? (options.preferCache || options.freshChatOnly ? {
       syncedAt:0,totalChatCount:0,loadedChatCount:0,chats:[],embeds:[],embedKeys:[]
     } : await this.ensureSynced(true, [], options));
     const current = () => {
@@ -7228,7 +7232,22 @@ export class OpenMatesClient {
     const wrappingKey = localTeamKey ? base64ToBytes(localTeamKey) : await this.getChatWrappingKey(teamId, masterKey);
     let found: CachedChat;
     let fetchedMetadata = false;
-    try {
+    if (options.freshChatOnly) {
+      // Sending needs fresh authorized history for this chat, including its PII
+      // mappings. Account-wide reconnect recovery is independent foreground work.
+      const response = await this.http.post<{chats: Record<string, unknown>[]}>(
+        this.appendTeamQuery('/v1/chats/metadata/batch', {teamId}), {chat_ids:[query]}, this.getCliRequestHeaders());
+      current();options.signal?.throwIfAborted();
+      if (!response.ok) throw new Error(`Chat metadata failed with HTTP ${response.status}`);
+      const details = response.data.chats.find(chat => String(chat.id ?? '') === query);
+      if (!details) throw new Error(`Chat '${query}' not found.`);
+      // Read canonical messages rather than trusting a possibly incomplete
+      // local snapshot. Preserve unrelated ciphertext and key wrappers.
+      found = {details,messages:[]};fetchedMetadata = true;
+      cache = {...cache,chats:[...cache.chats.filter(chat => String(chat.details.id ?? '') !== query),found],
+        chatKeyWrappers:[...(cache.chatKeyWrappers ?? []),
+          ...(Array.isArray(details.chat_key_wrappers) ? details.chat_key_wrappers as Record<string,unknown>[] : [])]};
+    } else try {
       found = await this.resolveCachedChatForQuery(query, cache, wrappingKey, teamId);
     } catch (error) {
       if (!options.preferCache || !(error instanceof Error) || !/^Chat '.*' not found\./.test(error.message)) throw error;
@@ -7247,7 +7266,7 @@ export class OpenMatesClient {
     }
 
     const foundChatId = String(found.details.id ?? "");
-    if (!options.preferCache && foundChatId && getClientMessagesVersionForSync(found) === 0) {
+    if (!options.preferCache && !options.freshChatOnly && foundChatId && getClientMessagesVersionForSync(found) === 0) {
       cache = await this.ensureSynced(true, [foundChatId], options, true);
       found = cache.chats.find((c) => String(c.details.id ?? "") === foundChatId) ?? found;
     }
@@ -7334,7 +7353,14 @@ export class OpenMatesClient {
     const messages = coalesceMemoryRequestMessages(decoded);
     current();
     if(options.preferCache && rawMessages !== found.messages)persistMessages(rawMessages);
-    return { chat: chatItem, messages, ...(historyIncomplete ? {historyIncomplete:true} : {}) };
+    const result = { chat: chatItem, messages, ...(historyIncomplete ? {historyIncomplete:true} : {}) };
+    if (options.freshChatOnly) {
+      // Hand this exact authorized key/version/focus snapshot to the send that
+      // requested it. Do not overwrite a concurrent sync, key rotation or delete.
+      this.scopedChatHistory.set(result, {...cache,chats:cache.chats.map(chat => chat === found
+        ? {...found,messages:rawMessages} : chat)});
+    }
+    return result;
   }
 
   /** Warm the latest recent windows in the background; only ciphertext reaches disk. */
@@ -9057,14 +9083,13 @@ export class OpenMatesClient {
     const isActive = (output: AvailableRecoveryOutputFrame) =>
       output.root_chat_id === chatId || output.target_chat_id === chatId;
     const active = pages.map((page) => page.filter(isActive));
-    const unrelated = pages.map((page) => page.filter((output) => !isActive(output)));
     if (active.some((page) => page.length > 0)) {
       await this.replayRecoveryOutputPages(ws, ownerId, active, cache, teamId);
       clearSyncCache(teamId);
     }
-    if (unrelated.some((page) => page.length > 0)) {
-      await this.replayRecoveryOutputPages(ws, ownerId, unrelated, cache, teamId, () => {});
-    }
+    // Unrelated outputs remain sealed and pending on the server. The normal
+    // reconnect/browsing recovery pass owns their replay; this send must not
+    // wait for another chat's outputs or ACK them speculatively.
   }
 
   async sendMessage(params: {
@@ -9234,7 +9259,7 @@ export class OpenMatesClient {
       finalMessage = rewriteRememberMessageReferences(finalMessage, rememberedHistory);
     }
     if (params.chatId && !params.incognito && hasRememberMessageReference(finalMessage)) {
-      const { messages } = await this.getChatMessages(chatId, { personal: !teamId, teamId });
+      const { messages } = await this.getChatMessages(chatId, { personal: !teamId, teamId, freshChatOnly: true });
       finalMessage = rewriteRememberMessageReferences(finalMessage, messages);
     }
     const shouldWaitForAi = shouldWaitForTeamAi(finalMessage, teamId);
@@ -9405,7 +9430,7 @@ export class OpenMatesClient {
     const privacyStartedAt = performance.now();
     traceSendTiming("privacy_begin");
     const savedPrivacyHistory = !params.incognito && params.chatId
-      ? await this.getChatMessages(chatId, teamId ? { teamId } : { personal: true }) : null;
+      ? await this.getChatMessages(chatId, { personal: !teamId, teamId, freshChatOnly: true }) : null;
     let piiMappings = [...(savedPrivacyHistory?.messages.flatMap((message) => (message.piiMappings ?? []).map((mapping) => ({ ...mapping, type: mapping.type ?? "OTHER" }))) ?? []), ...(params.piiMappings ?? [])];
     try {
     if (params.piiDetection !== false) {
@@ -9640,7 +9665,8 @@ export class OpenMatesClient {
           wrappingKey,
         );
       } else {
-        const cache = loadSyncCache(teamId) ?? (await this.ensureSynced(false, [], { teamId }));
+        const cache = (savedPrivacyHistory && this.scopedChatHistory.get(savedPrivacyHistory))
+          ?? loadSyncCache(teamId) ?? (await this.ensureSynced(false, [], { teamId }));
         const chat = cache.chats.find(
           (c) =>
             String(c.details.id ?? "") === chatId ||
@@ -13975,6 +14001,28 @@ export class OpenMatesClient {
   // -------------------------------------------------------------------------
   // User tasks
   // -------------------------------------------------------------------------
+
+  /** One fresh authorized discovery page; never an exhaustive Task inventory. */
+  async listUserTaskDiscoveryPage(options: TeamContextOptions = {}): Promise<UserTaskRecord[]> {
+    const owner = this.captureTeamAccountOwner();
+    const activeTeamId = this.getActiveTeamId();
+    const teamId = this.resolveTeamContext(options);
+    const params = new URLSearchParams({ paginate: "true", limit: "100" });
+    if (teamId) params.set("team_id", teamId);
+    const response = await this.http.get<{ tasks?: UserTaskRecord[] }>(
+      `/v1/user-tasks?${params}`, this.getCliRequestHeaders(),
+    );
+    if (!owner.isCurrent() || this.getActiveTeamId() !== activeTeamId
+      || this.resolveTeamContext(options) !== teamId) throw new Error("Task context workspace changed");
+    if (!response.ok) throw new Error(`Task discovery failed with HTTP ${response.status}`);
+    const rows = response.data?.tasks;
+    if (!Array.isArray(rows) || rows.length > 100 || rows.some(row =>
+      !row || typeof row.task_id !== "string" || !row.task_id || row.task_id.length > 128)) {
+      throw new Error("Invalid bounded Task discovery page");
+    }
+    // Workflow projection rows do not confer Task ownership or revision authority.
+    return rows.filter(row => (row as UserTaskRecord & { source?: string }).source !== "workflow_run");
+  }
 
   async listUserTasks(filters: { status?: UserTaskStatus; chatId?: string; projectId?: string; labelHashes?: string[]; externalChatProvider?: "codex"; externalChatLookupHash?: string; priority?: number; limit?: number; teamId?: string | null; personal?: boolean } = {}, options: { onPage?: (tasks: UserTaskRecord[], complete: boolean) => Promise<void> | void } = {}): Promise<UserTaskRecord[]> {
     const session = this.requireSession();

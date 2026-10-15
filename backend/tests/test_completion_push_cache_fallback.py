@@ -37,6 +37,7 @@ def load_coroutines(filename, names, namespace):
 
 @pytest.fixture
 def dispatch(monkeypatch):
+    monkeypatch.setattr("backend.core.api.app.services.notification_presence.has_active_human", AsyncMock(return_value=False))
     celery = SimpleNamespace(send_task=Mock())
     monkeypatch.setitem(sys.modules, "backend.core.api.app.tasks.celery_config", SimpleNamespace(app=celery))
     namespace = {"logger": logging.getLogger(__name__)}

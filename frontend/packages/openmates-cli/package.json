@@ -60,7 +60,7 @@
     "test:unit:sdk-sidebar": "node --test --experimental-strip-types --loader ./tests/loader.mjs tests/sdk-chat-sidebar.test.ts",
     "test:unit:task-pagination": "node --test --experimental-strip-types --loader ./tests/loader.mjs tests/task-pagination.test.ts tests/taskDiscovery.test.ts",
     "benchmark:tui": "node --experimental-strip-types scripts/tui-render-benchmark.mjs",
-    "test:unit:chat-preparation": "node --test --experimental-strip-types --loader ./tests/loader.mjs tests/http.test.ts tests/preparedPrivacy.test.ts tests/ownedTurnMetadata.test.ts && node --test --experimental-strip-types --loader ./tests/loader.mjs --test-name-pattern \"CLI saved-chat recovery preflight\" tests/client.test.ts"
+    "test:unit:chat-preparation": "node --test --experimental-strip-types --loader ./tests/loader.mjs tests/http.test.ts tests/preparedPrivacy.test.ts tests/ownedTurnMetadata.test.ts tests/foregroundChatRecovery.test.ts tests/taskContextDiscovery.test.ts && node --test --experimental-strip-types --loader ./tests/loader.mjs --test-name-pattern \"CLI saved-chat recovery preflight\" tests/client.test.ts"
   },
   "keywords": [
     "openmates",

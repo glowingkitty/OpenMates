@@ -18,8 +18,9 @@ it('skips only impossible Focus and Plan reads for an SDK-minted chat while reta
     async listProjects(options: unknown) { assert.deepEqual(options, scope); calls.projects++; return [{ project_id: 'project', encrypted_name: encryptedName }]; },
     async decryptProjectKey() { return key; },
     async getProjectSettings(_id: string, options: unknown) { assert.deepEqual(options, scope); calls.settings++; return { auto_selection: true }; },
-    async listUserTasks(options: Record<string, unknown>) { assert.deepEqual(options, { ...scope, limit: 500 }); calls.tasks++;
+    async listUserTaskDiscoveryPage(options: Record<string, unknown>) { assert.deepEqual(options, scope); calls.tasks++;
       return [{ task_id: 'task', status: 'in_progress', version: 1, updated_at: 10 }]; },
+    async listUserTasks(options: Record<string, unknown>) { assert.deepEqual(options, { ...scope, chatId: 'existing-or-caller-id', limit: 100 }); calls.tasks++; return []; },
     async decryptTaskContextRecord(_record: unknown, options: unknown) { assert.deepEqual(options, scope);
       return { title: 'Current work', description: 'Useful summary', linkedProjectIds: ['project'] }; },
     async getActiveProjectFocus() { calls.focus++; return null; },
@@ -36,7 +37,7 @@ it('skips only impossible Focus and Plan reads for an SDK-minted chat while reta
   assert.equal(fresh.accepted_plan_context, null);
 
   await prepareCliJevContext(client as never, 'existing-or-caller-id', scope, supplied, 'Question');
-  assert.deepEqual(calls, { projects: 2, settings: 2, tasks: 2, focus: 2, plans: 1 });
+  assert.deepEqual(calls, { projects: 2, settings: 2, tasks: 3, focus: 2, plans: 1 });
 });
 
 // contract-test: supporting surface=cli assertions=chats.direction.context-assessment

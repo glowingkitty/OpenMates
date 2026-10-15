@@ -74,6 +74,12 @@ def send_push_notification(
         nonlocal expired_web_target
         expired_web_target = True
 
+    # A foreground return after API enqueue must still win at delayed delivery.
+    # Workflow/reminder/security categories retain their own delivery semantics.
+    if category == "OPENMATES_CHAT_MESSAGE" and user_id and chat_id:
+        if asyncio.run(_chat_has_active_human(user_id, chat_id)):
+            return False
+
     success = push_notification_service.send_push_notification(
         subscription_json=subscription_json,
         title=title,
@@ -96,6 +102,17 @@ def send_push_notification(
                 logger.warning(f"{log_prefix} Could not clear stale subscription: {e}")
 
     return success
+
+
+async def _chat_has_active_human(user_id: str, chat_id: str) -> bool:
+    from backend.core.api.app.services.cache import CacheService
+    from backend.core.api.app.services.notification_presence import has_active_human
+
+    cache = CacheService()
+    try:
+        return await has_active_human(cache, user_id, chat_id)
+    finally:
+        await cache.close()
 
 
 async def _direct_chat_push_access(user_id: str | None, chat_id: str, subscription_json: str) -> bool:

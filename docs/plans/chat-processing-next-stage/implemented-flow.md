@@ -1,6 +1,6 @@
 # Prepared privacy and independent chat completion
 
-This increment implements the user-approved Plan in `plan.yml`. Its latency acceptance is separate from correctness: deployment and measured default-Gemini TUI results precede equivalent web measurements. The retained baseline misses the 1.5-second selected-Mate and 2–3-second factual authored-stream targets; candidate code is not evidence that those targets are met.
+This increment implements the user-approved Plan in `plan.yml`. Its latency acceptance is separate from correctness: deployment and measured automatically routed TUI results precede equivalent web measurements. Selected-Mate feedback has a hard 2-second maximum for both new chats and same-chat follow-ups, with 1.5 seconds as the aim and faster preferred. The retained baseline misses the feedback aim and 2–3-second factual authored-stream target; candidate code is not evidence that those targets are met.
 
 ## Processing flow
 
@@ -83,7 +83,7 @@ This request excludes unrelated private bodies and full tool schemas. Only compl
 ```mermaid
 flowchart LR
   First[Validated stage-one decisions and selected apps] --> J2[Jev stage 2 when needed]
-  Skills[Relevant skill schemas; Focus definitions; public app Memory guides] --> J2
+  Skills[Relevant skill IDs and routing hints; Focus definitions; public app Memory guides] --> J2
   User[Authorized Memory / Workflow discovery and Project Focus catalogue] --> J2
   Active[Required active / explicit context; related Task / Plan / recent-work metadata with provenance] --> J2
   J2 --> Selected[Selected skill / Focus / Memory / Workflow / related-work IDs and revisions]
@@ -122,7 +122,7 @@ flowchart LR
   Chips --> Delivery
 ```
 
-The main-generated composer suggestion is distinct from postprocessor chips. Completion ends the active response presentation; required encrypted persistence controls Send readiness. Metadata arrival remains observable through bounded owned subscriptions, continues updating headers and suggestions, and cannot revive a terminal response or overwrite a newer turn's suggestion. The stage-one initial title has its own early delivery path. Later versioned title/summary updates may still apply during the next turn; follow-up chips and composer suggestions stay bound to their source turn. Unversioned initial generated titles use the existing guard against replacing an already stored title.
+The main-generated composer suggestion is distinct from postprocessor chips. Completion ends the active response presentation; required encrypted persistence controls Send readiness. Metadata arrival remains observable through bounded owned subscriptions, continues updating headers and suggestions, and cannot revive a terminal response or overwrite a newer turn's suggestion. Ordinary Jev routing returns no authored title; postprocessing supplies it. Compatibility paths may still emit an early initial title. Later versioned title/summary updates may still apply during the next turn; follow-up chips and composer suggestions stay bound to their source turn. Unversioned initial generated titles use the existing guard against replacing an already stored title.
 
 ## Cache and authority boundaries
 
@@ -139,4 +139,44 @@ Directus development schema freezing removes repeated schema cloning while prese
 
 ## Verification status
 
-The main increment was published at `b946173b492c564c37bb7608ef13ddfb68a8930a`, activated on development through descendant `d8bef5a14b7a8b3a7fe4ff601d4683a7ffb70f98`, and both web deployments passed. Focused backend, CLI and web correctness checks pass. The scoped CLI privacy/terminal-streaming and web processing/PII integration checks pass; matching auth and first-admission recovery results are retained. The additional TUI startup repair was published at `6b5f0eb8c5898e19dcdf343d83504785ca657b9a`. It passes 188 focused unit checks, its configured build, and all three exact-source isolated startup integration cases without retries in the final run. The saved-chat fixture uses a canonical encrypted chat shell and normal PageDown interaction. New real-Gemini latency/error acceptance remains blocked by unavailable disposable-account credentials. The separately owned WebSocket delivery-state repair is excluded from this timing candidate. The reported CMS transport retries and signed-out activity requests are not established as one shared cause. See [validation-2026-10-14.md](validation-2026-10-14.md) for measured boundaries and evidence limits.
+The main increment was published at `b946173b492c564c37bb7608ef13ddfb68a8930a`, activated on development through descendant `d8bef5a14b7a8b3a7fe4ff601d4683a7ffb70f98`, and both web deployments passed. Focused backend, CLI and web correctness checks pass. The scoped CLI privacy/terminal-streaming and web processing/PII integration checks pass; matching auth and first-admission recovery results are retained. The additional TUI startup repair was published at `6b5f0eb8c5898e19dcdf343d83504785ca657b9a`. It passes 188 focused unit checks, its configured build, and all three exact-source isolated startup integration cases without retries in the final run. The saved-chat fixture uses a canonical encrypted chat shell and normal PageDown interaction. The authorized personal development account has been recovered into isolated test state. A real default-Gemini TUI run measured 1,427 ms selected-Mate feedback and 6,616 ms first authored text for a new factual chat; its same-chat follow-up regressed to 29,380 ms Mate feedback because foreground preparation awaited account-wide recovery. The scoped fix and fresh target acceptance are tracked in [validation-2026-10-15.md](validation-2026-10-15.md). The separately owned WebSocket delivery-state repair is excluded from this timing candidate. The reported CMS transport retries and signed-out activity requests are not established as one shared cause. See [validation-2026-10-14.md](validation-2026-10-14.md) for measured boundaries and evidence limits.
+
+
+## Shared app-skill result recovery
+
+The approved CMS optimization uses the existing shared composite lifecycle rather than app-specific persistence implementations. The 28 metadata-declared composite skills include Events, Web, News, Travel, Shopping, Maps, Images, Hosting, Tasks and Workflows. Ordinary chat outputs prepare their children and parent in order, perform fresh grouped Project classification, probe their existing sealed receipts in bounded transactions, seal only absent records, and commit inline outputs in bounded transactions before finished cache entries or client events are published.
+
+```mermaid
+flowchart LR
+  Results[Safety-checked skill results] --> Prepare[Prepare ordered children and parent]
+  Prepare --> Classify[Fresh Project classification and recovery pin]
+  Classify --> Probe[Bounded lookup of existing sealed receipts]
+  Probe --> Seal[Seal absent records with current recovery public key]
+  Seal --> Commit[Bounded atomic inline write transactions]
+  Commit --> Children[Cache and publish children in source order]
+  Children --> Parent[Cache and publish parent]
+  Parent --> Continue[Model continuation and client rendering]
+```
+
+Each request contains at most 32 outputs and 512 KiB; individual inline envelopes remain limited to 256 KiB. Larger result sets use multiple bounded transactions, and dependent publication waits for all required transactions. A failed transaction rolls back its own entries; prior committed chunks remain recoverable and reusable. Ten small children plus their parent require two recovery RPCs instead of the retained trace's 33. This is a call-count improvement, not a new measured inference-latency claim.
+
+Every record retains its existing authority, owner/Team, deletion, preflight, identity and commitment checks. Inline single-output persistence also omits the repeated pre-create lookup, with current authorization and committed-state checks required on idempotent replies. Registered producers, volatile output, version diffs and large regional-S3 outputs retain their specialized lifecycles. Ordinary chat children retain UUIDv4 identities; UUIDv5 child identities remain reserved for durably registered producers. Retries of the same prepared payload reuse its child identities, fallback references and first sealed receipts. Reexecuting a builder allocates new ordinary children and cannot replace an already-sealed parent with changed child references.
+
+No client wire-format change is introduced by storage batching: web, CLI/TUI and Apple receive the existing ordered embed events and recovery receipts. Architecture assertions, especially `storage.background.complete-sealed-recovery`, continue to define the required durability semantics.
+
+## Apple processing handoff and web targets
+
+The client targets remain immediate optimistic user-message placement and composer clearing; selected-Mate feedback within a hard maximum of 2,000 ms from Send for both new chats and same-chat follow-ups, measured first on TUI and then web, with 1,500 ms as the aim and faster preferred; and first authored streaming text within 2–3 seconds for simple initial and contextual follow-up requests. Tool requests retain the same selected-Mate target, while provider work, durable results and answer generation are measured separately. Completion stops the active presentation on the authoritative terminal event; required ciphertext persistence and late header/follow-up metadata have independent milestones.
+
+Native adoption should mirror composer/microphone warm-up, fresh scoped privacy-generation validation, immediate durable/transient admission handoff, selected-Mate-only Thinking feedback before stage two, deterministic Researching/Working tool states, chronological tool/text ordering, terminal completion and late metadata updates. Warm-up performs no inference and carries no draft text. Actual OpenMates inference always uses its existing automatic routing with no model/provider override. Deployment readiness and real-inference target acceptance must be reported separately; no target is certified by mocked or historical timing alone.
+
+
+## Foreground preparation and notifications
+
+Current-turn TUI preparation uses fresh authorized metadata and bounded message windows for that chat, including privacy mappings, current encrypted key wrappers and canonical message version. Required recovery for that turn still finishes before its persistence milestone; unrelated account recovery remains available through normal browsing and reconnect without holding Send or response finalization.
+
+Fresh per-connection presence from a foreground web tab or open interactive TUI suppresses both chat email and push across that user's chats, including new chats before active-chat selection. Both channels check before enqueue and at delivery. Headless/background/closed/expired sessions do not claim foreground human presence. Apple client implementation is unchanged.
+
+A narrowly typed transient recovery failure can retry once after matching authoritative terminal hydration. A child with a valid durable store receipt whose canonical read is blocked by its known parent instead waits for that exact parent to verify and acknowledge, then retries once; terminal hydration alone cannot consume this dependency retry. Pending retries and recent bookkeeping are bounded, owner/session/Team/key/turn fences remain authoritative, and no ACK is sent until the canonical stored output verifies. Authorization, identity and cryptographic failures are never treated as transient. Explicit discovery remains the durable recovery route after exhaustion.
+
+The user deployment/testing freeze is 15 October 2026 at 17:00 Europe/Berlin (15:00 UTC). Deployments and runtime mutations must finish before that cutoff; subsequent manual web testing requires a stable development revision.

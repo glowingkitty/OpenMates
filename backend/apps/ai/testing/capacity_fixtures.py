@@ -16,7 +16,7 @@ import os
 
 SCENARIO = re.compile(
     r"STORAGE_CAPACITY_SCENARIO:(round|tool|child|child_worker|version_create|version_update|"
-    r"recovery_embed|recovery_diff|recovery_checkpoint|recovery_save_failure|"
+    r"recovery_embed|recovery_composite|recovery_diff|recovery_checkpoint|recovery_save_failure|"
     r"recovery_detached_doc|recovery_protocol)(?:\b|$)"
 )
 
@@ -187,7 +187,8 @@ def _preprocessing_arguments(scenario: str) -> dict[str, Any]:
         "china_model_sensitive": False,
         "enable_subchats": scenario in {"child", "recovery_save_failure"},
         "load_app_settings_and_memories": [],
-        "relevant_app_skills": ["math-calculate"] if scenario == "tool" else [],
+        "relevant_app_skills": (["math-calculate"] if scenario == "tool"
+                                else ["events-search"] if scenario == "recovery_composite" else []),
         "relevant_focus_modes": [],
         "relevant_embedded_previews": [],
         "topic_area": "general_misc",
@@ -343,6 +344,15 @@ def generate_fixture(category: str, kwargs: dict[str, Any]) -> dict[str, Any] | 
         # Ordinary child completion uses its final assistant text as the
         # orchestration summary. Main processing does not expose end_subchat.
         return _main_stream(model, "Synthetic child storage result.")
+    if scenario == "recovery_composite":
+        if _tool_returned(messages):
+            return _main_stream(model, "The ten synthetic recovery events are ready.")
+        if "events-search" not in names:
+            return None
+        return _main_stream(model, _call("events-search", {"requests": [{
+            "query": "39c3", "conference": "39c3", "provider": "pretalx",
+            "past_events": True, "count": 10,
+        }]}, google=google, fingerprint=fingerprint))
     if scenario == "recovery_embed":
         return _main_stream(model, (
             "```python:recovery_demo.py\n"

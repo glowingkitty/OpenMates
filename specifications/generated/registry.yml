@@ -560,7 +560,7 @@ specifications:
     version: 2
     status: draft
     path: features/notifications
-    fingerprint: 7d9314ad74bd36af9c17d653b251f75f4ad9e1fa88c74d68352b8158d3735128
+    fingerprint: 61a24f334ec28598cad3e000d02f5997cf5cdb5b3981093e1b485c6efdf67c8b
     required_applies_to:
     - rest_api
     - cli
@@ -7205,6 +7205,18 @@ assertions:
     - sdks.pip
     - gui.web
     - gui.apple
+  notifications.delivery.foreground-chat-suppression:
+    specification: feature.notifications@2
+    specification_id: feature.notifications
+    type: behavior
+    fingerprint: a25c95d6dc48a214c658cdfa377f33fb07cb920a077dd9676d71dd6f57c3faa4
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   notifications.delivery.push-enabled:
     specification: feature.notifications@2
     specification_id: feature.notifications
@@ -7293,7 +7305,7 @@ assertions:
     specification: feature.notifications@2
     specification_id: feature.notifications
     type: parity
-    fingerprint: ddf12bf436fbe5e8e5011e8c05e21bbd8781140bd17819cd44b49f652b182594
+    fingerprint: f41076a7f5cf8b73b97cd96d641a10f65d41051c2a2e25bbcbd56e8ed188aef3
     required_applies_to:
     - rest_api
     - cli

@@ -109,6 +109,47 @@ def test_unselected_project_discovery_inventory_does_not_block_proven_empty_turn
     assert main._omit_fact_question_format_guidance(request, preprocessing, None, [])
 
 
+@pytest.mark.parametrize("followup", [False, True])
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.preprocessing.contextual-compact-assembly
+def test_unselected_task_inventory_keeps_proven_plain_initial_and_followup_prompts_compact(followup):
+    request, preprocessing = _proven_turn()
+    request.related_task_candidates = [
+        {"task_id": f"discovery-{index}", "explicit_dependency": False}
+        for index in range(24)
+    ]
+    if followup:
+        request.current_user_content = "And France?"
+        request.message_history = [
+            {"role": "user", "content": "What is the capital of Spain?"},
+            {"role": "assistant", "content": "Madrid."},
+            {"role": "user", "content": request.current_user_content},
+        ]
+    before = list(request.message_history)
+    assert main._omit_fact_question_format_guidance(request, preprocessing, None, [])
+    assert request.message_history == before
+
+
+@pytest.mark.parametrize("candidates", [
+    [{"task_id": "explicit", "explicit_dependency": True}],
+    [{"task_id": "unknown"}],
+    [None],
+    {"not": "a candidate list"},
+])
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.preprocessing.conditional-context
+def test_explicit_or_unproven_task_dependencies_keep_required_guidance(candidates):
+    request, preprocessing = _proven_turn()
+    request.related_task_candidates = candidates
+    assert not main._omit_fact_question_format_guidance(request, preprocessing, None, [])
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.preprocessing.conditional-context
+def test_selected_related_work_keeps_guidance_despite_unselected_discovery_inventory():
+    request, preprocessing = _proven_turn()
+    request.related_task_candidates = [{"task_id": "discovery", "explicit_dependency": False}]
+    preprocessing.relevant_related_work = [{"task_id": "selected"}]
+    assert not main._omit_fact_question_format_guidance(request, preprocessing, None, [])
+
+
 # contract-test: supporting surface=rest_api assertions=ai-model-routing.preprocessing.conditional-context
 def test_declared_request_schema_disabled_learning_mode_allows_exact_benchmark_turn():
     question = "What’s the capital of Spain?"
@@ -191,7 +232,7 @@ def test_format_guidance_remains_for_context_or_unknown_intent(change):
     elif change == "workflow_request":
         request.user_preferences = {"workflow_ai": True}
     elif change == "related_task":
-        request.related_task_candidates = [{"task_id": "task", "explicit_dependency": False}]
+        request.related_task_candidates = [{"task_id": "task", "explicit_dependency": True}]
     elif change == "embedding":
         preprocessing.relevant_embedded_previews = ["code"]
     elif change == "learning_mode":

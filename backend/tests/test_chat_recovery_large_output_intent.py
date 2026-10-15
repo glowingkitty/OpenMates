@@ -145,3 +145,36 @@ async def test_discovery_failure_emits_failed_fence_instead_of_false_completion(
         )
     assert [frame["type"] for frame in manager.messages] == ["recovery_outputs_discovery_complete"]
     assert manager.messages[0]["payload"]["status"] == "failed"
+
+
+# contract-test: direct surface=rest_api assertions=storage.background.complete-sealed-recovery
+@pytest.mark.asyncio
+@pytest.mark.parametrize("producer", [False, True])
+@pytest.mark.parametrize("status", ["PENDING", "ACKNOWLEDGED", "PREPARING", "ABSENT"])
+async def test_large_output_preserves_preprobe_and_missing_s3_fails_closed(monkeypatch, producer, status) -> None:
+    service = _RecordingRecovery()
+    body = {
+        "protocol_version": 1, "record_id": "record", "sealed_payload": "x" * (256 * 1024 + 1),
+        "content_commitment": "commitment", "hashed_user_id": "owner", "preflight_id": "preflight",
+        "root_chat_id": "root", "target_chat_id": "target", "subject_id": "subject",
+        "output_kind": "embed", "output_version": 1,
+    }
+    if producer:
+        body.update({"producer_intent_id": "producer", "producer_task_name": "task",
+                     "producer_kwargs_binding": "binding", "producer_ordinal": 0})
+    probes = []
+    receipt = {"record_id": "record", "status": status, "sealed_payload": "first-envelope"}
+
+    async def probe(data, **kwargs):
+        probes.append(data)
+        return receipt
+
+    monkeypatch.setattr(service, "get_producer_output" if producer else "get_replay_output", probe)
+    if status in {"PENDING", "ACKNOWLEDGED"}:
+        assert await service.save_sealed_output(body) == receipt
+    else:
+        with pytest.raises(RuntimeError, match="already being prepared" if status == "PREPARING" else "regional S3"):
+            await service.save_sealed_output(body)
+    assert len(probes) == 1
+    assert probes[0]["content_commitment"] == "commitment"
+    assert not service.calls

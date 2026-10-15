@@ -277,12 +277,29 @@ async def _close_google_client(client, session: Optional[aiohttp.ClientSession])
 
 
 async def close_google_clients_for_current_loop() -> None:
-    """Release this Celery task's Google transports before its loop closes."""
+    """Close transports, retaining SDK clients until synchronous ownership release.
+
+    google-genai 1.58.0 destructors schedule async closes whenever a loop is
+    running, even after explicit close. Keep references through run_until_complete
+    so their final release cannot leave redundant close tasks on a stopping loop.
+    """
     loop = asyncio.get_running_loop()
     _managed_google_loops.discard(loop)
-    clients = _google_clients_by_loop.pop(loop, {})
+    clients = _google_clients_by_loop.get(loop, {})
     for client, session in clients.values():
         await _close_google_client(client, session)
+
+
+def release_google_clients_for_loop(loop: asyncio.AbstractEventLoop) -> None:
+    """Release closed SDK clients after the owning loop has stopped running."""
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        pass
+    else:
+        raise RuntimeError("Google client ownership must be released outside a running loop")
+    _managed_google_loops.discard(loop)
+    _google_clients_by_loop.pop(loop, None)
 
 def _clamp_temperature_for_thinking_model(model_id: str, temperature: float) -> float:
     """
