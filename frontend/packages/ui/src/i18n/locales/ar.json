@@ -9264,16 +9264,34 @@
     },
     "dashboard_sidebar_svg_icons": {
       "title": {
-        "text": "Dashboard Sidebar SVG Icons"
+        "text": "أيقونات SVG للشريط الجانبي للوحة التحكم"
       },
       "summary": {
-        "text": "A Design app example that finds clean open-source SVG home and settings icons for a dashboard sidebar."
+        "text": "اعثر على أيقونات SVG بسيطة ومفتوحة المصدر للمنزل والإعدادات للشريط الجانبي للوحة التحكم، مع الأسماء المعيارية والمجموعات والتراخيص."
       },
       "message_1": {
-        "text": "Find open-source SVG home and settings icons from clean UI icon sets for a dashboard sidebar. Include the icon names, collections, and licenses."
+        "text": "ابحث عن أيقونات SVG مفتوحة المصدر للمنزل والإعدادات من مجموعات أيقونات واجهة مستخدم بسيطة للشريط الجانبي للوحة التحكم. قم بتضمين أسماء الأيقونات والمجموعات والتراخيص."
       },
       "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"f92d6925-690b-4350-9b6a-3a7003f8b947\", \"app_id\": \"design\", \"skill_id\": \"search_icons\", \"query\": \"home\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"68b02c14-a329-4772-97d2-d7b168bb50bc\", \"app_id\": \"design\", \"skill_id\": \"search_icons\", \"query\": \"settings\"}\n```\n\nFor a clean dashboard sidebar, you'll want icons that have consistent stroke weights and a minimalist aesthetic. Here are several open-source SVG options from highly regarded, clean UI icon sets:\n\n### 1. Tabler Icons\n[Tabler Icons](wiki:Tabler) is a highly customizable, stroke-based set designed on a 24x24 grid, making it perfect for modern dashboards.\n*   **License:** [MIT](wiki:MIT_License)\n*   **Home:** `tabler:home` [Home](embed:home-EuX)\n*   **Settings:** `tabler:settings` [Settings](embed:settings-TgF)\n\n### 2. Remix Icon\nRemix Icon offers a neutral, professional style with both \"Line\" and \"Fill\" versions, which is great for indicating active vs. inactive states in a sidebar.\n*   **License:** [Apache 2.0](wiki:Apache_License)\n*   **Home:** `ri:home-line` [Home Line](embed:home-line-vDv)\n*   **Settings:** `ri:settings-line` [Settings Line](embed:settings-line-c3G)\n\n### 3. Material Symbols (Light)\n[Material Symbols](wiki:Material_Design) are the modern successor to Material Icons, offering variable font technology. The \"Light\" and \"Outline\" versions provide a very airy, sophisticated look.\n*   **License:** [Apache 2.0](wiki:Apache_License)\n*   **Home:** `material-symbols-light:home-outline` [Home Outline](embed:home-outline-3t2)\n*   **Settings:** `material-symbols-light:settings-outline` [Settings Outline](embed:settings-outline-jak)\n\n### 4. Boxicons\nBoxicons is a high-quality web friendly set of icons that are simple and well-balanced.\n*   **License:** [MIT](wiki:MIT_License)\n*   **Home:** `boxicons:home` [Home](embed:home-DSR)\n*   **Settings:** `boxicons:settings` (Available in the Boxicons collection)\n\n### Summary Table\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"955e10f2-2643-4489-a9d0-6ccdad784a58\"}\n```\n\n**Design Tip:** When using these in a sidebar, ensure you keep the stroke width consistent across all icons. Most of these collections default to a `2px` stroke, which works well for visibility without feeling \"heavy.\"\n\nWould you like me to look for other sidebar icons like \"Users,\" \"Analytics,\" or \"Messages\" to complete your set? I can also help you with a [Svelte](/#settings/apps/code) or [React](wiki:React_(software)) sidebar component if you're building the UI now."
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d89f7daf-2f5e-4ca9-aa05-3871914d93b8\",\"app_id\":\"design\",\"skill_id\":\"search_icons\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"e95be2ea-c388-4bab-adeb-b06a8db98153\",\"app_id\":\"design\",\"skill_id\":\"search_icons\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"754b1718-0b62-4236-a605-1d1e1dc6883b\",\"app_id\":\"design\",\"skill_id\":\"search_icons\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"c7102976-dc67-48f3-9406-824fb9959068\",\"app_id\":\"design\",\"skill_id\":\"search_icons\"}\n```\n\nإليك خيارات أيقونات SVG نظيفة ومفتوحة المصدر مناسبة للشريط الجانبي للوحة التحكم، منظمة حسب المجموعة مع تراخيصها ومعايناتها:\n\n---\n\n### 1. Tabler Icons (جمالية الخطوط الخارجية النظيفة)\n\n**الترخيص:** MIT  \n**المؤلف:** Paweł Kuna  \n**المجموعة:** Tabler Icons  \n\n* **نمط الخط الخارجي (موصى به للتنقل القياسي في الشريط الجانبي):**\n  * **الرئيسية:** `tabler:home`  \n    [!](embed:home-qsF)\n  * **الإعدادات:** `tabler:settings`  \n    [!](embed:settings-cwz)\n\n* **النمط المملوء (مثالي للحالة النشطة أو المختارة):**\n  * **الرئيسية:** `tabler:home-filled`  \n    [!](embed:home-filled-DZ8)\n  * **الإعدادات:** `tabler:settings-filled`  \n    [!](embed:settings-filled-ZtD)\n\n---\n\n### 2. Material Symbols Light (هندسي حديث ومصقول)\n\n**الترخيص:** Apache 2.0  \n**المؤلف:** Google  \n**المجموعة:** Material Symbols Light  \n\n* **نمط الخط الخارجي:**\n  * **الرئيسية:** `material-symbols-light:home-outline`  \n    [!](embed:home-outline-yJt)\n  * **الإعدادات:** `material-symbols-light:settings-outline`  \n    [!](embed:settings-outline-nOD)\n\n* **نمط الخط الخارجي المستدير (زوايا أنعم):**\n  * **الرئيسية:** `material-symbols-light:home-outline-rounded`  \n    [!](embed:home-outline-rounded-joT)\n  * **الإعدادات:** `material-symbols-light:settings-outline-rounded`  \n    [!](embed:settings-outline-rounded-fX5)\n\n---\n\n### 3. Material Symbols (الوزن القياسي)\n\n**الترخيص:** Apache 2.0  \n**المؤلف:** Google  \n**المجموعة:** Material Symbols  \n\n* **نمط الخط الخارجي:**\n  * **الرئيسية:** `material-symbols:home-outline`  \n    [!](embed:home-outline-IoS)\n  * **الإعدادات:** `material-symbols:settings-outline`  \n    [!](embed:settings-outline-t5y)\n\n* **النمط المملوء:**\n  * **الرئيسية:** `material-symbols:home`  \n    [!](embed:home-99u)\n  * **الإعدادات:** `material-symbols:settings`  \n    [!](embed:settings-2Pu)\n\n---\n\n### جدول ملخص\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"a332ffe9-78e3-437b-926d-8c432bb8df51\"}\n```\n\nكلا الترخيصين MIT و Apache 2.0 هما ترخيصان مفتوحا المصدر يسمحان بالاستخدام التجاري والشخصي في لوحات التحكم وتطبيقات الويب.\n\n[!](embed:home-JeT)\n[!](embed:settings-DM2)"
+      },
+      "follow_up_1": {
+        "text": "ابحث عن أيقونات SVG لملف تعريف المستخدم والإشعارات"
+      },
+      "follow_up_2": {
+        "text": "قارن بين سماكة الخطوط في Tabler و Material Symbols"
+      },
+      "follow_up_3": {
+        "text": "ابحث عن مجموعات أيقونات واجهة المستخدم للتحليلات والرسوم البيانية"
+      },
+      "follow_up_4": {
+        "text": "اذكر أفضل الممارسات لتنظيم أيقونات SVG في مشاريع React"
+      },
+      "follow_up_5": {
+        "text": "ابحث عن أيقونات التنقل (الأسهم وعلامات chevron)"
+      },
+      "follow_up_6": {
+        "text": "اشرح كيفية تحسين ملفات SVG لأداء الويب"
       }
     },
     "deutschlandticket_train_fare_breakdown": {

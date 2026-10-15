@@ -387,7 +387,9 @@
         "landing-images-targeted.spec.ts",
         "landing-audio-targeted.spec.ts",
         "landing-mindmap-recreated-examples.spec.ts",
-        "landing-health-targeted.spec.ts"
+        "landing-health-targeted.spec.ts",
+        "landing-design-targeted.spec.ts",
+        "landing-design-laptop.spec.ts"
       ],
       "enabling_work": "Run existing public browser/component/source assertions on the built candidate; report product failures rather than holding execution.",
       "execution": "e2e"

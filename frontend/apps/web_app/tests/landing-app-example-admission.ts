@@ -440,8 +440,10 @@ async function inspectSavedResultGraph(page: Page, history: Locator, chat: Examp
     await collapseCompletedActivity(history, chat.slug);
     for (const icon of selected) {
       const preview = await selectInlineEmbedPreview(history, icon, `${chat.slug}: recommended icon`);
+      await preview.scrollIntoViewIfNeeded();
       const image = preview.locator('.icon-art img');
       await expect(image).toBeVisible();
+      await expect(image).toBeInViewport();
       await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth),
         { message: `${chat.slug}: icon preview has pixels` }).toBeGreaterThan(0);
       const fullscreen = await openFullscreen(page, preview);
