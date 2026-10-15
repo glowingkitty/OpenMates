@@ -78,6 +78,17 @@ def test_deep_research_runtime_keeps_full_authored_prompt_and_parent_source_chec
     assert "6–10 distinct material findings in a numbered Evidence ledger" in runtime
     assert "not truncation rules or hard ceilings: retain necessary qualifications" in runtime
     assert "including material counterevidence" in runtime
+    assert "tests competing explanations against primary evidence" in runtime
+    assert "not obliged to find a hidden motive" in runtime
+    assert "only as hypotheses" in runtime
+    assert "brief exact primary-source excerpt" in runtime
+    assert "precise primary-table entry with its period and metric" in runtime
+    assert "supported only when this basis directly supports the exact claim and scope" in runtime
+    assert "A URL or a source-wide aggregate alone is not claim support" in runtime
+    assert "Short Answer may use only supported or qualified claims" in runtime
+    assert "never upgrade a research report’s evidence status" in runtime
+    assert "Order comparison periods chronologically" in runtime
+    assert "distinguish a jury award from statutory trebling" in runtime
 
 
 # contract-test: supporting surface=rest_api assertions=focus-modes.full-instruction

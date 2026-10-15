@@ -83587,12 +83587,12 @@ assertions:
       surface: rest_api
     - &id10674
       path: backend/tests/test_landing_focus_prompt_contract.py
-      line: 84
+      line: 95
       name: test_all_landing_focus_runtime_locales_keep_complete_instructions
       surface: rest_api
     - &id10675
       path: backend/tests/test_landing_focus_prompt_contract.py
-      line: 117
+      line: 128
       name: test_landing_focus_metadata_handles_natural_comparative_and_intake_requests
       surface: rest_api
     - &id10676
