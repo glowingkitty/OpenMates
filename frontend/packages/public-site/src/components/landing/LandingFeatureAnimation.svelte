@@ -17,6 +17,29 @@
   let visible = $state(true);
   let reducedMotion = $state(false);
   let elapsedMs = $state(0);
+  let sceneElement = $state<HTMLDivElement>();
+  let sceneContent = $state<HTMLDivElement>();
+  let sceneScale = $state(1);
+
+  // Fit the natural content, not its animated/transformed bounds. ResizeObserver
+  // also catches translated copy and font loading, without measuring every frame.
+  $effect(() => {
+    const frame = sceneElement;
+    const content = sceneContent;
+    if (!frame || !content) return;
+    const fit = () => {
+      const style = getComputedStyle(frame);
+      const width = frame.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+      const height = frame.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+      if (width <= 0 || height <= 0) return;
+      sceneScale = Math.min(1, width / Math.max(1, content.scrollWidth), height / Math.max(1, content.scrollHeight));
+    };
+    fit();
+    const observer = new ResizeObserver(fit);
+    observer.observe(frame);
+    observer.observe(content);
+    return () => observer.disconnect();
+  });
   let completed = false;
   const eventImage = proxyImage('https://images.lumacdn.com/cdn-cgi/image/format=auto,fit=cover,dpr=2,background=white,quality=75,width=400,height=400/event-covers/g3/d98ef380-57c3-4dd8-b751-d7c0ae6c2519', 400);
   let copy = $derived(featureAnimationCopy[language === 'de' ? 'de' : 'en']);
@@ -82,7 +105,8 @@
 
 <div class="feature-animation" class:playing data-testid="landing-feature-animation" data-section={section} data-active-stage={scene.id} data-interaction-state={interaction} data-playing={playing ? 'true' : 'false'} aria-hidden="true">
   {#key scene.id}
-    <div class="scene" style={`--scene-duration: ${scene.durationMs}ms`}>
+    <div class="scene" bind:this={sceneElement} style={`--scene-duration: ${scene.durationMs}ms`}>
+      <div class="scene-content" bind:this={sceneContent} style={`--scene-scale: ${sceneScale}`} data-scene-scale={sceneScale}>
       {#if scene.id === 'user-request' || scene.id === 'trip-request'}
         <div class="message user">{scene.id === 'user-request' ? copy.actionable_event_user_message : copy.privacy_trip_request}</div>
       {:else if scene.id === 'assistant-response' || scene.id === 'pii-reveal'}
@@ -130,6 +154,7 @@
       {:else}
         <p class="copy">{scene.id === 'saved-data-copy' ? copy.privacy_saved_data : scene.id === 'pii-copy' ? copy.privacy_pii : scene.id === 'originals-copy' ? copy.privacy_originals : copy.privacy_memory_result}</p>
       {/if}
+      </div>
     </div>
   {/key}
   {#if scene.id === 'event-preview' || scene.id === 'luma-cta'}
@@ -152,8 +177,9 @@
 {/snippet}
 
 <style>
-  .feature-animation { position: relative; display: grid; place-items: center; width: 100%; min-width: 0; height: clamp(18rem, 38vw, 23rem); overflow: hidden; container-type: inline-size; color: var(--color-font-primary); pointer-events: none; }
-  .scene { position: absolute; inset: 0; display: grid; place-items: center; padding: var(--spacing-8); animation: scene-flow var(--scene-duration) linear both; }
+  .feature-animation { position: relative; display: grid; place-items: center; width: 100%; min-width: 0; height: var(--story-animation-height, clamp(18rem, 38vw, 23rem)); overflow: hidden; container-type: inline-size; color: var(--color-font-primary); pointer-events: none; }
+  .scene-content { display: grid; place-items: center; width: 100%; min-width: 0; transform: scale(var(--scene-scale, 1)); transform-origin: center; }
+  .scene { box-sizing: border-box; position: absolute; inset: 0; display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr); place-items: center; padding: var(--spacing-8); animation: scene-flow var(--scene-duration) linear both; }
   .feature-animation:not(.playing) .scene, .feature-animation:not(.playing) .data-icon, .feature-animation:not(.playing) .unlock, .feature-animation:not(.playing) .locked { animation-play-state: paused; }
   .message { position: relative; max-width: min(88%, 28rem); padding: var(--spacing-8) var(--spacing-10); border-radius: var(--radius-6); box-shadow: var(--shadow-md); text-align: start; font-size: clamp(1rem, 2.6cqi, 1.2rem); line-height: 1.5; }
   .user { justify-self: end; margin-inline-end: 6%; background: var(--color-grey-blue); }
@@ -211,6 +237,15 @@
   @keyframes float-data { 0%, 100% { transform: translateY(-3px); } 50% { transform: translateY(4px); } }
   @keyframes unlock-exit { 0%, 28% { opacity: 1; transform: translateY(0) rotate(-7deg); } 48%, 100% { opacity: 0; transform: translateY(-18px) rotate(5deg); } }
   @keyframes lock-enter { 0%, 32% { opacity: 0; transform: translateY(18px) scale(0.8); } 54%, 100% { opacity: 1; transform: translateY(0) scale(1); } }
-  @container (max-width: 430px) { .message { padding: var(--spacing-6) var(--spacing-8); } .permission-card { padding: var(--spacing-8); font-size: var(--font-size-xs); } }
+  @container (max-width: 430px) {
+    .scene { padding: var(--spacing-4); }
+    .message { box-sizing: border-box; padding: var(--spacing-6) var(--spacing-8); }
+    .permission-card { box-sizing: border-box; padding: var(--spacing-4); gap: var(--spacing-4); font-size: var(--font-size-xs); }
+    .permission-heading, .memory-category { gap: var(--spacing-4); }
+    .permission-card :global(svg) { width: 18px; height: 18px; }
+    .memory-category { padding: var(--spacing-4); }
+    .permission-actions { gap: var(--spacing-3); }
+    .permission-actions span { padding: var(--spacing-2) var(--spacing-4); }
+  }
   @media (prefers-reduced-motion: reduce) { .feature-animation { display: none; } .scene, .data-icon, .unlock, .locked { animation: none; } }
 </style>

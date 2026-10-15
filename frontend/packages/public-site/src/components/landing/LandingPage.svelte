@@ -507,7 +507,7 @@
       </section>
 
       {#each features as feature (feature.id)}
-        <section class="feature feature-media" class:feature-later={feature.id === 'devices' || feature.id === 'open-source'} class:story-playing={storyStates[feature.id] !== 'complete'} class:story-finishing={storyStates[feature.id] === 'finishing'} data-story-state={storyStates[feature.id]} id={feature.id} aria-labelledby={`${feature.id}-title`} data-testid={`landing-feature-${feature.id}`} data-reveal>
+        <section class="feature feature-media" class:feature-later={feature.id === 'devices' || feature.id === 'open-source'} class:story-demonstration={isCustomStory(feature.id)} class:story-playing={storyStates[feature.id] !== 'complete'} class:story-finishing={storyStates[feature.id] === 'finishing'} data-story-state={storyStates[feature.id]} id={feature.id} aria-labelledby={`${feature.id}-title`} data-testid={`landing-feature-${feature.id}`} data-reveal>
           <div class="feature-copy">
             <span class={`feature-icon ${feature.icon}-icon`} aria-hidden="true" data-testid="landing-feature-icon"></span>
             <h2 id={`${feature.id}-title`}>{feature.title1}<br />{feature.title2}</h2>
@@ -698,6 +698,28 @@
   .social-links a { display: inline-grid; place-items: center; width: 38px; height: 38px; border-radius: var(--radius-full); background: var(--color-grey-20); }.social-links a:hover { background: var(--color-grey-blue); }.social-icon { display: block; width: 22px; height: 22px; background: var(--color-grey-80); mask: var(--social-icon-url) center / contain no-repeat; -webkit-mask: var(--social-icon-url) center / contain no-repeat; }
   @media (max-width: 900px) { .feature-media { grid-template-columns: 1fr; }.feature-copy, .feature-later .feature-copy { max-width: 680px; }.feature-example, .feature-later .feature-example { width: 100%; margin: 0 auto; } }
   @media (max-width: 760px) { .viewport-container { margin: 0 var(--spacing-4) var(--spacing-4); }.feature { min-height: 100%; padding: max(72px, var(--spacing-20)) var(--spacing-8) max(156px, env(safe-area-inset-bottom)); gap: var(--spacing-16); }.feature h2 { margin-bottom: var(--spacing-12); }.publication-row { grid-template-columns: 1fr; gap: var(--spacing-12); padding: var(--spacing-16) var(--spacing-8); }.site-footer { flex-direction: column; align-items: flex-start; padding: var(--spacing-16) var(--spacing-8); }.site-footer nav { justify-content: flex-start; } }
+  /* Fit custom stories between the fixed arrows and composer when browser chrome
+     leaves a short phone panel. Final reading layouts keep their natural height. */
+  @container (max-width: 760px) {
+    .feature.story-playing.story-demonstration {
+      height: 100cqh;
+      grid-template-rows: auto minmax(0, 1fr);
+      align-content: stretch;
+      gap: clamp(8px, 2cqh, 20px);
+      padding-top: calc(41px + var(--spacing-6) * 2);
+      padding-bottom: calc(max(var(--spacing-8), env(safe-area-inset-bottom)) + 64px + 41px + var(--spacing-6) * 2);
+    }
+    .story-playing.story-demonstration .feature-copy { width: 100%; }
+    .story-playing.story-demonstration .skip-animation { padding: var(--spacing-2); }
+    .story-playing.story-demonstration .feature-icon { width: clamp(24px, 6cqh, 48px); height: clamp(24px, 6cqh, 48px); margin-bottom: clamp(4px, 1.5cqh, 12px); }
+    .story-playing.story-demonstration h2 { margin-bottom: var(--spacing-4); font-size: clamp(20px, min(6.8cqw, 4.5cqh), 28px); line-height: 1.2; }
+    .story-playing.story-demonstration .story-surface, .story-playing.story-demonstration .story-stage { height: 100%; min-height: 0; }
+    .story-playing.story-demonstration .story-stage { --story-animation-height: 100%; }
+  }
+  @container (max-width: 760px) and (max-height: 560px) {
+    .story-playing.story-demonstration .feature-icon { width: 24px; height: 24px; margin-bottom: var(--spacing-2); }
+    .story-playing.story-demonstration h2 { margin-bottom: var(--spacing-2); font-size: 20px; line-height: 1.1; }
+  }
   @media (max-width: 440px) { .scroll-cue-content { gap: var(--spacing-4); }.publication-cards { grid-template-columns: 1fr; }.publication-card img { height: 170px; } }
   /* Phone sizing balances readable copy with breathing room. The compact rule
      follows panel height after the header and mobile browser chrome take space. */
