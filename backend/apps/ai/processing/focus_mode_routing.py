@@ -4,6 +4,7 @@
 # policy changes apply only after focus state has been explicitly activated.
 # Tests live in backend/tests/test_focus_mode_routing.py.
 
+import copy
 import re
 from dataclasses import dataclass
 from typing import Any, Iterable
@@ -159,7 +160,7 @@ class DelegatedPrimaryReadState:
     read_attempted: bool = False
 
     def select_tools(
-        self, tools: list[dict[str, Any]], tool_choice: str,
+        self, tools: list[dict[str, Any]], tool_choice: str, remaining_requests: int | None = None,
     ) -> tuple[list[dict[str, Any]], str]:
         if not self.enabled or self.read_attempted or tool_choice != "auto":
             return tools, tool_choice
@@ -167,7 +168,37 @@ class DelegatedPrimaryReadState:
             "web-search" if not self.search_attempted else None
         )
         selected = [tool for tool in tools if tool.get("function", {}).get("name") == name]
-        return (selected, "required") if name and selected else (tools, tool_choice)
+        if not name or not selected:
+            return tools, tool_choice
+        if remaining_requests is not None:
+            limit = self.request_limit(name, remaining_requests)
+            if limit <= 0:
+                return tools, tool_choice
+            selected = copy.deepcopy(selected)
+            for tool in selected:
+                requests = tool.get("function", {}).get("parameters", {}).get("properties", {}).get("requests")
+                if isinstance(requests, dict):
+                    requests["maxItems"] = min(requests.get("maxItems", limit), limit)
+        return selected, "required"
+
+    def request_limit(self, tool_name: str, remaining_requests: int) -> int:
+        remaining = max(0, remaining_requests)
+        if not self.enabled or self.read_attempted:
+            return remaining
+        if tool_name == "web-search":
+            return max(0, remaining - 1)  # Keep one existing slot for the primary read.
+        if tool_name == "web-read":
+            return min(1, remaining)
+        return remaining
+
+    def bound_requests(self, arguments: Any, tool_name: str, remaining_requests: int):
+        """Keep the model's ordered prefix; callers explicitly report every omission."""
+        limit = self.request_limit(tool_name, remaining_requests)
+        requests = arguments.get("requests") if isinstance(arguments, dict) else None
+        if (not self.enabled or self.read_attempted or tool_name not in {"web-search", "web-read"}
+                or not isinstance(requests, list) or len(requests) <= limit):
+            return arguments, []
+        return {**arguments, "requests": requests[:limit]}, requests[limit:]
 
     def observe_attempt(self, tool_name: str) -> None:
         # Validation and provider errors are still attempts, never forced retries.

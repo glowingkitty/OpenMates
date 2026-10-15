@@ -150,3 +150,147 @@ async def test_active_research_root_synthesis_keeps_auto_without_forced_read(mon
     })
     assert len(calls) == 1 and selection(calls[0])[1] == "auto"
     assert selection(calls[0])[0][:3] == [t["function"]["name"] for t in TOOLS]
+
+
+
+def batch_schema_fixture(monkeypatch):
+    import sys
+    import yaml
+    app = yaml.safe_load((Path(__file__).parents[1] / "apps/web/app.yml").read_text())
+    schemas = {skill["id"]: skill["tool_schema"] for skill in app["skills"] if skill["id"] in {"search", "read"}}
+    offered = [tool("web-" + name) for name in ["search", "read"]]
+    for definition in offered:
+        definition["function"]["parameters"] = copy.deepcopy(schemas[definition["function"]["name"][4:]])
+    monkeypatch.setattr(sys.modules[__name__], "TOOLS", offered)
+    web = copy.copy(METADATA["web"])
+    web.skills = [SimpleNamespace(id=name, parallel_safe=False, exclude_fields_for_llm=None,
+                                 pricing=None, tool_schema=schema) for name, schema in schemas.items()]
+    monkeypatch.setitem(METADATA, "web", web)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("search_count,read_fails", [(4, False), (5, False), (5, True)])
+# contract-test: supporting surface=rest_api assertions=focus-modes.full-instruction,app-skills.assistant.bounded-private-failure,app-skills.execution.registered-validated
+async def test_actual_four_or_five_search_batch_leaves_one_admitted_primary_read(monkeypatch, search_count, read_fails):
+    batch_schema_fixture(monkeypatch)
+    executed = []
+
+    async def execute(**kwargs):
+        requests = copy.deepcopy(kwargs["arguments"]["requests"])
+        executed.append((kwargs["skill_id"], requests))
+        if kwargs["skill_id"] == "read" and read_fails:
+            raise RuntimeError("Source unavailable")
+        return [{"results": [{"id": r["id"], "results": [{"url": r.get("url", "https://example.org/source"),
+                            "title": "Source", "markdown": "Primary text"}]} for r in requests]}]
+
+    monkeypatch.setattr(main_processor, "execute_skill_with_multiple_requests", execute)
+    searches = [{"id": i, "query": f"source {i}"} for i in range(search_count)]
+    reads = [{"id": i, "url": f"https://example.org/source/{i}"} for i in range(4)]
+    _, calls = await run(monkeypatch, [
+        [{"fake_google_tool_call": "web-search", "arguments": {"requests": searches}, "tool_call_id": "search-batch"}],
+        [{"fake_google_tool_call": "web-read", "arguments": {"requests": reads}, "tool_call_id": "read-batch"}],
+        ["Qualified findings."],
+    ], request_overrides=CHILD)
+    assert executed == [("search", searches[:4]), ("read", reads[:1])]
+    assert sum(len(requests) for _, requests in executed) == main_processor.HARD_LIMIT_SKILL_CALLS == 5
+    assert [selection(call)[1] for call in calls] == ["required", "required", "none"]
+    assert calls[0]["tools"][0]["function"]["parameters"]["properties"]["requests"]["maxItems"] == 4
+    assert calls[1]["tools"][0]["function"]["parameters"]["properties"]["requests"]["maxItems"] == 1
+    results = [m for m in calls[-1]["message_history"] if m.get("role") == "tool"]
+    read_result = next(m["content"] for m in results if m.get("tool_call_id") == "read-batch")
+    assert "omitted_requests" in read_result and reads[3]["url"] in read_result
+    if search_count == 5:
+        search_result = next(m["content"] for m in results if m.get("tool_call_id") == "search-batch")
+        assert "omitted_requests" in search_result and searches[4]["query"] in search_result
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=focus-modes.full-instruction,app-skills.execution.registered-validated
+async def test_multiple_search_function_calls_share_one_read_reservation(monkeypatch):
+    batch_schema_fixture(monkeypatch)
+    executed = []
+
+    async def execute(**kwargs):
+        requests = copy.deepcopy(kwargs["arguments"]["requests"])
+        executed.append((kwargs["skill_id"], requests))
+        return [{"results": [{"id": r["id"], "results": [{"url": "https://example.org/primary", "title": "Source"}]} for r in requests]}]
+
+    monkeypatch.setattr(main_processor, "execute_skill_with_multiple_requests", execute)
+    batches = [[{"id": i, "query": f"query {i}"} for i in range(start, stop)] for start, stop in [(0, 3), (3, 6), (6, 7)]]
+    _, calls = await run(monkeypatch, [
+        [{"fake_google_tool_call": "web-search", "arguments": {"requests": requests}, "tool_call_id": f"search-{i}"}
+         for i, requests in enumerate(batches)],
+        [{"fake_google_tool_call": "web-read", "arguments": {"requests": [{"id": 0, "url": "https://example.org/primary"}]}}],
+        ["Qualified findings."],
+    ], request_overrides=CHILD)
+    assert executed == [("search", batches[0]), ("search", batches[1][:1]),
+                        ("read", [{"id": 0, "url": "https://example.org/primary"}])]
+    assert selection(calls[1]) == (["web-read"], "required")
+    omitted = [m["content"] for m in calls[1]["message_history"] if m.get("tool_call_id") == "search-2" and m.get("role") == "tool"]
+    assert len(omitted) == 1 and "omitted_requests" in omitted[0] and "query 6" in omitted[0]
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=app-skills.execution.registered-validated
+async def test_ordinary_five_search_requests_keep_existing_full_budget(monkeypatch):
+    batch_schema_fixture(monkeypatch)
+    execute = AsyncMock(return_value=[{"results": [{"id": 0, "results": [{"url": "https://example.org/primary"}]}]}])
+    monkeypatch.setattr(main_processor, "execute_skill_with_multiple_requests", execute)
+    searches = [{"id": i, "query": f"source {i}"} for i in range(5)]
+    _, calls = await run(monkeypatch, [
+        [{"fake_google_tool_call": "web-search", "arguments": {"requests": searches}}],
+        ["Final answer."],
+    ])
+    execute.assert_awaited_once()
+    assert execute.await_args.kwargs["arguments"]["requests"] == searches
+    assert [selection(call)[1] for call in calls] == ["auto", "none"]
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.full-instruction,app-skills.assistant.idempotent-resume
+def test_checkpointed_pending_read_keeps_remaining_slot_and_budget_rejection_is_not_attempt():
+    import json
+    # Same private booleans and total_skill_calls already stored by Main; no new
+    # schema field, prompt, source content, or paid operation is needed on resume.
+    checkpoint = json.loads(json.dumps({"has_source_urls": True, "search_attempted": True, "read_attempted": False}))
+    restored = DelegatedPrimaryReadState(enabled=True, **checkpoint)
+    bounded, omitted = restored.bound_requests({"requests": [{"url": "https://example.org/primary"}]}, "web-read", 0)
+    assert bounded == {"requests": []} and len(omitted) == 1 and not restored.read_attempted
+    assert restored.request_limit("web-search", 1) == 0 and restored.request_limit("web-read", 1) == 1
+    restored.observe_attempt("web-read")
+    assert restored.read_attempted and restored.request_limit("web-search", 4) == 4
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=focus-modes.full-instruction,app-skills.assistant.bounded-private-failure
+async def test_invalid_read_arguments_finish_gate_once_without_forced_retry(monkeypatch):
+    for malformed_json in [True, False]:
+        with monkeypatch.context() as scoped:
+            execute = AsyncMock(side_effect=AssertionError("Invalid read reached execution"))
+            scoped.setattr(main_processor, "execute_skill_with_multiple_requests", execute)
+            original_normalize = main_processor._normalize_skill_arguments
+
+            def normalize(**kwargs):
+                if not malformed_json and kwargs["app_id"] == "web" and kwargs["skill_id"] == "read":
+                    raise ValueError("Read schema validation failed")
+                return original_normalize(**kwargs)
+
+            scoped.setattr(main_processor, "_normalize_skill_arguments", normalize)
+            streams = [[], ["Primary source could not be read; findings remain limited."]]
+            provider_calls = []
+
+            def capture(call):
+                provider_calls.append(call)
+                if len(provider_calls) == 1:
+                    chunk = main_processor.ParsedGoogleToolCall()
+                    chunk.function_name = "web-read"
+                    chunk.function_arguments_raw = "{invalid" if malformed_json else '{"url":"https://example.org/primary"}'
+                    chunk.tool_call_id = "invalid-read"
+                    streams[0] = [chunk]
+
+            _, calls = await run(scoped, streams, on_provider_call=capture, request_overrides={
+                **CHILD, "current_user_content": "Audit https://example.org/primary",
+            })
+            assert [selection(call)[1] for call in calls] == ["required", "auto"]
+            assert len([m for m in calls[1]["message_history"]
+                        if m.get("role") == "tool" and m.get("tool_call_id") == "invalid-read"]) == 1
+            execute.assert_not_awaited()

@@ -6081,7 +6081,8 @@ async def handle_main_processing(
     delegated_primary_read = DelegatedPrimaryReadState(
         enabled=bool(request_data.is_sub_chat and request_data.orchestration_id
                      and request_data.user_id_hash and not getattr(request_data, "is_anonymous", False)
-                     and request_data.active_focus_id == "web-research"),
+                     and request_data.active_focus_id == "web-research"
+                     and "web-read" in allowed_tool_names),
         has_source_urls=has_http_source_url(request_data.current_user_content),
     )
     task_queue_guard_retries = 0
@@ -6418,7 +6419,7 @@ async def handle_main_processing(
         iteration_tools = available_tools_for_llm if not force_no_tools else None
         if not force_no_tools:
             iteration_tools, current_tool_choice = delegated_primary_read.select_tools(
-                iteration_tools, current_tool_choice,
+                iteration_tools, current_tool_choice, HARD_LIMIT_SKILL_CALLS - total_skill_calls,
             )
         iteration_allowed_tool_names = (
             {tool["function"]["name"] for tool in iteration_tools}
@@ -7194,6 +7195,13 @@ async def handle_main_processing(
                         )
                         continue
                      
+                    parsed_args, _primary_read_omitted = delegated_primary_read.bound_requests(
+                        parsed_args, tool_name, HARD_LIMIT_SKILL_CALLS - streaming_skill_count,
+                    )
+                    if delegated_primary_read.request_limit(
+                        tool_name, HARD_LIMIT_SKILL_CALLS - streaming_skill_count,
+                    ) <= 0:
+                        continue  # A reserved read slot must not create skipped-search placeholders.
                     # === DEDUPLICATION CHECK (INLINE PLACEHOLDER PHASE) ===
                     # Check if this exact skill call was already executed in a previous iteration.
                     # If so, skip creating placeholder - the execution phase will also skip it.
@@ -8275,7 +8283,9 @@ async def handle_main_processing(
             tool_name = explicit_task_app_skill_tool_name(tool_call.function_name, task_app_skill_mentions)
             tool_arguments_str = tool_call.function_arguments_raw
             tool_call_id = tool_call.tool_call_id
-            delegated_primary_read.observe_attempt(tool_name)
+            if tool_name != "web-read":
+                delegated_primary_read.observe_attempt(tool_name)
+            omitted_primary_read_requests: List[Any] = []
             tool_result_content_str: str
             omitted_news_requests_for_call: List[Any] = []
 
@@ -8314,8 +8324,16 @@ async def handle_main_processing(
                 continue
 
             try:
-                # Parse function arguments
-                parsed_args = json.loads(tool_arguments_str)
+                # Parse function arguments. A malformed read with an available
+                # slot is one failed gate attempt, not a forced retry loop.
+                try:
+                    parsed_args = json.loads(tool_arguments_str)
+                except json.JSONDecodeError:
+                    if tool_name == "web-read" and delegated_primary_read.request_limit(
+                        tool_name, HARD_LIMIT_SKILL_CALLS - total_skill_calls,
+                    ) > 0:
+                        delegated_primary_read.observe_attempt(tool_name)
+                    raise
 
                 # === STRICT ALLOW-LIST (OPE-399) ===
                 # Defensive safety net: the streaming phase already filters hallucinated
@@ -8515,6 +8533,18 @@ async def handle_main_processing(
                 # Count requests in this tool call and check against hard limit.
                 # If we've already reached the limit, skip this tool call entirely.
                 # User won't see any indication that the tool call was skipped.
+                parsed_args, omitted_primary_read_requests = delegated_primary_read.bound_requests(
+                    parsed_args, tool_name, HARD_LIMIT_SKILL_CALLS - total_skill_calls,
+                )
+                if omitted_primary_read_requests and not parsed_args["requests"]:
+                    current_message_history.append({
+                        "tool_call_id": tool_call_id, "role": "tool", "name": tool_name,
+                        "content": json.dumps({
+                            "status": "skipped", "reason": "The remaining research request is reserved for a primary-source read.",
+                            "omitted_requests": omitted_primary_read_requests,
+                        }),
+                    })
+                    continue
                 if app_id == "news" and skill_id == "search" and not getattr(request_data, "is_anonymous", False):
                     parsed_args, omitted_news_requests_for_call = _limit_news_search_batch_to_budget(
                         parsed_args, HARD_LIMIT_SKILL_CALLS - total_skill_calls
@@ -9475,14 +9505,19 @@ async def handle_main_processing(
                     # required {"requests": [...]} array format for skills that expect it.
                     # Detect this mismatch using the skill's tool_schema and normalize the arguments.
                     # See: https://github.com/anomalyco/OpenMates/issues/XXX (image generation 422 bug)
-                    skill_arguments = parallel_execution["arguments"] if parallel_execution else _normalize_skill_arguments(
-                        arguments=_get_skill_execution_args(parsed_args, placeholder_embed_data),
-                        app_id=app_id,
-                        skill_id=skill_id,
-                        discovered_apps_metadata=discovered_apps_metadata,
-                        task_id=task_id,
-                        message_history=current_message_history,
-                    )
+                    try:
+                        skill_arguments = parallel_execution["arguments"] if parallel_execution else _normalize_skill_arguments(
+                            arguments=_get_skill_execution_args(parsed_args, placeholder_embed_data),
+                            app_id=app_id,
+                            skill_id=skill_id,
+                            discovered_apps_metadata=discovered_apps_metadata,
+                            task_id=task_id,
+                            message_history=current_message_history,
+                        )
+                    except (TypeError, ValueError):
+                        if tool_name == "web-read":
+                            delegated_primary_read.observe_attempt(tool_name)
+                        raise
                     skill_arguments = _apply_repository_relevance_criteria_guard(
                         skill_arguments,
                         app_id,
@@ -9717,6 +9752,7 @@ async def handle_main_processing(
                         else:
                             with ai_phase_span("tool"):
                                 provider_dispatch_attempted = True
+                                delegated_primary_read.observe_attempt(tool_name)
                                 results = await execute_skill_with_multiple_requests(
                                     app_id=app_id,
                                     skill_id=skill_id,
@@ -11579,6 +11615,13 @@ async def handle_main_processing(
             # Add tool response to message history
             # Store full results as TOON in content, and include ignore_fields_for_inference metadata
             # This allows follow-up requests to filter tool results correctly when reading from history
+            if omitted_primary_read_requests:
+                tool_result_content_str += "\n\n" + json.dumps({
+                    "research_budget": {
+                        "status": "partial", "omitted_requests": omitted_primary_read_requests,
+                        "instruction": "These requests were not executed. Do not cite or invent results for them.",
+                    },
+                })
             if omitted_news_requests_for_call:
                 omitted_queries = [
                     request.get("query") for request in omitted_news_requests_for_call
