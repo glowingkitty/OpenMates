@@ -71,11 +71,10 @@ def _source_asset_bundle(raw: bytes, *, map_path: Path | None = None) -> tuple[d
 
 async def _publish_ci_assets(secrets, root: Path, payload: dict, objects: dict) -> tuple[dict, Path]:
     import boto3
-    from botocore.config import Config
     from backend.scripts.publish_newsletter_s3_assets import (
-        STATIC_DIR, atomic_json, publish_to_s3, validated_local_assets,
+        STATIC_DIR, atomic_json, newsletter_s3_client_config, publish_to_s3, validated_local_assets,
     )
-    from backend.shared.python_utils.newsletter_assets import ASSET_MAP_PATH, newsletter_s3_endpoint
+    from backend.shared.python_utils.newsletter_assets import ASSET_MAP_PATH, NEWSLETTER_S3_BUCKETS, newsletter_s3_endpoint
 
     endpoint = newsletter_s3_endpoint()  # Already isolated; no live fallback.
     directory = root / STATIC_DIR
@@ -91,18 +90,25 @@ async def _publish_ci_assets(secrets, root: Path, payload: dict, objects: dict) 
     if not access or not secret:
         raise RuntimeError("Isolated newsletter S3 fixture credentials are missing")
     client = boto3.client("s3", endpoint_url=endpoint, region_name="nbg1", aws_access_key_id=access,
-                          aws_secret_access_key=secret, config=Config(signature_version="s3v4",
-                          s3={"addressing_style": "path"}, retries={"max_attempts": 0},
-                          connect_timeout=10, read_timeout=20))
+                          aws_secret_access_key=secret, config=newsletter_s3_client_config())
     try:
+        receipts = {}
         with httpx.Client(timeout=20, follow_redirects=False) as public:
-            receipt, ready = publish_to_s3(payload, objects, environment="development", client=client,
-                                          public=public, apply=True)
-        if ready is None or receipt["status"] != "verified":
-            raise AssertionError("Isolated newsletter S3 fixture did not prove public readiness")
+            for environment in NEWSLETTER_S3_BUCKETS:
+                receipt, ready = publish_to_s3(payload, objects, environment=environment, client=client,
+                                              public=public, apply=True)
+                if ready is None or receipt["status"] != "verified":
+                    raise AssertionError("Isolated newsletter S3 fixture did not prove public readiness")
+                receipts[environment] = receipt
+                payload = ready
         path = root / ASSET_MAP_PATH
-        atomic_json(path, ready)
-        return receipt, path
+        atomic_json(path, payload)
+        combined = {"object_count": len(objects), "environment_buckets": {
+            environment: receipt["bucket"] for environment, receipt in receipts.items()
+        }}
+        for check in ("anonymous_get", "anonymous_list_denied", "private_prefix_denied", "anonymous_write_denied"):
+            combined[check] = all(receipt[check] for receipt in receipts.values())
+        return combined, path
     finally:
         client.close()
 
@@ -675,6 +681,7 @@ async def main() -> None:
                 "one_click_headers": True,
                 "preview_headers_safe": True,
                 "s3_public_objects": s3_receipt["object_count"],
+                "s3_environment_buckets": s3_receipt["environment_buckets"],
                 "s3_public_get": s3_receipt["anonymous_get"],
                 "s3_anonymous_list_denied": s3_receipt["anonymous_list_denied"],
                 "s3_private_prefix_denied": s3_receipt["private_prefix_denied"],

@@ -65,6 +65,23 @@ def test_bundled_index_assets_exist_on_website():
         assert path.stat().st_size == asset["size_bytes"]
 
 
+# contract-test: supporting surface=cli assertions=newsletter.campaign.accessible-event-layout
+@pytest.mark.parametrize("base_url,environment", [
+    ("https://app.dev.openmates.org", "development"),
+    ("https://openmates.org", "production"),
+])
+def test_bundled_index_selects_verified_environment_specific_s3_images(base_url, environment, monkeypatch):
+    for name in ("S3_ENDPOINT_URL", "NEWSLETTER_CI_ASSET_MAP_PATH", "CI", "OPENMATES_CI_ISOLATED", "OPENMATES_CI_MAIL_CAPTURE"):
+        monkeypatch.delenv(name, raising=False)
+    index = json.loads((REPO_ROOT / ASSET_MAP_PATH).read_text())
+    assert index.get("delivery_transport") == "s3"
+    bucket = NEWSLETTER_S3_BUCKETS[environment]
+    for source, asset in index["assets"].items():
+        assert newsletter_image_url(source, base_url) == (
+            f"https://{bucket}.nbg1.your-objectstorage.com/{NEWSLETTER_S3_PREFIX}{asset['filename']}"
+        )
+
+
 # contract-test: direct surface=cli assertions=newsletter.campaign.accessible-event-layout
 def test_remote_png_stays_hosted_and_never_enters_local_embedding(tmp_path):
     tag = '<mj-image width="600px" src="https://openmates.org/newsletter-assets/header.png" />'

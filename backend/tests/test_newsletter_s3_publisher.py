@@ -2,18 +2,22 @@
 """Publication cannot grant access or touch data outside the exact target."""
 
 from copy import deepcopy
+from contextlib import closing
 import hashlib
 import io
 import json
 from types import SimpleNamespace
 
+import boto3
 from botocore.exceptions import ClientError
 import httpx
 from PIL import Image
 import pytest
 
+from backend.scripts import publish_newsletter_s3_assets as publisher
 from backend.scripts.publish_newsletter_s3_assets import (
     PRIVATE_PROBE_KEY, STATIC_DIR, atomic_json, publish_to_s3, validated_local_assets, validate_policy, validate_image_bytes,
+    newsletter_s3_client_config,
 )
 from backend.shared.python_utils.newsletter_assets import (
     ASSET_MAP_PATH, NEWSLETTER_S3_BUCKETS, NEWSLETTER_S3_PREFIX, newsletter_public_policy, newsletter_image_url,
@@ -24,6 +28,38 @@ from scripts.publish_newsletter_assets import publish_sources
 
 def _error(code, status):
     return ClientError({"Error": {"Code": code}, "ResponseMetadata": {"HTTPStatusCode": status}}, "ScopedOperation")
+
+
+def test_s3_put_serializes_signed_payload_without_optional_streaming_checksum():
+    data = b"newsletter image serialization probe"
+    captured = {}
+
+    class RequestCaptured(Exception):
+        pass
+
+    def capture(request, **kwargs):
+        captured["headers"] = {key.lower(): value for key, value in request.headers.items()}
+        captured["body"] = request.body.read() if hasattr(request.body, "read") else request.body
+        captured["url"] = request.url
+        raise RequestCaptured
+
+    config = newsletter_s3_client_config()
+    assert config.connect_timeout == 10 and config.read_timeout == 20
+    assert config.retries == {"max_attempts": 0}
+    with closing(boto3.client("s3", endpoint_url="https://nbg1.your-objectstorage.com", region_name="nbg1",
+                              aws_access_key_id="test-access", aws_secret_access_key="test-secret", config=config)) as client:
+        client.meta.events.register("before-send.s3.PutObject", capture)
+        with pytest.raises(RequestCaptured):
+            client.put_object(Bucket=NEWSLETTER_S3_BUCKETS["development"],
+                              Key=NEWSLETTER_S3_PREFIX + "test.jpg", Body=data,
+                              ContentType="image/jpeg", ACL="private", IfNoneMatch="*")
+    headers = captured["headers"]
+    assert headers["x-amz-content-sha256"] == hashlib.sha256(data).hexdigest().encode()
+    assert headers["if-none-match"] == b"*"
+    assert "x-amz-trailer" not in headers and "x-amz-sdk-checksum-algorithm" not in headers
+    assert b"aws-chunked" not in headers.get("content-encoding", b"")
+    assert captured["body"] == data
+    assert captured["url"].startswith("https://nbg1.your-objectstorage.com/" + NEWSLETTER_S3_BUCKETS["development"] + "/")
 
 
 class Store:
@@ -54,6 +90,8 @@ class Store:
 
     def get_bucket_policy(self, **kwargs):
         self.call("get_bucket_policy", kwargs)
+        if not self.exists:
+            raise _error("NoSuchBucket", 404)
         if self.policy is None:
             raise _error("NoSuchBucketPolicy", 404)
         return {"Policy": json.dumps(self.policy)}
@@ -147,7 +185,386 @@ def test_dry_run_never_creates_bucket_or_public_policy(assets):
     with store.public() as public:
         receipt, ready = publish_to_s3(payload, objects, environment="development", client=store, public=public)
     assert ready is None and receipt["would_create_bucket"]
-    assert [name for name, _ in store.calls] == ["head_bucket"]
+    assert [name for name, _ in store.calls] == ["head_bucket", "get_bucket_policy"]
+
+
+@pytest.fixture
+def visibility_clock(monkeypatch):
+    clock = SimpleNamespace(now=0, sleeps=[])
+
+    def sleep(seconds):
+        clock.sleeps.append(seconds)
+        clock.now += seconds
+
+    monkeypatch.setattr(publisher, "time", SimpleNamespace(monotonic=lambda: clock.now, sleep=sleep))
+    return clock
+
+
+@pytest.mark.parametrize("operation", ["list_objects_v2", "get_bucket_policy"])
+@pytest.mark.parametrize("code", ["NoSuchBucket", "404", ""])
+def test_new_bucket_waits_for_visibility_before_publication(assets, monkeypatch, visibility_clock, operation, code):
+    _, payload, objects = assets
+    store = Store()
+    original = getattr(store, operation)
+    failures = 2
+
+    def delayed(**kwargs):
+        nonlocal failures
+        if store.exists and failures:
+            store.call(operation, kwargs)
+            failures -= 1
+            raise _error(code, 404)
+        return original(**kwargs)
+
+    monkeypatch.setattr(store, operation, delayed)
+    with store.public() as public:
+        receipt, ready = publish_to_s3(payload, objects, environment="development", client=store, public=public, apply=True)
+    assert receipt["created_bucket"] and receipt["status"] == "verified" and ready is not None
+    assert visibility_clock.sleeps == [publisher.BUCKET_VISIBILITY_POLL_SECONDS] * 2
+    assert sum(name == "create_bucket" for name, _ in store.calls) == 1
+
+
+def test_new_bucket_visibility_wait_is_bounded_without_writes(assets, monkeypatch, visibility_clock):
+    _, payload, objects = assets
+    store = Store()
+    audit = {}
+
+    def missing(**kwargs):
+        store.call("list_objects_v2", kwargs)
+        raise _error("NoSuchBucket", 404)
+
+    monkeypatch.setattr(store, "list_objects_v2", missing)
+    with store.public() as public, pytest.raises(ClientError, match="NoSuchBucket"):
+        publish_to_s3(payload, objects, environment="development", client=store, public=public, apply=True, audit=audit)
+    assert visibility_clock.now == publisher.BUCKET_VISIBILITY_TIMEOUT_SECONDS
+    assert audit["created_bucket"] and audit["uploaded"] == 0 and audit["phase"] == "bucket-admission"
+    assert not any(name.startswith("put_") for name, _ in store.calls)
+
+
+@pytest.mark.parametrize("operation", ["list_objects_v2", "get_bucket_policy"])
+@pytest.mark.parametrize("code,status", [("AccessDenied", 403), ("AccessDenied", 404), ("InternalError", 500)])
+def test_new_bucket_read_errors_fail_immediately(assets, monkeypatch, visibility_clock, operation, code, status):
+    _, payload, objects = assets
+    store = Store()
+
+    def denied(**kwargs):
+        store.call(operation, kwargs)
+        if not store.exists:
+            return getattr(Store, operation)(store, **kwargs)
+        raise _error(code, status)
+
+    monkeypatch.setattr(store, operation, denied)
+    with store.public() as public, pytest.raises(ClientError, match=code):
+        publish_to_s3(payload, objects, environment="development", client=store, public=public, apply=True)
+    assert not visibility_clock.sleeps
+    assert not any(name.startswith("put_") for name, _ in store.calls)
+
+
+def test_new_bucket_with_content_after_visibility_delay_is_rejected(assets, monkeypatch, visibility_clock):
+    _, payload, objects = assets
+    store = Store()
+    calls = 0
+
+    def nonempty(**kwargs):
+        nonlocal calls
+        store.call("list_objects_v2", kwargs)
+        calls += 1
+        if calls == 1:
+            raise _error("NoSuchBucket", 404)
+        return {"Contents": [{"Key": "unexpected", "Size": 1}]}
+
+    monkeypatch.setattr(store, "list_objects_v2", nonempty)
+    with store.public() as public, pytest.raises(ValueError, match="not empty"):
+        publish_to_s3(payload, objects, environment="development", client=store, public=public, apply=True)
+    assert len(visibility_clock.sleeps) == 1
+    assert not any(name.startswith("put_") for name, _ in store.calls)
+
+
+@pytest.mark.parametrize("operation", ["get_bucket_policy", "get_bucket_acl", "list_objects_v2"])
+def test_new_bucket_verification_waits_for_post_policy_visibility(assets, monkeypatch, visibility_clock, operation):
+    _, payload, objects = assets
+    store = Store()
+    original = getattr(store, operation)
+    failures = 2
+
+    def delayed(**kwargs):
+        nonlocal failures
+        if store.policy is not None and failures:
+            store.call(operation, kwargs)
+            failures -= 1
+            raise _error("NoSuchBucket", 404)
+        return original(**kwargs)
+
+    monkeypatch.setattr(store, operation, delayed)
+    with store.public() as public:
+        receipt, ready = publish_to_s3(payload, objects, environment="development", client=store, public=public, apply=True)
+    assert receipt["status"] == "verified" and ready is not None
+    assert len(visibility_clock.sleeps) == 2
+    assert sum(name == "create_bucket" for name, _ in store.calls) == 1
+    assert sum(name == "put_bucket_policy" for name, _ in store.calls) == 1
+
+
+@pytest.mark.parametrize("case", ["known-policy", "no-policy", "unexpected-policy", "access-denied"])
+def test_stale_head_only_admits_existing_bucket_with_exact_policy(assets, monkeypatch, visibility_clock, case):
+    _, payload, objects = assets
+    store = Store(exists=True)
+    if case == "no-policy":
+        store.policy = None
+    elif case == "unexpected-policy":
+        store.policy["Statement"][0]["Action"] = "s3:*"
+    elif case == "access-denied":
+        def denied(**kwargs):
+            store.call("get_bucket_policy", kwargs)
+            raise _error("AccessDenied", 403)
+        monkeypatch.setattr(store, "get_bucket_policy", denied)
+
+    def stale_head(**kwargs):
+        store.call("head_bucket", kwargs)
+        raise _error("404", 404)
+
+    monkeypatch.setattr(store, "head_bucket", stale_head)
+    with store.public() as public:
+        if case == "known-policy":
+            receipt, ready = publish_to_s3(payload, objects, environment="development", client=store, public=public)
+            assert not receipt["created_bucket"] and ready is None
+        else:
+            with pytest.raises((ClientError, ValueError)):
+                publish_to_s3(payload, objects, environment="development", client=store, public=public, apply=True)
+    assert not visibility_clock.sleeps
+    assert not any(name.startswith(("put_", "create_", "delete_")) for name, _ in store.calls)
+
+
+@pytest.mark.parametrize("operation", ["get_object_acl", "head_object", "get_object"])
+@pytest.mark.parametrize("code", ["NoSuchKey", "NoSuchBucket", "404"])
+def test_fresh_object_verification_waits_without_repeating_put(assets, monkeypatch, visibility_clock, operation, code):
+    _, _, objects = assets
+    filename, image = next(iter(objects.items()))
+    store = Store(exists=True)
+    original = getattr(store, operation)
+    failures = 2
+
+    def delayed(**kwargs):
+        nonlocal failures
+        if failures:
+            store.call(operation, kwargs)
+            failures -= 1
+            raise _error(code, 404)
+        return original(**kwargs)
+
+    monkeypatch.setattr(store, operation, delayed)
+    publisher._put_missing_object(store, store.bucket, NEWSLETTER_S3_PREFIX + filename, image)
+    assert len(visibility_clock.sleeps) == 2
+    assert sum(name == "put_object" for name, _ in store.calls) == 1
+
+
+@pytest.mark.parametrize("duplicate", [False, True])
+def test_missing_bucket_put_retries_preserve_conditional_arguments(assets, monkeypatch, visibility_clock, duplicate):
+    _, _, objects = assets
+    filename, image = next(iter(objects.items()))
+    store = Store(exists=True)
+    original = store.put_object
+    attempts = []
+
+    def delayed(**kwargs):
+        attempts.append(deepcopy(kwargs))
+        if len(attempts) == 1:
+            # A duplicate outcome must still verify the stored bytes.
+            if duplicate:
+                original(**kwargs)
+            raise _error("NoSuchBucket", 404)
+        return original(**kwargs)
+
+    monkeypatch.setattr(store, "put_object", delayed)
+    publisher._put_missing_object(store, store.bucket, NEWSLETTER_S3_PREFIX + filename, image)
+    assert len(attempts) == 2 and attempts[0] == attempts[1]
+    assert attempts[0]["IfNoneMatch"] == "*" and attempts[0]["ACL"] == "private"
+    assert len(visibility_clock.sleeps) == 1
+    assert any(name == "get_object" for name, _ in store.calls)
+
+
+@pytest.mark.parametrize("code,status", [("PreconditionFailed", 412), ("ConditionalRequestConflict", 409)])
+def test_conditional_duplicate_verification_shares_put_deadline(assets, monkeypatch, visibility_clock, code, status):
+    _, _, objects = assets
+    filename, image = next(iter(objects.items()))
+    store = Store(exists=True)
+    original = store.put_object
+    attempts = 0
+
+    def conditional(**kwargs):
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise _error("404", 404)
+        original(**kwargs)
+        raise _error(code, status)
+
+    def missing(**kwargs):
+        raise _error("NoSuchKey", 404)
+
+    monkeypatch.setattr(store, "put_object", conditional)
+    monkeypatch.setattr(store, "head_object", missing)
+    with pytest.raises(ClientError, match="NoSuchKey"):
+        publisher._put_missing_object(store, store.bucket, NEWSLETTER_S3_PREFIX + filename, image)
+    assert attempts == 2
+    assert visibility_clock.now == publisher.OBJECT_VISIBILITY_TIMEOUT_SECONDS
+
+
+@pytest.mark.parametrize("operation", ["put_object", "get_object_acl", "head_object", "get_object"])
+def test_fresh_object_missing_resource_wait_is_bounded(assets, monkeypatch, visibility_clock, operation):
+    _, _, objects = assets
+    filename, image = next(iter(objects.items()))
+    store = Store(exists=True)
+
+    def missing(**kwargs):
+        store.call(operation, kwargs)
+        raise _error("NoSuchBucket", 404)
+
+    monkeypatch.setattr(store, operation, missing)
+    with pytest.raises(ClientError, match="NoSuchBucket"):
+        publisher._put_missing_object(store, store.bucket, NEWSLETTER_S3_PREFIX + filename, image)
+    assert visibility_clock.now == publisher.OBJECT_VISIBILITY_TIMEOUT_SECONDS
+
+
+@pytest.mark.parametrize("operation", ["put_object", "get_object_acl", "head_object", "get_object"])
+@pytest.mark.parametrize("code,status", [("AccessDenied", 403), ("AccessDenied", 404), ("InternalError", 500)])
+def test_fresh_object_auth_and_provider_errors_never_retry(assets, monkeypatch, visibility_clock, operation, code, status):
+    _, _, objects = assets
+    filename, image = next(iter(objects.items()))
+    store = Store(exists=True)
+
+    def failed(**kwargs):
+        store.call(operation, kwargs)
+        raise _error(code, status)
+
+    monkeypatch.setattr(store, operation, failed)
+    with pytest.raises(ClientError, match=code):
+        publisher._put_missing_object(store, store.bucket, NEWSLETTER_S3_PREFIX + filename, image)
+    assert not visibility_clock.sleeps
+    assert sum(name == "put_object" for name, _ in store.calls) == 1
+
+
+@pytest.mark.parametrize("case", ["metadata", "content", "acl"])
+def test_fresh_object_identity_and_acl_failures_never_retry(assets, monkeypatch, visibility_clock, case):
+    _, _, objects = assets
+    filename, image = next(iter(objects.items()))
+    store = Store(exists=True)
+    original = store.put_object
+
+    def corrupt(**kwargs):
+        original(**kwargs)
+        if case == "metadata":
+            store.objects[kwargs["Key"]]["sha256"] = "invalid"
+        elif case == "content":
+            store.objects[kwargs["Key"]]["data"] = b"x" * image["size"]
+        else:
+            store.acl["Grants"] = []
+
+    monkeypatch.setattr(store, "put_object", corrupt)
+    with pytest.raises(ValueError):
+        publisher._put_missing_object(store, store.bucket, NEWSLETTER_S3_PREFIX + filename, image)
+    assert not visibility_clock.sleeps
+    assert sum(name == "put_object" for name, _ in store.calls) == 1
+
+
+def _existing_verification_store(objects, kind):
+    store = Store(exists=True)
+    if kind == "image":
+        filename, image = next(iter(objects.items()))
+        key = NEWSLETTER_S3_PREFIX + filename
+    else:
+        key = PRIVATE_PROBE_KEY
+        image = {"data": publisher.PRIVATE_PROBE_BYTES, "content_type": "application/octet-stream",
+                 "sha256": hashlib.sha256(publisher.PRIVATE_PROBE_BYTES).hexdigest()}
+    store.objects[key] = deepcopy(image)
+    return store, key
+
+
+@pytest.mark.parametrize("kind", ["image", "sentinel"])
+@pytest.mark.parametrize("operation", ["get_object_acl", "head_object", "get_object"])
+@pytest.mark.parametrize("expires", [False, True])
+def test_existing_object_verification_retries_missing_reads_with_bound(assets, monkeypatch, visibility_clock, kind, operation, expires):
+    _, payload, objects = assets
+    store, key = _existing_verification_store(objects, kind)
+    original = getattr(store, operation)
+    failures = 2
+
+    def delayed(**kwargs):
+        nonlocal failures
+        if kwargs["Key"] == key and (expires or failures):
+            store.call(operation, kwargs)
+            failures -= 1
+            raise _error("NoSuchBucket", 404)
+        return original(**kwargs)
+
+    monkeypatch.setattr(store, operation, delayed)
+    with store.public() as public:
+        if expires:
+            with pytest.raises(ClientError, match="NoSuchBucket"):
+                publish_to_s3(payload, objects, environment="development", client=store, public=public)
+            assert visibility_clock.now == publisher.OBJECT_VISIBILITY_TIMEOUT_SECONDS
+        else:
+            receipt, ready = publish_to_s3(payload, objects, environment="development", client=store, public=public)
+            assert ready is None and receipt["existing"] == (1 if kind == "image" else 0)
+            assert len(visibility_clock.sleeps) == 2
+    assert not any(name.startswith(("put_", "create_", "delete_")) for name, _ in store.calls)
+
+
+@pytest.mark.parametrize("kind", ["image", "sentinel"])
+@pytest.mark.parametrize("case", ["content", "acl"])
+def test_existing_object_content_and_acl_mismatch_fail_without_retry(assets, monkeypatch, visibility_clock, kind, case):
+    _, payload, objects = assets
+    store, key = _existing_verification_store(objects, kind)
+    if case == "content":
+        store.objects[key]["data"] = b"x" * len(store.objects[key]["data"])
+    else:
+        def public_acl(**kwargs):
+            store.call("get_object_acl", kwargs)
+            return {"Owner": {"ID": "newsletter-owner"}, "Grants": []}
+        monkeypatch.setattr(store, "get_object_acl", public_acl)
+    with store.public() as public, pytest.raises(ValueError):
+        publish_to_s3(payload, objects, environment="development", client=store, public=public, apply=True)
+    assert not visibility_clock.sleeps
+    assert not any(name.startswith(("put_", "create_", "delete_")) for name, _ in store.calls)
+
+
+@pytest.mark.parametrize("operation", ["get_bucket_policy", "get_bucket_acl", "list_objects_v2"])
+@pytest.mark.parametrize("phase", ["admission", "final"])
+@pytest.mark.parametrize("expires", [False, True])
+def test_existing_bucket_read_checks_have_bounded_fresh_deadlines(assets, monkeypatch, visibility_clock, operation, phase, expires):
+    _, payload, objects = assets
+    store = Store(exists=True)
+    original = getattr(store, operation)
+    public_boundary = publisher.verify_public_boundary
+    final = False
+    failures = 1
+
+    def boundary(*args):
+        nonlocal final
+        public_boundary(*args)
+        # Uploads/public verification can outlive the admission deadline.
+        visibility_clock.now += 60
+        final = True
+
+    def delayed(**kwargs):
+        nonlocal failures
+        if final == (phase == "final") and (expires or failures):
+            store.call(operation, kwargs)
+            failures -= 1
+            raise _error("NoSuchBucket", 404)
+        return original(**kwargs)
+
+    monkeypatch.setattr(publisher, "verify_public_boundary", boundary)
+    monkeypatch.setattr(store, operation, delayed)
+    with store.public() as public:
+        if expires:
+            with pytest.raises(ClientError, match="NoSuchBucket"):
+                publish_to_s3(payload, objects, environment="development", client=store, public=public, apply=True)
+            assert visibility_clock.now == (60 if phase == "final" else 0) + publisher.BUCKET_VISIBILITY_TIMEOUT_SECONDS
+        else:
+            receipt, ready = publish_to_s3(payload, objects, environment="development", client=store, public=public, apply=True)
+            assert receipt["status"] == "verified" and ready is not None
+            assert len(visibility_clock.sleeps) == 1
+    assert not any(name in {"create_bucket", "put_bucket_policy"} for name, _ in store.calls)
 
 
 @pytest.mark.parametrize("case", ["wrong-bucket", "endpoint", "region", "missing-image", "extra-image", "tampered-bytes"])

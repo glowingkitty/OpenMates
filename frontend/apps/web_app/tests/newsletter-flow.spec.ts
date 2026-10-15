@@ -328,11 +328,15 @@ function probeIsolatedNewsletterDelivery(email: string, log: any): void {
 	expect(receipt.one_click_headers).toBe(true);
 	expect(receipt.preview_headers_safe).toBe(true);
 	expect(receipt.s3_public_objects).toBe(Object.keys(images).length);
+	expect(receipt.s3_environment_buckets).toEqual({
+		development: 'dev-openmates-newsletter-assets',
+		production: 'openmates-newsletter-assets'
+	});
 	expect(receipt.s3_public_get).toBe(true);
 	expect(receipt.s3_anonymous_list_denied).toBe(true);
 	expect(receipt.s3_private_prefix_denied).toBe(true);
 	expect(receipt.s3_anonymous_write_denied).toBe(true);
-	log('Captured real EN/DE broadcasts and a safe preview; verified source-bound public S3 images and private/list/write denials.');
+	log('Captured real EN/DE broadcasts and a safe preview; verified separate development/production S3 buckets and private/list/write denials.');
 }
 
 async function callOneClickApi(url: string, multipart = false): Promise<Response> {

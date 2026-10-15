@@ -18,8 +18,10 @@ import os
 from pathlib import Path
 import sys
 import tempfile
+import time
 import xml.etree.ElementTree as ET
 
+from botocore.config import Config
 from botocore.exceptions import ClientError
 import httpx
 from PIL import Image
@@ -36,6 +38,19 @@ STATIC_DIR = Path("frontend/apps/website/static/newsletter-assets")
 PRIVATE_PROBE_KEY = "newsletter-publication-probes/access-boundary.bin"
 PRIVATE_PROBE_BYTES = b"OpenMates newsletter access-boundary probe\n"
 CONTENT_TYPES = {"jpg": "image/jpeg", "svg": "image/svg+xml"}
+BUCKET_VISIBILITY_TIMEOUT_SECONDS = 30
+BUCKET_VISIBILITY_POLL_SECONDS = 1
+OBJECT_VISIBILITY_TIMEOUT_SECONDS = 30
+
+
+def newsletter_s3_client_config() -> Config:
+    """Use conventional signed PUT bodies supported by Hetzner S3."""
+    return Config(
+        signature_version="s3v4",
+        s3={"addressing_style": "path", "payload_signing_enabled": True},
+        request_checksum_calculation="when_required",
+        connect_timeout=10, read_timeout=20, retries={"max_attempts": 0},
+    )
 
 
 def selected_bucket(environment: str) -> str:
@@ -128,8 +143,34 @@ def _error_status(error: ClientError) -> tuple[str, int | None]:
     return str(error.response.get("Error", {}).get("Code", "")), error.response.get("ResponseMetadata", {}).get("HTTPStatusCode")
 
 
-def _private_acl(client, bucket: str, key: str | None = None) -> None:
-    acl = client.get_object_acl(Bucket=bucket, Key=key) if key else client.get_bucket_acl(Bucket=bucket)
+def _read_created_bucket(operation, *, bucket: str, deadline: float, **kwargs):
+    """Allow bounded propagation lag only for this invocation's new bucket."""
+    return _retry_missing_s3_resource(operation, deadline=deadline, missing_codes={"NoSuchBucket", "404", ""},
+                                      Bucket=bucket, **kwargs)
+
+
+def _retry_missing_s3_resource(operation, *, deadline: float, missing_codes: set[str], **kwargs):
+    while True:
+        try:
+            return operation(**kwargs)
+        except ClientError as error:
+            code, status = _error_status(error)
+            # Explicit access/provider errors must never become retryable via 404;
+            # each caller permits only its expected missing-resource codes.
+            missing = code in missing_codes and (bool(code) or status == 404)
+            remaining = deadline - time.monotonic()
+            if not missing or remaining <= 0:
+                raise
+            time.sleep(min(BUCKET_VISIBILITY_POLL_SECONDS, remaining))
+
+
+def _private_acl(client, bucket: str, key: str | None = None, *, visibility_deadline: float | None = None) -> None:
+    if key:
+        acl = client.get_object_acl(Bucket=bucket, Key=key)
+    elif visibility_deadline is not None:
+        acl = _read_created_bucket(client.get_bucket_acl, bucket=bucket, deadline=visibility_deadline)
+    else:
+        acl = client.get_bucket_acl(Bucket=bucket)
     owner = acl.get("Owner", {}).get("ID")
     grants = acl.get("Grants")
     if (not owner or not isinstance(grants, list) or not grants
@@ -139,10 +180,14 @@ def _private_acl(client, bucket: str, key: str | None = None) -> None:
         raise ValueError("Newsletter bucket has unexpected ACL grants")
 
 
-def _bucket_objects(client, bucket: str, objects: dict) -> set[str]:
+def _bucket_objects(client, bucket: str, objects: dict, *, visibility_deadline: float | None = None) -> set[str]:
     expected = {NEWSLETTER_S3_PREFIX + filename: image["size"] for filename, image in objects.items()}
     expected[PRIVATE_PROBE_KEY] = len(PRIVATE_PROBE_BYTES)
-    response = client.list_objects_v2(Bucket=bucket, MaxKeys=len(expected) + 1)
+    if visibility_deadline is not None:
+        response = _read_created_bucket(client.list_objects_v2, bucket=bucket, deadline=visibility_deadline,
+                                        MaxKeys=len(expected) + 1)
+    else:
+        response = client.list_objects_v2(Bucket=bucket, MaxKeys=len(expected) + 1)
     if response.get("IsTruncated"):
         raise ValueError("Newsletter bucket contains unexpected additional objects")
     seen = set()
@@ -171,8 +216,10 @@ def _verify_object(client, bucket: str, key: str, image: dict) -> None:
 
 
 def _put_missing_object(client, bucket: str, key: str, image: dict) -> None:
+    deadline = time.monotonic() + OBJECT_VISIBILITY_TIMEOUT_SECONDS
     try:
-        client.put_object(
+        _retry_missing_s3_resource(
+            client.put_object, deadline=deadline, missing_codes={"NoSuchBucket", "404"},
             Bucket=bucket, Key=key, Body=image["data"], ContentType=image["content_type"],
             CacheControl="public, max-age=31536000, immutable" if key.startswith(NEWSLETTER_S3_PREFIX) else "no-store",
             Metadata={"sha256": image["sha256"]}, ACL="private", IfNoneMatch="*",
@@ -183,7 +230,16 @@ def _put_missing_object(client, bucket: str, key: str, image: dict) -> None:
             raise
         # A concurrent publication may have created the exact same object.
         # Never retry with an unconditional overwrite.
-    _verify_object(client, bucket, key, image)
+    _verify_object_when_visible(client, bucket, key, image, deadline=deadline)
+
+
+def _verify_object_when_visible(client, bucket: str, key: str, image: dict, *, deadline: float | None = None) -> None:
+    if deadline is None:
+        deadline = time.monotonic() + OBJECT_VISIBILITY_TIMEOUT_SECONDS
+    _retry_missing_s3_resource(
+        lambda: _verify_object(client, bucket, key, image), deadline=deadline,
+        missing_codes={"NoSuchKey", "NoSuchBucket", "404"},
+    )
 
 
 def _public_url(bucket: str, key: str) -> str:
@@ -239,6 +295,7 @@ def publish_to_s3(payload: dict, objects: dict, *, environment: str, client, pub
                "prefix": NEWSLETTER_S3_PREFIX, "asset_manifest_sha256": asset_hash,
                "object_count": len(objects), "apply": apply, "created_bucket": False,
                "uploaded": 0, "existing": 0, "status": "planned", "phase": "bucket-admission"})
+    visibility_deadline = None
     try:
         client.head_bucket(Bucket=bucket)
         exists = True
@@ -246,7 +303,20 @@ def publish_to_s3(payload: dict, objects: dict, *, environment: str, client, pub
         code, status = _error_status(error)
         if code not in {"NoSuchBucket", "404"} and status != 404:
             raise
-        exists = False
+        # HEAD can retain a negative result after other bucket operations work.
+        # Only an explicit missing bucket from this scoped read permits creation;
+        # an existing private/no-policy bucket must never be adopted.
+        try:
+            policy = client.get_bucket_policy(Bucket=bucket)
+        except ClientError as policy_error:
+            if _error_status(policy_error)[0] != "NoSuchBucket":
+                raise
+            exists = False
+        else:
+            validate_policy(json.loads(policy["Policy"]), bucket)
+            exists = True
+    if exists:
+        visibility_deadline = time.monotonic() + BUCKET_VISIBILITY_TIMEOUT_SECONDS
     if not exists:
         if not apply:
             receipt["would_create_bucket"] = True
@@ -254,30 +324,34 @@ def publish_to_s3(payload: dict, objects: dict, *, environment: str, client, pub
         # Creation-only: never adopt or change an existing empty/private bucket.
         client.create_bucket(Bucket=bucket, ACL="private", CreateBucketConfiguration={"LocationConstraint": NEWSLETTER_S3_REGION})
         receipt["created_bucket"] = True
-        if client.list_objects_v2(Bucket=bucket, MaxKeys=1).get("Contents"):
+        deadline = time.monotonic() + BUCKET_VISIBILITY_TIMEOUT_SECONDS
+        visibility_deadline = deadline
+        listing = _read_created_bucket(client.list_objects_v2, bucket=bucket, deadline=deadline, MaxKeys=1)
+        if listing.get("Contents") or listing.get("IsTruncated"):
             raise ValueError("New newsletter bucket is not empty")
         try:
-            client.get_bucket_policy(Bucket=bucket)
+            _read_created_bucket(client.get_bucket_policy, bucket=bucket, deadline=deadline)
         except ClientError as error:
             if _error_status(error)[0] != "NoSuchBucketPolicy":
                 raise
         else:
             raise ValueError("New newsletter bucket already has an unexpected policy")
         client.put_bucket_policy(Bucket=bucket, Policy=json.dumps(newsletter_public_policy(bucket), sort_keys=True))
-    policy = client.get_bucket_policy(Bucket=bucket)
+    policy = (_read_created_bucket(client.get_bucket_policy, bucket=bucket, deadline=visibility_deadline)
+              if visibility_deadline is not None else client.get_bucket_policy(Bucket=bucket))
     validate_policy(json.loads(policy["Policy"]), bucket)
-    _private_acl(client, bucket)
-    existing = _bucket_objects(client, bucket, objects)
+    _private_acl(client, bucket, visibility_deadline=visibility_deadline)
+    existing = _bucket_objects(client, bucket, objects, visibility_deadline=visibility_deadline)
     receipt["phase"] = "existing-object-verification"
     probe = {"data": PRIVATE_PROBE_BYTES, "size": len(PRIVATE_PROBE_BYTES), "content_type": "application/octet-stream",
              "sha256": hashlib.sha256(PRIVATE_PROBE_BYTES).hexdigest()}
     # Audit every existing declared object before any new writes.
     for filename, image in objects.items():
         if NEWSLETTER_S3_PREFIX + filename in existing:
-            _verify_object(client, bucket, NEWSLETTER_S3_PREFIX + filename, image)
+            _verify_object_when_visible(client, bucket, NEWSLETTER_S3_PREFIX + filename, image)
             receipt["existing"] += 1
     if PRIVATE_PROBE_KEY in existing:
-        _verify_object(client, bucket, PRIVATE_PROBE_KEY, probe)
+        _verify_object_when_visible(client, bucket, PRIVATE_PROBE_KEY, probe)
     if not apply:
         receipt["missing_objects"] = len(objects) - receipt["existing"]
         return receipt, None
@@ -292,9 +366,12 @@ def publish_to_s3(payload: dict, objects: dict, *, environment: str, client, pub
     receipt["phase"] = "public-boundary-verification"
     verify_public_boundary(public, bucket, objects)
     # Detect unexpected concurrent writes, including a failed denial probe.
-    _bucket_objects(client, bucket, objects)
-    validate_policy(json.loads(client.get_bucket_policy(Bucket=bucket)["Policy"]), bucket)
-    _private_acl(client, bucket)
+    visibility_deadline = time.monotonic() + BUCKET_VISIBILITY_TIMEOUT_SECONDS
+    _bucket_objects(client, bucket, objects, visibility_deadline=visibility_deadline)
+    final_policy = (_read_created_bucket(client.get_bucket_policy, bucket=bucket, deadline=visibility_deadline)
+                    if visibility_deadline is not None else client.get_bucket_policy(Bucket=bucket))
+    validate_policy(json.loads(final_policy["Policy"]), bucket)
+    _private_acl(client, bucket, visibility_deadline=visibility_deadline)
     ready = deepcopy(payload)
     ready.setdefault("s3_publications", {})[environment] = {
         "bucket": bucket, "region": NEWSLETTER_S3_REGION, "prefix": NEWSLETTER_S3_PREFIX,
@@ -339,7 +416,6 @@ async def main() -> int:
     endpoint = newsletter_s3_endpoint()
     from backend.core.api.app.utils.secrets_manager import SecretsManager
     import boto3
-    from botocore.config import Config
 
     secrets = SecretsManager()
     receipt = {"schema_version": 1, "status": "failed", "bucket": selected_bucket(args.environment)}
@@ -351,8 +427,7 @@ async def main() -> int:
             raise RuntimeError("Newsletter publisher credentials are unavailable")
         client = boto3.client("s3", endpoint_url=endpoint, region_name=NEWSLETTER_S3_REGION,
                               aws_access_key_id=access, aws_secret_access_key=secret,
-                              config=Config(signature_version="s3v4", s3={"addressing_style": "path"},
-                                            connect_timeout=10, read_timeout=20, retries={"max_attempts": 0}))
+                              config=newsletter_s3_client_config())
         try:
             with httpx.Client(timeout=20, follow_redirects=False) as public:
                 receipt, ready = publish_to_s3(payload, objects, environment=args.environment, client=client,

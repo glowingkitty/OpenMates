@@ -75,14 +75,23 @@ the production app. The CLI suppresses provider/Vault logs; receipts are mode
 results, without credentials, private object bytes or subscriber data.
 
 A bucket is created only after a missing-bucket response and successful private
-creation. The publisher never adopts an existing empty/private bucket. An
-existing bucket must have exactly the known policy, owner-only ACLs and only
+creation. The publisher never adopts an existing empty/private bucket. Accepted
+creations may take time to become readable at Hetzner; bounded visibility waits
+retry missing-bucket responses without relaxing admission for preexisting buckets.
+A stale HEAD response is checked against the exact approved bucket policy before
+deciding whether creation is needed. Existing buckets must have exactly the known policy, owner-only ACLs and only
 declared immutable images plus the fixed private access-boundary sentinel.
 Unexpected policy, grants or content fail closed without mutation. All SDK calls
 name the one selected bucket; there is no general S3 service reconciliation,
 bucket enumeration, deletion or unconditional overwrite. Missing objects use
 conditional `If-None-Match: *` writes; an existing object must verify identical
 metadata and bytes.
+
+The publisher and isolated proof share the application's signed-payload S3
+configuration, with optional streaming checksum trailers disabled for provider
+compatibility. Writes remain conditional; missing-bucket write responses and
+missing-object verification reads receive bounded retries. Hash, metadata,
+permission and unexpected provider errors still fail immediately.
 
 The public policy has one anonymous `s3:GetObject` grant on the selected bucket's
 `newsletter-images/*` only. It grants no listing, writes or access to any other
@@ -110,7 +119,7 @@ The newsletter flow requires both disposable Mailpit and object-storage
 capabilities. The runner transports the exact candidate index and only its
 hash-verified image bytes over stdin; the API checks the index against its own
 candidate source before staging a private fixture. It runs the same scoped
-publisher against `http://storage.ci.test:9000`, including actual anonymous image
+publisher for both environment buckets against `http://storage.ci.test:9000`, including actual anonymous image
 GET and listing/private-prefix/write denial checks. Unsupported bucket policy or
 conditional-write behavior fails the proof; there is no public-access fallback.
 

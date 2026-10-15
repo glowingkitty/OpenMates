@@ -208,6 +208,16 @@ def _source_bundle():
 def test_source_bound_bundle_preserves_every_reviewed_candidate_image(monkeypatch):
     _s3_isolation(monkeypatch)
     bundle = _source_bundle()
+    # Even apparently verified live environment stamps must be discarded:
+    # each isolated bucket needs its own real local publication proof.
+    bundle["asset_map"]["delivery_transport"] = "s3"
+    bundle["asset_map"]["s3_publications"] = {
+        environment: {"verified_public": True, "bucket": bucket}
+        for environment, bucket in {
+            "development": "dev-openmates-newsletter-assets",
+            "production": "openmates-newsletter-assets",
+        }.items()
+    }
     payload, objects = probe._source_asset_bundle(json.dumps(bundle).encode())
     assert payload == {"schema_version": 1, "assets": bundle["asset_map"]["assets"]}
     assert set(objects) == set(bundle["images"])
