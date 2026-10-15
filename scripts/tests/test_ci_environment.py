@@ -394,6 +394,47 @@ def test_named_volumes_have_one_explicit_fixture_writer():
     assert services["fixture-init"]["volumes"][0]["source"] == "api-cache"
 
 
+
+def test_fixture_writer_seeds_new_candidate_cassette_with_reused_api_image(tmp_path, monkeypatch):
+    import subprocess
+    from scripts import ci_environment
+
+    candidate = tmp_path / "candidate"
+    cache_relative = "backend/apps/ai/testing/api_cache"
+    candidate_cache = candidate / cache_relative
+    new_cassette = Path("storage_capacity_v1/pretalx/new-response.json")
+    (candidate_cache / new_cassette).parent.mkdir(parents=True)
+    (candidate_cache / new_cassette).write_text('{"response":"exact candidate"}')
+    monkeypatch.setattr(ci_environment, "SOURCE", str(candidate))
+    profile = compose_profile("a" * 40, ai_fixtures=True)
+    fixture = profile["services"]["fixture-init"]
+    assert fixture["image"] == profile["services"]["api"]["image"] == "openmates-ci-api:local"
+    assert "build" not in fixture
+    assert fixture["labels"]["org.openmates.source"] == "a" * 40
+    assert str(candidate_cache) + ":/candidate-fixtures:ro" in fixture["volumes"]
+    writer_mount = fixture["volumes"][0]
+    assert writer_mount == {
+        "type": "volume", "source": "api-cache", "target": "/fixtures",
+        "volume": {"nocopy": True},
+    }
+
+    # Resolve the declared candidate bind into a fake container filesystem.
+    # An older image's cache must not contribute cassettes to the writer volume.
+    container = tmp_path / "container"
+    old_image_cache = container / "app" / cache_relative
+    old_image_cache.mkdir(parents=True)
+    (old_image_cache / "stale-image-only.json").write_text("old image")
+    (container / "candidate-fixtures").symlink_to(candidate_cache, target_is_directory=True)
+    writer = container / "fixtures"
+    writer.mkdir()
+    command = fixture["command"][-1].replace("/candidate-fixtures", str(container / "candidate-fixtures"))
+    command = command.replace("/fixtures/", str(writer) + "/")
+    subprocess.run([*fixture["command"][:-1], command], check=True)
+    assert (writer / new_cassette).read_text() == '{"response":"exact candidate"}'
+    assert not (writer / "stale-image-only.json").exists()
+    assert (candidate_cache / new_cassette).read_text() == '{"response":"exact candidate"}'
+
+
 def test_vault_initializer_issues_scoped_token_and_uses_startup_validator(
     tmp_path, monkeypatch
 ):

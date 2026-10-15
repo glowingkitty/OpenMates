@@ -1063,9 +1063,14 @@ def compose_profile(
         "command": [
             "sh",
             "-ec",
-            "cp -a /app/backend/apps/ai/testing/api_cache/. /fixtures/",
+            "cp -a /candidate-fixtures/. /fixtures/",
         ],
-        "volumes": ["api-cache:/fixtures"],
+        # Runtime images can be reused while the candidate adds replay cassettes.
+        # Seed from the verified checkout, keeping the shared writable volume.
+        "volumes": [
+            "api-cache:/fixtures",
+            f"{SOURCE}/backend/apps/ai/testing/api_cache:/candidate-fixtures:ro",
+        ],
     }
     volumes = {}
     for service in services.values():
