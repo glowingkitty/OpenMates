@@ -4,10 +4,12 @@ import { decryptWithAesGcmCombined } from "./crypto.js";
 import { parseDocument, isAlias, visit } from "yaml";
 import { projectFocusDocumentFromMetadata, type ProjectFocusDocument } from "../../projectFocusDocument.js";
 import { createHash } from "node:crypto";
+import type { OpenMatesWsClient } from "./ws.js";
 
 export interface CustomRuleDocument { id: string; source: "personal" | "project"; project_id?: string; document: string; item_revision?: string }
 export interface ProjectContextDocument { item_id: string; kind: "spec" | "memory" | "fact" | "folder"; title: string; description: string; document: string; revision: string }
 export interface ProjectFocusCatalogEntry { id: string; title: string; summary: string; revision: string }
+export interface SelectedProjectFocusMetadata { item_id: string; revision: string; title: string; description: string; when_to_use: string }
 export interface ProjectFocusDocumentInput { item_id: string; document: string; revision: string }
 export interface RelatedTaskCandidate { task_id: string; title: string; summary: string; project_id: string | null; status: string; changed_at: number; revision: string; explicit_dependency: boolean }
 export interface AcceptedPlanContext {
@@ -37,6 +39,67 @@ export function parseFocusAuthoringDocument(document: string): FocusAuthoringDoc
     visit(parsed, (_key, node) => { if (isAlias(node)) throw new Error("invalid_focus_document"); });
     return projectFocusDocumentFromMetadata(parsed.toJS({ maxAliasCount: 0 }), match[2]);
   } catch { throw new Error("invalid_focus_document"); }
+}
+
+/** One server-selected Project's Focus metadata, before consent or file access. */
+export async function collectSelectedCliProjectFocusRoutingCatalog(client: OpenMatesClient, projectId: string,
+  options: TeamContextOptions): Promise<SelectedProjectFocusMetadata[]> {
+  const detail = await client.getProject(projectId, options);
+  if (detail.project.project_id !== projectId || detail.project.archived) throw new Error("Project catalog unavailable.");
+  const key = await client.decryptProjectKey(detail.project, options);
+  const focuses: SelectedProjectFocusMetadata[] = [];
+  for (const item of detail.items) {
+    if (!(["embed", "upload"].includes(item.item_type) && item.target_id_hash && !item.deleted_target_state
+      && typeof item.encrypted_metadata === "string")) continue;
+    const decrypted = await decryptWithAesGcmCombined(item.encrypted_metadata, key);
+    if (!decrypted) throw new Error("Project catalog metadata unavailable.");
+    const metadata = JSON.parse(decrypted) as Record<string, unknown>;
+    const path = metadata.display_path;
+    if (typeof path !== "string" || !/^\.openmates\/focuses\/[a-zA-Z0-9_-]+\/SKILL\.md$/.test(path)
+      || typeof metadata.focus_title !== "string" || typeof metadata.focus_description !== "string"
+      || typeof metadata.focus_when_to_use !== "string") continue;
+    focuses.push({ item_id: item.project_item_id,
+      revision: createHash("sha256").update(["updated_at", "encrypted_metadata", "encrypted_note", "target_id_hash", "deleted_target_state"]
+        .map(field => item[field] ? String(item[field]) : "").join("\0")).digest("hex"),
+      title: metadata.focus_title.slice(0, 180), description: metadata.focus_description.slice(0, 640),
+      when_to_use: metadata.focus_when_to_use.slice(0, 640) });
+    if (focuses.length >= 20) break;
+  }
+  return focuses;
+}
+
+/** This live turn's executor responds to one pre-activation catalog handoff. */
+export function registerCliProjectFocusCatalogResponder(input: {
+  ws: Pick<OpenMatesWsClient, "onMessageType" | "onClose" | "isOpen" | "sendAsync">;
+  client: OpenMatesClient; chatId: string; teamId: string | null;
+  isCurrent: () => boolean; isOfferedProject: (projectId: string) => boolean;
+  onDeliveryFailure: (error: Error) => void;
+}): () => void {
+  let active = true;
+  const answered = new Set<string>();
+  const stopEvent = input.ws.onMessageType<Record<string, unknown>>("project_focus_catalog_requested", event => {
+    if (!active || !input.ws.isOpen() || !input.isCurrent()
+      || event.chat_id !== input.chatId || typeof event.request_id !== "string" || !event.request_id
+      || event.request_id.length > 128 || typeof event.project_id !== "string" || !event.project_id
+      || event.project_id.length > 128 || event.team_id !== input.teamId
+      || !input.isOfferedProject(event.project_id) || answered.has(event.request_id)) return;
+    answered.add(event.request_id);
+    void (async () => {
+      let focuses: SelectedProjectFocusMetadata[] | null;
+      try { focuses = await collectSelectedCliProjectFocusRoutingCatalog(input.client, event.project_id as string,
+        { teamId: input.teamId, personal: !input.teamId }); }
+      catch { focuses = null; }
+      if (!active || !input.ws.isOpen() || !input.isCurrent()) return;
+      await input.ws.sendAsync("project_focus_catalog_result", {
+        chat_id: input.chatId, request_id: event.request_id, project_id: event.project_id, focuses,
+      });
+    })().catch(error => {
+      if (!active || !input.ws.isOpen() || !input.isCurrent()) return;
+      input.onDeliveryFailure(error instanceof Error ? error : new Error("Project catalog delivery failed."));
+    });
+  });
+  const stopClose = input.ws.onClose(() => { active = false; stopEvent(); });
+  return () => { active = false; stopEvent(); stopClose(); };
 }
 
 export async function discoverCliProjectCandidates(client: OpenMatesClient, options: TeamContextOptions,

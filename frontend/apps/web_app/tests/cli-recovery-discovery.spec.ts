@@ -12,7 +12,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const {
 	clearWorkflowCliSyncCache, createWorkflowCliHome, loginWorkflowCliViaPair,
-	removeWorkflowCliHome, workflowApiUrl, workflowCliEnv
+	removeWorkflowCliHome, workflowApiUrl, workflowCliEnv, runWorkflowCliJson
 } = require('./helpers/workflow-cli-e2e-helpers');
 
 const { email, password, otpKey } = getTestAccount();
@@ -885,6 +885,87 @@ test('SDK-minted first Personal chat admits after fresh Memory privacy and befor
 		}
 	} finally {
 		removeWorkflowCliHome(home);
+	}
+});
+
+// contract-test: direct surface=cli assertions=projects.focus.inferred-consent,projects.focus.custom-catalog-privacy
+// The SDK creates the chat, mints its admission identity, and discovers an owned
+// Project. Only the admission ACK and subsequent server catalog request are
+// synthesized; no inference frame is dispatched to the isolated API.
+test('SDK answers a selected Project catalog request on its live Personal turn', async ({ page }: { page: any }) => {
+	test.setTimeout(300_000);
+	test.skip(process.env.GITHUB_ACTIONS !== 'true' || process.env.RUNNER_ENVIRONMENT !== 'github-hosted'
+		|| process.env.CI_TEST_MODE !== 'e2e', 'Requires the isolated GitHub product stack');
+	skipWithoutCredentials(test, email, password, otpKey);
+	const apiUrl = workflowApiUrl();
+	const home = createWorkflowCliHome('selected-project-catalog');
+	let projectId = '';
+	try {
+		await loginWorkflowCliViaPair(page, apiUrl, home, 'CLI_SELECTED_PROJECT_CATALOG');
+		const created = await runWorkflowCliJson(apiUrl, home,
+			['projects', 'create', '--name', `Catalog protocol ${Date.now()}`, '--write-policy', 'always_ask', '--personal'],
+			'create disposable Project');
+		projectId = created.project.project_id;
+		const observed = canonicalHistorySdk(apiUrl, home, `
+			await client.whoAmI();
+			if(client.getActiveTeamId())throw Error('Expected paired Personal account');
+			let catalogHandler=null,removed=false,admission=null,result=null,offered=false;
+			let resolveResult;
+			const resultReady=new Promise(resolve=>{resolveResult=resolve;});
+			const open=client.openWsClient.bind(client);
+			client.openWsClient=async(...args)=>{
+				const opened=await open(...args),send=opened.ws.sendAsync.bind(opened.ws);
+				const onMessageType=opened.ws.onMessageType.bind(opened.ws);
+				const wait=opened.ws.waitForMessage.bind(opened.ws);
+				let resolveAck;
+				opened.ws.onMessageType=(type,handler)=>{
+					const stop=onMessageType(type,handler);
+					if(type!=='project_focus_catalog_requested')return stop;
+					catalogHandler=handler;
+					return()=>{removed=true;stop();};
+				};
+				opened.ws.waitForMessage=(type,...options)=>type==='chat_turn_preflight_ack'
+					?new Promise(resolve=>{resolveAck=resolve;}) : wait(type,...options);
+				opened.ws.sendAsync=async(type,payload)=>{
+					if(type==='chat_turn_admit'){
+						admission=payload;
+						if(!resolveAck)throw Error('Missing admission ACK observer');
+						resolveAck({type:'chat_turn_preflight_ack',payload:{turn_id:payload.turn_id,preflight_id:'capture-only-no-dispatch'}});
+						return;
+					}
+					if(type==='chat_turn_context_ready'&&payload.phase==='routing'){
+						const candidates=payload.context?.project_focus_candidates??[];
+						offered=candidates.some(row=>row.project_id===input.projectId&&row.auto_selection===true);
+						if(!admission||!offered||!catalogHandler)throw Error('Selected Project was not offered by authenticated discovery');
+						catalogHandler({chat_id:admission.chat_id,request_id:'selected-catalog-request',
+							project_id:input.projectId,team_id:null});
+						return;
+					}
+					if(type==='project_focus_catalog_result'){
+						result=payload;resolveResult();return;
+					}
+					if(type==='chat_turn_context_ready'&&payload.phase==='details'){
+						await Promise.race([resultReady,new Promise((_,reject)=>setTimeout(()=>reject(Error('Catalog reply timed out')),10000))]);
+						throw Error('EXPECTED_PRE_DISPATCH_STOP');
+					}
+					return send(type,payload);
+				};
+				return opened;
+			};
+			try{await client.sendMessage({message:'Read the relevant Project guidance.',personal:true,piiDetection:false});
+				throw Error('Inference preflight was not captured');
+			}catch(error){if(error.message!=='EXPECTED_PRE_DISPATCH_STOP')throw error;}
+			process.stdout.write(JSON.stringify({offered,removed,identityMatches:result?.chat_id===admission?.chat_id,
+				requestMatches:result?.request_id==='selected-catalog-request',projectMatches:result?.project_id===input.projectId,
+				emptyCatalog:Array.isArray(result?.focuses)&&result.focuses.length===0}));
+		`, { projectId });
+		expect(observed).toEqual({ offered: true, removed: true, identityMatches: true,
+			requestMatches: true, projectMatches: true, emptyCatalog: true });
+	} finally {
+		try {
+			if (projectId) await runWorkflowCliJson(apiUrl, home,
+				['projects', 'delete', projectId, '--confirm', projectId, '--personal'], 'delete disposable Project');
+		} finally { removeWorkflowCliHome(home); }
 	}
 });
 

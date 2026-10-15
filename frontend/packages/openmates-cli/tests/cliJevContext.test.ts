@@ -3,11 +3,138 @@ import { stringify as stringifyYaml } from "yaml";
 // contract-test-file: supporting surface=cli assertions=focus-modes.project-recommendation-full-assessment,focus-modes.project-specialist-composition,chats.direction.context-assessment
 import { it } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadActiveCliProjectContext, discoverCliProjectCandidates, collectRelatedCliTaskContext, prepareCliJevContext, parseFocusAuthoringDocument } from '../src/cliJevContext.ts';
+import { loadActiveCliProjectContext, discoverCliProjectCandidates, collectRelatedCliTaskContext, prepareCliJevContext, parseFocusAuthoringDocument, collectSelectedCliProjectFocusRoutingCatalog, registerCliProjectFocusCatalogResponder } from '../src/cliJevContext.ts';
 import type { UserTaskRecord } from '../src/client.ts';
 import { projectItemRevision, assessCliProjectAuthoring, startCliProjectAuthoring } from '../src/cliProjectAuthoring.ts';
 import { encryptWithAesGcmCombined } from '../src/crypto.ts';
 const key = new Uint8Array(32).fill(8);
+
+// contract-test: direct surface=cli assertions=projects.focus.inferred-consent,projects.focus.custom-catalog-privacy
+it('returns only bounded metadata for the selected Project before Focus activation', async () => {
+  const encrypted = await encryptWithAesGcmCombined(JSON.stringify({
+    display_path: '.openmates/focuses/research/SKILL.md', focus_title: 'Research',
+    focus_description: 'Find useful references', focus_when_to_use: 'When research is needed',
+    document: 'Private instructions must not leave the client',
+  }), key);
+  const calls: string[] = [];
+  const client = {
+    async getProject(id: string, options: unknown) { calls.push(`get:${id}`); assert.deepEqual(options, { personal: true, teamId: null });
+      return { project: { project_id: id }, folders: [], items: [{ project_item_id: 'focus-id', item_type: 'embed',
+        target_id_hash: 'target-hash', encrypted_metadata: encrypted, updated_at: 1 }] }; },
+    async decryptProjectKey() { calls.push('key'); return key; },
+    async getActiveProjectFocus() { throw new Error('Focus must not be active before consent'); },
+    async readEncryptedProjectFile() { throw new Error('File body must not be read'); },
+  };
+  const result = await collectSelectedCliProjectFocusRoutingCatalog(client as any, 'selected-project', { personal: true, teamId: null });
+  assert.deepEqual(calls, ['get:selected-project', 'key']);
+  assert.equal(result.length, 1);
+  assert.deepEqual(Object.keys(result[0]).sort(), ['description', 'item_id', 'revision', 'title', 'when_to_use']);
+  assert.equal(result[0].item_id, 'focus-id');
+  assert.match(result[0].revision, /^[a-f0-9]{64}$/);
+  assert.equal(JSON.stringify(result).includes('Private instructions'), false);
+});
+
+// contract-test: direct surface=cli assertions=projects.focus.inferred-consent,projects.focus.custom-catalog-privacy
+it('answers only the current selected-Project catalog request and stops on close or cancellation', async () => {
+  const handlers = new Map<string, (event: Record<string, unknown>) => void>();
+  const closeHandlers = new Set<() => void>();
+  const sent: Array<{ type: string; payload: any }> = [];
+  let open = true, current = true, offered = true, reads = 0;
+  const failures: Error[] = [];
+  const ws = {
+    onMessageType(type: string, handler: (event: Record<string, unknown>) => void) { handlers.set(type, handler); return () => { handlers.delete(type); }; },
+    onClose(handler: () => void) { closeHandlers.add(handler); return () => { closeHandlers.delete(handler); }; },
+    isOpen() { return open; },
+    async sendAsync(type: string, payload: unknown) { sent.push({ type, payload }); },
+  };
+  const client = {
+    async getProject(id: string) { reads++; return { project: { project_id: id }, folders: [], items: [] }; },
+    async decryptProjectKey() { return key; },
+  };
+  const stop = registerCliProjectFocusCatalogResponder({ ws: ws as any, client: client as any,
+    chatId: 'current-chat', teamId: null, isCurrent: () => current,
+    isOfferedProject: id => offered && id === 'selected-project', onDeliveryFailure: error => failures.push(error) });
+  const emit = async (event: Record<string, unknown>) => { handlers.get('project_focus_catalog_requested')?.(event); await new Promise(resolve => setImmediate(resolve)); };
+  const request = { chat_id: 'current-chat', request_id: 'current-request', project_id: 'selected-project', team_id: null };
+  await emit({ ...request, chat_id: 'other-chat' });
+  await emit({ ...request, project_id: 'other-project' });
+  await emit({ ...request, team_id: 'other-team' });
+  await emit({ ...request, request_id: '' });
+  assert.equal(reads, 0);
+  await emit(request);
+  assert.deepEqual(sent, [{ type: 'project_focus_catalog_result', payload: {
+    chat_id: request.chat_id, request_id: request.request_id, project_id: request.project_id, focuses: [],
+  } }]);
+  await emit(request); assert.equal(reads, 1); // one request ID cannot be replayed
+  current = false; await emit({ ...request, request_id: 'stale-turn' }); assert.equal(reads, 1);
+  current = true; offered = false; await emit({ ...request, request_id: 'stale-project' }); assert.equal(reads, 1);
+  offered = true; stop(); await emit({ ...request, request_id: 'cancelled' }); assert.equal(reads, 1);
+  const stopReconnect = registerCliProjectFocusCatalogResponder({ ws: ws as any, client: client as any,
+    chatId: 'current-chat', teamId: null, isCurrent: () => current, isOfferedProject: () => true,
+    onDeliveryFailure: error => failures.push(error) });
+  open = false; for (const close of closeHandlers) close();
+  await emit({ ...request, request_id: 'old-socket' }); assert.equal(reads, 1);
+  stopReconnect();
+  assert.deepEqual(failures, []);
+});
+
+// contract-test: direct surface=cli assertions=projects.focus.inferred-consent,projects.focus.custom-catalog-privacy
+it('reports unavailable metadata as null and drops a reply after session changes mid-read', async () => {
+  let handler: (event: Record<string, unknown>) => void = () => {};
+  let current = true;
+  const sent: Array<{ type: string; payload: any }> = [];
+  let release!: (value: any) => void;
+  let pending = new Promise<any>(resolve => { release = resolve; });
+  const ws = {
+    onMessageType(_type: string, callback: typeof handler) { handler = callback; return () => { handler = () => {}; }; },
+    onClose() { return () => {}; }, isOpen() { return true; },
+    async sendAsync(type: string, payload: any) { sent.push({ type, payload }); },
+  };
+  const client = {
+    async getProject() { return pending; }, async decryptProjectKey() { return key; },
+  };
+  const stop = registerCliProjectFocusCatalogResponder({ ws: ws as any, client: client as any,
+    chatId: 'chat', teamId: null, isCurrent: () => current, isOfferedProject: () => true,
+    onDeliveryFailure: error => { throw error; } });
+  const request = { chat_id: 'chat', request_id: 'request-1', project_id: 'project', team_id: null };
+  handler(request);
+  current = false; release({ project: { project_id: 'project' }, items: [] });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(sent.length, 0);
+  current = true;
+  pending = Promise.reject(new Error('Encrypted metadata unavailable'));
+  handler({ ...request, request_id: 'request-2' });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(sent, [{ type: 'project_focus_catalog_result', payload: {
+    chat_id: 'chat', request_id: 'request-2', project_id: 'project', focuses: null,
+  } }]);
+  stop();
+});
+
+// contract-test: direct surface=cli assertions=projects.focus.inferred-consent,projects.focus.custom-catalog-privacy
+it('reports an active catalog delivery failure and ignores transport shutdown', async () => {
+  let handler: (event: Record<string, unknown>) => void = () => {};
+  let open = true, current = true;
+  const errors: Error[] = [];
+  const ws = {
+    onMessageType(_type: string, callback: typeof handler) { handler = callback; return () => { handler = () => {}; }; },
+    onClose() { return () => {}; }, isOpen() { return open; },
+    async sendAsync() { throw new Error('delivery_failed'); },
+  };
+  const client = { async getProject(id: string) { return { project: { project_id: id }, items: [] }; },
+    async decryptProjectKey() { return key; } };
+  const stop = registerCliProjectFocusCatalogResponder({ ws: ws as any, client: client as any,
+    chatId: 'chat', teamId: null, isCurrent: () => current, isOfferedProject: () => true,
+    onDeliveryFailure: error => errors.push(error) });
+  handler({ chat_id: 'chat', request_id: 'r1', project_id: 'project', team_id: null });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(errors[0]?.message, 'delivery_failed');
+  open = false; current = false;
+  handler({ chat_id: 'chat', request_id: 'r2', project_id: 'project', team_id: null });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(errors.length, 1);
+  stop();
+});
 
 // contract-test: supporting surface=cli assertions=chats.direction.context-assessment,plans.active-context.vault-boundary
 it('skips only impossible Focus and Plan reads for an SDK-minted chat while retaining fresh Project and Task candidates', async () => {

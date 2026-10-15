@@ -119,7 +119,7 @@ import { RecoveryFailureRetry, recoveryOutputIdentity, recoveryReadinessSignatur
   type RecoveryRetryOperation } from "./recoveryFailureRetry.js";
 import type { FocusPhaseState } from "../../ui/src/types/focusPhases.js";
 import { registerChatContextEvents, parseChatContextContent, type ChatContextEvent } from "./chatContextEvents.js";
-import { prepareCliJevContext, prefetchCliJevDiscovery, decodePersonalProjectCandidates, type CliJevContext, type EncryptedPersonalProjectCandidate, type FocusAuthoringDocument } from "./cliJevContext.js";
+import { prepareCliJevContext, prefetchCliJevDiscovery, decodePersonalProjectCandidates, registerCliProjectFocusCatalogResponder, type CliJevContext, type EncryptedPersonalProjectCandidate, type FocusAuthoringDocument } from "./cliJevContext.js";
 import { registerProjectFocusCountdown, type ProjectFocusCountdown } from "./projectFocusCountdown.js";
 import { assessCliProjectAuthoring, boundedAuthoringHistory } from "./cliProjectAuthoring.js";
 import type { MentionContext, AppInfo, MemoryEntryInfo } from "./mentions.js";
@@ -9646,12 +9646,14 @@ export class OpenMatesClient {
       publishProjectRouting = resolve; rejectProjectRouting = reject;
     });
     void projectRoutingContext.catch(() => {});
+    const catalogEligibleProjectIds = new Set<string>();
     const publishProjectRoutingTimed = (context: CliJevContext) => {
       projectCandidatesReadyFromSendStartMs ??= Math.round(performance.now() - preWsStartedAt);
       // The combined snapshot excludes disabled Projects before ciphertext
       // leaves the server. Preserve that boundary for deferred REST discovery.
-      publishProjectRouting(deferredProjectDirectory ? { ...context, project_focus_candidates:
-        context.project_focus_candidates?.filter(candidate => candidate.auto_selection === true) } : context);
+      const offered = context.project_focus_candidates?.filter(candidate => candidate.auto_selection === true) ?? [];
+      for (const candidate of offered) catalogEligibleProjectIds.add(candidate.project_id);
+      publishProjectRouting(deferredProjectDirectory ? { ...context, project_focus_candidates: offered } : context);
     };
     let recoveryMs = 0;
     const contextOwnerIsCurrent = () => {
@@ -9686,6 +9688,18 @@ export class OpenMatesClient {
       throw error;
     }
     const { ws, ownerId } = opened;
+    let catalogTurnId: string | null = null;
+    let rejectCatalogDelivery!: (error: Error) => void;
+    const catalogDeliveryFailure = new Promise<never>((_resolve, reject) => { rejectCatalogDelivery = reject; });
+    void catalogDeliveryFailure.catch(() => {});
+    const stopProjectCatalogResponder = !params.incognito
+      ? registerCliProjectFocusCatalogResponder({
+          ws, client: this, chatId, teamId: teamId ?? null,
+          isCurrent: () => contextOwnerIsCurrent() && !!catalogTurnId
+            && this.activeSubmittedChatTurns.get(chatId) === catalogTurnId,
+          isOfferedProject: projectId => catalogEligibleProjectIds.has(projectId),
+          onDeliveryFailure: error => rejectCatalogDelivery(error),
+        }) : () => {};
     const consumeSocketMemoryReceipt = async () => {
       if (!socketMemoryReceipt) return;
       const receipt = socketMemoryReceipt;
@@ -10153,6 +10167,7 @@ export class OpenMatesClient {
       const chatKeyVersion = 1;
       const turnId = privacyTurnId!;
       savedTurnId = turnId;
+      catalogTurnId = turnId;
       terminalExpectedMessagesV = baselineMessagesV + 1;
       const recoveryKeypairStartedAt = performance.now();
       const recoveryKeypair = independentRecoveryKeypair ? await independentRecoveryKeypair : await deriveChatCompletionRecoveryKeypair(
@@ -10510,7 +10525,7 @@ export class OpenMatesClient {
           traceSendTiming("routing_frame");
           admissionContinuationPhase = "await_details";
           let context: CliJevContext;
-          try { context = await Promise.race([pendingContext, contextAckRejection]); }
+          try { context = await Promise.race([pendingContext, contextAckRejection, catalogDeliveryFailure]); }
           catch (error) {
             try { await notifyContextFailure("context_preparation_failed"); }
             catch { /* The original context failure remains the send error. */ }
@@ -10538,8 +10553,7 @@ export class OpenMatesClient {
         await consumeSocketMemoryReceipt();
         await ws.sendAsync("chat_message_added", messagePayload);
       }
-      confirmedPayload = (await (contextAckRejection
-        ? Promise.race([confirmed, contextAckRejection]) : confirmed)).payload as Record<string, unknown>;
+      confirmedPayload = (await Promise.race([confirmed, catalogDeliveryFailure, ...(contextAckRejection ? [contextAckRejection] : [])])).payload as Record<string, unknown>;
     } catch (error) {
       if (process.env.OPENMATES_DEBUG === "1" && admissionPayload) {
         console.error(`[chat admission continuation] phase=${admissionContinuationPhase} ack_observed=${admissionAckObserved} routing_sent=${routingFrameSent} details_sent=${detailsFrameSent} socket_open=${ws.isOpen()} elapsed_ms=${Math.round(performance.now() - admissionContinuationStartedAt)}`);
@@ -10900,6 +10914,7 @@ export class OpenMatesClient {
         const outcome = await Promise.race([
           responsePromise.then((response) => ({ kind: "response" as const, response })),
           ...(contextAckRejection ? [contextAckRejection] : []),
+          catalogDeliveryFailure,
           ...(queuedAdmission ? [queuedAdmission.then(
             (frame) => ({ kind: "queued" as const, frame }),
             () => new Promise<never>(() => {}),
@@ -11314,6 +11329,7 @@ export class OpenMatesClient {
       promptBudget,
     };
     } finally {
+      stopProjectCatalogResponder();
       removeContextAckWatcher?.();
       // A failed recovery or key preparation must not leave a context read
       // running after this send has returned. The promise already handles its
