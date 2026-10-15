@@ -61,6 +61,11 @@ CAPACITY_WORKLOAD_SPECS = frozenset({
 })
 TARGET_SMOKE_SPEC = "storage-capacity-target-smoke.spec.ts"
 RECOVERY_FAILURE_CASE_TITLE = "SDK reports a Project directory failure after durable epoch-one first Personal admission"
+COMPOSITE_RECOVERY_CASE_TITLE = 'ten-child composite replays every sealed embed with typed acknowledgements and ordered fullscreen after reload'
+APPROVED_RECOVERY_CASES = frozenset({
+    ("cli-recovery-discovery.spec.ts", RECOVERY_FAILURE_CASE_TITLE),
+    ("storage-recovery-replay.spec.ts", COMPOSITE_RECOVERY_CASE_TITLE),
+})
 ACCOUNTABILITY_SPEC = "storage-accountability-integration.spec.ts"
 TEAM_PORTABILITY_SPEC = "storage-team-portability.spec.ts"
 ARCHIVE_LIFECYCLE_SPEC = "storage-archive-lifecycle.spec.ts"
@@ -1235,7 +1240,7 @@ def playwright_case_args(case_title: str) -> list[str]:
     """Pass the approved exact title as a Playwright argument, never shell text."""
     if not case_title:
         return []
-    if case_title != RECOVERY_FAILURE_CASE_TITLE:
+    if case_title not in {title for _, title in APPROVED_RECOVERY_CASES}:
         raise ValueError("Unknown recovery case title")
     return ["--grep", re.escape(case_title) + "$"]
 
@@ -1281,8 +1286,8 @@ def run_e2e(
 ):
     if not specs:
         raise ValueError("An explicit nonempty spec batch is required")
-    if case_title and (specs != ["cli-recovery-discovery.spec.ts"] or artifact or component
-                       or visual_smoke or case_title != RECOVERY_FAILURE_CASE_TITLE):
+    if case_title and (len(specs) != 1 or artifact or component or visual_smoke
+                       or (specs[0], case_title) not in APPROVED_RECOVERY_CASES):
         raise ValueError("Case filter requires the exact recovery spec and approved test title")
     accountability_only = specs == [ACCOUNTABILITY_SPEC] and not (artifact or component or visual_smoke)
     node_probe_only = accountability_only or specs in ([TEAM_PORTABILITY_SPEC], [ARCHIVE_LIFECYCLE_SPEC], [TARGET_SMOKE_SPEC])

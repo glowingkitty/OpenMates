@@ -35,6 +35,11 @@ UNCERTAIN_SECONDS = 600
 WORKFLOW = "isolated-tests.yml"
 ACTIVE = ("dispatching", "submitted", "running", "attention")
 RECOVERY_FAILURE_CASE_TITLE = "SDK reports a Project directory failure after durable epoch-one first Personal admission"
+COMPOSITE_RECOVERY_CASE_TITLE = 'ten-child composite replays every sealed embed with typed acknowledgements and ordered fullscreen after reload'
+APPROVED_RECOVERY_CASES = frozenset({
+    ("cli-recovery-discovery.spec.ts", RECOVERY_FAILURE_CASE_TITLE),
+    ("storage-recovery-replay.spec.ts", COMPOSITE_RECOVERY_CASE_TITLE),
+})
 TERMINAL = ("success", "failure", "cancelled")
 
 
@@ -412,8 +417,8 @@ class Queue:
                 "candidate_patch_url": url,
                 "candidate_expires": expires,
             }
-        if case_title and (mode != "e2e" or specs != ["cli-recovery-discovery.spec.ts"]
-                           or case_title != RECOVERY_FAILURE_CASE_TITLE):
+        if case_title and (mode != "e2e" or len(specs) != 1
+                           or (specs[0], case_title) not in APPROVED_RECOVERY_CASES):
             raise ValueError("Case filter requires the exact recovery spec and approved test title")
         if mode == "pytest":
             try:
@@ -893,8 +898,8 @@ def enqueue_submission(
     runtime_seed_job: str = "",
 ) -> list[dict]:
     """Split E2Es and optionally attach exact private shared preparation."""
-    if case_title and (mode != "e2e" or specs != ["cli-recovery-discovery.spec.ts"]
-                       or case_title != RECOVERY_FAILURE_CASE_TITLE):
+    if case_title and (mode != "e2e" or len(specs) != 1
+                           or (specs[0], case_title) not in APPROVED_RECOVERY_CASES):
         raise ValueError("Case filter requires the exact recovery spec and approved test title")
     if prepared_builds and (source_root is None or mode not in ("e2e", "visual-smoke")):
         raise ValueError("Prepared builds require an E2E/visual source root")
