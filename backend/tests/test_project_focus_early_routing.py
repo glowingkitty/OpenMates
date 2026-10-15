@@ -84,11 +84,15 @@ async def test_disabled_project_cannot_be_chosen_and_unrelated_request_skips_foc
 
 # contract-test: supporting surface=gui.web assertions=projects.focus.inferred-consent,projects.memories.active-access
 @pytest.mark.asyncio
-async def test_whole_preprocessor_returns_consent_without_mates_rules_or_full_routing(monkeypatch):
+@pytest.mark.parametrize("prompt", [
+    PROMPT,
+    "Summarize README.md in the disposable Project named OpenMates. Read the remote file; do not edit any files.",
+])
+async def test_whole_preprocessor_returns_consent_without_mates_rules_or_full_routing(monkeypatch, prompt):
     from backend.core.api.app.services import project_focus_request_service
     from backend.core.api.app.utils import server_mode
     request = AskSkillRequest(chat_id="chat", message_id="turn", user_id="user", user_id_hash="hash",
-        message_history=[{"role": "user", "content": PROMPT, "created_at": 1}], current_user_content=PROMPT,
+        message_history=[{"role": "user", "content": prompt, "created_at": 1}], current_user_content=prompt,
         client_capabilities=["project_file_jobs"], project_focus_candidates=[{"project_id": PROJECT, "name": "OpenMates", "focuses": []}])
     monkeypatch.setattr(server_mode, "is_payment_enabled", lambda: False)
     monkeypatch.setattr(preprocessor, "load_skill_ledger", AsyncMock(return_value=preprocessor.RoutingLedgerSnapshot(available=True, prompt_rows=())))
@@ -140,6 +144,7 @@ async def test_unknown_catalog_requests_only_selected_project_then_reuses_stage_
 @pytest.mark.asyncio
 async def test_consent_stream_exits_before_main_context_or_provider_setup(monkeypatch):
     from backend.apps.ai.processing import main_processor, project_focus_orchestration
+    from backend.apps.ai.utils.instruction_loader import load_base_instructions
     request = AskSkillRequest(chat_id="chat", message_id="turn", user_id="user", user_id_hash="hash",
         message_history=[], client_capabilities=["project_file_jobs"],
         project_focus_candidates=[{"project_id": PROJECT, "name": "OpenMates"}])
@@ -152,7 +157,7 @@ async def test_consent_stream_exits_before_main_context_or_provider_setup(monkey
     monkeypatch.setattr(main_processor, "_load_main_agentic_context", context)
     monkeypatch.setattr(main_processor, "call_main_llm_stream", provider)
     chunks = [chunk async for chunk in main_processor.handle_main_processing(
-        task_id="task", request_data=request, preprocessing_results=result, base_instructions={},
+        task_id="task", request_data=request, preprocessing_results=result, base_instructions=load_base_instructions(),
         directus_service=None, encryption_service=None, user_vault_key_id=None,
         all_mates_configs=[], discovered_apps_metadata={})]
     assert chunks[-1]["__awaiting_focus_mode_confirmation__"] is True

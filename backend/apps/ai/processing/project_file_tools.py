@@ -36,7 +36,17 @@ PROJECT_FILE_NOUN = re.compile(
 PROJECT_FILE_REFUSAL = re.compile(
     r"\b(?:do\s+not|don['’]?t|never|avoid|without|no\s+need\s+to)\b"
     r"[^.!?;\n]{0,100}\b(?:read|open|inspect|review|summari[sz]e|show|list|search|find|"
-    r"edit|update|write|modify|change|fix|improve|add|remove|delete|create)\b",
+    r"access|edit|update|write|modify|change|fix|improve|add|remove|delete|create)\b",
+    re.IGNORECASE,
+)
+PROJECT_READ_OR_ACCESS_ACTION = re.compile(
+    r"\b(?:read|open|inspect|review|summari[sz]e|show|list|search|find|access)\b",
+    re.IGNORECASE,
+)
+PROJECT_ALL_FILE_WORK_REFUSAL = re.compile(
+    r"\b(?:do\s+not|don['’]?t|never|avoid|without|no\s+need\s+to)\s+"
+    r"(?:use|touch|work\s+(?:on|with))\b[^.!?;\n]{0,80}"
+    r"\b(?:projects?|files?|readme|repositories|repository)\b",
     re.IGNORECASE,
 )
 
@@ -44,7 +54,24 @@ PROJECT_FILE_REFUSAL = re.compile(
 def declines_project_file_work(text: str) -> bool:
     """Conservatively prevent implicit activation for explicit file-work refusals."""
 
-    return bool(PROJECT_FILE_REFUSAL.search(text))
+    if PROJECT_ALL_FILE_WORK_REFUSAL.search(text):
+        return True
+    refusals = list(PROJECT_FILE_REFUSAL.finditer(text))
+    if not refusals:
+        return False
+    for refusal in refusals:
+        action = refusal.group().split()[-1]
+        if PROJECT_READ_OR_ACCESS_ACTION.fullmatch(action):
+            return True
+        # A coordinated prohibition covers both actions: "do not edit or read".
+        clause = text[refusal.end():].split(';', 1)[0].split('.', 1)[0]
+        if re.match(r"\s+(?:or|nor)\s+", clause, re.IGNORECASE) and PROJECT_READ_OR_ACCESS_ACTION.search(clause):
+            return True
+    # A write-only prohibition must not hide a separate, positive read request.
+    return not any(
+        not any(refusal.start() <= read.start() < refusal.end() for refusal in refusals)
+        for read in PROJECT_READ_INTENT.finditer(text)
+    )
 
 
 def requests_project_file_work(text: str) -> bool:

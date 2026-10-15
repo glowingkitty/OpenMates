@@ -267,6 +267,22 @@ def test_named_project_file_request_selects_only_one_offered_eligible_project():
     assert uniquely_named_project_focus_id("OpenMates", candidates, offered) is None
 
 
+@pytest.mark.parametrize("prompt,expected", [
+    ("Summarize README.md in the disposable Project named OpenMates. Read the remote file; do not edit any files.", True),
+    ("Do not edit any files; read the README in my OpenMates Project.", True),
+    ("Do not edit any files in my OpenMates Project.", False),
+    ("Do not read my OpenMates README; edit it instead.", False),
+    ("Do not access my OpenMates Project files; read the README.", False),
+    ("Do not edit or read my OpenMates README.", False),
+    ("Do not use any Project files; read the README.", False),
+])
+# contract-test: supporting surface=rest_api assertions=projects.focus.inferred-consent
+def test_project_read_request_survives_write_only_prohibition(prompt, expected):
+    from backend.apps.ai.processing.project_file_tools import requests_project_file_work
+
+    assert requests_project_file_work(prompt) is expected
+
+
 # contract-test: supporting surface=rest_api assertions=projects.focus.inferred-consent
 def test_legacy_unscoped_project_search_is_hidden_from_model_tools():
     from backend.apps.ai.processing.project_file_tools import without_unscoped_project_search

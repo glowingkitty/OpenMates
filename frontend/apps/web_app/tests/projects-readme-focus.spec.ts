@@ -34,9 +34,11 @@ const README_PROMPTS = {
   original: 'can you read the readme from my OpenMates project?',
   suggestions: 'suggestions how to improve the readme of my OpenMates project?',
   staged: 'Can you read the README from the Project I just connected?',
+  read_only: 'Summarize README.md in the disposable Project named OpenMates. Read the remote file; do not edit any files.',
 } as const;
 const PROMPT_VARIANT = process.env.OPENMATES_README_CATALOG_VARIANT === 'staged' ? 'staged'
-  : process.env.OPENMATES_README_PROMPT_VARIANT === 'original' ? 'original' : 'suggestions';
+  : process.env.OPENMATES_README_PROMPT_VARIANT === 'original' ? 'original'
+  : process.env.OPENMATES_README_PROMPT_VARIANT === 'read_only' ? 'read_only' : 'suggestions';
 const PROMPT = README_PROMPTS[PROMPT_VARIANT];
 const README_FIXTURE_VARIANT = process.env.OPENMATES_README_FIXTURE_VARIANT === 'repository' ? 'repository' : 'small';
 const README_CONTENT = '# Connected project\n\n![Connected diagram](docs/readme-image.png)\n\n[External docs](https://openmates.org)\n'
