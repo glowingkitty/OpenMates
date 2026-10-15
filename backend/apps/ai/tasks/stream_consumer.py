@@ -10316,6 +10316,7 @@ async def _consume_main_processing_stream(
                     exc_info=True
                 )
 
+        debug_metadata["awaiting_focus_mode_continuation"] = True
         return aggregated_response, False, False, [], debug_metadata
     
     # IMPROVED LOGGING: metadata-only stream completion details.

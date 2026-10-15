@@ -3776,6 +3776,13 @@ async def handle_main_processing(
                     "chat_has_title": request_data.chat_has_title,
                     "is_incognito": getattr(request_data, 'is_incognito', False),
                     "task_id": task_id,
+                    "focus_authority_task_id": (
+                        getattr(request_data, "_focus_authority_task_id", None)
+                        or request_data.resolved_recovery_inference_task_id() or task_id
+                    ),
+                    "legacy_cutover_task_id": request_data.legacy_cutover_task_id,
+                    "root_legacy_cutover_task_id": request_data.root_legacy_cutover_task_id,
+                    "root_user_message_id": request_data.root_user_message_id,
                     "recovery_inference_task_id": request_data.resolved_recovery_inference_task_id(),
                     "recovery_preflight_id": request_data.recovery_preflight_id,
                     "recovery_turn_id": request_data.recovery_turn_id,
@@ -5885,6 +5892,13 @@ async def handle_main_processing(
                     "chat_has_title": request_data.chat_has_title,
                     "is_incognito": getattr(request_data, 'is_incognito', False),
                     "task_id": task_id,
+                    "focus_authority_task_id": (
+                        getattr(request_data, "_focus_authority_task_id", None)
+                        or request_data.resolved_recovery_inference_task_id() or task_id
+                    ),
+                    "legacy_cutover_task_id": request_data.legacy_cutover_task_id,
+                    "root_legacy_cutover_task_id": request_data.root_legacy_cutover_task_id,
+                    "root_user_message_id": request_data.root_user_message_id,
                     "recovery_inference_task_id": request_data.resolved_recovery_inference_task_id(),
                     "recovery_preflight_id": request_data.recovery_preflight_id,
                     "recovery_turn_id": request_data.recovery_turn_id,

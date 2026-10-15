@@ -89,7 +89,8 @@ def authoritative_context_turn_id(request: object) -> str:
 def recent_work_authority_task_id(request: object, execution_task_id: str) -> str:
     """Use the admitted inference owner across internal continuation executors."""
     resolve = getattr(request, "resolved_recovery_inference_task_id", None)
-    return (resolve() if callable(resolve) else None) or execution_task_id
+    return (getattr(request, "_focus_authority_task_id", None)
+            or (resolve() if callable(resolve) else None) or execution_task_id)
 
 
 def bind_restored_context_turn(request: object, restored: dict) -> None:

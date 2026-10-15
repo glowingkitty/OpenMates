@@ -284,7 +284,10 @@ def test_failure_cleanup_preserves_atomic_owner_and_handoff_fences():
         if name.endswith("queued_steering"):
             return SimpleNamespace(reconcile_queued_revision_quarantine=AsyncMock(return_value=True))
         if name.endswith("async_skill_continuation"):
-            return SimpleNamespace(dispatch_deferred_async_skill_continuations=dispatch)
+            return SimpleNamespace(
+                dispatch_deferred_async_skill_continuations=dispatch,
+                async_skill_latest_user_turn_key=lambda user_id, chat_id: f"async_skill_latest_user_turn:{user_id}:{chat_id}",
+            )
         return import_original(name, globals, locals, fromlist, level)
 
     async def exercise(queue_state=None, *, handoff=None, cas_result=True):
@@ -298,7 +301,7 @@ def test_failure_cleanup_preserves_atomic_owner_and_handoff_fences():
         )
         request = SimpleNamespace(
             legacy_cutover_task_id="admission", recovery_task_id=None,
-            is_incognito=False, is_external=False, chat_id="chat",
+            is_incognito=False, is_external=False, is_focus_mode_continuation=False, chat_id="chat",
         )
         if handoff is not None:
             namespace["_handoff_queued_after_task_failure"] = AsyncMock(return_value=handoff)
@@ -331,7 +334,7 @@ def test_failure_cleanup_preserves_atomic_owner_and_handoff_fences():
             publish_event=AsyncMock(),
         )
         request = SimpleNamespace(
-            is_incognito=True, is_external=False, chat_id="chat",
+            is_incognito=True, is_external=False, is_focus_mode_continuation=False, chat_id="chat",
             user_id="user", user_id_hash="hash",
         )
         with patch("builtins.__import__", side_effect=import_stubs):

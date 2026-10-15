@@ -190,7 +190,10 @@ async def _trigger_continuation_without_focus(
         if not await current_focus_source_turn(cache_service, pending_context):
             logger.info(f"{log_prefix} Focus source turn changed before continuation dispatch")
             return
+        from backend.shared.python_utils.focus_continuation_history import prepare_focus_continuation_authority
+        child_task_id = await prepare_focus_continuation_authority(cache_service, pending_context, request_data_dict)
         task = process_ai_skill_ask_task.apply_async(
+            task_id=child_task_id,
             kwargs={
                 "request_data_dict": request_data_dict,
                 "skill_config_dict": skill_config_dict,

@@ -70,6 +70,7 @@ async def handle_cancel_ai_task(
             # The task's exception handler will also try to clear this, but we do it here proactively
             # to ensure the UI updates immediately without waiting for the task to process the signal
             if chat_id:
+                focus_cancelled = False
                 paused_cancelled = False
                 cleared = False
                 try:
@@ -80,7 +81,11 @@ async def handle_cancel_ai_task(
                         cache_service, user_id=user_id, chat_id=chat_id,
                         source_task_id=task_id_to_cancel,
                     )
-                    cleared = await cache_service.clear_active_ai_task_if_matches(
+                    from backend.shared.python_utils.focus_continuation_history import cancel_focus_execution
+                    focus_cancelled = await cancel_focus_execution(
+                        cache_service, user_id, chat_id, task_id_to_cancel,
+                    )
+                    cleared = focus_cancelled or await cache_service.clear_active_ai_task_if_matches(
                         chat_id, task_id_to_cancel,
                     )
                     if cleared:
@@ -96,7 +101,7 @@ async def handle_cancel_ai_task(
                     )
                     if not cache_service:
                         cache_service = CacheService()
-                    if cleared and not paused_cancelled:
+                    if cleared and not paused_cancelled and not focus_cancelled:
                         await cache_service.set(
                             async_skill_latest_user_turn_key(user_id, chat_id),
                             f"cancelled:{task_id_to_cancel}",

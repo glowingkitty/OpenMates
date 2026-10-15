@@ -24,6 +24,7 @@ def _row(role: str, row_id: str | None, content: str, **fields: str) -> str:
 def _cache(rows: list[str], latest: str = "source") -> SimpleNamespace:
     return SimpleNamespace(
         get=AsyncMock(return_value=latest),
+        set=AsyncMock(),
         get_ai_messages_history=AsyncMock(return_value=rows),
         publish_event=AsyncMock(),
         get_user_vault_key_id=AsyncMock(return_value="vault-key"),
@@ -40,7 +41,8 @@ def _pending(**fields: str) -> dict:
     return {
         "user_id": "owner", "user_id_hash": "owner-hash", "chat_id": "chat",
         "message_id": "source", "focus_id": "jobs-career_insights",
-        "embed_id": "activation", **fields,
+        "embed_id": "activation", "task_id": "root",
+        "legacy_cutover_task_id": "legacy-identity", "accepted_plan_context": None, **fields,
     }
 
 
@@ -189,6 +191,11 @@ async def test_real_focus_dispatch_branches_use_exact_source_history(
         assert sent[0]["kwargs"]["request_data_dict"]["active_focus_id"] is None
     request = sent[0]["kwargs"]["request_data_dict"]
     assert request["message_id"] == "source"
+    assert request["recovery_inference_task_id"] is None
+    assert request["root_legacy_cutover_task_id"] == "legacy-identity"
+    mapping_key, mapping_value = cache.set.await_args.args
+    assert mapping_key == f"focus_execution_root:owner:chat:{sent[0]['task_id']}"
+    assert json.loads(mapping_value)["root_id"] == "root"
     assert [row["content"] for row in request["message_history"]] == ["Prior transition", "Current request"]
     cache.publish_event.assert_not_awaited()
 

@@ -780,7 +780,7 @@ async def _ack_running_recovery_queue_prefix(
     cache_service: CacheService, directus_service: DirectusService,
 ) -> bool:
     """Let a claimed worker close its own prefix if it beat the broker ACK."""
-    if not request.recovery_task_id:
+    if request.resolved_recovery_inference_task_id() != task_id:
         return False
     row = await cache_service.get_queued_message_member(
         request.chat_id, request.user_id, request.message_id,
@@ -1197,7 +1197,8 @@ async def _handoff_queued_after_task_failure(
     cache_service: CacheService, directus_service: DirectusService,
 ) -> bool | _FailureHandoffOutcome:
     """Dispatch an accepted follower after its predecessor failed without an answer."""
-    if (not (request_data.legacy_cutover_task_id or request_data.recovery_task_id)
+    if (not (request_data.legacy_cutover_task_id or request_data.recovery_task_id
+                 or request_data.is_focus_mode_continuation)
             or request_data.is_incognito or request_data.is_external):
         return False
     if await cache_service.get_active_ai_task(request_data.chat_id) != task_id:
@@ -1398,6 +1399,16 @@ def _is_client_context_unavailable(error: BaseException) -> bool:
     return False
 
 
+async def _complete_active_ai_turn_if_queue_empty(cache, request, task_id, runtime_result):
+    """Never terminalize the admitted root while its Focus control turn is paused."""
+    if (runtime_result or {}).get("awaiting_focus_mode_continuation"):
+        return 2
+    from backend.shared.python_utils.focus_continuation_history import focus_authority_root
+    return await cache.complete_active_ai_task_if_queue_empty(
+        request.chat_id, focus_authority_root(request, task_id),
+    )
+
+
 async def _cleanup_on_task_failure(
     task_id: str,
     chat_id: str,
@@ -1444,6 +1455,9 @@ async def _cleanup_on_task_failure(
     if not cache_service:
         cache_service = CacheService()
     
+    from backend.shared.python_utils.focus_continuation_history import focus_authority_root
+    authority_task_id = focus_authority_root(request_data, task_id) if request_data else task_id
+
     # Preserve accepted followers before releasing this task's chat fence.
     cleared = False
     try:
@@ -1453,20 +1467,20 @@ async def _cleanup_on_task_failure(
             steer_directus = directus_service or DirectusService()
             try:
                 await _pause_consumed_steers_after_failure(
-                    request_data, task_id, cache_service, steer_directus,
+                    request_data, authority_task_id, cache_service, steer_directus,
                 )
             finally:
                 if directus_service is None:
                     await steer_directus.close()
         if request_data is not None and (request_data.is_incognito or request_data.is_external):
             terminalized = await _terminalize_volatile_followers_after_failure(
-                request_data, task_id, cache_service,
+                request_data, authority_task_id, cache_service,
             )
         if request_data is not None and skill_config_dict is not None:
             handoff_directus = directus_service or DirectusService()
             try:
                 handed_off = await _handoff_queued_after_task_failure(
-                    request_data, skill_config_dict, task_id, cache_service, handoff_directus,
+                    request_data, skill_config_dict, authority_task_id, cache_service, handoff_directus,
                 )
             finally:
                 if directus_service is None:
@@ -1479,7 +1493,7 @@ async def _cleanup_on_task_failure(
             # A follower or newer task owns the fence; never clear it here.
             cleared = False
         else:
-            cleared = await cache_service.clear_active_ai_task_if_matches(chat_id, task_id)
+            cleared = await cache_service.clear_active_ai_task_if_matches(chat_id, authority_task_id)
         if cleared:
             logger.info(f"{log_prefix} Cleared active_ai_task marker after failure: {error_message}")
         else:
@@ -2609,6 +2623,9 @@ async def _async_process_ai_skill_ask_task(
                 encryption_service=encryption_service_instance
             )
             logger.info(f"[Task ID: {task_id}] DirectusService initialized.")
+
+        from backend.shared.python_utils.focus_continuation_history import bind_focus_execution
+        await bind_focus_execution(cache_service_instance, request_data, task_id)
 
         stage_one_snapshot = await _time_setup_stage("stage_one_load", task_id, load_stage_one(
             cache=cache_service_instance, encryption=encryption_service_instance,
@@ -4262,11 +4279,23 @@ async def _async_process_ai_skill_ask_task(
             user_vault_key_id, completion_ciphertext,
         )
 
+    from backend.shared.python_utils.focus_continuation_history import (
+        focus_authority_root, retain_focus_authority,
+    )
+    authority_task_id = focus_authority_root(request_data, task_id)
+    awaiting_focus_continuation = bool(
+        (main_processor_debug_metadata or {}).get("awaiting_focus_mode_continuation")
+    )
+    if awaiting_focus_continuation and cache_service_instance:
+        await retain_focus_authority(cache_service_instance, request_data, task_id, skill_config.model_dump())
+
     # --- Queue Processing (after main processing, before post-processing) ---
     # Process queued messages immediately after main processing completes
     # This allows the next message to start processing while post-processing continues in parallel
     # Post-processing is independent (only generates suggestions) and doesn't conflict with starting new tasks
-    if cache_service_instance:
+    if (cache_service_instance and not awaiting_focus_continuation
+            and (not request_data.is_focus_mode_continuation
+                 or await cache_service_instance.get_active_ai_task(request_data.chat_id) == authority_task_id)):
         # Check for queued messages and process them
         # This implements the queue system: when main processing completes, process any queued messages
         from backend.apps.ai.processing.queued_steering import reconcile_queued_revision_quarantine
@@ -4281,8 +4310,8 @@ async def _async_process_ai_skill_ask_task(
             )
             if queued_lease:
                 break
-            empty_status = await cache_service_instance.complete_active_ai_task_if_queue_empty(
-                request_data.chat_id, task_id,
+            empty_status = await _complete_active_ai_turn_if_queue_empty(
+                cache_service_instance, request_data, task_id, main_processor_debug_metadata,
             )
             if empty_status != 0:
                 break
@@ -4291,9 +4320,9 @@ async def _async_process_ai_skill_ask_task(
                 "Queued message raced with active task completion repeatedly"
             )
         queued_messages = queued_lease["messages"] if queued_lease else []
-        if queued_messages and queued_messages[0].get("recovery_task_id") == task_id:
+        if queued_messages and queued_messages[0].get("recovery_task_id") == authority_task_id:
             if not await _ack_running_recovery_queue_prefix(
-                request_data, task_id, cache_service_instance, directus_service_instance,
+                request_data, authority_task_id, cache_service_instance, directus_service_instance,
             ):
                 raise RequiredRecoveryOutputError("Completed recovery task still owns its queued prefix")
             queued_lease = await cache_service_instance.lease_queued_message_prefix(
@@ -4303,7 +4332,7 @@ async def _async_process_ai_skill_ask_task(
         if queued_messages and queued_messages[0].get("recovery_task_id"):
             with ai_phase_span("queue_handoff"):
                 await _start_recovery_queued_follower(
-                    prior_request=request_data, prior_task_id=task_id,
+                    prior_request=request_data, prior_task_id=authority_task_id,
                     queued_lease=queued_lease,
                     assistant_response=aggregated_final_response,
                     skill_config_dict=skill_config.model_dump(),
@@ -4451,7 +4480,8 @@ async def _async_process_ai_skill_ask_task(
                                 and not combined_request.is_external
                                 and not combined_request.is_anonymous):
                             if not (request_data.legacy_cutover_task_id
-                                    or request_data.recovery_task_id):
+                                    or request_data.recovery_task_id
+                                    or request_data.is_focus_mode_continuation):
                                 raise RequiredRecoveryOutputError(
                                     "Queued saved turn lacks epoch-0 admission authority"
                                 )
@@ -4551,10 +4581,10 @@ async def _async_process_ai_skill_ask_task(
                             )
                             paused_handoff_created = await cache_service_instance.store_paused_queue_handoff(
                                 combined_request.user_id, combined_chat_id,
-                                task_id, sealed_handoff,
+                                authority_task_id, sealed_handoff,
                             )
                         if not await cache_service_instance.transfer_active_ai_task(
-                            combined_chat_id, task_id, queued_task_id,
+                            combined_chat_id, authority_task_id, queued_task_id,
                         ):
                             if legacy_batch_proof is not None and paused_handoff_created:
                                 await cache_service_instance.discard_paused_queue_handoff_if_matches(

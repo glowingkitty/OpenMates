@@ -292,7 +292,10 @@ async def _async_focus_mode_auto_confirm(
         if not await current_focus_source_turn(cache_service, pending_context):
             logger.info(f"{log_prefix} Focus source turn changed before continuation dispatch")
             return
+        from backend.shared.python_utils.focus_continuation_history import prepare_focus_continuation_authority
+        child_task_id = await prepare_focus_continuation_authority(cache_service, pending_context, request_data_dict)
         task = process_ai_skill_ask_task.apply_async(
+            task_id=child_task_id,
             kwargs={
                 "request_data_dict": request_data_dict,
                 "skill_config_dict": skill_config_dict,
@@ -345,3 +348,18 @@ def focus_mode_auto_confirm_task(self, chat_id: str, request_id: str | None = No
     finally:
         if loop:
             loop.close()
+
+
+@app.task(name="apps.ai.tasks.expire_focus_authority", max_retries=0)
+def expire_focus_authority(request_envelope: dict, root_id: str, skill_config_dict: dict, pause_task_id: str | None = None):
+    """Release only an undispatched Focus pause; running/newer turns remain fenced."""
+    from backend.apps.ai.skills.ask_skill import AskSkillRequest
+    from backend.core.api.app.services.cache import CacheService
+    from backend.shared.python_utils.focus_continuation_history import expire_pending_focus_authority
+
+    async def run():
+        return await expire_pending_focus_authority(
+            CacheService(), AskSkillRequest.model_validate(request_envelope), root_id, skill_config_dict, pause_task_id,
+        )
+
+    return asyncio.run(run())
