@@ -169,11 +169,20 @@ def focus_authority_phase_key(user_id: str, chat_id: str, root_id: str) -> str:
     return f"focus_authority_phase:{user_id}:{chat_id}:{root_id}"
 
 
+def _decode_focus_authority_mapping(raw) -> dict:
+    """CacheService decodes JSON; raw transport values remain supported."""
+    mapped = raw if isinstance(raw, dict) else json.loads(raw)
+    if (not isinstance(mapped, dict) or not isinstance(mapped.get("root_id"), str)
+            or not mapped["root_id"] or not isinstance(mapped.get("request"), dict)):
+        raise ValueError("Focus authority mapping is invalid")
+    return mapped
+
+
 async def bind_focus_execution(cache, request, execution_id: str) -> None:
     if request.is_focus_mode_continuation:
         raw = await cache.get(f"focus_execution_root:{request.user_id}:{request.chat_id}:{execution_id}")
         if raw:
-            mapped = json.loads(raw)
+            mapped = _decode_focus_authority_mapping(raw)
             if (mapped.get('request', {}).get('user_id') != request.user_id
                     or mapped.get('request', {}).get('chat_id') != request.chat_id
                     or mapped.get('request', {}).get('message_id') != request.message_id):
@@ -258,7 +267,7 @@ async def cancel_focus_execution(cache, user_id: str, chat_id: str, execution_id
     if not raw:
         return False
     try:
-        value = json.loads(raw)
+        value = _decode_focus_authority_mapping(raw)
         from backend.apps.ai.skills.ask_skill import AskSkillRequest
         request = AskSkillRequest.model_validate(value['request'])
         root_id = value['root_id']

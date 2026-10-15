@@ -358,3 +358,107 @@ async def test_child_authority_mapping_storage_failure_prevents_dispatch_identit
     cache.set.return_value = False
     with pytest.raises(RuntimeError, match='could not be stored'):
         await focus.prepare_focus_continuation_authority(cache, {'task_id': 'root'}, request(True).model_dump())
+
+
+class CodecRedis:
+    """Byte-valued fake transport; CacheService owns the real JSON codec."""
+    def __init__(self):
+        self.values = {}
+
+    async def get(self, key):
+        return self.values.get(key)
+
+    async def setex(self, key, ttl, value):
+        self.values[key] = value.encode() if isinstance(value, str) else value
+        return True
+
+    async def set(self, key, value, ex=None):
+        return await self.setex(key, ex, value)
+
+    async def eval(self, script, key_count, *args):
+        keys, argv = args[:key_count], args[key_count:]
+        if key_count == 2:
+            if self.values.get(keys[1]) != argv[1].encode() or self.values.get(keys[0]) == b'expired':
+                return 0
+            await self.setex(keys[0], argv[0], argv[2])
+            return 1
+        # Stop's source fence uses the exact real key and compare value.
+        if self.values.get(keys[0]) == argv[0].encode():
+            await self.setex(keys[0], argv[2], argv[1])
+            return 1
+        return 0
+
+
+def codec_cache():
+    from backend.core.api.app.services.cache import CacheService
+
+    class RealCodecCache(CacheService):
+        def __init__(self):
+            self.transport = CodecRedis()
+
+        @property
+        async def client(self):
+            return self.transport
+
+    return RealCodecCache()
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.restoration
+@pytest.mark.asyncio
+async def test_real_cache_codec_roundtrip_bind_and_stop_preserve_root(monkeypatch):
+    from backend.apps.ai.tasks import ask_skill_task as ask
+    cache = codec_cache()
+    await cache.transport.set(cache._get_active_task_key('chat'), 'root')
+    child_data = request(True).model_copy(update={'recovery_inference_task_id': None}).model_dump()
+    child_id = await focus.prepare_focus_continuation_authority(cache, {'task_id': 'root'}, child_data)
+    key = f'focus_execution_root:owner:chat:{child_id}'
+    assert isinstance(await cache.get(key), dict)
+    child = AskSkillRequest.model_validate(child_data)
+    await focus.bind_focus_execution(cache, child, child_id)
+    assert focus.focus_authority_root(child, child_id) == 'root'
+    cleanup = AsyncMock()
+    monkeypatch.setattr(ask, '_cleanup_on_task_failure', cleanup)
+    monkeypatch.setattr(cache, 'get_user_vault_key_id', AsyncMock(return_value='vault'))
+    assert await focus.cancel_focus_execution(cache, 'owner', 'chat', child_id) is True
+    assert focus.focus_authority_root(cleanup.call_args.kwargs['request_data'], child_id) == 'root'
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.restoration
+@pytest.mark.asyncio
+async def test_real_cache_codec_bind_failure_retains_root_for_actual_cleanup_cas(monkeypatch):
+    from backend.apps.ai.tasks import ask_skill_task as ask
+    cache = codec_cache()
+    await cache.transport.set(cache._get_active_task_key('chat'), 'root')
+    data = request(True).model_copy(update={'recovery_inference_task_id': None}).model_dump()
+    child_id = await focus.prepare_focus_continuation_authority(cache, {'task_id': 'root'}, data)
+    await cache.transport.set(focus.focus_authority_phase_key('owner', 'chat', 'root'), 'expired')
+    child = AskSkillRequest.model_validate(data)
+    with pytest.raises(RuntimeError, match='expired'):
+        await focus.bind_focus_execution(cache, child, child_id)
+    assert focus.focus_authority_root(child, child_id) == 'root'
+    # Exercise production failure cleanup; isolate only external notifications/queue IO.
+    monkeypatch.setattr(ask, '_pause_consumed_steers_after_failure', AsyncMock(return_value=[]))
+    monkeypatch.setattr(ask, '_handoff_queued_after_task_failure', AsyncMock(return_value=False))
+    monkeypatch.setattr(ask, '_cleanup_processing_embeds_on_task_failure', AsyncMock(return_value=0))
+    cas = AsyncMock(return_value=True)
+    monkeypatch.setattr(cache, 'clear_active_ai_task_if_matches', cas)
+    monkeypatch.setattr(cache, 'publish_event', AsyncMock())
+    from backend.apps.ai.tasks import async_skill_continuation as continuation
+    monkeypatch.setattr(continuation, 'dispatch_deferred_async_skill_continuations', AsyncMock())
+    await ask._cleanup_on_task_failure(
+        task_id=child_id, chat_id='chat', message_id='source', user_id='owner', user_id_hash='hash',
+        user_vault_key_id='vault', error_message='Focus bind failed', cache_service=cache,
+        directus_service=Mock(), request_data=child, skill_config_dict={},
+    )
+    cas.assert_awaited_once_with('chat', 'root')
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.restoration
+@pytest.mark.parametrize('encoded', [False, True])
+def test_authority_mapping_codec_rejects_bad_shape_and_accepts_raw_transport(encoded):
+    import json
+    value = {'root_id': 'root', 'request': {'user_id': 'owner'}}
+    assert focus._decode_focus_authority_mapping(json.dumps(value).encode() if encoded else value) == value
+    for malformed in ([], {'root_id': None, 'request': {}}, {'root_id': 'root', 'request': []}):
+        with pytest.raises((TypeError, ValueError)):
+            focus._decode_focus_authority_mapping(json.dumps(malformed) if encoded else malformed)
