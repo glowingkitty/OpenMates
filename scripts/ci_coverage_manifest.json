@@ -460,6 +460,7 @@
         "chat-scroll-streaming.spec.ts",
         "chat-settings-flow.spec.ts",
         "connection-resilience.spec.ts",
+        "chat-saved-followup-admission.spec.ts",
         "daily-inspiration-chat-flow.spec.ts",
         "default-model-cli.spec.ts",
         "default-model-settings-proof.spec.ts",

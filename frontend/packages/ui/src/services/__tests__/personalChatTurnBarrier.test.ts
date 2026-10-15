@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   awaitPersonalChatPredecessor, bindPersonalChatTurn, clearPersonalChatTurnBarriers,
   completePersonalChatTurn, failMatchingPersonalChatTurn, failPersonalChatTurn,
-  reservePersonalChatTurn,
+  reservePersonalChatTurn, observePersonalChatCanonicalVersion,
 } from '../personalChatTurnBarrier';
 
 afterEach(() => clearPersonalChatTurnBarriers());
@@ -29,7 +29,7 @@ describe('personal encrypted chat turn barrier', () => {
     expect(completePersonalChatTurn('chat-a', 'turn-1', 8)).toBe(false);
     bindPersonalChatTurn(second, 'turn-2');
     expect(completePersonalChatTurn('chat-a', 'turn-2', 9)).toBe(true);
-    expect(await awaitPersonalChatPredecessor(reservePersonalChatTurn('chat-a', 'user-3'))).toBeNull();
+    expect(await awaitPersonalChatPredecessor(reservePersonalChatTurn('chat-a', 'user-3'))).toBe(9);
   });
 
   // contract-test: supporting surface=gui.web assertions=chats.completion.lease-fenced
@@ -65,4 +65,18 @@ describe('personal encrypted chat turn barrier', () => {
     expect(completePersonalChatTurn('chat-lost', 'turn-1', 3)).toBe(false);
     expect(await awaitPersonalChatPredecessor(reservePersonalChatTurn('chat-lost', 'retry'))).toBeNull();
   });
+});
+
+// contract-test: supporting surface=gui.web assertions=chats.completion.lease-fenced,chats.message.identity-idempotent
+it('retains a settled canonical receipt, advances remote versions, and clears on workspace reset', async () => {
+  const first = reservePersonalChatTurn('settled-chat', 'first');
+  bindPersonalChatTurn(first, 'first-turn');
+  expect(completePersonalChatTurn('settled-chat', 'first-turn', 4)).toBe(true);
+  observePersonalChatCanonicalVersion('settled-chat', 6);
+  observePersonalChatCanonicalVersion('settled-chat', 3);
+  const next = reservePersonalChatTurn('settled-chat', 'next');
+  await expect(awaitPersonalChatPredecessor(next)).resolves.toBe(6);
+  const { invalidateWorkspaceCaches } = await import('../workspaceCacheLifecycle');
+  invalidateWorkspaceCaches();
+  await expect(awaitPersonalChatPredecessor(reservePersonalChatTurn('settled-chat', 'fresh'))).resolves.toBeNull();
 });

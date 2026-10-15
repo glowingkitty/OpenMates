@@ -203,3 +203,14 @@ An expected stale optional composer-suggestion write produces a source-correlate
 The development host's account-key gateway drift was repaired by restoring the already-published exact path in its two credentialed first-party matchers, with a native exclusive runtime lease, full-configuration ETag and unchanged unrelated configuration. FastAPI still controls credentialed CORS and session/approved-device authorization. A mandatory account-key preflight check now runs independently of Workflow availability so a future host update cannot silently accept the same missing route. The live repair updates Caddy autosave; its privileged startup Caddyfile requires the normal managed configuration application if that file is stale.
 
 The interactive TUI replenishes one unused send socket after successful required persistence, complete send cleanup, and closure of the prior transport. Account, key, cookie and token fences remain mandatory. Separate viewer authentication can still invalidate that slot safely; this is not a measured latency guarantee.
+
+
+## Final request-error correction
+
+The user accepted the measured processing times and made absence of request-related client/backend errors the immediate priority. Earlier timing tables remain observations; they are not the current completion gate.
+
+Saved web follow-ups classify creation metadata using the acknowledged canonical predecessor version, even when the local message counter is stale. The expected version, immutable retry journal, history and encryption checks remain required; the backend still rejects attempts to replace existing immutable metadata.
+
+An explicit, trusted, inactive non-Project Focus activation is a control turn without an answer profile. Speech preparation begins on its resolved answer continuation. Ordinary answers retain on-demand speech preparation and genuine profile failures remain visible. Recent-work active/read/completion/write calls across the continuation use the original admitted inference authority, while their revision retains the actual executor identity. Owner, latest source-turn, active-task and completion-permit checks remain unchanged.
+
+Focused checks cover stale local web counters, Focus speech activation/continuation and recent-work root/child identity with stale-root and stale-source denial. Real-inference audits are recorded separately after deployment. Historical duplicate encrypted wrappers require cryptographic reconciliation; they must not be arbitrarily selected, deleted or excluded from raw error evidence.

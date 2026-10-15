@@ -14,10 +14,13 @@ vi.mock('../preparedPrivacyForSend', () => ({
 import { webcrypto } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+const canonicalWireListener = vi.hoisted(() => ({ current: null as EventListener | null }));
 vi.mock("../websocketService", () => ({
   webSocketService: {
     forceReconnect: vi.fn(),
-    addEventListener: vi.fn(),
+    addEventListener: vi.fn((type: string, listener: EventListener) => {
+      if (type === "message") canonicalWireListener.current = listener;
+    }),
     removeEventListener: vi.fn(),
     off: vi.fn(),
     on: vi.fn(),
@@ -528,6 +531,16 @@ describe("sendersChatMessages protocol fences", () => {
     expect(shouldIncludePreflightChatMetadata(7)).toBe(false);
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
+  it("uses the canonical predecessor when local message versions are stale", () => {
+    expect(shouldIncludePreflightChatMetadata(1, undefined, 4)).toBe(false);
+    expect(shouldIncludePreflightChatMetadata(undefined, undefined, 4)).toBe(false);
+    expect(shouldIncludePreflightChatMetadata(1, undefined, 0)).toBe(true);
+    expect(shouldIncludePreflightChatMetadata(7, undefined, 0)).toBe(true);
+    expect(shouldIncludePreflightChatMetadata(1, "direct", 0)).toBe(false);
+    expect(shouldIncludePreflightChatMetadata(1, undefined, null)).toBe(true);
+  });
+
   // contract-test: supporting surface=gui.web assertions=teams.direct-chat.participant-isolation,chats.persistence.client-encrypted
   it("does not recreate an empty direct chat's immutable metadata on its first send", () => {
     for (const version of [undefined, 0, 1, 2]) {
@@ -570,4 +583,22 @@ describe("sendersChatMessages protocol fences", () => {
 		).toBe("news");
 		expect(await resolveHistoryCategoryForInference(TEAM_MESSAGE, true)).toBeUndefined();
 	});
+});
+
+// contract-test: supporting surface=gui.web assertions=chats.completion.lease-fenced,chats.persistence.client-encrypted,chats.message.identity-idempotent
+it('supplies settled and remote canonical receipts to sender admission after local counter regression', async () => {
+  const barrier = await import('../personalChatTurnBarrier');
+  const first = barrier.reservePersonalChatTurn('settled-sender', 'first');
+  barrier.bindPersonalChatTurn(first, 'first-turn');
+  expect(barrier.completePersonalChatTurn('settled-sender', 'first-turn', 4)).toBe(true);
+  const listener = canonicalWireListener.current!;
+  listener(new CustomEvent('message', { detail: { type: 'new_chat_message', payload: {
+    chat_id: 'settled-sender', versions: { messages_v: 6 },
+  } } }));
+  const next = barrier.reservePersonalChatTurn('settled-sender', 'followup');
+  const predecessor = await barrier.awaitPersonalChatPredecessor(next);
+  expect(predecessor).toBe(6);
+  expect(shouldIncludePreflightChatMetadata(1, undefined, predecessor)).toBe(false);
+  expect(predecessor ?? preflightExpectedMessagesVersion(1)).toBe(6);
+  barrier.clearPersonalChatTurnBarriers();
 });

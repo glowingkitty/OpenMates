@@ -68,7 +68,7 @@ import { getActiveTeamContextSnapshot } from "../stores/teamStore";
 import { activeChatStore } from "../stores/activeChatStore";
 import { ordinaryTeamPreflightStorageKey, retainOrReuseOrdinaryTeamPreflight } from "./ordinaryTeamPreflightRetry";
 import { PreflightRejectionError, isPreflightAcknowledgementTimeout, waitForPreflightAcknowledgement, recoverTimedOutAdmission } from "./preflightAcknowledgement";
-import { awaitPersonalChatPredecessor, bindPersonalChatTurn, failPersonalChatTurn, reservePersonalChatTurn, type PersonalChatTurn } from "./personalChatTurnBarrier";
+import { observePersonalChatCanonicalVersion, awaitPersonalChatPredecessor, bindPersonalChatTurn, failPersonalChatTurn, reservePersonalChatTurn, type PersonalChatTurn } from "./personalChatTurnBarrier";
 import { isDraftContextDispatchActive, reserveDraftContextDispatch } from "./draftContextDispatchBarrier";
 export { isPreflightAcknowledgementTimeout } from "./preflightAcknowledgement";
 
@@ -800,17 +800,33 @@ export function shouldSkipClientCodeBlockExtraction(language: string, content: s
 	return false;
 }
 
+// Keep completed Personal receipts current when another device commits a turn.
+// These are authenticated server version frames, never optimistic local writes.
+webSocketService.addEventListener("message", (event) => {
+  const frame = (event as CustomEvent).detail;
+  if (!["new_chat_message", "chat_message_added", "chat_message_confirmed", "message_deleted"].includes(frame?.type)) return;
+  const payload = frame.payload;
+  const version = payload?.versions?.messages_v ?? payload?.new_messages_v ?? payload?.messages_v;
+  if (typeof payload?.chat_id === "string" && typeof version === "number") {
+    observePersonalChatCanonicalVersion(payload.chat_id, version);
+  }
+});
+
 export function preflightExpectedMessagesVersion(localMessagesVersion: number | undefined): number {
 	return Math.max(0, (localMessagesVersion ?? 1) - 1);
 }
 
 export function shouldIncludePreflightChatMetadata(
 	localMessagesVersion: number | undefined,
-	chatVisibility?: string
+	chatVisibility?: string,
+	canonicalPredecessorVersion: number | null = null,
 ): boolean {
 	// Direct chats already have immutable metadata and participant envelopes from
 	// their creation endpoint, even before either participant sends a message.
-	return chatVisibility !== "direct" && (localMessagesVersion ?? 1) <= 1;
+	// A predecessor receipt proves whether immutable metadata already exists,
+	// even when the optimistic local message counter has fallen behind.
+	return chatVisibility !== "direct" && (canonicalPredecessorVersion !== null
+		? canonicalPredecessorVersion === 0 : (localMessagesVersion ?? 1) <= 1);
 }
 
 export async function resolveHistoryCategoryForInference(
@@ -1654,7 +1670,9 @@ export async function sendNewMessageImpl(
 	// causing the backend to skip title/icon/category generation for new chats.
 	// title_v starts at 0 and only increments to 1 when a title is actually stored — the correct signal.
 	const chatHasTitle = (chat?.title_v ?? 0) > 0;
-	const includePreflightChatMetadata = shouldIncludePreflightChatMetadata(chat?.messages_v, chat?.chat_visibility);
+	const includePreflightChatMetadata = shouldIncludePreflightChatMetadata(
+		chat?.messages_v, chat?.chat_visibility, predecessorVersion,
+	);
 
 	// A normal personal text turn can be admitted in one durable frame. The server
 	// validates immutable history for this protocol. Saved chats still prepare

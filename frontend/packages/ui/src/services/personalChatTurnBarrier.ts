@@ -1,3 +1,5 @@
+import { registerWorkspaceCacheClear } from './workspaceCacheLifecycle';
+
 /** In-memory ordering for personal encrypted turns. Only a canonical terminal
  * persistence acknowledgement may advance the next turn's server version. */
 type TurnResult = { version: number } | { error: Error };
@@ -14,6 +16,13 @@ export interface PersonalChatTurn {
 
 const tails = new Map<string, PersonalChatTurn>();
 const turns = new Map<string, PersonalChatTurn>();
+const settledVersions = new Map<string, number>();
+
+/** Accept only authenticated server versions; optimistic local counts never enter here. */
+export function observePersonalChatCanonicalVersion(chatId: string, version: number): void {
+  if ((!settledVersions.has(chatId) && !tails.has(chatId)) || !Number.isSafeInteger(version) || version < 0) return;
+  settledVersions.set(chatId, Math.max(settledVersions.get(chatId) ?? 0, version));
+}
 
 function key(chatId: string, messageId: string): string {
   return `${chatId}:${messageId}`;
@@ -26,7 +35,8 @@ export function reservePersonalChatTurn(chatId: string, messageId: string): Pers
   let resolve!: (result: TurnResult) => void;
   const done = new Promise<TurnResult>((settle) => { resolve = settle; });
   const turn: PersonalChatTurn = {
-    chatId, messageId, predecessor: tails.get(chatId)?.done ?? null,
+    chatId, messageId, predecessor: tails.get(chatId)?.done
+      ?? (settledVersions.has(chatId) ? Promise.resolve({ version: settledVersions.get(chatId)! }) : null),
     done, turnId: null, settled: false, resolve,
   };
   tails.set(chatId, turn);
@@ -50,6 +60,9 @@ export function bindPersonalChatTurn(turn: PersonalChatTurn, turnId: string): vo
 function settle(turn: PersonalChatTurn, result: TurnResult): void {
   if (turn.settled) return;
   turn.settled = true;
+  if ('version' in result) {
+    settledVersions.set(turn.chatId, Math.max(settledVersions.get(turn.chatId) ?? 0, result.version));
+  } else settledVersions.delete(turn.chatId);
   turn.resolve(result);
   turns.delete(key(turn.chatId, turn.messageId));
   if (tails.get(turn.chatId) === turn) tails.delete(turn.chatId);
@@ -87,4 +100,7 @@ export function failPersonalChatMessage(chatId: string, messageId: string, error
 
 export function clearPersonalChatTurnBarriers(): void {
   for (const turn of [...turns.values()]) failPersonalChatTurn(turn, new Error('Chat session ended.'));
+  settledVersions.clear();
 }
+
+registerWorkspaceCacheClear(clearPersonalChatTurnBarriers);

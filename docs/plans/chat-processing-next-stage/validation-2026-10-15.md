@@ -129,3 +129,14 @@ The request audit passes across913 captured records, with two mechanically ident
 The account-key gateway issue is separately confirmed and repaired: the configured app Origin receives200 credentialed preflight over HTTP/1.1 and HTTP/2, an untrusted Origin receives400 without Allow-Origin, and unauthenticated GET reaches API authorization and receives401. No account key, permission or crypto validation was bypassed. The active Caddy route restoration uses an exclusive native lease and full-config ETag; repository configuration already contained the route. Startup-file drift remains detectable through the mandatory host preflight verifier.
 
 The resumed combined increment includes saved-follow-up phased admission, context-binding-before-ACK, historical encryption batching, bounded CLI output recovery and source-correlated stale composer-suggestion results. Focused checks prove their correctness boundaries; final exact-source integration, activation and real latency measurements remain distinct. This checkpoint does not certify the2s Mate or3s authored targets.
+
+
+## Final request-error correction
+
+The user accepted the measured processing times and made absence of request-related client/backend errors the immediate priority. Earlier timing tables remain observations; they are not the current completion gate.
+
+Saved web follow-ups classify creation metadata using the acknowledged canonical predecessor version, even when the local message counter is stale. The expected version, immutable retry journal, history and encryption checks remain required; the backend still rejects attempts to replace existing immutable metadata.
+
+An explicit, trusted, inactive non-Project Focus activation is a control turn without an answer profile. Speech preparation begins on its resolved answer continuation. Ordinary answers retain on-demand speech preparation and genuine profile failures remain visible. Recent-work active/read/completion/write calls across the continuation use the original admitted inference authority, while their revision retains the actual executor identity. Owner, latest source-turn, active-task and completion-permit checks remain unchanged.
+
+Focused checks cover stale local web counters, Focus speech activation/continuation and recent-work root/child identity with stale-root and stale-source denial. Real-inference audits are recorded separately after deployment. Historical duplicate encrypted wrappers require cryptographic reconciliation; they must not be arbitrarily selected, deleted or excluded from raw error evidence.
