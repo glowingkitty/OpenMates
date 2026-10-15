@@ -114,7 +114,7 @@ export type FixtureImageProxyObservation = {
   fetchError?: string;
 };
 
-async function configureFixtureImageProxy(
+export async function configureFixtureImageProxy(
   page: Page, chat: ExampleChat, routeObservations?: FixtureImageProxyObservation[]
 ): Promise<void> {
   const imageUrls = new Set<string>();

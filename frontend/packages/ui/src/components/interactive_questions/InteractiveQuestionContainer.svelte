@@ -10,7 +10,8 @@
 -->
 
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount, onDestroy, getContext, setContext } from 'svelte';
+  import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedSourceChatContext } from '../../types/embedFullscreen';
   import { fly } from 'svelte/transition';
   import type {
     InteractiveQuestionPayload,
@@ -40,6 +41,13 @@
     payload: InteractiveQuestionPayload;
     chatId?: string;
   } = $props();
+
+  // Imperative TipTap mounts are new Svelte roots. Restore the captured chat
+  // source before option previews resolve refs, including public example refs.
+  const inheritedSource = getContext<EmbedSourceChatContext | undefined>(EMBED_SOURCE_CHAT_CONTEXT);
+  setContext<EmbedSourceChatContext>(EMBED_SOURCE_CHAT_CONTEXT, {
+    get chatId() { return chatId || inheritedSource?.chatId || null; },
+  });
 
   // Reactive message list state
   let loadedHistory = $state<Message[]>([]);

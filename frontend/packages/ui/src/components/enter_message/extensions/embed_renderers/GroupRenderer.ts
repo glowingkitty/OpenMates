@@ -4352,7 +4352,7 @@ export class GroupRenderer implements EmbedRenderer {
         parseInteractiveQuestionPayloadCandidate(decodedContent);
 
       if (payload) {
-        this.renderInteractiveQuestionComponent(payload, content);
+        this.renderInteractiveQuestionComponent(payload, content, item.sourceChatId);
         return;
       }
 
@@ -4438,6 +4438,7 @@ export class GroupRenderer implements EmbedRenderer {
   private renderInteractiveQuestionComponent(
     payload: InteractiveQuestionPayload,
     content: HTMLElement,
+    sourceChatId?: string,
   ): void {
     const existingComponent = mountedComponents.get(content);
     if (existingComponent) {
@@ -4455,7 +4456,7 @@ export class GroupRenderer implements EmbedRenderer {
       target: content,
       props: {
         payload,
-        chatId: "",
+        chatId: sourceChatId ?? "",
       },
     });
     mountedComponents.set(content, component);

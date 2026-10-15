@@ -155,7 +155,7 @@
       target: containerEl,
       props: {
         payload,
-        chatId: '',
+        chatId: sourceChatId ?? '',
       },
     });
     loading = false;

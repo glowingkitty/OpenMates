@@ -417,6 +417,7 @@ describe('GroupRenderer', () => {
 
     await renderer.render({
       attrs: {
+        sourceChatId: 'example-vegetarian-recipes-from-fridge',
         id: 'historical-question-embed',
         type: 'code-code',
         status: 'finished',
@@ -441,7 +442,7 @@ describe('GroupRenderer', () => {
       expect.objectContaining({
         props: expect.objectContaining({
           payload,
-          chatId: '',
+          chatId: 'example-vegetarian-recipes-from-fridge',
         }),
       }),
     );

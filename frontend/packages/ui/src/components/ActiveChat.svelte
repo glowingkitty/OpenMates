@@ -149,7 +149,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import { piiVisibilityStore } from '../stores/piiVisibilityStore'; // Import PII visibility store for hide/unhide toggle
     import { setEmbedPIIState, resetEmbedPIIState } from '../stores/embedPIIStore'; // Update embed PII state for preview/fullscreen components
     import type { PIIMapping } from '../types/chat'; // PII mapping type
-    import { isDesktop } from '../utils/platform'; // Import desktop detection for conditional auto-focus
     import { getCategoryGradientColors, getValidIconName, getLucideIcon } from '../utils/categoryUtils'; // For resume card category gradient circle
     import { waitLocale, locale } from 'svelte-i18n'; // Import waitLocale for waiting for translations to load
     import { get } from 'svelte/store'; // Import get to read store values
@@ -8050,7 +8049,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     async function handleNewChatClick() {
         loadChatGeneration += 1;
         console.debug("[ActiveChat] New chat creation initiated");
-        const isGuestExampleChat = !$authStore.isAuthenticated && isExampleChat(currentChat?.chat_id ?? '');
         if (currentChat?.chat_id) clearProcessingFeedback(currentChat.chat_id);
         resetComposerWelcomeState(false);
         // Clear currentChat before the store so reactive sync cannot restore the old chat ID.
@@ -8129,20 +8127,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         messageInputHasContent = false;
         console.debug("[ActiveChat] Reset liveInputText and messageInputHasContent");
         
-        // Only the New chat action starts an input session. Close reuses the reset
-        // but leaves the workspace unfocused, including on desktop.
-        if (!closingChat && ($authStore.isAuthenticated || isGuestExampleChat) && isDesktop() && messageInputFieldRef) {
-            // Use a small delay to ensure the editor is ready after clearing
-            setTimeout(() => {
-                if (messageInputFieldRef) {
-                    messageInputFieldRef.focus();
-                    console.debug("[ActiveChat] Auto-focused message input on desktop after new chat creation");
-                }
-            }, 100);
-        } else {
-            console.debug("[ActiveChat] Skipping auto-focus - touch device or messageInputFieldRef not available");
-        }
-        
+        // Opening a chat never starts a typing session. The composer remains
+        // available for an explicit click, tap or keyboard focus action.
+
         // Trigger container scale down
         activeScaling = true;
         setTimeout(() => {
@@ -10190,6 +10177,13 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
      // Update the loadChat function
      export async function loadChat(chat: Chat, options?: { scrollToLatestResponse?: boolean; scrollToTop?: boolean; autoplayVideo?: boolean; messageId?: string | null; preserveActiveComposer?: boolean; recentCacheRetries?: number }) {
          if (options?.preserveActiveComposer && adoptPersistedDraft(chat)) return;
+         // End the previous typing session at navigation start, before any
+         // async loading. Same-chat refreshes keep the user's focus/selection,
+         // and a click during this load must never be undone on completion.
+         if (currentChat?.chat_id !== chat.chat_id) {
+             messageInputFieldRef?.dismissFocus();
+             messageInputFocused = false;
+         }
          const isInitialWarmContinuation = !!warmSelectionGuard?.active && warmSelectionGuard.chatId === chat.chat_id;
          const isWarmComposerContinuation = warmComposerChatId === chat.chat_id && currentChat?.chat_id === chat.chat_id;
          if (!isInitialWarmContinuation) {
