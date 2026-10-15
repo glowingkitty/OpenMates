@@ -4057,9 +4057,34 @@ async def _async_process_ai_skill_ask_task(
                     budget_failure = _orchestration_budget_failure_result(main_processor_debug_metadata)
                     if budget_failure is not None:
                         return budget_failure
+                    if request_data.orchestration_id and preprocessing_result and not preprocessing_result.can_proceed:
+                        # The consumer has already sealed/published the predefined
+                        # notice. It is a rejected request, never a research report.
+                        rejection = preprocessing_result.rejection_reason
+                        bounded_reason = rejection if rejection in {
+                            "insufficient_credits", "harmful_or_illegal_detected", "misuse_detected",
+                            "internal_error_llm_preprocessing_failed",
+                        } else "preprocessing_rejected"
+                        await _cleanup_on_task_failure(
+                            task_id=task_id, chat_id=request_data.chat_id, message_id=request_data.message_id,
+                            user_id=request_data.user_id, user_id_hash=request_data.user_id_hash,
+                            user_vault_key_id=user_vault_key_id,
+                            error_message="Research request rejected during preprocessing.",
+                            cache_service=cache_service_instance, directus_service=directus_service_instance,
+                            encryption_service=encryption_service_instance, request_data=request_data,
+                            skill_config_dict=skill_config_dict,
+                        )
+                        return {
+                            "status": "preprocessing_failed", "failure_reason": bounded_reason,
+                            "reason": "PreprocessingFailure", "message": "Research stopped before inference because preprocessing rejected the request.",
+                            "preprocessing_summary": {"can_proceed": False, "rejection_reason": bounded_reason},
+                            "main_processing_output": aggregated_final_response, "postprocessing_summary": {},
+                            "interrupted_by_soft_time_limit": False, "interrupted_by_revocation": False,
+                            "_celery_task_state": "FAILURE",
+                        }
                 _log_team_ai_pipeline_stage(request_data, task_id, "main", "completed")
             logger.info(f"[Task ID: {task_id}] Main processing stream consumed.")
-            if main_processor_debug_metadata.get("same_turn_skill_paused"):
+            if (main_processor_debug_metadata or {}).get("same_turn_skill_paused"):
                 if debug_cache_task:
                     await _settle_optional_debug_cache(
                         debug_cache_task, debug_cache_started_at, wait_for_budget=False,
