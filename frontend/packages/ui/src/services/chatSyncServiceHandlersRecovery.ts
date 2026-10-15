@@ -848,6 +848,45 @@ async function requestRecoveryEvent(
   throw lastTimeout ?? new Error(`Recovery request failed for job ${jobId}`);
 }
 
+// Only observed thinking fields cross the sealed-recovery boundary. Plaintext
+// content/signatures are passed to getEncryptedFields, never to the server.
+function recoveredThinkingFields(payload: Record<string, unknown>): Partial<Message> {
+  const fields: Partial<Message> = {};
+  for (const key of ["thinking_content", "thinking_signature"] as const) {
+    if (payload[key] !== undefined) {
+      if (typeof payload[key] !== "string") throw new Error("Recovery thinking content was invalid.");
+      fields[key] = payload[key];
+    }
+  }
+  if (payload.has_thinking !== undefined) {
+    if (typeof payload.has_thinking !== "boolean") throw new Error("Recovery thinking flag was invalid.");
+    fields.has_thinking = payload.has_thinking;
+  }
+  if (payload.thinking_token_count !== undefined) {
+    if (!Number.isSafeInteger(payload.thinking_token_count) || (payload.thinking_token_count as number) < 0) {
+      throw new Error("Recovery thinking token count was invalid.");
+    }
+    fields.thinking_token_count = payload.thinking_token_count as number;
+  }
+  return fields;
+}
+
+function encryptedRecoveryThinkingFields(
+  message: Message,
+  encrypted: Awaited<ReturnType<typeof chatDB.getEncryptedFields>>,
+): Partial<Message> {
+  return {
+    ...(encrypted.encrypted_thinking_content === undefined ? {} : {
+      encrypted_thinking_content: encrypted.encrypted_thinking_content,
+    }),
+    ...(encrypted.encrypted_thinking_signature === undefined ? {} : {
+      encrypted_thinking_signature: encrypted.encrypted_thinking_signature,
+    }),
+    ...(message.has_thinking === undefined ? {} : { has_thinking: message.has_thinking }),
+    ...(message.thinking_token_count === undefined ? {} : { thinking_token_count: message.thinking_token_count }),
+  };
+}
+
 export async function handleRecoveryJobsAvailableImpl(
   serviceInstance: ChatSynchronizationService,
   payload: { jobs?: AvailableRecoveryJob[] },
@@ -991,6 +1030,7 @@ export async function handleRecoveryJobsAvailableImpl(
         chat_id: job.chat_id,
         role: "assistant",
         content: recovered.content,
+        ...recoveredThinkingFields(recovered),
         category: recovered.category ?? undefined,
         model_name: recovered.model_name ?? undefined,
         status: "synced",
@@ -1016,6 +1056,7 @@ export async function handleRecoveryJobsAvailableImpl(
             encrypted_sender_name: encryptedFields.encrypted_sender_name,
             encrypted_category: encryptedFields.encrypted_category,
             encrypted_model_name: encryptedFields.encrypted_model_name,
+            ...encryptedRecoveryThinkingFields(aiMessage, encryptedFields),
             created_at: assistantCreatedAt,
             updated_at: now,
           },
@@ -1289,7 +1330,7 @@ async function processRecoveryOutputsAvailable(
         ? content.created_at as number : now;
       const aiMessage = {
         message_id: output.subject_id, chat_id: output.target_chat_id, role: output.message_role,
-        content: content.content, category: content.category ?? undefined,
+        content: content.content, ...recoveredThinkingFields(content), category: content.category ?? undefined,
         model_name: content.model_name ?? undefined, status: "synced", created_at: messageCreatedAt,
       } as Message;
       const encryptedFields = await chatDB.getEncryptedFields(aiMessage, output.target_chat_id);
@@ -1305,6 +1346,7 @@ async function processRecoveryOutputsAvailable(
             encrypted_sender_name: encryptedFields.encrypted_sender_name,
             encrypted_category: encryptedFields.encrypted_category,
             encrypted_model_name: encryptedFields.encrypted_model_name,
+            ...encryptedRecoveryThinkingFields(aiMessage, encryptedFields),
             created_at: messageCreatedAt, updated_at: now,
           },
         },

@@ -5,6 +5,7 @@
  * complete or abort a newer retry for the same sealed completion job.
  */
 
+import { webcrypto } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -17,6 +18,8 @@ const mocks = vi.hoisted(() => ({
   },
   chatKeyManager: {
     getKey: vi.fn(),
+    getKeySync: vi.fn(),
+    injectKey: vi.fn(),
     onKeyReady: vi.fn(() => () => undefined),
   },
   ensureChatKeySafeForWrite: vi.fn(),
@@ -27,6 +30,7 @@ const mocks = vi.hoisted(() => ({
   },
   deriveChatCompletionRecoveryKeypair: vi.fn(),
   openChatCompletionRecoveryEnvelope: vi.fn(),
+  openRecoveryOutputEnvelope: vi.fn(),
 }));
 
 vi.mock("../db", () => ({ chatDB: mocks.chatDB }));
@@ -48,12 +52,17 @@ vi.mock("../websocketService", () => ({
 vi.mock("../../utils/chatCompletionRecovery", () => ({
   deriveChatCompletionRecoveryKeypair: mocks.deriveChatCompletionRecoveryKeypair,
   openChatCompletionRecoveryEnvelope: mocks.openChatCompletionRecoveryEnvelope,
+  openRecoveryOutputEnvelope: mocks.openRecoveryOutputEnvelope,
 }));
 
 const {
   handleRecoveryJobsAvailableImpl, handleRecoveryOutputsAvailableImpl,
   prepareRecoveryLifecycleImpl, resetRecoveryLifecycleImpl,
 } = await import("../chatSyncServiceHandlersRecovery.ts");
+
+const { getEncryptedFields } = await import("../db/chatKeyManagement.ts");
+const { recordRecoveryFinalTimestamp } = await import("../recoveryAssistantTimestamp.ts");
+const { decryptWithChatKey } = await import("../encryption/MessageEncryptor.ts");
 
 describe("recovery job request correlation", () => {
   beforeEach(() => {
@@ -322,7 +331,9 @@ describe("recovery job request correlation", () => {
     expect(secondClaimRequestId).not.toBe(firstClaimRequestId);
     expect(recoverySettled).toBe(false);
     sendClaimed(secondClaimRequestId);
-    await vi.advanceTimersByTimeAsync(0);
+    // The cold-cache final timestamp wait precedes the persistence request.
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(firstPersistRequestId).toEqual(expect.any(String));
 
     await vi.advanceTimersByTimeAsync(20_000);
     sendPersisted(firstPersistRequestId);
@@ -349,4 +360,113 @@ describe("recovery job request correlation", () => {
       expect.objectContaining({ messages_v: 3 }),
     );
   });
+
+  // contract-test: supporting surface=gui.web assertions=storage.background.complete-sealed-recovery,chats.completion.lease-fenced
+  it.each(["root", "child"].flatMap((path) => [true, false, "zero", "invalid-content", "invalid-signature", "invalid-flag", "invalid-negative-count", "invalid-fraction-count"].map((thinking) => ({ path, thinking }))))(
+    "recovers $path with observed thinking=$thinking using the owner chat key",
+    async ({ path, thinking }) => {
+      vi.useRealTimers();
+      globalThis.crypto = webcrypto;
+      const ownerKey = new Uint8Array(32).fill(7);
+      const otherKey = new Uint8Array(32).fill(8);
+      mocks.chatKeyManager.getKey.mockResolvedValue(ownerKey);
+      mocks.chatKeyManager.getKeySync.mockReturnValue(ownerKey);
+      mocks.chatDB.getEncryptedFields.mockImplementation((message, chatId) => getEncryptedFields({}, message, chatId));
+      const handlers = new Map();
+      mocks.webSocketService.on.mockImplementation((type, handler) => handlers.set(type, handler));
+      mocks.webSocketService.off.mockImplementation((type) => handlers.delete(type));
+      const metadata = thinking === true ? {
+        thinking_content: "Observed provider reasoning", thinking_signature: "Observed provider signature",
+        has_thinking: true, thinking_token_count: 19,
+      } : thinking === "zero" ? { has_thinking: false, thinking_token_count: 0 }
+        : thinking === "invalid-content" ? { thinking_content: 1 }
+        : thinking === "invalid-signature" ? { thinking_signature: null }
+        : thinking === "invalid-flag" ? { has_thinking: "true" }
+        : thinking === "invalid-negative-count" ? { thinking_token_count: -1 }
+        : thinking === "invalid-fraction-count" ? { thinking_token_count: 1.5 } : {};
+      const invalid = typeof thinking === "string" && thinking.startsWith("invalid-");
+      const content = { content: "Recovered response", category: "general", model_name: "model-1", ...metadata };
+      const job = {
+        job_id: "thinking-job", chat_id: "root-chat", turn_id: "thinking-turn",
+        assistant_message_id: "thinking-message", chat_key_version: 1,
+      };
+      const output = {
+        record_id: "thinking-record", root_chat_id: "root-chat", target_chat_id: "child-chat",
+        turn_id: "thinking-turn", subject_id: "thinking-message", output_kind: "message",
+        output_version: 1, chat_key_version: 1, message_role: "assistant",
+      };
+      mocks.chatDB.getChat.mockResolvedValue({ chat_id: "root-chat", user_id: "owner-1", messages_v: 2 });
+      mocks.chatDB.getMessage.mockResolvedValue(undefined);
+      mocks.deriveChatCompletionRecoveryKeypair.mockResolvedValue({ privateKey: "private-key" });
+      mocks.openChatCompletionRecoveryEnvelope.mockResolvedValue(new TextEncoder().encode(JSON.stringify({
+        ...content, ...job, key_version: 1,
+      })));
+      mocks.openRecoveryOutputEnvelope.mockResolvedValue(new TextEncoder().encode(JSON.stringify({
+        ...output, content: { ...content, message_id: output.subject_id, role: "assistant" },
+      })));
+      mocks.webSocketService.sendMessage.mockImplementation(async (type, payload) => {
+        const replies = {
+          recovery_job_claim: ["recovery_job_claimed", {
+            ...job, state: "LEASED", lease_token: "lease", lease_generation: 1, sealed_payload: '{"v":1}',
+          }],
+          recovery_job_persist: ["recovery_job_persisted", { job_id: job.job_id, state: "TERMINAL", committed_messages_v: 3 }],
+          recovery_output_get: ["recovery_output_ready", {
+            ...output, sealed_payload: '{"v":2}', messages_v: 2,
+            encrypted_chat_key: "existing-owner-wrapped-key", encrypted_title: "existing-title",
+          }],
+          recovery_output_persist_message: ["recovery_output_persisted", {
+            record_id: output.record_id, state: "ACKNOWLEDGED", committed_messages_v: 3,
+          }],
+        };
+        const reply = replies[type];
+        if (reply) queueMicrotask(() => handlers.get(reply[0])?.({ ...reply[1], request_id: payload.request_id }));
+      });
+      const service = {
+        dispatchEvent: vi.fn(), hasCompletedInitialSync_FOR_HANDLERS_ONLY: true,
+        requestChatContentBatch_FOR_HANDLERS_ONLY: vi.fn().mockResolvedValue(undefined),
+      };
+      recordRecoveryFinalTimestamp({
+        is_final_chunk: true, recovery_protocol_version: 1, chat_id: job.chat_id,
+        message_id: job.assistant_message_id, user_message_id: job.turn_id,
+        recovery_job_id: job.job_id, recovery_turn_id: job.turn_id, created_at: 1700000000,
+      });
+      if (path === "root") await handleRecoveryJobsAvailableImpl(service, { jobs: [job] });
+      else await handleRecoveryOutputsAvailableImpl(service, { outputs: [output] });
+      const event = path === "root" ? "recovery_job_persist" : "recovery_output_persist_message";
+      const persist = mocks.webSocketService.sendMessage.mock.calls.find(([type]) => type === event)?.[1];
+      if (invalid) {
+        expect(persist).toBeUndefined();
+        expect(mocks.chatDB.getEncryptedFields).not.toHaveBeenCalled();
+        expect(mocks.chatDB.saveMessage).not.toHaveBeenCalled();
+        return;
+      }
+      expect(persist).toBeDefined();
+      const message = persist.encrypted_assistant_message;
+      expect(message).not.toHaveProperty("thinking_content");
+      expect(message).not.toHaveProperty("thinking_signature");
+      expect(mocks.chatDB.getEncryptedFields).toHaveBeenCalledWith(
+        expect.objectContaining({ content: content.content, ...metadata }), path === "root" ? "root-chat" : "child-chat",
+      );
+      if (thinking === true) {
+        expect(message).toMatchObject({ has_thinking: true, thinking_token_count: 19 });
+        for (const field of ["thinking_content", "thinking_signature"]) {
+          expect(await decryptWithChatKey(message[`encrypted_${field}`], ownerKey)).toBe(metadata[field]);
+          expect(await decryptWithChatKey(message[`encrypted_${field}`], otherKey)).toBeNull();
+        }
+        expect(JSON.stringify(persist)).not.toContain(metadata.thinking_content);
+        expect(JSON.stringify(persist)).not.toContain(metadata.thinking_signature);
+      } else if (thinking === "zero") {
+        expect(message).toMatchObject({ has_thinking: false, thinking_token_count: 0 });
+        expect(message).not.toHaveProperty("encrypted_thinking_content");
+        expect(message).not.toHaveProperty("encrypted_thinking_signature");
+      } else {
+        for (const field of ["has_thinking", "thinking_token_count", "encrypted_thinking_content", "encrypted_thinking_signature"]) {
+          expect(message).not.toHaveProperty(field);
+          expect(mocks.chatDB.saveMessage.mock.calls[0][0]).not.toHaveProperty(field);
+        }
+      }
+      if (path === "child") expect(mocks.chatKeyManager.injectKey).toHaveBeenCalledWith("child-chat", ownerKey, "master_key");
+    },
+  );
+
 });

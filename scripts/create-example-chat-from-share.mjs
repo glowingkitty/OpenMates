@@ -697,6 +697,9 @@ function appSkillUsesNeedingMessageRefs(chat) {
 }
 
 export function withPromotedAppSkillUseMessages(chat) {
+  if (Array.isArray(chat.sub_chats)) {
+    chat = { ...chat, sub_chats: chat.sub_chats.map(withPromotedAppSkillUseMessages) };
+  }
   const missingAppSkillUses = appSkillUsesNeedingMessageRefs(chat);
   if (missingAppSkillUses.length === 0) return chat;
 
@@ -1156,6 +1159,11 @@ function formatMessages(messages, metadata, keyPrefix, category = metadata.categ
       response_credits: toPositiveInteger(message.response_credits) ?? undefined,
       category: message.category || (message.role === 'assistant' ? category : undefined),
       model_name: message.model_name || undefined,
+      ...(message.thinking_content ? {
+        thinking_content: `example_chats.${metadata.snake}.${keyPrefix === 'message' ? `message_${translatedIndex}` : `${keyPrefix}_message_${translatedIndex}`}_thinking`,
+        has_thinking: message.has_thinking ?? true,
+        thinking_token_count: toNonNegativeInteger(message.thinking_token_count) ?? undefined,
+      } : {}),
       pii_mappings: message.pii_mappings || undefined,
     };
   });
@@ -1364,6 +1372,11 @@ export function formatYaml(chat, metadata) {
         sanitizeExampleMessageContent(message.content, message.role),
       ),
     );
+    if (message.thinking_content) {
+      entries.push(yamlEntry(`message_${rootMessageIndex}_thinking`,
+        `Saved thinking for assistant message ${rootMessageIndex}. Preserve markdown and source references.`,
+        message.thinking_content));
+    }
   });
   metadata.followUps.forEach((followUp, index) => {
     entries.push(yamlEntry(`follow_up_${index + 1}`, `Follow-up suggestion ${index + 1}`, followUp));
@@ -1381,6 +1394,11 @@ export function formatYaml(chat, metadata) {
           sanitizeExampleMessageContent(message.content, message.role),
         ),
       );
+      if (message.thinking_content) {
+        entries.push(yamlEntry(`${keyPrefix}_message_${messageIndex + 1}_thinking`,
+          `Saved thinking for assistant message ${messageIndex + 1} in sub-chat ${subChatIndex + 1}. Preserve markdown and source references.`,
+          message.thinking_content));
+      }
     });
     (Array.isArray(subChat.follow_up_suggestions) ? subChat.follow_up_suggestions : []).forEach((followUp, followUpIndex) => {
       entries.push(yamlEntry(`${keyPrefix}_follow_up_${followUpIndex + 1}`, `Follow-up suggestion ${followUpIndex + 1} for sub-chat ${subChatIndex + 1}`, followUp));

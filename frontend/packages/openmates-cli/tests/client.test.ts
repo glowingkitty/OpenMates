@@ -5337,6 +5337,10 @@ describe("CLI saved-chat recovery preflight", () => {
                 category: null,
                 chat_id: chatId,
                 content: "ok",
+                thinking_content: "Observed root fixture reasoning",
+                thinking_signature: "root fixture signature",
+                thinking_token_count: 9,
+                has_thinking: true,
                 job_id: recoveryJobId,
                 key_version: 1,
                 model_name: null,
@@ -5460,6 +5464,12 @@ describe("CLI saved-chat recovery preflight", () => {
       assert.equal(captured.persistPayload?.expected_messages_v, 9);
       assert.equal(captured.persistPayload?.lease_token, "lease-token-old-chat");
       assert.equal(captured.persistPayload?.lease_generation, 2);
+      const stored = captured.persistPayload?.encrypted_assistant_message as Record<string, unknown>;
+      assert.equal(await decryptWithAesGcmCombined(String(stored.encrypted_thinking_content), rawChatKey), "Observed root fixture reasoning");
+      assert.equal(await decryptWithAesGcmCombined(String(stored.encrypted_thinking_signature), rawChatKey), "root fixture signature");
+      assert.equal(stored.has_thinking, true);
+      assert.equal(stored.thinking_token_count, 9);
+      assert.equal(JSON.stringify(captured.persistPayload).includes("Observed root fixture reasoning"), false);
     } finally {
       rmSync(join(stateDir, "sync_cache.json"), { force: true });
       wss.close();

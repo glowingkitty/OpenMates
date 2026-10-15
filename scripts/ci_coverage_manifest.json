@@ -394,6 +394,8 @@
         "landing-health-targeted.spec.ts",
         "landing-design-targeted.spec.ts",
         "landing-design-laptop.spec.ts",
+        "landing-web-phone.spec.ts",
+        "landing-web-laptop.spec.ts",
         "components/chat-open-focus.spec.ts",
         "public-example-input-focus.spec.ts",
         "components/questionnaire-recipe-options.spec.ts",

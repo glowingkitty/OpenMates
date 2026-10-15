@@ -1934,3 +1934,80 @@ def test_parent_synthesis_source_inventory_uses_only_scoped_successful_child_url
     if invalid is None:
         assert "locations only, not proof" in prompt
         assert "If reading fails, state the limitation" in prompt
+
+
+# contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery
+@pytest.mark.parametrize("is_child", [False, True])
+@pytest.mark.parametrize("with_thinking", [False, True])
+def test_recovery_assistant_thinking_is_owner_sealed(monkeypatch, is_child, with_thinking):
+    from backend.shared.python_utils.chat_completion_recovery import (
+        derive_recovery_keypair, open_recovery_envelope, open_recovery_output,
+    )
+
+    root_id = "22222222-2222-4222-8222-222222222222"
+    task_id = "66666666-6666-4666-8666-666666666666"
+    private_key, public_key = derive_recovery_keypair(
+        "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8", root_id, 7,
+    )
+    request = AskSkillRequest(
+        chat_id="99999999-9999-4999-8999-999999999999" if is_child else root_id,
+        root_chat_id=root_id, is_sub_chat=is_child,
+        message_id="33333333-3333-4333-8333-333333333333",
+        user_id="11111111-1111-4111-8111-111111111111", user_id_hash="a" * 64,
+        message_history=[], recovery_task_id=task_id,
+        recovery_preflight_id="77777777-7777-4777-8777-777777777777",
+        recovery_turn_id="33333333-3333-4333-8333-333333333333",
+        recovery_public_key=public_key, chat_key_version=7,
+    )
+    captured = {}
+
+    class RecoveryService:
+        def __init__(self, _directus):
+            pass
+
+        async def execute(self, operation, data):
+            assert operation == "create_sealed_job"
+            captured.update(data)
+            return {"job_id": data["job_id"]}
+
+        async def save_sealed_output(self, data, **_kwargs):
+            captured.update(data)
+            return {"record_id": data["record_id"]}
+
+    monkeypatch.setattr(stream_consumer, "ChatRecoveryService", RecoveryService)
+    fields = {
+        "thinking_content": "Private reasoning — exact text\n",
+        "thinking_signature": "private-signature",
+        "thinking_token_count": 0,
+        "thinking_duration_seconds": 0.0,
+    } if with_thinking else {}
+    asyncio.run(stream_consumer._persist_sealed_recovery_job(
+        directus_service=object(), request_data=request, task_id=task_id,
+        content="Answer", category="general_knowledge", model_name="model-a",
+        cache_service=SimpleNamespace(mark_ai_context_pending_persistence=AsyncMock(return_value=True)),
+        **fields,
+    ))
+    assert "Private reasoning" not in json.dumps(captured)
+    assert "private-signature" not in json.dumps(captured)
+    envelope = json.loads(captured["sealed_payload"])
+    common = dict(recovery_private_key=private_key, owner_id=request.user_id,
+                  turn_id=request.recovery_turn_id, key_version=7)
+    if is_child:
+        payload = json.loads(open_recovery_output(
+            envelope, **common, root_chat_id=root_id, target_chat_id=request.chat_id,
+            record_id=captured["record_id"], subject_id=captured["subject_id"],
+            output_kind="message", output_version=captured["output_version"],
+        ))["content"]
+        assert payload["role"] == "assistant"
+    else:
+        payload = json.loads(open_recovery_envelope(
+            envelope, **common, chat_id=root_id, job_id=captured["job_id"],
+            assistant_message_id=task_id,
+        ))
+    assert payload["content"] == "Answer"
+    assert payload["model_name"] == "model-a"
+    if with_thinking:
+        assert {name: payload[name] for name in fields} == fields
+        assert payload["has_thinking"] is True
+    else:
+        assert not any(name.startswith("thinking_") or name == "has_thinking" for name in payload)

@@ -245,5 +245,14 @@ test('rejects unauthenticated ciphertext instead of emitting empty message conte
   const payload = { messages: [{ id: 'message', encrypted_content: ciphertext }], embeds: [], embed_keys: [] };
   const decrypted = await decryptSharedChatPayload('shared', payload, keyBytes);
   assert.equal(decrypted.messages[0].content, 'Real shared message');
+  assert.equal(decrypted.messages[0].thinking_content, undefined);
+  const withThinking = await decryptSharedChatPayload('shared', {
+    ...payload,
+    messages: [{ ...payload.messages[0], encrypted_thinking_content: ciphertext,
+      has_thinking: true, thinking_token_count: 42 }],
+  }, keyBytes);
+  assert.equal(withThinking.messages[0].thinking_content, 'Real shared message');
+  assert.equal(withThinking.messages[0].has_thinking, true);
+  assert.equal(withThinking.messages[0].thinking_token_count, 42);
   await assert.rejects(decryptSharedChatPayload('shared', payload, wrongKey), /could not be authenticated/);
 });

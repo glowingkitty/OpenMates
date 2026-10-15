@@ -372,6 +372,9 @@ async function decryptMessages(rawMessages, chatKeyBytes) {
     const senderName = await decryptContent(msg.encrypted_sender_name, chatKeyBytes);
     const msgCategory = await decryptContent(msg.encrypted_category, chatKeyBytes);
     const modelName = await decryptContent(msg.encrypted_model_name, chatKeyBytes);
+    const thinkingContent = msg.encrypted_thinking_content
+      ? await decryptContent(msg.encrypted_thinking_content, chatKeyBytes)
+      : undefined;
 
     // Preserve explicitly shared mappings so published examples retain reveal/hide.
     const piiMappings = msg.encrypted_pii_mappings
@@ -386,6 +389,11 @@ async function decryptMessages(rawMessages, chatKeyBytes) {
       sender_name: senderName,
       category: msgCategory,
       model_name: modelName,
+      ...(thinkingContent ? {
+        thinking_content: thinkingContent,
+        has_thinking: msg.has_thinking ?? true,
+        ...(msg.thinking_token_count != null ? { thinking_token_count: msg.thinking_token_count } : {}),
+      } : {}),
       created_at: msg.created_at,
       user_message_id: msg.user_message_id,
     });

@@ -14,6 +14,31 @@ import uuid
 from backend.shared.python_utils.chat_completion_recovery import seal_recovery_output, seal_recovery_payload
 
 
+def recovery_thinking_fields(
+    *,
+    thinking_content: str | None = None,
+    thinking_signature: str | None = None,
+    thinking_token_count: int | None = None,
+    thinking_duration_seconds: float | None = None,
+) -> dict[str, object]:
+    """Return available thinking fields for the encrypted assistant payload only.
+
+    Omit absent values so completions without thinking retain their legacy shape.
+    Token counts and durations must come from observed metadata, never estimates.
+    """
+    fields: dict[str, object] = {}
+    if thinking_content:
+        fields.update(thinking_content=thinking_content, has_thinking=True)
+    for name, value in (
+        ("thinking_signature", thinking_signature),
+        ("thinking_token_count", thinking_token_count),
+        ("thinking_duration_seconds", thinking_duration_seconds),
+    ):
+        if value is not None:
+            fields[name] = value
+    return fields
+
+
 def build_sealed_recovery_job_data(
     *,
     owner_id: str,
@@ -29,6 +54,10 @@ def build_sealed_recovery_job_data(
     model_name: str | None,
     inference_task_id: str | None = None,
     assistant_message_id: str | None = None,
+    thinking_content: str | None = None,
+    thinking_signature: str | None = None,
+    thinking_token_count: int | None = None,
+    thinking_duration_seconds: float | None = None,
 ) -> dict[str, object]:
     durable_inference_task_id = inference_task_id or task_id
     durable_assistant_message_id = assistant_message_id or task_id
@@ -44,6 +73,12 @@ def build_sealed_recovery_job_data(
             "key_version": chat_key_version,
             "model_name": model_name,
             "turn_id": turn_id,
+            **recovery_thinking_fields(
+                thinking_content=thinking_content,
+                thinking_signature=thinking_signature,
+                thinking_token_count=thinking_token_count,
+                thinking_duration_seconds=thinking_duration_seconds,
+            ),
         },
         sort_keys=True,
         separators=(",", ":"),

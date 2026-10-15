@@ -40,6 +40,22 @@ const outputVector = JSON.parse(readFileSync(
 ));
 
 describe("CLI typed recovery replay", () => {
+  // contract-test: supporting surface=cli assertions=chats.persistence.client-encrypted
+  it("omits absent thinking and rejects malformed observed metadata without estimating metrics", async () => {
+    const client = Object.create(OpenMatesClient.prototype) as unknown as {
+      encryptThinkingFields: (source: Record<string, unknown>, key: Uint8Array) => Promise<Record<string, unknown>>;
+    };
+    const key = new Uint8Array(32);
+    assert.deepEqual(await client.encryptThinkingFields({}, key), {});
+    assert.deepEqual(await client.encryptThinkingFields({ thinking_content: "  ", has_thinking: true }, key), {});
+    const stored = await client.encryptThinkingFields({ thinking_content: "Observed fixture reasoning" }, key);
+    assert.equal(stored.has_thinking, true);
+    assert.equal("thinking_token_count" in stored, false);
+    assert.equal("thinking_duration_seconds" in stored, false);
+    await assert.rejects(client.encryptThinkingFields({ thinking_content: 1 }, key), /Invalid completion/);
+    await assert.rejects(client.encryptThinkingFields({ thinking_content: "x", thinking_token_count: -1 }, key), /Invalid completion/);
+  });
+
   // contract-test: direct surface=cli assertions=chats.completion.recovery-takeover,chats.sync.key-gated-recovery
   it("reconciles a stale discovered embed only with owner-bound ACK and decrypted canonical bytes", async () => {
     const identity = outputVector.identity;
@@ -309,8 +325,9 @@ describe("CLI typed recovery replay", () => {
   });
 
   for (const role of ["assistant", "user"] as const) {
+  for (const withThinking of [false, true]) {
   // contract-test: direct surface=cli assertions=chats.completion.recovery-takeover,chats.persistence.client-encrypted,chats.message.identity-idempotent
-  it(`persists the sealed child ${role} message before its canonical ACK`, async () => {
+  it(`persists the sealed child ${role} message ${withThinking ? "with" : "without"} thinking before its canonical ACK`, async () => {
     const identity = outputVector.identity;
     const output: AvailableRecoveryOutputFrame = {
       record_id: identity.record_id, root_chat_id: identity.root_chat_id,
@@ -324,7 +341,9 @@ describe("CLI typed recovery replay", () => {
       record_id: output.record_id, target_chat_id: output.target_chat_id,
       subject_id: output.subject_id, output_kind: output.output_kind,
       output_version: output.output_version,
-      content: { role, content: "sealed child output", category: null, model_name: null, created_at: 1_700_000_000 },
+      content: { role, content: "sealed child output", category: null, model_name: null, created_at: 1_700_000_000,
+        ...(withThinking ? { thinking_content: "Observed fixture reasoning", thinking_signature: "fixture signature", thinking_token_count: 7 } : {}),
+      },
     })), {
       ownerId: identity.owner_id, rootChatId: output.root_chat_id,
       targetChatId: output.target_chat_id, turnId: output.turn_id,
@@ -372,9 +391,21 @@ describe("CLI typed recovery replay", () => {
     assert.equal(encrypted.role, role);
     assert.equal(encrypted.created_at, 1_700_000_000);
     assert.equal(await decryptWithAesGcmCombined(String(encrypted.encrypted_content), rawKey), "sealed child output");
+    if (withThinking && role === "assistant") {
+      assert.equal(await decryptWithAesGcmCombined(String(encrypted.encrypted_thinking_content), rawKey), "Observed fixture reasoning");
+      assert.equal(await decryptWithAesGcmCombined(String(encrypted.encrypted_thinking_signature), rawKey), "fixture signature");
+      assert.equal(encrypted.has_thinking, true);
+      assert.equal(encrypted.thinking_token_count, 7);
+      assert.equal(JSON.stringify(persisted).includes("Observed fixture reasoning"), false);
+    } else {
+      assert.equal("encrypted_thinking_content" in encrypted, false);
+      assert.equal("has_thinking" in encrypted, false);
+    }
+    assert.equal(encrypted.chat_id, output.target_chat_id);
     assert.ok(typeof persisted?.encrypted_chat_key === "string");
     assert.equal(JSON.stringify(persisted).includes("sealed child output"), false);
   });
+  }
   }
 
   // contract-test: supporting surface=cli assertions=chats.completion.recovery-takeover,chats.persistence.client-encrypted

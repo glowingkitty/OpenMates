@@ -27,6 +27,7 @@ from backend.core.api.app.services.sub_chat_orchestration_service import SubChat
 from backend.shared.python_utils.chat_completion_recovery_job import (
     build_sealed_recovery_job_data,
     build_sealed_recovery_output_data,
+    recovery_thinking_fields,
 )
 from backend.shared.python_utils.chat_recovery_context import (
     RequiredRecoveryOutputError, active_recovery_output_context,
@@ -3278,6 +3279,10 @@ async def _persist_sealed_recovery_job(
     category: str | None,
     model_name: str | None,
     cache_service: CacheService | None = None,
+    thinking_content: str | None = None,
+    thinking_signature: str | None = None,
+    thinking_token_count: int | None = None,
+    thinking_duration_seconds: float | None = None,
 ) -> dict[str, Any] | None:
     inference_task_id = _recovery_inference_task_id(request_data)
     if not inference_task_id:
@@ -3290,13 +3295,20 @@ async def _persist_sealed_recovery_job(
     }
     if any(value is None for value in required.values()):
         raise RuntimeError("Epoch-1 task is missing sealed recovery context")
+    # These fields belong only inside the owner-encrypted recovery envelope.
+    thinking_fields = recovery_thinking_fields(
+        thinking_content=thinking_content,
+        thinking_signature=thinking_signature,
+        thinking_token_count=thinking_token_count,
+        thinking_duration_seconds=thinking_duration_seconds,
+    )
     if request_data.is_sub_chat:
         result = await _persist_sealed_typed_output(
             directus_service=directus_service, request_data=request_data,
             cache_service=cache_service, inference_task_id=inference_task_id,
             subject_id=_assistant_message_id(task_id, request_data),
             output_kind="message", output_version=request_data.assistant_response_source_revision,
-            content={"content": content, "category": category, "model_name": model_name, "role": "assistant"},
+            content={"content": content, "category": category, "model_name": model_name, "role": "assistant", **thinking_fields},
             message_role="assistant",
         )
         return {"output_id": result["record_id"], "protocol_version": 2}
@@ -3314,6 +3326,7 @@ async def _persist_sealed_recovery_job(
         content=content,
         category=category,
         model_name=model_name,
+        **{key: value for key, value in thinking_fields.items() if key != "has_thinking"},
     )
     return await ChatRecoveryService(directus_service).execute("create_sealed_job", data)
 
@@ -11077,6 +11090,8 @@ async def _consume_main_processing_stream(
                 category=preprocessing_result.category or "general_knowledge",
                 model_name=stream_model_name,
                 cache_service=cache_service,
+                thinking_content="".join(thinking_buffer) or None,
+                thinking_signature=thinking_signature,
             )
     with _project_file_finalization_stage("summary", project_file_reference_output, log_prefix=log_prefix):
         completion_summary = _sub_chat_completion_summary(

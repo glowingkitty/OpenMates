@@ -97,6 +97,7 @@ export const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   upcomingRemindersListChat,
   cancelTestReminderChat,
   fediverseActivitypubSocialSearchChat,
+  usEggPricesDeepResearchChat,
   pdfViewPageLayoutChat,
   imageVectorizeOpenmatesHeaderChat,
   audioTranscribeVoiceNoteChat,
@@ -139,8 +140,6 @@ export const ALL_EXAMPLE_CHATS: ExampleChat[] = [
 // Internal deterministic fixtures used by tests and direct hash navigation only.
 // Keep these out of normal example listings and SEO pages.
 export const INTERNAL_EXAMPLE_CHATS: ExampleChat[] = [
-  // Await a replacement with substantive research and independent factual admission.
-  usEggPricesDeepResearchChat,
   searchParentPreviewStressTestChat,
   compressionHistoryFixtureChat,
 ];

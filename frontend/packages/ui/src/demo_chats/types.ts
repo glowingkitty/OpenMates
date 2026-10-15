@@ -105,6 +105,9 @@ export interface ExampleChatMessage {
   response_credits?: number; // Total credits charged for this assistant response, including app skills
   category?: string; // Mate category for assistant messages
   model_name?: string;
+  thinking_content?: string; // i18n key for the real saved thinking text
+  has_thinking?: boolean;
+  thinking_token_count?: number;
   pii_mappings?: PIIMapping[];
 }
 

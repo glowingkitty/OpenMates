@@ -8454,6 +8454,7 @@ export class OpenMatesClient {
           client_message_id: output.subject_id, chat_id: output.target_chat_id,
           role: messageRole, encrypted_content: await encryptWithAesGcmCombined(content.content, childKey),
           ...(messageRole === "assistant" ? {
+            ...await this.encryptThinkingFields(content, childKey),
             encrypted_sender_name: await encryptWithAesGcmCombined(
               typeof content.category === "string" ? MATE_NAMES[content.category] ?? "Assistant" : "Assistant", childKey,
             ),
@@ -10947,7 +10948,9 @@ export class OpenMatesClient {
             "turn_id",
           ];
           if (
-            Object.keys(recovered).sort().join(",") !== expectedRecoveryFields.join(",")
+            Object.keys(recovered).filter((field) => ![
+              "thinking_content", "thinking_signature", "has_thinking", "thinking_token_count", "thinking_duration_seconds",
+            ].includes(field)).sort().join(",") !== expectedRecoveryFields.join(",")
             || recovered.assistant_message_id !== assistantId
             || recovered.chat_id !== chatId
             || recovered.turn_id !== savedTurnId
@@ -10986,6 +10989,7 @@ export class OpenMatesClient {
               client_message_id: assistantId,
               chat_id: chatId,
               encrypted_content: encryptedAssistantContent,
+              ...await this.encryptThinkingFields(recovered, chatKeyBytes),
               encrypted_sender_name: encryptedSenderName,
               encrypted_category: encryptedCategory,
               encrypted_model_name: encryptedModelName,
@@ -17589,6 +17593,36 @@ export class OpenMatesClient {
     return acknowledged;
   }
 
+  /** Persist only observed thinking, encrypted with the owning chat's existing key. */
+  private async encryptThinkingFields(
+    source: Record<string, unknown>, chatKey: Uint8Array,
+  ): Promise<Record<string, unknown>> {
+    for (const field of ["thinking_content", "thinking_signature"] as const) {
+      if (source[field] !== undefined && typeof source[field] !== "string") {
+        throw new Error(`Invalid completion ${field}.`);
+      }
+    }
+    if (source.thinking_token_count !== undefined
+      && (!Number.isSafeInteger(source.thinking_token_count) || Number(source.thinking_token_count) < 0)) {
+      throw new Error("Invalid completion thinking_token_count.");
+    }
+    if (source.thinking_duration_seconds !== undefined
+      && (typeof source.thinking_duration_seconds !== "number"
+        || !Number.isFinite(source.thinking_duration_seconds) || source.thinking_duration_seconds < 0)) {
+      throw new Error("Invalid completion thinking_duration_seconds.");
+    }
+    if (typeof source.thinking_content !== "string" || !source.thinking_content.trim()) return {};
+    return {
+      encrypted_thinking_content: await encryptWithAesGcmCombined(source.thinking_content, chatKey),
+      has_thinking: true,
+      ...(source.thinking_signature ? {
+        encrypted_thinking_signature: await encryptWithAesGcmCombined(source.thinking_signature as string, chatKey),
+      } : {}),
+      ...(source.thinking_token_count !== undefined ? { thinking_token_count: source.thinking_token_count } : {}),
+      // Duration has no canonical messages schema field; do not invent or store one.
+    };
+  }
+
   private async persistPendingAIResponsesFromSync(
     ws: OpenMatesWsClient,
     chats: CachedChat[],
@@ -17644,6 +17678,7 @@ export class OpenMatesClient {
         created_at: completedAt,
         status: "synced",
         encrypted_content: await encryptWithAesGcmCombined(content, chatKeyBytes),
+        ...await this.encryptThinkingFields(pending as unknown as Record<string, unknown>, chatKeyBytes),
         encrypted_category: pending.category
           ? await encryptWithAesGcmCombined(pending.category, chatKeyBytes)
           : undefined,

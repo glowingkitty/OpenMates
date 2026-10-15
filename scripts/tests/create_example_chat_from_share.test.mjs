@@ -323,6 +323,36 @@ test('round trips original user spacing through every generated locale and keeps
   }
 });
 
+// contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering
+test('preserves real root and child thinking through translation keys without adding absent thinking', () => {
+  const metadata = {
+    slug: 'thinking-fixture', snake: 'thinking_fixture', chatId: 'example-thinking-fixture',
+    title: 'Thinking', summary: '', icon: 'search', category: 'science',
+    keywords: [], followUps: [], featured: false, order: 1, appSkillExamples: [],
+    appFocusModeExamples: [], appSettingsMemoryExamples: [], contentEmbedExamples: [],
+  };
+  const thought = 'Saved reasoning\n\n[Source](https://example.org/evidence)';
+  const assistant = { id: 'a', role: 'assistant', content: 'Full report.',
+    thinking_content: thought, has_thinking: true, thinking_token_count: 42 };
+  const chat = { messages: [{ id: 'u', role: 'user', content: 'Research.' }, assistant], embeds: [],
+    sub_chats: [{ title: 'Child', messages: [assistant], embeds: [] }] };
+  const source = formatTs(chat, metadata);
+  assert.match(source, /example_chats.thinking_fixture.message_2_thinking/);
+  assert.match(source, /example_chats.thinking_fixture.sub_chat_1_message_1_thinking/);
+  assert.equal((source.match(/"thinking_token_count": 42/g) || []).length, 2);
+  const parsed = spawnSync('python3', ['-c', 'import sys,json,yaml; print(json.dumps(yaml.safe_load(sys.stdin.read())))'], {
+    input: formatYaml(chat, metadata), encoding: 'utf8',
+  });
+  assert.equal(parsed.status, 0, parsed.stderr);
+  const translations = JSON.parse(parsed.stdout);
+  for (const key of ['message_2_thinking', 'sub_chat_1_message_1_thinking']) {
+    assert.equal(translations[key].en, thought);
+    assert.equal(translations[key].de, thought);
+  }
+  const legacy = formatTs({ messages: [{ role: 'assistant', content: 'Legacy report.' }], embeds: [] }, metadata);
+  assert.doesNotMatch(legacy, /thinking_content|thinking_token_count|has_thinking/);
+});
+
 // contract-test: supporting surface=gui.web assertions=public-example-chats.admission.reviewed-complete,app-skills.media.application-screenshot
 test('rejects incomplete capability examples and keeps only reviewed public application screenshots', () => {
   const base = { chat_id: 'source', follow_up_suggestions: ['What next?'], messages: [
@@ -438,6 +468,28 @@ test('promotes parent app-skill embeds as markdown when child embeds are already
   });
 
   assert.equal(chat.messages[0].content, `[!](embed:parent-skill-use)\n\n${content}`);
+});
+
+// contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering
+test('promotes saved sub-chat skill parents once when the root needs no promotion', () => {
+  const source = {
+    messages: [{ role: 'assistant', content: 'Parent synthesis.' }],
+    embeds: [],
+    sub_chats: [{
+      messages: [{ role: 'assistant', content: 'Full child report.' }],
+      embeds: [{
+        embed_id: 'child-search-parent',
+        type: 'app_skill_use',
+        content: 'app_id: web\nskill_id: search\nstatus: finished',
+      }],
+    }],
+  };
+  const promoted = withPromotedAppSkillUseMessages(source);
+  assert.equal(promoted.messages[0].content, 'Parent synthesis.');
+  assert.equal(promoted.sub_chats[0].messages[0].content,
+    '[!](embed:child-search-parent)\n\nFull child report.');
+  assert.deepEqual(withPromotedAppSkillUseMessages(promoted), promoted);
+  assert.equal(source.sub_chats[0].messages[0].content, 'Full child report.');
 });
 
 test('promotes unreferenced parent app-skill embeds as markdown references', () => {

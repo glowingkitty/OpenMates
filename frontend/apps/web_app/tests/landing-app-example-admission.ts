@@ -618,9 +618,149 @@ async function inspectSavedResultGraph(page: Page, history: Locator, chat: Examp
   }
 }
 
-async function inspectWebSubChats(page: Page, chat: ExampleChat): Promise<void> {
+type SavedWebChat = Pick<ExampleChat, 'chat_id' | 'messages' | 'embeds'>;
+
+async function expectWebActivityCollapsed(history: Locator, chat: SavedWebChat, context: string): Promise<void> {
+  for (const message of chat.messages.filter(message => message.role === 'assistant')) {
+    const rendered = history.locator(`[data-message-id="${message.id}"]`);
+    const groups = rendered.getByTestId('assistant-activity-group');
+    await expect(groups, `${context}: ${message.id} saved activity groups`).not.toHaveCount(0);
+    await expect(rendered.locator('[data-testid="assistant-skill-app-icon"][data-app-id="web"]'),
+      `${context}: saved web skill is represented in the collapsed summary`).not.toHaveCount(0);
+    for (let index = 0, count = await groups.count(); index < count; index++) {
+      const group = groups.nth(index);
+      await expect(group.getByTestId('assistant-activity-toggle'), `${context}: activity ${index} collapsed`)
+        .toHaveAttribute('aria-expanded', 'false');
+      await expect(group.getByTestId('assistant-activity-summary-text')).toBeVisible();
+      await expect(group.getByTestId('assistant-activity-summary-text')).not.toBeEmpty();
+      await expect(group.getByTestId('assistant-activity-body')).toHaveCount(0);
+      await expect(group.getByTestId('embed-preview')).toHaveCount(0);
+    }
+    await expect(rendered.getByTestId('thinking-section')).toHaveCount(0);
+    await expect(rendered.getByTestId('message-content').first()).not.toBeEmpty();
+  }
+}
+
+async function inspectSavedWebThinking(history: Locator, chat: SavedWebChat, context: string): Promise<void> {
+  const normalize = (text: string): string => text.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ').trim().replace(/\s+/g, ' ');
+  for (const message of chat.messages.filter(message => message.role === 'assistant')) {
+    expect(message.has_thinking, `${context}: ${message.id} actual saved thinking`).toBe(true);
+    expect(message.thinking_content?.trim(), `${context}: ${message.id} saved thinking key`).toBeTruthy();
+    const saved = sourceMessage(message.thinking_content!);
+    expect(saved, `${context}: thinking translation resolves`).not.toBe(message.thinking_content);
+    const expectedOpening = normalize(saved).split(' ').slice(0, 24).join(' ');
+    expect(expectedOpening.length, `${context}: saved thinking has substantive content`).toBeGreaterThan(30);
+    const rendered = history.locator(`[data-message-id="${message.id}"]`);
+    const section = rendered.getByTestId('thinking-section');
+    await expect(section, `${context}: one response-wide saved thinking disclosure`).toHaveCount(1);
+    const toggle = section.getByTestId('thinking-header');
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(section.getByTestId('thinking-content')).toHaveCount(0);
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    const content = section.getByTestId('thinking-content');
+    await expect(content).toBeVisible();
+    expect(normalize(await content.innerText()), `${context}: actual saved thinking renders`).toContain(expectedOpening);
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(content).toHaveCount(0);
+  }
+}
+
+// Pin the actual root: a dynamic nth locator or a reduction in the global
+// overlay count does not prove that this Web tool/result finished closing.
+async function closeSavedWebFullscreen(fullscreen: Locator): Promise<void> {
+  await expect(fullscreen).toHaveCount(1);
+  await expect(fullscreen).toHaveClass(/\banimating-in\b/);
+  const root = await fullscreen.elementHandle();
+  expect(root, 'saved Web fullscreen has its own mounted root').not.toBeNull();
+  try {
+    await fullscreen.getByTestId('embed-minimize').click();
+    await expect.poll(() => root!.evaluate(element => element.isConnected),
+      { message: 'the intended Web fullscreen root is unmounted', timeout: 10_000 }).toBe(false);
+  } finally {
+    await root?.dispose();
+  }
+}
+
+async function inspectSavedWebSkills(page: Page, history: Locator, chat: SavedWebChat, requireSearch = false, exerciseFullscreen = true): Promise<void> {
+  const researchParents = chat.embeds.filter(embed => embed.type === 'app_skill_use'
+    && embedField(embed, 'app_id') === 'web'
+    && ['search', 'read'].includes(embedField(embed, 'skill_id') ?? ''));
+  expect(researchParents.length, `${chat.chat_id}: saved web search or read tools`).toBeGreaterThan(0);
+  if (requireSearch) {
+    expect(researchParents.some(parent => embedField(parent, 'skill_id') === 'search'
+      && Number(embedField(parent, 'result_count')) > 0), `${chat.chat_id}: actual nonempty research search`).toBe(true);
+  }
+  for (const parent of researchParents) {
+    const skill = embedField(parent, 'skill_id');
+    expect(embedField(parent, 'status'), `${chat.chat_id}: saved web.${skill} terminal status`).toBe('finished');
+    const resultCount = Number(embedField(parent, 'result_count'));
+    expect(Number.isInteger(resultCount) && resultCount >= 0, `${chat.chat_id}: saved result count`).toBe(true);
+    const preview = assistantPreview(history, parent);
+    await expect(preview, `${chat.chat_id}: rendered web.${skill} preview`).toBeVisible();
+    await expect(preview).toHaveAttribute('data-status', 'finished');
+    if (skill === 'search') {
+      expect(parent.embed_ids, `${chat.chat_id}: search references preserve actual count`).toHaveLength(resultCount);
+      for (const id of parent.embed_ids ?? []) {
+        expect(chat.embeds.find(embed => embed.embed_id === id)?.parent_embed_id,
+          `${chat.chat_id}: saved search child ${id} points to parent`).toBe(parent.embed_id);
+      }
+      if (resultCount === 0) await expect(preview.getByTestId('search-no-results-message')).toBeVisible();
+    } else {
+      // Successful reads save inline results; they need not have child embed IDs.
+      const inlineCount = Number(parent.content.match(/^results\[(\d+)\]:/m)?.[1] ?? 0);
+      expect(inlineCount, `${chat.chat_id}: actual inline read results match saved count`).toBe(resultCount);
+      if (resultCount === 0) expect(parent.embed_ids, `${chat.chat_id}: empty read has no invented children`).toEqual([]);
+    }
+    if (!exerciseFullscreen) continue;
+    // Web visits each tool sequentially; a closing root must be gone before
+    // openFullscreen takes its visible-overlay baseline for the next tool.
+    await expect(page.locator('.unified-embed-fullscreen-overlay')).toHaveCount(0);
+    const fullscreen = await openFullscreen(page, preview);
+    await expect(fullscreen).toHaveClass(/\banimating-in\b/);
+    if (skill === 'search' && resultCount > 0) {
+      const grid = fullscreen.getByTestId('search-template-grid');
+      await expect(grid.getByTestId('embed-preview')).toHaveCount(resultCount);
+      const resultCard = grid.getByTestId('embed-preview').first();
+      await expect(resultCard).toBeVisible();
+      await resultCard.click();
+      const resultOverlay = page.locator('.child-embed-overlay');
+      await expect(resultOverlay).toBeVisible();
+      await expect(resultOverlay).not.toBeEmpty();
+      await closeSavedWebFullscreen(resultOverlay.locator('.unified-embed-fullscreen-overlay'));
+      await expect(grid).toBeVisible();
+    } else if (skill === 'search') {
+      await expect(fullscreen.getByTestId('search-template-empty')).toBeVisible();
+      await expect(fullscreen.getByTestId('search-no-results-message')).not.toBeEmpty();
+      await expect(fullscreen.getByTestId('search-template-grid').getByTestId('embed-preview')).toHaveCount(0);
+    } else if (resultCount === 0) {
+      await expect(fullscreen.locator('.web-read-fullscreen-content .no-results')).toBeVisible();
+      await expect(fullscreen.locator('.web-read-fullscreen-content .no-results')).not.toBeEmpty();
+      await expect(fullscreen.locator('.result-content')).toHaveCount(0);
+      await expect(fullscreen.locator('.text-preview-label')).toHaveCount(0);
+    } else {
+      await expect(fullscreen.locator('.result-content')).toHaveCount(resultCount);
+      await expect(fullscreen.locator('.markdown-content')).toHaveCount(resultCount);
+      for (let index = 0; index < resultCount; index++) {
+        await expect(fullscreen.locator('.markdown-content').nth(index)).toBeVisible();
+        await expect(fullscreen.locator('.markdown-content').nth(index)).not.toBeEmpty();
+      }
+      await expect(fullscreen.locator('.text-preview-label')).toBeVisible();
+    }
+    await closeSavedWebFullscreen(fullscreen);
+  }
+}
+
+async function inspectWebSubChats(page: Page, chat: ExampleChat, checkpoint: string): Promise<void> {
   const children = chat.sub_chats ?? [];
-  expect(children.length, `${chat.slug}: saved research sub-chats`).toBeGreaterThan(0);
+  expect(children.length, `${chat.slug}: three saved research sub-chats`).toBe(3);
+  const savedTools = [chat, ...children].flatMap(item => item.embeds).filter(embed => embed.type === 'app_skill_use'
+    && embedField(embed, 'app_id') === 'web' && ['search', 'read'].includes(embedField(embed, 'skill_id') ?? ''));
+  expect(savedTools, `${chat.slug}: all17 actual tool parents preserved`).toHaveLength(17);
+  expect(savedTools.filter(embed => embedField(embed, 'skill_id') === 'search')).toHaveLength(12);
+  expect(savedTools.filter(embed => embedField(embed, 'skill_id') === 'read')).toHaveLength(5);
   const carousel = page.getByTestId('sub-chats-carousel');
   await expect(carousel.getByTestId('sub-chat-card')).toHaveCount(children.length);
   for (let index = 0; index < children.length; index++) {
@@ -631,37 +771,26 @@ async function inspectWebSubChats(page: Page, chat: ExampleChat): Promise<void> 
       `${child.chat_id}: child header has no duplicate parent-return control`).toHaveCount(0);
     const childHistory = page.getByTestId('chat-history-content');
     await expect(childHistory).toHaveAttribute('data-source-message-count', String(child.messages.length));
-    await expandCompletedActivity(childHistory, `${chat.slug}: ${child.chat_id}`);
+    await expectWebActivityCollapsed(childHistory, child, `${checkpoint}: ${child.chat_id}: initial`);
+    await expandCompletedActivity(childHistory, `${checkpoint}: ${child.chat_id}`);
+    await inspectSavedWebThinking(childHistory, child, `${checkpoint}: ${child.chat_id}`);
     expect(child.messages.some(message => message.role === 'assistant' && message.content.trim()),
       `${child.chat_id}: saved research answer`).toBe(true);
-    const researchParents = child.embeds.filter(embed => embed.type === 'app_skill_use'
-      && embedField(embed, 'app_id') === 'web'
-      && ['search', 'read'].includes(embedField(embed, 'skill_id') ?? '')
-      && embedField(embed, 'status') === 'finished');
-    expect(researchParents.length, `${child.chat_id}: actual finished web search or read tool`).toBeGreaterThan(0);
-    for (const parent of researchParents) {
-      const skill = embedField(parent, 'skill_id');
-      expect(parent.embed_ids?.length, `${child.chat_id}: saved web.${skill} result children`).toBeGreaterThan(0);
-      const firstResult = child.embeds.find(embed => embed.embed_id === parent.embed_ids?.[0]);
-      expect(firstResult?.parent_embed_id, `${child.chat_id}: web.${skill} child points to parent`).toBe(parent.embed_id);
-      const preview = assistantPreview(childHistory, parent);
-      await expect(preview, `${child.chat_id}: rendered web.${skill} preview`).toBeVisible();
-      const fullscreen = await openFullscreen(page, preview);
-      if (skill === 'search') {
-        const grid = fullscreen.getByTestId('search-template-grid');
-        const resultCard = grid.getByTestId('embed-preview').first();
-        await expect(resultCard).toBeVisible();
-        await resultCard.click();
-        const resultOverlay = page.locator('.child-embed-overlay');
-        await expect(resultOverlay).toBeVisible();
-        await expect(resultOverlay).not.toBeEmpty();
-        await closeFullscreen(page, resultOverlay.locator('.unified-embed-fullscreen-overlay').last());
-        await expect(grid).toBeVisible();
-      }
-      await closeFullscreen(page, fullscreen);
-    }
+    await inspectSavedWebSkills(page, childHistory, child, true, checkpoint === 'direct');
+    await collapseCompletedActivity(childHistory, `${checkpoint}: ${child.chat_id}`);
+    await expectWebActivityCollapsed(childHistory, child, `${checkpoint}: ${child.chat_id}: closed`);
     await page.getByTestId('chat-close-button').click();
     await expect(page).toHaveURL(new RegExp(`chat-id=${encodeURIComponent(chat.chat_id)}(?:&|$)`));
+    const parentHistory = page.getByTestId('chat-history-content');
+    await expect(parentHistory).toHaveAttribute('data-source-message-count', String(chat.messages.length));
+    const parentAnswer = chat.messages.find(message => message.role === 'assistant');
+    expect(parentAnswer, `${chat.chat_id}: saved parent answer identity`).toBeDefined();
+    const parentMessage = parentHistory.locator(`[data-message-id="${parentAnswer!.id}"]`);
+    await expect(parentMessage, `${chat.chat_id}: parent history replaces the child`).toBeVisible();
+    await expect(parentMessage.getByTestId('assistant-activity-group')).not.toHaveCount(0);
+    // Parent remounts in its completed/collapsed state after every child Close.
+    await expandCompletedActivity(parentHistory, `${checkpoint}: ${chat.slug}: returned from ${child.chat_id}`);
+    await expect(carousel.getByTestId('sub-chat-card')).toHaveCount(children.length);
   }
 }
 
@@ -694,9 +823,15 @@ async function inspectChat(page: Page, chat: ExampleChat, appId: string, checkpo
     await inspectSavedResultGraph(page, history, chat, appId);
     await inspectReportedHeaderRegressions(page, history, chat, appId);
   }
+  if (appId === 'web') {
+    await expectWebActivityCollapsed(history, chat, `${checkpoint}: ${chat.slug}: initial`);
+  }
   await expandCompletedActivity(history, `${checkpoint}: ${chat.slug}`);
-  if (checkpoint === 'direct' && appId === 'web') {
-    await inspectWebSubChats(page, chat);
+  if (appId === 'web') {
+    await inspectSavedWebThinking(history, chat, `${checkpoint}: ${chat.slug}`);
+    await inspectSavedWebSkills(page, history, chat, false, checkpoint === 'direct');
+    await inspectWebSubChats(page, chat, checkpoint);
+    await expandCompletedActivity(history, `${checkpoint}: ${chat.slug}: returned from children`);
   }
   const text = await history.innerText();
   for (const marker of forbidden) expect(text, `${checkpoint}: ${chat.slug}: ${marker}`).not.toContain(marker);
@@ -776,7 +911,7 @@ async function inspectChat(page: Page, chat: ExampleChat, appId: string, checkpo
       .not.toHaveCount(0, { timeout: 15_000 });
   }
   const embedCount = await embedPreviews.count();
-  if (artifactEmbeds.length > 0) {
+  if (artifactEmbeds.length > 0 && appId !== 'web') {
     expect(embedCount, `${chat.slug}: saved embeds need a visible preview`).toBeGreaterThan(0);
     const pdfArtifact = artifactEmbeds.find(embed => embed.type === 'pdf');
     const documentArtifact = artifactEmbeds.find(embed => embed.type === 'document');
@@ -864,6 +999,17 @@ async function inspectChat(page: Page, chat: ExampleChat, appId: string, checkpo
   if (exerciseFollowUps && suggestionCount > 0) {
     await dismissComposerFocus(page);
     await expect(restoredDraft).toContainText(draftText);
+  }
+  if (appId === 'web') {
+    // Filling the draft opens the composer focus layer on the direct visit.
+    // Dismiss it before interacting with the activity controls behind it.
+    if (await page.getByTestId('message-field').getAttribute('data-focused') === 'true') {
+      await dismissComposerFocus(page);
+    }
+    await collapseCompletedActivity(history, `${checkpoint}: ${chat.slug}`);
+    await expectWebActivityCollapsed(history, chat, `${checkpoint}: ${chat.slug}: closed`);
+  }
+  if (exerciseFollowUps && suggestionCount > 0) {
     await page.evaluate(() => {
       (window as typeof window & { landingFollowUpSignup?: boolean }).landingFollowUpSignup = false;
       window.addEventListener('openSignupInterface', () => {

@@ -1,6 +1,5 @@
 landing:
-  # Keep the app available while its public example awaits a reviewed replacement.
-  enabled: false
+  enabled: true
   order: 9
   capability:
     type: focus
