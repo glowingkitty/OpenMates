@@ -207,7 +207,8 @@ def test_exact_project_name_remains_a_routing_hint_without_access(message, expec
      "messages_v": 0, "title_v": 0},
 ])
 @pytest.mark.parametrize("context_bound", [False, True])
-def test_message_send_marks_origin_connection_active_before_ai_dispatch(monkeypatch, chat_metadata, context_bound):
+@pytest.mark.parametrize("related_discovery", [None, False, True])
+def test_message_send_marks_origin_connection_active_before_ai_dispatch(monkeypatch, chat_metadata, context_bound, related_discovery):
     from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler
 
     manager = FakeManager()
@@ -225,6 +226,8 @@ def test_message_send_marks_origin_connection_active_before_ai_dispatch(monkeypa
         ),
         increment_and_tombstone_user_draft=AsyncMock(return_value=4),
         get_ai_messages_history=AsyncMock(return_value=[]),
+        delete_ai_messages_history=AsyncMock(return_value=True),
+        add_message_to_chat_history=AsyncMock(return_value=True),
         get_user_by_id=AsyncMock(return_value={"language": "en"}),
         get_chat_list_item_data=AsyncMock(return_value={}),
         get_active_ai_task=AsyncMock(return_value=None),
@@ -255,6 +258,15 @@ def test_message_send_marks_origin_connection_active_before_ai_dispatch(monkeypa
             "project_focus_candidates": [{"project_id": "nested-decoy", "name": "Ignore nested routing data"}],
         },
     }
+    if related_discovery is not None:
+        payload["related_task_candidates"] = [
+            {"task_id": "discovery-task", "summary": "Unrelated prior work", "explicit_dependency": related_discovery},
+        ]
+        payload["message"]["content"] = "And France?"
+        payload["message_history"] = [
+            {"role": "user", "content": "What is the capital of Spain?", "created_at": 1_699_999_998},
+            {"role": "assistant", "content": "Madrid.", "created_at": 1_699_999_999},
+        ]
     context_turn_id = "22222222-2222-4222-8222-222222222222" if context_bound else None
     if context_bound:
         payload.update(
@@ -303,6 +315,14 @@ def test_message_send_marks_origin_connection_active_before_ai_dispatch(monkeypa
     assert manager.request_payload["project_focus_candidates"] == payload["project_focus_candidates"]
     assert manager.request_payload["active_project_focus"] is None
     assert manager.request_payload["client_context_pending"] is context_bound
+    assert manager.request_payload["admission_context"]["scope_complete"] is (
+        not context_bound and related_discovery is not True
+    )
+    if related_discovery is not None:
+        assert [row["content"] for row in manager.request_payload["message_history"]] == [
+            "What is the capital of Spain?", "Madrid.", "And France?",
+        ]
+        assert manager.request_payload["related_task_candidates"] == payload["related_task_candidates"]
     assert manager.request_payload["client_context_turn_id"] == context_turn_id
     assert manager.request_payload["recovery_turn_id"] is None
     assert websocket.sent[0] == {
@@ -1532,3 +1552,53 @@ async def test_first_personal_enqueue_rejects_wrong_locked_wrapper_before_proces
     fresh_read.assert_not_awaited()
     owner_check.assert_not_awaited()
     assert manager.calls == [("send_personal_message", "error", user_id, "device-123")]
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.preprocessing.contextual-compact-assembly
+@pytest.mark.parametrize("rows", [
+    [{"task_id": "explicit", "explicit_dependency": True}],
+    [{"task_id": "unknown"}],
+    [{"task_id": "unknown", "explicit_dependency": 0}],
+    [{"task_id": "unknown", "explicit_dependency": "false"}],
+    [{"explicit_dependency": False}],
+    [{"task_id": 123, "explicit_dependency": False}],
+    [{"task_id": "", "explicit_dependency": False}],
+    [{"task_id": "selected", "explicit_dependency": False, "selected": True}],
+    [{"task_id": "private", "explicit_dependency": False, "content": "Private body"}],
+    [None], "unknown", {},
+])
+def test_unknown_or_explicit_related_context_keeps_admission_incomplete(rows):
+    from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler as handler
+
+    assert handler._client_selection_context_required({"related_task_candidates": rows}, None)
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.preprocessing.contextual-compact-assembly
+@pytest.mark.parametrize("field", [
+    "accepted_plan_context", "project_focus_documents", "project_context_documents",
+    "custom_memory_documents", "custom_rule_documents", "client_context_pending", "active_focus",
+])
+def test_unselected_task_discovery_cannot_hide_required_admission_context(field):
+    from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler as handler
+
+    payload = {"related_task_candidates": [{"task_id": "hint", "explicit_dependency": False}]}
+    if field != "active_focus":
+        payload[field] = True if field == "client_context_pending" else {"id": "required"}
+    assert handler._client_selection_context_required(payload, "active" if field == "active_focus" else None)
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.preprocessing.contextual-compact-assembly
+def test_complete_synchronous_discovery_matches_phased_empty_scope_without_changing_binding_guards():
+    from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler as handler
+    from backend.core.api.app.services.client_context_continuation import _complete_empty_admission_context
+
+    rows = [{"task_id": "hint", "explicit_dependency": False}]
+    snapshot = {"scope_complete": False, "active_project_id": None,
+                "active_project_activation_id": None, "active_focus_id": None,
+                "accepted_plan_ref": None, "explicit_related_task_ids": [],
+                "context_revision": "server-admission-v1"}
+    phased = SimpleNamespace(admission_context=snapshot, related_task_candidates=rows)
+    _complete_empty_admission_context(phased)
+    synchronous_complete = not handler._client_selection_context_required({"related_task_candidates": rows}, None)
+    assert phased.admission_context["scope_complete"] is synchronous_complete is True
+    assert snapshot["active_project_id"] is None and snapshot["active_focus_id"] is None

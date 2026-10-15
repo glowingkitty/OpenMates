@@ -3832,7 +3832,7 @@ describe("CLI saved-chat recovery preflight", () => {
       } finally {
         if (closeTimer) clearTimeout(closeTimer);
       }
-      assert.deepEqual(events, ["snapshot", "history", "closed"]);
+      assert.deepEqual(events, ["history", "snapshot", "closed"]);
     } finally {
       for (const socket of wss.clients) socket.terminate();
       wss.close();

@@ -9251,6 +9251,33 @@ export class OpenMatesClient {
       chatId = params.chatId;
     }
 
+    // Canonical history and fresh Memory authority are independent reads.
+    // Start this same-send read before socket preparation, then join it before
+    // privacy consumes PII mappings. Never reuse history across submitted turns.
+    const historyAbort = new AbortController();
+    let savedPrivacyHistoryRead: ReturnType<OpenMatesClient["getChatMessages"]> | null = null;
+    let historySnapshotOwner: CliPreparedChatOwner | null = null;
+    const readSavedPrivacyHistory = () => {
+      if (!savedPrivacyHistoryRead) {
+        savedPrivacyHistoryRead = withHttpAbortSignal(historyAbort.signal, () => this.getChatMessages(
+          chatId, { personal: !teamId, teamId, freshChatOnly: true, signal: historyAbort.signal },
+        )).then(history => {
+          historySnapshotOwner = this.preparedChatOwner(this.requireSession(), teamId);
+          return history;
+        });
+        // Socket/Memory preparation can fail before the join below.
+        void savedPrivacyHistoryRead.catch(() => {});
+      }
+      return savedPrivacyHistoryRead;
+    };
+    const joinSavedPrivacyHistory = async () => {
+      const history = await readSavedPrivacyHistory();
+      if (!historySnapshotOwner || !this.preparedChatOwnerCurrent(historySnapshotOwner, teamId)) {
+        throw new Error("Chat workspace changed during history preparation.");
+      }
+      return history;
+    };
+    try {
     let finalMessage = params.message;
     if (hasRememberMessageReference(finalMessage)) {
       const rememberedHistory = (params.messageHistory ?? [])
@@ -9259,7 +9286,7 @@ export class OpenMatesClient {
       finalMessage = rewriteRememberMessageReferences(finalMessage, rememberedHistory);
     }
     if (params.chatId && !params.incognito && hasRememberMessageReference(finalMessage)) {
-      const { messages } = await this.getChatMessages(chatId, { personal: !teamId, teamId, freshChatOnly: true });
+      const { messages } = await joinSavedPrivacyHistory();
       finalMessage = rewriteRememberMessageReferences(finalMessage, messages);
     }
     const shouldWaitForAi = shouldWaitForTeamAi(finalMessage, teamId);
@@ -9316,6 +9343,7 @@ export class OpenMatesClient {
       params.autoApproveMemories === true, params.piiDetection !== false,
       params.learningMode?.enabled ?? null, params.learningMode?.ageGroup ?? null,
     ]);
+    if (!params.incognito && params.chatId) readSavedPrivacyHistory();
     const memoryStartedAt = performance.now();
     let availableMemories: DecryptedMemoryEntry[] = params.memorySnapshot ?? [];
     let memoryCountsLoaded = false;
@@ -9430,7 +9458,7 @@ export class OpenMatesClient {
     const privacyStartedAt = performance.now();
     traceSendTiming("privacy_begin");
     const savedPrivacyHistory = !params.incognito && params.chatId
-      ? await this.getChatMessages(chatId, { personal: !teamId, teamId, freshChatOnly: true }) : null;
+      ? await joinSavedPrivacyHistory() : null;
     let piiMappings = [...(savedPrivacyHistory?.messages.flatMap((message) => (message.piiMappings ?? []).map((mapping) => ({ ...mapping, type: mapping.type ?? "OTHER" }))) ?? []), ...(params.piiMappings ?? [])];
     try {
     if (params.piiDetection !== false) {
@@ -11160,6 +11188,9 @@ export class OpenMatesClient {
     } catch (error) {
       memorySocket?.ws.close();
       throw error;
+    }
+    } finally {
+      historyAbort.abort();
     }
   }
 
@@ -16991,6 +17022,7 @@ export class OpenMatesClient {
 
   private interactiveViewerChatId: string | null = null;
   private interactiveViewerSocket: OpenMatesWsClient | null = null;
+  private interactiveViewerOpenController: AbortController | null = null;
   private interactiveViewerAllowed = false;
   private interactiveViewerGeneration = 0;
 
@@ -17021,8 +17053,10 @@ export class OpenMatesClient {
     this.clearInteractiveChatViewer();
     this.interactiveViewerChatId = chatId;
     const generation = this.interactiveViewerGeneration;
+    const controller = new AbortController();
+    this.interactiveViewerOpenController = controller;
     try {
-      const { ws } = await this.openWsClient({ taskUpdateJobs: false, interactiveHuman: true });
+      const { ws } = await this.openWsClient({ taskUpdateJobs: false, interactiveHuman: true, signal: controller.signal });
       if (!this.interactiveViewerAllowed || this.interactiveViewerGeneration !== generation || this.interactiveViewerChatId !== chatId) { ws.close(); return; }
       this.interactiveViewerSocket = ws;
       ws.onClose(() => {
@@ -17041,10 +17075,17 @@ export class OpenMatesClient {
         if (this.interactiveViewerGeneration === generation && this.interactiveViewerChatId === chatId) void this.setInteractiveChatViewer(chatId);
       }, 1_000);
       retry.unref?.();
+    } finally {
+      if (this.interactiveViewerOpenController === controller) this.interactiveViewerOpenController = null;
     }
   }
 
   clearInteractiveChatViewer(): void {
+    // A post-reply viewer can still own the session-refresh lock when the
+    // next send starts. Cancel its HTTP/upgrade work, not just an open socket.
+    const controller = this.interactiveViewerOpenController;
+    this.interactiveViewerOpenController = null;
+    controller?.abort();
     this.interactiveViewerGeneration = (this.interactiveViewerGeneration ?? 0) + 1;
     this.interactiveViewerChatId = null;
     const ws = this.interactiveViewerSocket;

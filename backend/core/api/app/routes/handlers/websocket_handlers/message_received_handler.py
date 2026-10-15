@@ -81,6 +81,36 @@ TEST_LIVE_REAL_MARKER_PREFIX = "<<<TEST_LIVE_REAL:"
 TEST_MOCK_MARKER_SUFFIX = ">>>"
 
 
+def _client_selection_context_required(payload: Dict[str, Any], active_focus_id: Any) -> bool:
+    """Discovery hints alone do not make a complete synchronous turn private.
+
+    Keep the phased-delivery boundary: only known unselected Task metadata may
+    be ignored for empty-scope proof. Unknown, explicit or malformed context
+    stays on the detailed path; none of these hints grants resource authority.
+    """
+    related = payload.get("related_task_candidates")
+    related_requires_context = related is not None
+    if isinstance(related, list):
+        from backend.core.api.app.services.client_context_continuation import validate_context
+        try:
+            validate_context("details", {"related_task_candidates": related})
+        except (ValueError, TypeError):
+            pass
+        else:
+            related_requires_context = any(
+                row.get("explicit_dependency") is not False
+                or not isinstance(row.get("task_id") or row.get("id"), str)
+                or not (row.get("task_id") or row.get("id")).strip()
+                for row in related
+            )
+    return bool(
+        active_focus_id or payload.get("accepted_plan_context")
+        or related_requires_context or payload.get("project_focus_documents")
+        or payload.get("project_context_documents") or payload.get("custom_memory_documents")
+        or payload.get("custom_rule_documents") or payload.get("client_context_pending")
+    )
+
+
 def _sanitize_test_mock_marker(value: Any) -> Optional[str]:
     """Return a dev-only marker that routes E2E proof requests to fixture replay."""
     if _is_production_environment():
@@ -2606,12 +2636,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         from backend.apps.ai.processing.accepted_plan_context import bounded_accepted_plan_snapshot
         # This snapshot is constructed after fresh server focus authorization.
         # Client-supplied snapshots never grant the ordinary no-context shortcut.
-        client_has_context = bool(
-            active_focus_id_for_ai or payload.get("accepted_plan_context")
-            or payload.get("related_task_candidates") or payload.get("project_focus_documents")
-            or payload.get("project_context_documents") or payload.get("custom_memory_documents")
-            or payload.get("custom_rule_documents") or payload.get("client_context_pending")
-        )
+        client_has_context = _client_selection_context_required(payload, active_focus_id_for_ai)
         admission_context = {
             "scope_complete": not client_has_context,
             "active_project_id": (current_project or {}).get("project_id"),

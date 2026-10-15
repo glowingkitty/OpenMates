@@ -210,7 +210,6 @@ it('keeps encrypted Team chat metadata for bounded cross-member reads after an o
       messages_v: 1, title_v: 0, draft_v: 0 }, messages: [JSON.stringify(ownerRow)] }],
     embeds: [], embedKeys: [] }, teamId);
   const client = new OpenMatesClient({ apiUrl: 'http://127.0.0.1', session });
-  const originalGetMessages = client.getChatMessages.bind(client);
   let sentEnvelope: Record<string, unknown> | null = null;
   const waiters = new Map<string, Array<{ match: (value: unknown) => boolean; resolve: (frame: unknown) => void }>>();
   const emit = (type: string, payload: Record<string, unknown>) => {
@@ -241,16 +240,26 @@ it('keeps encrypted Team chat metadata for bounded cross-member reads after an o
   };
   const internals = client as unknown as {
     ownTeamSenderName: () => Promise<string>;
-    getChatMessages: typeof client.getChatMessages;
+    ensureSynced: () => Promise<never>;
     openWsClient: () => Promise<unknown>;
-    http: { get: (url: string) => Promise<unknown> };
+    http: { get: (url: string) => Promise<unknown>; post: (url: string, body: unknown) => Promise<unknown> };
   };
   internals.ownTeamSenderName = async () => 'Maya';
-  internals.getChatMessages = (query, options) => originalGetMessages(query, { ...options, preferCache: true });
+  internals.ensureSynced = async () => { throw new Error('Full sync must not run for fresh scoped Team history'); };
+  internals.http.post = async (url, body) => {
+    assert.equal(url, `/v1/chats/metadata/batch?team_id=${teamId}`);
+    assert.deepEqual(body, { chat_ids: [chatId] });
+    assert.equal(sentEnvelope, null, 'fresh authorized metadata must precede the send');
+    return { ok: true, status: 200, data: { chats: [loadSyncCache(teamId)!.chats[0]!.details] } };
+  };
   internals.openWsClient = async () => ({ ws, session, ownerId: 'member-user-id' });
   internals.http.get = async (url) => {
     assert.match(url, /\/messages\/window\?/);
-    assert.ok(sentEnvelope);
+    assert.match(url, new RegExp(`team_id=${teamId}`));
+    if (!sentEnvelope) {
+      return { ok: true, status: 200, data: { messages: [ownerRow],
+        server_message_count: 1, has_more_before: false } };
+    }
     return { ok: true, status: 200, data: { messages: [ownerRow, {
       id: 'durable-member', client_message_id: sentEnvelope.client_message_id, chat_id: chatId,
       role: 'user', created_at: 2, encrypted_content: sentEnvelope.encrypted_content,
