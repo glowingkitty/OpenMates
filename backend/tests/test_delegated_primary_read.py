@@ -325,3 +325,42 @@ async def test_server_assigned_history_urls_require_read_without_current_content
             _, calls = await run(scoped, [["Limited findings."]], request_overrides=request)
             assert len(calls) == 1 and selection(calls[0]) == expected
             execute.assert_not_awaited()
+
+
+ROOT_SYNTHESIS = {"is_sub_chat": False, "sub_chat_depth": 0, "is_sub_chat_continuation": True,
+    "orchestration_id": "orchestration", "root_chat_id": "chat-1", "root_turn_id": "message-1",
+    "active_focus_id": "web-research", "current_user_content": "Original research question.",
+    "message_history": [{"role": "user", "content": "Saved child source URLs: primary: https://example.org/primary"}]}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("read_failed", [False, True])
+# contract-test: supporting surface=rest_api assertions=focus-modes.full-instruction,app-skills.execution.registered-validated,app-skills.assistant.bounded-private-failure
+async def test_root_synthesis_reads_seeded_child_source_once_then_restores_auto(monkeypatch, read_failed):
+    monkeypatch.setattr(main_processor, "SubChatOrchestrationService", lambda _: SimpleNamespace(execute=AsyncMock(return_value={
+        "root_chat_id": "chat-1", "root_turn_id": "message-1", "research_stage": "synthesis", "verifier_batch_id": None})))
+    execute = AsyncMock(side_effect=RuntimeError("Primary source unavailable")) if read_failed else AsyncMock(
+        return_value=[{"url": "https://example.org/primary", "markdown": "Actual primary source body"}])
+    monkeypatch.setattr(main_processor, "execute_skill_with_multiple_requests", execute)
+    _, calls = await run(monkeypatch, [
+        [{"fake_google_tool_call": "web-read", "arguments": {"url": "https://example.org/primary"}, "tool_call_id": "primary"}],
+        ["Qualified synthesis; unavailable sources remain unverified."],
+    ], request_overrides=ROOT_SYNTHESIS)
+    assert selection(calls[0]) == (["web-read"], "required")
+    assert selection(calls[1])[1] == "auto"
+    assert len(calls) == 2
+    execute.assert_awaited_once()
+    assert execute.await_args.kwargs["skill_id"] == "read"
+    assert execute.await_args.kwargs["arguments"]["url"] == "https://example.org/primary"
+    assert main_processor.HARD_LIMIT_SKILL_CALLS == 5
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("stage,verifier_batch", [("failed", None), ("synthesis", "legacy-verifier"), (None, None)])
+# contract-test: supporting surface=rest_api assertions=focus-modes.full-instruction
+async def test_root_failed_and_legacy_continuations_keep_existing_auto_tools(monkeypatch, stage, verifier_batch):
+    monkeypatch.setattr(main_processor, "SubChatOrchestrationService", lambda _: SimpleNamespace(execute=AsyncMock(return_value={
+        "root_chat_id": "chat-1", "root_turn_id": "message-1", "research_stage": stage, "verifier_batch_id": verifier_batch})))
+    _, calls = await run(monkeypatch, [["Qualified synthesis."]], request_overrides=ROOT_SYNTHESIS)
+    assert len(calls) == 1 and selection(calls[0])[1] == "auto"
+    assert selection(calls[0])[0][:3] == [t["function"]["name"] for t in TOOLS]

@@ -3841,6 +3841,7 @@ async def handle_main_processing(
 
     # Missing or forged child ancestry fails closed at maximum depth.
     chat_depth = resolve_sub_chat_depth(request_data)
+    root_primary_read_required = False
     if (chat_depth == 0 and request_data.active_focus_id == "web-research"
             and request_data.is_sub_chat_continuation and request_data.orchestration_id):
         state = await SubChatOrchestrationService(directus_service).execute("get_root_state", {
@@ -3851,6 +3852,10 @@ async def handle_main_processing(
                 or state["root_turn_id"] != request_data.root_turn_id
                 or not can_synthesize_deep_research(state.get("research_stage"))):
             raise RuntimeError("Deep research synthesis is waiting for independent verification")
+        root_primary_read_required = bool(
+            state.get("research_stage") == "synthesis" and not state.get("verifier_batch_id")
+            and request_data.root_chat_id == request_data.chat_id
+        )
     logger.info(
         "%s Resolved server sub-chat depth to %d (orchestration_id=%s)",
         log_prefix,
@@ -6079,14 +6084,14 @@ async def handle_main_processing(
     images_search_executed = False  # Track whether images-search ran, to inject embed preview instruction
     force_no_tools = False  # When True, force tool_choice="none" to make LLM answer with gathered info
     delegated_primary_read = DelegatedPrimaryReadState(
-        enabled=bool(request_data.is_sub_chat and request_data.orchestration_id
+        enabled=bool((request_data.is_sub_chat or root_primary_read_required) and request_data.orchestration_id
                      and request_data.user_id_hash and not getattr(request_data, "is_anonymous", False)
                      and request_data.active_focus_id == "web-research"
                      and "web-read" in allowed_tool_names),
         has_source_urls=has_http_source_url(request_data.current_user_content),
     )
-    if delegated_primary_read.enabled and request_data.current_user_content is None:
-        # Server-dispatched children carry their assigned prompt in history.
+    if delegated_primary_read.enabled and (root_primary_read_required or request_data.current_user_content is None):
+        # Server-dispatched children and parent synthesis carry their prompt in history.
         # Use only that latest user prompt; tool/private-app output is not input authority.
         for assigned_message in reversed(request_data.message_history):
             assigned_role = assigned_message.get("role") if isinstance(assigned_message, dict) else getattr(assigned_message, "role", None)

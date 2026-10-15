@@ -1916,3 +1916,21 @@ def test_deep_research_three_reports_resume_parent_once_without_verifier(monkeyp
     else:
         assert "primary sources yourself" in prompt
         assert "independent verifier report below" not in prompt
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.full-instruction,app-skills.execution.registered-validated
+@pytest.mark.parametrize("invalid", [None, "owner_hash", "root_turn_id", "failed", "cancelled"])
+def test_parent_synthesis_source_inventory_uses_only_scoped_successful_child_urls(invalid):
+    request, context = _verifier_test_context()
+    context["research_stage"] = "synthesis"
+    entry = context["completed"]["research-child"]
+    entry.update(source_refs=["primary"], source_bindings={"primary": "44444444-4444-4444-8444-444444444444"},
+        source_urls={"primary": "https://agency.example/primary", "unbound": "https://excluded.example/other"})
+    if invalid:
+        entry[invalid] = True if invalid in {"failed", "cancelled"} else "wrong-scope"
+    prompt = stream_consumer._build_sub_chat_completion_context(context)
+    assert ("https://agency.example/primary" in prompt) == (invalid is None)
+    assert "https://excluded.example/other" not in prompt
+    if invalid is None:
+        assert "locations only, not proof" in prompt
+        assert "If reading fails, state the limitation" in prompt

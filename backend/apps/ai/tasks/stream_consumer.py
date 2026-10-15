@@ -1045,6 +1045,27 @@ def _verified_sub_chat_source_bindings(
     return bindings
 
 
+def _verified_sub_chat_source_urls(context: dict[str, Any], request: AskSkillRequest) -> dict[str, str]:
+    """Expose only saved URLs bound to admitted child sources of this owner/turn."""
+    bindings = _verified_sub_chat_source_bindings(context, request)
+    urls: dict[str, str] = {}
+    for child in context.get("expected_sub_chat_ids") or []:
+        entry = (context.get("completed") or {}).get(child) or {}
+        source_urls = entry.get("source_urls")
+        if not isinstance(source_urls, dict):
+            continue
+        # Revalidate each child independently so another child's valid binding
+        # cannot admit a failed, cancelled, or differently scoped entry's URL.
+        child_bindings = _verified_sub_chat_source_bindings(
+            {"expected_sub_chat_ids": [child], "completed": {child: entry}}, request,
+        )
+        for ref in child_bindings:
+            url = _research_source_url(source_urls.get(ref))
+            if ref in bindings and url:
+                urls[ref] = url
+    return dict(sorted(urls.items()))
+
+
 async def _dispatch_sub_chat_parent_continuation(
     *,
     cache_service: CacheService,
@@ -1512,6 +1533,12 @@ def _build_sub_chat_completion_context(pending_context: dict[str, Any]) -> str:
                 "Only present claims as confirmed where the sources directly support them. Omit or qualify unsupported precision, causality, legal conclusions and period/window mismatches beside each claim, including Short Answer and Bottom Line.",
                 "A complaint is an allegation; a proposed settlement is not a court-approved judgment. Preserve primary-source qualifications.",
             ])
+            request = AskSkillRequest(**parent_request_data)
+            source_urls = _verified_sub_chat_source_urls(pending_context, request)
+            if source_urls:
+                lines.append("Saved child source URLs (locations only, not proof of any claim):")
+                lines.extend(f"{ref}: {url}" for ref, url in source_urls.items())
+                lines.append("Read the relevant underlying primary source before confirming its claims. If reading fails, state the limitation; do not substitute a guessed fact.")
         research_context = pending_context.get("research_context")
         if isinstance(research_context, dict):
             lines.extend(["Provisional initial research (subject to the verifier findings):"])
