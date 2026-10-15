@@ -42,7 +42,8 @@ async def run(monkeypatch, streams, **kwargs):
         resolved_chat_depth=(kwargs.get("request_overrides") or {}).get("sub_chat_depth", 0),
         generated_tools=copy.deepcopy(TOOLS), discovered_apps_metadata=METADATA,
         directus_service=SimpleNamespace(),
-        preprocessing_overrides={"selected_app_ids": ["web"], "relevant_app_skills": ["web-search", "web-read"]},
+        preprocessing_overrides={"selected_app_ids": ["web"], "relevant_app_skills": ["web-search", "web-read"],
+                                 **kwargs.pop("preprocessing_overrides", {})},
         **kwargs)
 
 
@@ -364,3 +365,67 @@ async def test_root_failed_and_legacy_continuations_keep_existing_auto_tools(mon
     _, calls = await run(monkeypatch, [["Qualified synthesis."]], request_overrides=ROOT_SYNTHESIS)
     assert len(calls) == 1 and selection(calls[0])[1] == "auto"
     assert selection(calls[0])[0][:3] == [t["function"]["name"] for t in TOOLS]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("case", ["eligible", "ordinary", "legacy", "apps-disabled", "mate-forbidden", "read-unavailable", "exact-request"])
+# contract-test: supporting surface=rest_api assertions=focus-modes.full-instruction,app-skills.execution.registered-validated
+async def test_observed_search_only_catalog_adds_real_read_only_for_authorized_synthesis(monkeypatch, case):
+    import importlib.util
+    from backend.shared.python_schemas.app_metadata_schemas import AppSkillDefinition
+    # Load the production generator directly: the shared protocol fixture stubs
+    # its import and normally supplies a fixed catalogue, masking this regression.
+    spec = importlib.util.spec_from_file_location("primary_read_real_tool_generator",
+        Path(main_processor.__file__).with_name("tool_generator.py"))
+    generator = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(generator)
+    web = copy.deepcopy(METADATA["web"])
+    web.skills = [AppSkillDefinition(**vars(skill), name_translation_key=f"web.{skill.id}",
+        description_translation_key=f"web.{skill.id}.description") for skill in web.skills
+        if case != "read-unavailable" or skill.id != "read"]
+    monkeypatch.setitem(METADATA, "web", web)
+    monkeypatch.setitem(METADATA, "news", SimpleNamespace(skills=[AppSkillDefinition(id="search",
+        name_translation_key="news.search", description_translation_key="news.search.description",
+        tool_schema={"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]})],
+        instructions=[], focuses=[]))
+    generated = []
+    def real_generate(**kwargs):
+        tools = generator.generate_tools_from_apps(**kwargs)
+        generated.append(tools)
+        return tools
+    def install(target, name, value, *args, **kwargs):
+        monkeypatch.setattr(target, name, real_generate if target is main_processor and name == "generate_tools_from_apps" else value, *args, **kwargs)
+    fixture_patches = SimpleNamespace(setattr=install)
+    request = dict(ROOT_SYNTHESIS)
+    if case == "ordinary":
+        request = {}
+    if case == "apps-disabled":
+        request["user_preferences"] = {"apps_enabled": False}
+    monkeypatch.setattr(main_processor, "SubChatOrchestrationService", lambda _: SimpleNamespace(execute=AsyncMock(return_value={
+        "root_chat_id": "chat-1", "root_turn_id": "message-1", "research_stage": "synthesis",
+        "verifier_batch_id": "legacy-verifier" if case == "legacy" else None})))
+    execute = AsyncMock(return_value=[{"url": "https://example.org/primary", "markdown": "Actual primary body"}])
+    monkeypatch.setattr(main_processor, "execute_skill_with_multiple_requests", execute)
+    streams = [[{"fake_google_tool_call": "web-read", "arguments": {"url": "https://example.org/primary"}}],
+               ["Synthesis based on the primary body."]] if case == "eligible" else [["Qualified answer."]]
+    observed_selection = ["news-search", "web-search"]
+    _, calls = await run(fixture_patches, streams, request_overrides=request,
+        preprocessing_overrides={"selected_app_ids": ["news", "web"], "relevant_app_skills": observed_selection,
+                                 "user_requested_skills_only": case == "exact-request"},
+        all_mates_configs=[SimpleNamespace(id="mate-1", default_system_prompt="Research assistant.",
+            tools=["news"] if case == "mate-forbidden" else None)])
+    offered = [tool["function"]["name"] for tool in generated[0]]
+    assert "web-read" not in observed_selection
+    assert ("web-read" in offered) == (case == "eligible")
+    if case == "eligible":
+        assert set(offered) == {"news-search", "web-search", "web-read"}
+        assert selection(calls[0]) == (["web-read"], "required")
+        assert calls[0]["tools"][0]["function"]["parameters"]["required"] == ["url"]
+        assert selection(calls[1])[1] == "auto"
+        execute.assert_awaited_once()
+        assert execute.await_args.kwargs["skill_id"] == "read"
+    else:
+        assert "web-read" not in selection(calls[0])[0]
+        assert selection(calls[0])[1] == "auto"
+        execute.assert_not_awaited()
+    assert main_processor.HARD_LIMIT_SKILL_CALLS == 5

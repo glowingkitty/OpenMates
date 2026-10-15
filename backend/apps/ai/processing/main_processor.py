@@ -5099,6 +5099,18 @@ async def handle_main_processing(
         task_app_skill_mentions,
     )
     
+    # A validated research synthesis needs the read schema even when the
+    # preprocessor selected only discovery. Keep exact requests, disabled apps,
+    # registry availability and the Mate app allowlist authoritative.
+    if (root_primary_read_required and request_data.user_id_hash
+            and not getattr(request_data, "is_anonymous", False)
+            and not user_requested_skills_only
+            and (request_data.user_preferences or {}).get("apps_enabled") is not False
+            and (selected_app_ids is None or "web" in selected_app_ids)
+            and (assigned_app_ids is None or "web" in assigned_app_ids)
+            and any(skill.id == "read" for skill in getattr(discovered_apps_metadata.get("web"), "skills", []) or [])):
+        preselected_skills = (preselected_skills or set()) | {"web-read"}
+
     # Reuse the translation service used to resolve active focus instructions.
     
     available_tools_for_llm = generate_tools_from_apps(
