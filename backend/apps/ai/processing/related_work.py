@@ -13,7 +13,7 @@ from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.shared.python_utils.recent_work_summary_cache import (
     RECENT_WORK_WINDOW_SECONDS, RecentChatSummary,
 )
-from backend.shared.python_utils.recent_work_summary_client import RecentWorkSummaryClient
+from backend.shared.python_utils.recent_work_summary_client import RecentWorkSummaryClient, recent_work_authority_task_id
 
 MAX_RELATED_CANDIDATES = 24
 MAX_SELECTED_RELATED_WORK = 6
@@ -38,7 +38,7 @@ async def fetch_related_chat_summaries(
     try:
         project = getattr(request, "current_project", None) or {}
         return await (client or RecentWorkSummaryClient()).read(
-            owner_id=owner_id, current_chat_id=chat_id, task_id=task_id,
+            owner_id=owner_id, current_chat_id=chat_id, task_id=recent_work_authority_task_id(request, task_id),
             current_project_id=project.get("id") or project.get("project_id"),
         )
     except Exception:

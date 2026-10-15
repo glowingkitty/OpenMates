@@ -467,3 +467,44 @@ async def test_active_first_response_goal_is_labeled_and_ineligible_after_actual
     assert "no assistant completion" in summaries[0].text
     del tasks["related"]
     assert await ipc.read(owner_id="owner", current_chat_id="current", task_id="task-current", authorized_chat_ids=["related"]) == []
+
+
+# contract-test: supporting surface=cli assertions=chats.context.memory-only-summary
+@pytest.mark.asyncio
+async def test_focus_executor_uses_admitted_recent_work_authority_and_preserves_execution_revision(monkeypatch):
+    from backend.apps.ai.skills.ask_skill import AskSkillRequest
+    from backend.apps.ai.processing.related_work import fetch_related_chat_summaries
+    from backend.shared.python_utils.recent_work_summary_client import (
+        mark_response_summary_active, mint_response_summary_completion, write_response_summary_completion,
+    )
+    app, tasks, owned, encryption = runtime_app(monkeypatch)
+    root = "11111111-1111-4111-8111-111111111111"
+    child = "22222222-2222-4222-8222-222222222222"
+    tasks["current"] = root
+    ipc = RecentWorkSummaryClient(base_url="http://runtime", token="service-token",
+                                  transport=httpx.ASGITransport(app=app))
+    request = AskSkillRequest.model_construct(user_id="owner", chat_id="current", message_id="turn",
+        recovery_inference_task_id=root, is_focus_mode_continuation=True, current_user_content="synthetic goal")
+    assert await mark_response_summary_active(request, child, client=ipc)
+    assert await ipc.write(owner_id="owner", chat_id="related", task_id="task-related", revision="related-r1",
+                           text="synthetic related summary", assistant_completed_at=time.time())
+    assert await fetch_related_chat_summaries(request, child, None, None, client=ipc)
+    await mint_response_summary_completion(request, child, client=ipc)
+    assert request._recent_summary_completion_ticket
+    assert request._recent_summary_revision == f"{child}:1"
+    assert await write_response_summary_completion(request, child, "synthetic completed summary", client=ipc)
+    tasks["current"] = "superseding-admission"
+    assert not await mark_response_summary_active(request, child, client=ipc)
+    assert not await fetch_related_chat_summaries(request, child, None, None, client=ipc)
+    stale = AskSkillRequest.model_construct(user_id="owner", chat_id="current", message_id="turn",
+        recovery_inference_task_id=root, is_focus_mode_continuation=True)
+    await mint_response_summary_completion(stale, child, client=ipc)
+    assert not getattr(stale, "_recent_summary_completion_ticket", None)
+
+    tasks["current"] = root
+    async def newer_source_turn(_key):
+        return "newer-source-turn"
+    app.state.cache_service.get = newer_source_turn
+    assert not await mark_response_summary_active(stale, child, client=ipc)
+    await mint_response_summary_completion(stale, child, client=ipc)
+    assert not getattr(stale, "_recent_summary_completion_ticket", None)

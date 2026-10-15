@@ -6107,6 +6107,27 @@ class _FirstChunkPublishBarrier:
             await self.operation()
 
 
+def _should_prepare_assistant_speech(request_data, preprocessing_result, user_overrides) -> bool:
+    """Activation-only Focus turns have no answer/profile until their continuation."""
+    if request_data.is_external or request_data.is_incognito:
+        return False
+    from backend.apps.ai.processing.main_processor import _trusted_focus_override
+
+    relevant_focus_modes = preprocessing_result.relevant_focus_modes or []
+    project_focus_ids = {
+        f"project-{row['project_id']}"
+        for row in getattr(request_data, "project_focus_candidates", [])
+    }
+    explicit_focus_activation = bool(
+        getattr(preprocessing_result, "user_requested_focus_only", False)
+        and relevant_focus_modes
+        and not (request_data.active_focus_id or getattr(request_data, "active_project_focus", None))
+        and relevant_focus_modes[0] not in project_focus_ids
+        and _trusted_focus_override(user_overrides, relevant_focus_modes[0])
+    )
+    return not explicit_focus_activation
+
+
 async def _consume_main_processing_stream(
     task_id: str,
     request_data: AskSkillRequest,
@@ -6293,7 +6314,7 @@ async def _consume_main_processing_stream(
         completion_timing.mark_first_visible_content if completion_timing else None,
     )
     speech_tracker: Optional[ImmutableSpeechBoundaryTracker] = None
-    if not request_data.is_external and not request_data.is_incognito:
+    if _should_prepare_assistant_speech(request_data, preprocessing_result, user_overrides):
         selected_mate = next(
             (
                 mate

@@ -86,6 +86,12 @@ def authoritative_context_turn_id(request: object) -> str:
     return getattr(request, "_authoritative_context_turn_id", None) or request.message_id
 
 
+def recent_work_authority_task_id(request: object, execution_task_id: str) -> str:
+    """Use the admitted inference owner across internal continuation executors."""
+    resolve = getattr(request, "resolved_recovery_inference_task_id", None)
+    return (resolve() if callable(resolve) else None) or execution_task_id
+
+
 def bind_restored_context_turn(request: object, restored: dict) -> None:
     """Runtime-only authority: this marker is emitted solely by the IPC opener."""
     setattr(request, "_authoritative_context_turn_id", restored.get("_authoritative_context_turn_id"))
@@ -98,7 +104,7 @@ async def mint_response_summary_completion(request: object, task_id: str,
         return
     revision = f"{task_id}:{getattr(request, 'assistant_response_source_revision', 1)}"
     ticket = await (client or RecentWorkSummaryClient()).mint_completion(
-        owner_id=request.user_id, chat_id=request.chat_id, task_id=task_id, revision=revision,
+        owner_id=request.user_id, chat_id=request.chat_id, task_id=recent_work_authority_task_id(request, task_id), revision=revision,
         turn_id=authoritative_context_turn_id(request),
     )
     # Private, non-model fields stay out of model_dump/Celery result serialization.
@@ -116,7 +122,7 @@ async def write_response_summary_completion(request: object, task_id: str, summa
         return False
     project = getattr(request, "active_project_focus", None) or {}
     return await (client or RecentWorkSummaryClient()).write(
-        owner_id=request.user_id, chat_id=request.chat_id, task_id=task_id,
+        owner_id=request.user_id, chat_id=request.chat_id, task_id=recent_work_authority_task_id(request, task_id),
         revision=revision, text=summary,
         project_id=project.get("project_id") or project.get("id"), completion_ticket=ticket,
     )
@@ -276,7 +282,7 @@ async def mark_response_summary_active(request: object, task_id: str,
     if any(getattr(request, flag, False) for flag in ("is_external", "is_incognito", "is_anonymous")):
         return False
     return await (client or RecentWorkSummaryClient()).mark_active(
-        owner_id=request.user_id, chat_id=request.chat_id, task_id=task_id, turn_id=authoritative_context_turn_id(request),
+        owner_id=request.user_id, chat_id=request.chat_id, task_id=recent_work_authority_task_id(request, task_id), turn_id=authoritative_context_turn_id(request),
         summary=getattr(request, "current_chat_summary", None),
         summary_version=getattr(request, "current_chat_summary_v", None),
         active_goal=(getattr(request, "current_user_content", None) or "")[:4000] or None)
