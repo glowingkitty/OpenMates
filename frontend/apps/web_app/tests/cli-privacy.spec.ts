@@ -43,6 +43,6 @@ test('optional offline anonymization controls never download or activate in head
     const result = await promisify(execFile)(process.execPath, [fixture, cli], { timeout: 30_000,
       env: { ...process.env, OPENMATES_STATE_DIR: path.join(directory, 'state'), OPENMATES_PRIVACY_DIR: path.join(directory, 'model') } });
     expect(JSON.parse(result.stdout)).toEqual({ prepared: 1, unchanged: 3, full: 4, redacted: 7,
-      scopedMetadata: 2, scopedWindows: 2, taskDiscovery: 1 });
+      scopedMetadata: 2, scopedWindows: 2, taskDiscovery: 3, linkedTaskDiscovery: 2 });
   } finally { rmSync(directory, { recursive: true, force: true }); }
  });

@@ -21,7 +21,7 @@ const wrapped = await webcrypto.subtle.encrypt({name:'AES-GCM',iv:chatKeyIv},key
 const encryptedChatKey = Buffer.concat([Buffer.from(chatKeyIv),Buffer.from(wrapped)]).toString('base64');
 let generation = 'fixture-epoch:1';
 let prepared = 0, unchanged = 0, full = 0, redacted = 0;
-let scopedMetadata = 0, scopedWindows = 0, taskDiscovery = 0;
+let scopedMetadata = 0, scopedWindows = 0, taskDiscovery = 0, linkedTaskDiscovery = 0;
 const wss = new WebSocketServer({ noServer: true });
 const api = createServer((request, response) => {
   response.setHeader('content-type', 'application/json');
@@ -34,10 +34,16 @@ const api = createServer((request, response) => {
     response.end(JSON.stringify({messages:[],has_more_before:false}));
   }
   else if (request.method === 'GET' && request.url.startsWith('/v1/user-tasks?')) {
-    taskDiscovery++;
     const query = new URL(request.url, 'http://fixture.invalid').searchParams;
     assert.equal(query.get('limit'),'100'); assert.equal(query.get('paginate'),'true'); assert.equal(query.has('cursor'),false);
-    response.end(JSON.stringify({tasks:Array.from({length:100},(_,i)=>({task_id:`fixture-task-${i}`,version:1})),complete:false,next_cursor:'must-not-follow'}));
+    if (query.has('chat_id')) {
+      linkedTaskDiscovery++;
+      assert.equal(query.get('chat_id'), chatId, 'linked Task discovery must remain scoped to this saved chat');
+      response.end(JSON.stringify({tasks:[],complete:true,next_cursor:null}));
+    } else {
+      taskDiscovery++;
+      response.end(JSON.stringify({tasks:Array.from({length:100},(_,i)=>({task_id:`fixture-task-${i}`,version:1})),complete:false,next_cursor:'must-not-follow'}));
+    }
   }
   else { response.statusCode = 404; response.end('{}'); }
 });
@@ -86,9 +92,11 @@ try {
   generation = 'fixture-epoch:2'; await send();
   client.invalidatePreparedPrivacy(); await send();
   generation = null; await send(); await send();
-  assert.deepEqual({ prepared, unchanged, full, redacted,scopedMetadata,scopedWindows,taskDiscovery },
-    { prepared: 1, unchanged: 3, full: 4, redacted: 7,scopedMetadata:2,scopedWindows:2,taskDiscovery:1 });
-  process.stdout.write(JSON.stringify({ prepared, unchanged, full, redacted,scopedMetadata,scopedWindows,taskDiscovery }) + '\n');
+  // One standalone bounded probe, plus one directory and one chat-linked
+  // Task read for each of the two saved-chat preparation attempts.
+  assert.deepEqual({ prepared, unchanged, full, redacted,scopedMetadata,scopedWindows,taskDiscovery,linkedTaskDiscovery },
+    { prepared: 1, unchanged: 3, full: 4, redacted: 7,scopedMetadata:2,scopedWindows:2,taskDiscovery:3,linkedTaskDiscovery:2 });
+  process.stdout.write(JSON.stringify({ prepared, unchanged, full, redacted,scopedMetadata,scopedWindows,taskDiscovery,linkedTaskDiscovery }) + '\n');
 } finally {
   client.endInteractiveViewerSession(); stopActivity?.();
   for (const peer of wss.clients) peer.terminate();

@@ -82,11 +82,15 @@ export async function decodePersonalProjectCandidates(client: OpenMatesClient,
 }
 
 /** Metadata selection precedes private file reads; fresh accepted specialists are retained. */
-export async function loadActiveCliProjectContext(client: OpenMatesClient, chatId: string, text?: string, onCatalog?: (catalog: ProjectFocusCatalogEntry[]) => void): Promise<CliJevContext & { projectId?: string; focusCatalogComplete?: boolean }> {
-  const active = await client.getActiveProjectFocus(chatId);
+export async function loadActiveCliProjectContext(client: OpenMatesClient, chatId: string, text?: string, onCatalog?: (catalog: ProjectFocusCatalogEntry[]) => void,
+  prefetched?: PrefetchedDiscoveryReads): Promise<CliJevContext & { projectId?: string; focusCatalogComplete?: boolean }> {
+  const active = await (prefetched?.activeFocusRead ?? client.getActiveProjectFocus(chatId));
+  prefetched?.assertCurrent();
   if (!active) return {};
   const options = { teamId: active.team_id, personal: !active.team_id };
-  const detail = await client.getProject(active.project_id, options);
+  const detail = prefetched ? await prefetched.projectRead : await client.getProject(active.project_id, options);
+  prefetched?.assertCurrent();
+  if (!detail) throw new Error("Active Project discovery unavailable.");
   const key = await client.decryptProjectKey(detail.project, options);
   const result: CliJevContext & { projectId: string; focusCatalogComplete: boolean } = { projectId: active.project_id, focusCatalogComplete: true,
     custom_rule_documents: [], project_focus_catalog: [], project_focus_documents: [], project_context_documents: [] };
@@ -121,6 +125,7 @@ export async function loadActiveCliProjectContext(client: OpenMatesClient, chatI
   }
   onCatalog?.(result.project_focus_catalog ?? []);
   let selected: Array<{ id: string; kind: string; revision: string }> = [];
+  prefetched?.assertCurrent();
   if (text?.trim() && candidates.length) selected = await client.selectProjectContext(active.project_id,
     { chat_id: chatId, text: text.slice(0, 8000), candidates: candidates.slice(0, 24) }, options);
   const specialistId = active.specialist_focus_id?.startsWith(`project-focus:${active.project_id}:`) ? active.specialist_focus_id.split(":")[2] : active.specialist_focus_id;
@@ -230,6 +235,52 @@ function taskContextOwner(client: OpenMatesClient): () => void {
   };
 }
 
+interface PrefetchedDiscoveryReads {
+  assertCurrent: () => void;
+  plansRead: Promise<UserPlanRecord[]>;
+  directoryRead: Promise<UserTaskRecord[]>;
+  linkedRead: Promise<UserTaskRecord[]>;
+  activeFocusRead: ReturnType<OpenMatesClient["getActiveProjectFocus"]>;
+  projectRead: Promise<Awaited<ReturnType<OpenMatesClient["getProject"]>> | null>;
+}
+/** Opaque, one-send metadata reads; never a permission or private-context cache. */
+export type CliJevDiscoveryTicket = object;
+const prefetchedDiscovery = new WeakMap<CliJevDiscoveryTicket, PrefetchedDiscoveryReads & {
+  client: OpenMatesClient; chatId: string; scope: string;
+}>();
+const discoveryScope = (options: TeamContextOptions) => JSON.stringify([options.teamId ?? null, options.personal === true]);
+
+export function prefetchCliJevDiscovery(client: OpenMatesClient, chatId: string, options: TeamContextOptions): CliJevDiscoveryTicket {
+  const assertCurrent = taskContextOwner(client);
+  const activeFocusRead = client.getActiveProjectFocus(chatId);
+  const projectRead = activeFocusRead.then(active => {
+    assertCurrent();
+    return active ? client.getProject(active.project_id, { teamId: active.team_id, personal: !active.team_id }) : null;
+  });
+  // Optional discovery can fail before the consuming preparation starts.
+  void activeFocusRead.catch(() => {}); void projectRead.catch(() => {});
+  const ticket = Object.freeze({});
+  prefetchedDiscovery.set(ticket, {
+    client, chatId, scope: discoveryScope(options), assertCurrent, activeFocusRead, projectRead,
+    plansRead: client.listUserPlans({ ...options, chatId, activeOnly: false }).catch(() => []),
+    directoryRead: client.listUserTaskDiscoveryPage(options).catch(() => []),
+    linkedRead: client.listUserTasks({ ...options, chatId, limit: 100 }).catch(() => []),
+  });
+  return ticket;
+}
+
+function consumeDiscovery(client: OpenMatesClient, chatId: string, options: TeamContextOptions,
+  ticket?: CliJevDiscoveryTicket): PrefetchedDiscoveryReads | undefined {
+  if (!ticket) return;
+  const reads = prefetchedDiscovery.get(ticket);
+  prefetchedDiscovery.delete(ticket);
+  if (!reads || reads.client !== client || reads.chatId !== chatId || reads.scope !== discoveryScope(options)) {
+    throw new Error("Invalid same-send context discovery ticket.");
+  }
+  reads.assertCurrent();
+  return reads;
+}
+
 /** Current chat work precedes general discovery; dependency references never grant Task authority. */
 export async function collectRelatedCliTaskContext(client: OpenMatesClient, chatId: string, options: TeamContextOptions,
   records: UserTaskRecord[], nowSeconds = Date.now() / 1000, requiredIds: ReadonlySet<string> = new Set()): Promise<RelatedTaskCandidate[]> {
@@ -290,13 +341,15 @@ export async function prepareCliJevContext(client: OpenMatesClient, chatId: stri
   discovery: { sdkMintedChatId?: boolean; onRouting?: (context: CliJevContext) => void;
     onProjectRouting?: (context: CliJevContext) => void; onProjectRoutingError?: (error: unknown) => void;
     verifiedProjectCandidates?: NonNullable<CliJevContext["project_focus_candidates"]>;
-    usePersonalRoutingDirectory?: boolean } = {}): Promise<CliJevContext> {
-  const assertTaskOwner = taskContextOwner(client);
+    usePersonalRoutingDirectory?: boolean; prefetchedDiscovery?: CliJevDiscoveryTicket } = {}): Promise<CliJevContext> {
+  const prefetched = consumeDiscovery(client, chatId, options, discovery.prefetchedDiscovery);
+  const currentOwner = taskContextOwner(client);
+  const assertTaskOwner = () => { currentOwner(); prefetched?.assertCurrent(); };
   // Start independent Plan discovery alongside Task and Project reads. Existing
   // approved revision/linkage checks below still run against fresh exact records.
-  const plansRead = discovery.sdkMintedChatId ? Promise.resolve([] as UserPlanRecord[])
+  const plansRead = prefetched?.plansRead ?? (discovery.sdkMintedChatId ? Promise.resolve([] as UserPlanRecord[])
     : typeof client.listUserPlans === "function"
-      ? client.listUserPlans({ ...options, chatId, activeOnly: false }).catch(() => []) : Promise.resolve([] as UserPlanRecord[]);
+      ? client.listUserPlans({ ...options, chatId, activeOnly: false }).catch(() => []) : Promise.resolve([] as UserPlanRecord[]));
   let candidates: CliJevContext["project_focus_candidates"] = [];
   let active: Awaited<ReturnType<typeof loadActiveCliProjectContext>> = {};
   let tasks: RelatedTaskCandidate[] = [];
@@ -304,7 +357,7 @@ export async function prepareCliJevContext(client: OpenMatesClient, chatId: stri
   let resolveCatalog!: (catalog: ProjectFocusCatalogEntry[]) => void;
   const catalogReady = new Promise<ProjectFocusCatalogEntry[]>(resolve => { resolveCatalog = resolve; });
   const activeReady = discovery.sdkMintedChatId ? Promise.resolve().then(() => resolveCatalog([]))
-    : loadActiveCliProjectContext(client, chatId, text, resolveCatalog)
+    : loadActiveCliProjectContext(client, chatId, text, resolveCatalog, prefetched)
       .then(value => { active = value; }).catch(() => {}).finally(() => resolveCatalog([]));
   await Promise.all([
     (discovery.verifiedProjectCandidates
@@ -312,6 +365,7 @@ export async function prepareCliJevContext(client: OpenMatesClient, chatId: stri
       : discovery.usePersonalRoutingDirectory
         ? client.listPersonalProjectRoutingDirectory().then(rows => decodePersonalProjectCandidates(client, rows))
       : discoverCliProjectCandidates(client, options, Boolean(discovery.onProjectRouting))).then(value => {
+      assertTaskOwner();
       candidates = value;
       discovery.onProjectRouting?.({ project_focus_candidates: (discovery.verifiedProjectCandidates ?? supplied.project_focus_candidates ?? value).slice(0, 40) });
     }).catch(error => { discovery.onProjectRoutingError?.(error); }),
@@ -320,8 +374,8 @@ export async function prepareCliJevContext(client: OpenMatesClient, chatId: stri
         listUserTaskDiscoveryPage?: (scope: TeamContextOptions) => Promise<UserTaskRecord[]>;
       };
       const [directory, linked] = await Promise.all([
-        taskClient.listUserTaskDiscoveryPage?.(options).catch(() => []) ?? Promise.resolve([]),
-        discovery.sdkMintedChatId ? Promise.resolve([]) : client.listUserTasks({ ...options, chatId, limit: 100 }).catch(() => []),
+        prefetched?.directoryRead ?? taskClient.listUserTaskDiscoveryPage?.(options).catch(() => []) ?? Promise.resolve([]),
+        prefetched?.linkedRead ?? (discovery.sdkMintedChatId ? Promise.resolve([]) : client.listUserTasks({ ...options, chatId, limit: 100 }).catch(() => [])),
       ]);
       assertTaskOwner();
       const records = new Map<string, UserTaskRecord>();

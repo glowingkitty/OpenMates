@@ -1,3 +1,4 @@
+import { initialChatHistoryGate } from './initialChatHistoryGate';
 import { freshPersonalPrivacyForSend, filterWithFreshPersonalPrivacy, attachFreshPrivacyReceipt, personalPrivacyMetadataKeys, type PrivacySendReceipt } from "./preparedPrivacyForSend";
 /**
  * sendersChatMessages.ts — Message sending and encrypted storage operations
@@ -1319,6 +1320,7 @@ async function dispatchFastPersonalTurn(input: {
 		} }));
 	}
 	bindPersonalChatTurn(personalTurn, admission.turn_id as string);
+	initialChatHistoryGate.bind(message.chat_id, message.message_id, admission.turn_id as string);
 	const retainedRequest = admission.inference_request as Record<string, unknown>;
 	const contextWorkspace = getWorkspaceCacheIdentity();
 	const contextTeam = getActiveTeamContextSnapshot();
@@ -1380,6 +1382,7 @@ async function dispatchFastPersonalTurn(input: {
 		// consume context only then; a rejected frame cannot publish a phase.
 		void admissionAck.then(async () => {
 			recordSendPreparationPhase('admission_ack');
+			initialChatHistoryGate.acknowledge(message.chat_id, message.message_id, admission.turn_id as string, contextWorkspace);
 			await publishPostAdmissionContext({
 				message, chat, admission, postAdmissionConnectedAccounts, consumeEarlyProjects, supportsSelectionDetailsV2Now,
 				contextRejected: () => contextRejected || !isContextAttemptCurrent()
@@ -3055,7 +3058,10 @@ export async function sendNewMessageImpl(
 				}
 				payload = preflightPayload.inference_request as SendMessagePayload;
 				turnId = preflightPayload.turn_id as string;
-				if (usesPersonalRecovery) bindPersonalChatTurn(personalTurn, turnId);
+				if (usesPersonalRecovery) {
+					bindPersonalChatTurn(personalTurn, turnId);
+					initialChatHistoryGate.bind(message.chat_id, message.message_id, turnId);
+				}
 				watchDurableTurnPreflightConfirmation(
 					message.chat_id, message.message_id,
 					Number(preflightPayload.expected_messages_v) + 1,
@@ -3087,7 +3093,8 @@ export async function sendNewMessageImpl(
 			const { preflight_id } = await runSerializedPreflight(async () => {
 				if (shouldInvokeTeamAI) assertTeamSendScope();
 				const acknowledgement = waitForPreflightAcknowledgement(
-					turnId, webSocketService, recordPreflightDebugStep
+					turnId, webSocketService, recordPreflightDebugStep, undefined,
+					initialChatHistoryGate.pending(message.chat_id)
 				);
 				recordPreflightDebugStep("preflight_dispatch_started", {
 					turnId,
@@ -3099,6 +3106,7 @@ export async function sendNewMessageImpl(
 				recordPreflightDebugStep("preflight_dispatch_complete", { turnId });
 				return acknowledgement;
 			});
+			initialChatHistoryGate.acknowledge(message.chat_id, message.message_id, turnId, sendWorkspaceIdentity);
 			payload.protocol_version = CHAT_RECOVERY_PROTOCOL_VERSION;
 			payload.preflight_id = preflight_id;
 			durablePreflightId = preflight_id;

@@ -35,6 +35,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import { tooltip } from '../actions/tooltip';
     import { chatDB } from '../services/db';
     import { isChatMetadataTurnCurrent, getChatMetadataTurnKey } from '../services/lateChatMetadataGuard';
+    import { initialChatHistoryGate } from '../services/initialChatHistoryGate';
     import { getWorkspaceCacheEpoch } from '../services/workspaceCacheLifecycle';
     import { hasRoomForLargeContinueCards } from '../utils/continueCardLayout';
     import { getRecentChatRevision, getRecentChatSelection, getRecentChatWindow, invalidateRecentChatWindow, isRecentChatReadCurrent, putRecentChatWindow, recentChatHeaderMatches, RecentChatWarmReadGuard, reconcileRecentChatMessages, subscribeRecentChatWindowInvalidation } from '../services/recentChatWindowCache';
@@ -9723,6 +9724,15 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         anchorMessageId?: string;
         compressedUpToTimestamp?: number;
     }) {
+        // An optimistic initial row precedes canonical admission. Keep it local;
+        // the exact durable ACK schedules one repair after this owned fence opens.
+        if (initialChatHistoryGate.defer(chatId, () => {
+            if (currentChat?.chat_id === chatId) {
+                void loadChat(currentChat, { preserveActiveComposer: true }).catch((error) => {
+                    console.warn('[ActiveChat] Deferred initial history repair failed:', error);
+                });
+            }
+        })) return chatDB.getMessageWindowForChat(chatId, options);
         const teamScope = get(activeTeamId);
         const scopeEpoch = getWorkspaceCacheEpoch();
         const storedChat = await chatDB.getRawChat(chatId);
@@ -10866,7 +10876,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 // The server response (chat_content_batch_response) saves messages to IndexedDB
                 // and dispatches chatUpdated with messagesUpdated=true, which triggers
                 // handleChatUpdated to reload messages from IDB into the view.
-                if (newMessages.length === 0 && currentChat.chat_id && !isPublicChat(currentChat.chat_id)) {
+                if (newMessages.length === 0 && currentChat.chat_id && !isPublicChat(currentChat.chat_id)
+                    && !initialChatHistoryGate.pending(currentChat.chat_id)) {
                     const onDemandChatId = currentChat.chat_id;
                     const shouldAwaitOnDemandMessages =
                         Number(currentChat.messages_v ?? 0) > 0 ||

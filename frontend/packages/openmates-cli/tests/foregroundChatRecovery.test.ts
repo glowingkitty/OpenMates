@@ -168,6 +168,9 @@ describe('same-send fresh history preparation', () => {
   }
   function fixture() {
     const client = OpenMatesClient.load();
+    // This send fixture mocks network discovery as well as its socket/history.
+    for (const method of ['listUserPlans', 'listUserTaskDiscoveryPage', 'listUserTasks']) (client as any)[method] = async () => [];
+    (client as any).getActiveProjectFocus = async () => null;
     const calls: string[] = [];
     let closed = 0;
     const ws = {
@@ -212,6 +215,22 @@ describe('same-send fresh history preparation', () => {
     history.resolve({ chat: {}, messages: [] });
     await rejected;
     assert.equal(privacy, true); assert.equal(historySignal?.aborted, true);
+  });
+  // contract-test: supporting surface=cli assertions=auth.session.isolation,chats.direction.context-assessment
+  it('starts fresh followup discovery before the independent Memory snapshot completes', async () => {
+    const { client, ws } = fixture();
+    const memory = deferred<any>(); const snapshotStarted = deferred<void>();
+    let discoveries = 0, privacy = false;
+    (client as any).getChatMessages = async () => ({ chat: {}, messages: [] });
+    (client as any).listUserTaskDiscoveryPage = async () => { discoveries++; return []; };
+    ws.requestPersonalMemorySnapshot = () => { snapshotStarted.resolve(); return memory.promise; };
+    const send = client.sendMessage({ chatId, message: 'And France?', piiDetection: false,
+      onPrivacyPrepared: () => { privacy = true; throw new Error('stop before admission'); } });
+    const rejected = assert.rejects(send, /stop before admission/);
+    await snapshotStarted.promise;
+    assert.equal(discoveries, 1); assert.equal(privacy, false);
+    memory.resolve({ encrypted_settings: null, memories: [] });
+    await rejected;
   });
   // contract-test: supporting surface=cli assertions=auth.session.isolation
   for (const change of ['account', 'team']) it(`fences ${change} after canonical history finishes while socket preparation remains pending`, async () => {
@@ -315,6 +334,12 @@ describe('post-reply viewer cancellation', () => {
         await capture(...args);
         if (internal.http.getCookieMap().auth_refresh_token === 'viewer-rotated-cookie') headersCaptured();
       };
+      const nativeFetch = globalThis.fetch;
+      const fetchErrors: Array<{ name?: string; code?: string }> = [];
+      globalThis.fetch = async (...args) => {
+        try { return await nativeFetch(...args); }
+        catch (error) { fetchErrors.push(error as { name?: string; code?: string }); throw error; }
+      };
       let deadline: ReturnType<typeof setTimeout> | null = null;
       try {
         const viewer = client.setInteractiveChatViewer(chatId);
@@ -327,6 +352,9 @@ describe('post-reply viewer cancellation', () => {
         })]);
         await viewer;
         assert.equal(owner, 'owner'); assert.equal(authCalls, 2); assert.equal(upgrades, 0);
+        if (phase === 'before headers') assert.deepEqual(fetchErrors.map(error => [error.name, error.code]),
+          [['OpenMatesViewerSupersededError', 'OPENMATES_VIEWER_SUPERSEDED']],
+          'native fetch must expose the owned cancellation brand to the observer');
         assert.equal(sentCookies[1], `auth_refresh_token=${stored.cookies.auth_refresh_token}`);
         if (phase === 'before headers') first.setHeader('set-cookie', 'auth_refresh_token=late-viewer-cookie; Path=/; HttpOnly');
         first.end(JSON.stringify({ success: true, ws_token: 'late-viewer-token', user: { id: 'wrong-owner' } }));
@@ -339,6 +367,7 @@ describe('post-reply viewer cancellation', () => {
         assert.equal(internal.preparedPrivacy.get(internal.preparedPrivacyOwnerKey(null), '{}'), privacyBundle,
           'cancelled viewer/ordinary rotation must not discard an owner-bound privacy bundle');
       } finally {
+        globalThis.fetch = nativeFetch;
         if (deadline) clearTimeout(deadline);
         client.endInteractiveViewerSession();
         Object.defineProperty(process.stdin, 'isTTY', { configurable: true, value: stdinTty });
@@ -363,6 +392,8 @@ describe('post-reply viewer cancellation', () => {
       const first = client.setInteractiveChatViewer(chatId);
       const second = client.setInteractiveChatViewer(unrelatedId);
       assert.equal(opens[0].signal.aborted, true);
+      assert.equal(opens[0].signal.reason?.name, 'OpenMatesViewerSupersededError');
+      assert.equal(opens[0].signal.reason?.code, 'OPENMATES_VIEWER_SUPERSEDED');
       const current = internal.interactiveViewerOpenController;
       opens[0].resolve({ ws: ws('cancelled') }); await first;
       assert.deepEqual(closed, ['cancelled']);

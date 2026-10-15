@@ -740,6 +740,15 @@ test('secondary client recovers exactly one saved assistant message after origin
 		availableJobs?: Array<{ jobId?: string; chatId?: string }>;
 	}> = [];
 	const recoveryProtocolEvents: typeof protocolEvents = [];
+	const prematureInitialHistoryRequests: string[] = [];
+	origin.on('request', (request: any) => {
+		const match = new URL(request.url()).pathname.match(/^\/v1\/chats\/([^/]+)\/messages\/window$/);
+		if (!match) return;
+		const admission = protocolEvents.find(event => event.direction === 'sent' && ['chat_turn_admit', 'chat_turn_preflight'].includes(event.type) && event.chatId === match[1]);
+		const ack = admission && protocolEvents.some(event => event.direction === 'received' && event.type === 'chat_turn_preflight_ack' && event.turnId === admission.turnId);
+		// Requests before the admission frame are checked after the new chat ID is known.
+		if (!ack) prematureInitialHistoryRequests.push(match[1]);
+	});
 	const captureProtocolEvents = (page: any, events: typeof protocolEvents) => page.on('websocket', (websocket: any) => {
 		const capture = (direction: 'sent' | 'received') => (frame: any) => {
 			try {
@@ -827,6 +836,7 @@ test('secondary client recovers exactly one saved assistant message after origin
 				&& event.turnId === admission.turnId
 			);
 			await expect.poll(matchingAckIndex, { timeout: 30000 }).toBeGreaterThan(firstAdmissionIndex);
+			expect(prematureInitialHistoryRequests.filter(id => id === chatId), 'Optimistic initial history must remain local until its exact durable admission ACK').toEqual([]);
 			expect(admission.expectedMessagesV).toBe(0);
 			expect(admission.hasEncryptedMetadata).toBe(true);
 			expect(preflightSentIndex).toBe(-1);
@@ -835,6 +845,7 @@ test('secondary client recovers exactly one saved assistant message after origin
 			expect(protocolEvents[matchingAckIndex()]?.committedVersion).toBe(1);
 			expect(protocolEvents[matchingAckIndex()]?.hasOutboxIdentity).toBe(true);
 		} else if (preflightSentIndex >= 0 && preflightAckIndex >= 0 && inferenceSentIndex >= 0) {
+			expect(prematureInitialHistoryRequests.filter(id => id === chatId), 'Legacy initial history must remain local until its exact durable preflight ACK').toEqual([]);
 			expect(preflightSentIndex).toBeLessThan(preflightAckIndex);
 			expect(preflightAckIndex).toBeLessThan(inferenceSentIndex);
 			expect(protocolEvents[preflightAckIndex]?.state).toMatch(/^(LEGACY|PREPARED)$/);

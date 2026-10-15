@@ -1,3 +1,4 @@
+import { initialChatHistoryGate } from '../../../services/initialChatHistoryGate';
 import { noteChatMetadataTurn } from "../../../services/lateChatMetadataGuard";
 import { registerPersonalPrivacyExclusions } from "../../../services/preparedPrivacyForSend";
 import type { Editor, JSONContent } from "@tiptap/core";
@@ -740,6 +741,9 @@ export async function handleSend(
         : undefined;
       saveDraftDebounced.cancel();
       noteChatMetadataTurn(chatIdAtClick, "", optimisticMessage.message_id);
+      if (firstTurnAtClick && !sendContext.teamId && !sourceDemoIdAtClick && !incognitoMode.get()) {
+        initialChatHistoryGate.register(chatIdAtClick, optimisticMessage.message_id);
+      }
       dispatch("sendMessage", { message: optimisticMessage, newChat: provisionalChat });
       dispatchedMessage = optimisticMessage;
       optimisticMessageDispatched = true;
@@ -1845,6 +1849,9 @@ export async function handleSend(
       dispatch("sendMessagePrepared", { message: messagePayload });
       dispatchedMessage = messagePayload;
     } else if (!(sendContext.teamId && isNewChatCreation)) {
+      if ((isNewChatCreation || isUsingDraftChat) && !sendContext.teamId && !incognitoMode.get()) {
+        initialChatHistoryGate.register(chatIdToUse, messagePayload.message_id);
+      }
       dispatch("sendMessage", { message: messagePayload, newChat: provisionalChat });
       dispatchedMessage = messagePayload;
       optimisticMessageDispatched = true;

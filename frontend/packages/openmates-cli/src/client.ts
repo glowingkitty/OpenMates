@@ -118,7 +118,7 @@ import { RecoveryFailureRetry, recoveryOutputIdentity, recoveryReadinessSignatur
   type RecoveryRetryOperation } from "./recoveryFailureRetry.js";
 import type { FocusPhaseState } from "../../ui/src/types/focusPhases.js";
 import { registerChatContextEvents, parseChatContextContent, type ChatContextEvent } from "./chatContextEvents.js";
-import { prepareCliJevContext, decodePersonalProjectCandidates, type CliJevContext, type EncryptedPersonalProjectCandidate, type FocusAuthoringDocument } from "./cliJevContext.js";
+import { prepareCliJevContext, prefetchCliJevDiscovery, decodePersonalProjectCandidates, type CliJevContext, type EncryptedPersonalProjectCandidate, type FocusAuthoringDocument } from "./cliJevContext.js";
 import { registerProjectFocusCountdown, type ProjectFocusCountdown } from "./projectFocusCountdown.js";
 import { assessCliProjectAuthoring, boundedAuthoringHistory } from "./cliProjectAuthoring.js";
 import type { MentionContext, AppInfo, MemoryEntryInfo } from "./mentions.js";
@@ -9344,6 +9344,13 @@ export class OpenMatesClient {
       params.learningMode?.enabled ?? null, params.learningMode?.ageGroup ?? null,
     ]);
     if (!params.incognito && params.chatId) readSavedPrivacyHistory();
+    // Only metadata discovery is independent of fresh PII redaction. Selection,
+    // private document reads and final Project/Plan rechecks remain below.
+    const followupDiscoveryOwner = !params.incognito && params.chatId && !teamId && !params.projectId
+      ? this.preparedChatOwner(this.requireSession(), teamId) : null;
+    const followupDiscoveryRead = followupDiscoveryOwner
+      ? withHttpAbortSignal(historyAbort.signal, async () => prefetchCliJevDiscovery(this, chatId, { personal: true, teamId })) : null;
+    void followupDiscoveryRead?.catch(() => {});
     const memoryStartedAt = performance.now();
     let availableMemories: DecryptedMemoryEntry[] = params.memorySnapshot ?? [];
     let memoryCountsLoaded = false;
@@ -9863,10 +9870,14 @@ export class OpenMatesClient {
         messagePayload.client_context_request_id = contextRequestId;
       }
       pendingContext = (async () => {
+        const prefetchedDiscovery = followupDiscoveryRead ? await followupDiscoveryRead : undefined;
+        if (followupDiscoveryOwner && !this.preparedChatOwnerCurrent(followupDiscoveryOwner, teamId)) {
+          throw new Error("Chat workspace changed during context discovery.");
+        }
         const prepared = earlyContext
           ? await earlyContext
           : { ok: true as const, value: await withHttpAbortSignal(earlyContextAbort.signal, () => prepareCliJevContext(this, chatId, contextScope, suppliedContext, finalMessage, {
-              sdkMintedChatId, onRouting: publishRouting, verifiedProjectCandidates: verifiedProjectCandidates ?? undefined,
+              prefetchedDiscovery, sdkMintedChatId, onRouting: publishRouting, verifiedProjectCandidates: verifiedProjectCandidates ?? undefined,
               usePersonalRoutingDirectory,
               onProjectRouting: publishProjectRoutingTimed, onProjectRoutingError: rejectProjectRouting,
             })), elapsedMs: Date.now() - contextStartedAt };
@@ -17085,7 +17096,12 @@ export class OpenMatesClient {
     // next send starts. Cancel its HTTP/upgrade work, not just an open socket.
     const controller = this.interactiveViewerOpenController;
     this.interactiveViewerOpenController = null;
-    controller?.abort();
+    if (controller) {
+      const reason = Object.assign(new Error("Interactive chat viewer superseded"), {
+        name: "OpenMatesViewerSupersededError", code: "OPENMATES_VIEWER_SUPERSEDED",
+      });
+      controller.abort(reason);
+    }
     this.interactiveViewerGeneration = (this.interactiveViewerGeneration ?? 0) + 1;
     this.interactiveViewerChatId = null;
     const ws = this.interactiveViewerSocket;
