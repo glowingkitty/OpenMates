@@ -93,7 +93,7 @@ def test_parent_input_budget_failure_remains_a_budget_admission_error():
     source = Path(__file__).parents[1] / "apps/ai/processing/main_processor.py"
     tree = ast.parse(source.read_text())
     node = next(node for node in tree.body if isinstance(node, ast.AsyncFunctionDef)
-                and node.name == "_fit_parent_continuation_output_token_limit")
+                and node.name == "_fit_orchestrated_output_token_limit")
     namespace = {"Optional": __import__("typing").Optional,
                  "List": list, "Dict": dict, "Any": object,
                  "AskSkillRequest": object, "DirectusService": object,

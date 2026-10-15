@@ -2858,7 +2858,7 @@ def _fit_workflow_output_token_limit(
     return fitted
 
 
-async def _fit_parent_continuation_output_token_limit(
+async def _fit_orchestrated_output_token_limit(
     *,
     model_id: str,
     system_prompt: str,
@@ -2869,9 +2869,11 @@ async def _fit_parent_continuation_output_token_limit(
     directus_service: Optional[DirectusService],
     log_prefix: str,
 ) -> Optional[int]:
+    # The internal transaction reads owner-scoped durable capacity; the atomic
+    # reservation below still validates root/child authority before paid work.
     if (
         requested_output_token_limit is None
-        or not is_sub_chat_continuation(request_data)
+        or getattr(request_data, "is_anonymous", False)
         or not request_data.orchestration_id
         or not directus_service
     ):
@@ -2901,7 +2903,7 @@ async def _fit_parent_continuation_output_token_limit(
         raise SubChatOrchestrationProtocolError(409, "orchestration_credit_limit_exceeded")
     if fitted_limit < requested_output_token_limit:
         logger.info(
-            "%s [SUB_CHAT] Reduced parent synthesis output limit from %s to %s tokens to fit %s remaining credits",
+            "%s [SUB_CHAT] Reduced orchestrated output limit from %s to %s tokens to fit %s remaining credits",
             log_prefix,
             requested_output_token_limit,
             fitted_limit,
@@ -6476,7 +6478,7 @@ async def handle_main_processing(
                     request_data.orchestration_id,
                     bool(getattr(request_data, "is_anonymous", False)),
                 )
-                current_output_token_limit = await _fit_parent_continuation_output_token_limit(
+                current_output_token_limit = await _fit_orchestrated_output_token_limit(
                     model_id=current_model_id,
                     system_prompt=iteration_system_prompt,
                     message_history=current_message_history,
