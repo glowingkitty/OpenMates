@@ -253,12 +253,12 @@ it("checks credentialed workflow CORS and nested routes and never accepts an abo
   globalThis.fetch = async (url, init) => {
     const path = new URL(String(url)).pathname; paths.push(path);
     if (path === "/v1/features/availability") return Response.json({ disabled: [] });
-    const headers = { "access-control-allow-origin": "https://app.example.test", "access-control-allow-credentials": "true" };
+    const headers = { "access-control-allow-origin": "https://app.example.test", "access-control-allow-credentials": "true", "access-control-allow-methods": "GET, POST, OPTIONS" };
     return new Response(null, { status: init?.method === "OPTIONS" ? 200 : 401, headers });
   };
   try {
     await verifyCaddyCoreRoutes("https://api.example.test", "https://app.example.test");
-    assert.equal(paths.length, 5); assert.ok(paths[0].endsWith("/references/availability")); assert.ok(paths.at(-1)?.endsWith("/runs"));
+    assert.equal(paths.length, 6); assert.ok(paths[0].endsWith("/references/availability")); assert.ok(paths.at(-1)?.endsWith("/runs"));
     globalThis.fetch = async () => { throw new TypeError("Load failed"); };
     await assert.rejects(verifyCaddyCoreRoutes("https://api.example.test", "https://app.example.test"), /Load failed/);
   } finally { globalThis.fetch = oldFetch; }
@@ -272,3 +272,61 @@ it("requires credentialed embed preflight even when workflows are disabled", asy
   try { await assert.rejects(verifyCaddyCoreRoutes("https://api.example.test", "https://app.example.test"), /caddy_embed_reference_cors_failed/); }
   finally { globalThis.fetch = oldFetch; }
 });
+
+
+// contract-test: supporting surface=cli assertions=server-management.host.preflight-caddy-continuous
+it("requires the exact account-key preflight independently of disabled Workflows", async () => {
+  const oldFetch = globalThis.fetch;
+  const paths: string[] = [];
+  globalThis.fetch = async (url, init) => {
+    const path = new URL(String(url)).pathname; paths.push(path);
+    if (path === "/v1/features/availability") return Response.json({ disabled: ["platform:workflows"] });
+    if (path === "/v1/account/chat-encryption-key") {
+      assert.equal(init?.method, "OPTIONS");
+      const headers = new Headers(init?.headers);
+      assert.equal(headers.get("Origin"), "https://app.example.test");
+      assert.equal(headers.get("Access-Control-Request-Method"), "GET");
+      assert.equal(headers.get("Access-Control-Request-Headers"), "content-type");
+    }
+    return new Response(null, { status: 200, headers: {
+      "access-control-allow-origin": "https://app.example.test",
+      "access-control-allow-credentials": "true", "access-control-allow-methods": " POST, get, OPTIONS ",
+    } });
+  };
+  try {
+    await verifyCaddyCoreRoutes("https://api.example.test/", "https://app.example.test");
+    assert.deepEqual(paths, [
+      "/v1/embeds/chats/00000000-0000-4000-8000-000000000000/references/availability",
+      "/v1/account/chat-encryption-key", "/v1/features/availability",
+    ]);
+  } finally { globalThis.fetch = oldFetch; }
+});
+
+for (const failure of ["aborted", "status201", "status403", "origin", "credentials", "methods", "missing-methods"]) {
+  // contract-test: supporting surface=cli assertions=server-management.host.preflight-caddy-continuous
+  it(`rejects ${failure} account-key preflight instead of accepting route drift`, async () => {
+    const oldFetch = globalThis.fetch;
+    globalThis.fetch = async (url) => {
+      const path = new URL(String(url)).pathname;
+      if (path === "/v1/features/availability") return Response.json({ disabled: ["platform:workflows"] });
+      const headers: Record<string, string> = {
+        "access-control-allow-origin": "https://app.example.test",
+        "access-control-allow-credentials": "true", "access-control-allow-methods": "GET, POST, OPTIONS",
+      };
+      let status = 200;
+      if (path === "/v1/account/chat-encryption-key") {
+        if (failure === "aborted") throw new TypeError("Caddy aborted missing account route");
+        if (failure === "status201") status = 201;
+        if (failure === "status403") status = 403;
+        if (failure === "origin") headers["access-control-allow-origin"] = "*";
+        if (failure === "credentials") headers["access-control-allow-credentials"] = "false";
+        if (failure === "methods") headers["access-control-allow-methods"] = "POST, OPTIONS";
+        if (failure === "missing-methods") delete headers["access-control-allow-methods"];
+      }
+      return new Response(null, { status, headers });
+    };
+    try {
+      await assert.rejects(verifyCaddyCoreRoutes("https://api.example.test", "https://app.example.test"), /caddy_account_chat_key_preflight_failed/);
+    } finally { globalThis.fetch = oldFetch; }
+  });
+}

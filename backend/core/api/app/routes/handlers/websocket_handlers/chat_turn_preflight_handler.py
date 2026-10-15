@@ -366,8 +366,13 @@ async def handle_chat_turn_preflight(
                         "turn_id": payload["turn_id"],
                     },
                 }
+            result = acknowledgement["payload"]
+            if atomic_before_ack is not None:
+                result["client_context_binding_ref"] = await atomic_before_ack(result)
+            acknowledgement["payload"] = {key: value for key, value in result.items()
+                                          if key != "client_context_binding_ref"}
             await send_response(acknowledgement)
-            return acknowledgement["payload"]
+            return result
         encrypted_user_message = dict(payload["encrypted_user_message"])
         encrypted_user_message["hashed_user_id"] = user_id_hash
         inference_request = dict(payload["inference_request"])
@@ -466,8 +471,16 @@ async def handle_chat_turn_preflight(
             # the epoch-zero legacy task/billing path. No recovery outbox is
             # enqueued for this preflight.
             result["state"] = "LEGACY"
+        # Saved and fallback admissions accept deferred context as soon as the
+        # client sees the ACK, just like atomic first-Personal admission. Bind
+        # after the durable commit and before publishing that permission.
+        if atomic_before_ack is not None:
+            result["client_context_binding_ref"] = await atomic_before_ack(result)
         result["turn_id"] = payload["turn_id"]
-        await send_response({"type": "chat_turn_preflight_ack", "payload": result})
+        public_result = {key: value for key, value in result.items()
+                         if key not in ("admission_chat_projection", "admission_protocol_epoch",
+                                        "admission_sends_paused", "client_context_binding_ref")}
+        await send_response({"type": "chat_turn_preflight_ack", "payload": public_result})
         logger.info("Chat preflight phase=ack_sent turn=%s", turn_id[:8])
         return result
     except ChatRecoveryProtocolError as exc:

@@ -1,3 +1,4 @@
+import { prepareSavedPersonalAdmissionHistory, selectPersonalPhasedAdmission } from './savedPersonalAdmissionHistory';
 import { initialChatHistoryGate } from './initialChatHistoryGate';
 import { freshPersonalPrivacyForSend, filterWithFreshPersonalPrivacy, attachFreshPrivacyReceipt, personalPrivacyMetadataKeys, type PrivacySendReceipt } from "./preparedPrivacyForSend";
 /**
@@ -1202,6 +1203,7 @@ async function dispatchFastPersonalTurn(input: {
 	personalTurn: PersonalChatTurn;
 	predecessorVersion: number | null;
 	includePreflightChatMetadata: boolean;
+	workspaceIdentity: string | null;
 	privacyReceipt: PrivacySendReceipt;
 	privacyContentChanged: boolean;
 	onUserFrameDispatched?: () => void;
@@ -1212,9 +1214,16 @@ async function dispatchFastPersonalTurn(input: {
 	supportsContextFailureNow: () => boolean;
 }): Promise<void> {
 	const { serviceInstance, message, chat, personalTurn, predecessorVersion,
-		includePreflightChatMetadata, privacyReceipt, privacyContentChanged, onUserFrameDispatched,
+		includePreflightChatMetadata, workspaceIdentity, privacyReceipt, privacyContentChanged, onUserFrameDispatched,
 		postAdmissionConnectedAccounts, retainedFastAdmission, supportsAdmissionNow,
 		supportsSelectionDetailsV2Now, supportsContextFailureNow } = input;
+	const assertCurrentAdmissionScope = () => {
+		if (!workspaceIdentity || workspaceIdentity !== getWorkspaceCacheIdentity()
+			|| !get(authStore).isAuthenticated || getActiveTeamContextSnapshot().teamId || chat.team_id) {
+			throw new Error('Personal phased admission workspace changed.');
+		}
+	};
+	assertCurrentAdmissionScope();
 	const encryptedChatKey = await chatDB.getEncryptedChatKey(message.chat_id);
 	const chatKey = chatKeyManager.getKeySync(message.chat_id) || await chatKeyManager.getKey(message.chat_id);
 	if (!encryptedChatKey || !chatKey ||
@@ -1255,6 +1264,46 @@ async function dispatchFastPersonalTurn(input: {
 			current_chat_metadata_v: chat.metadata_v ?? chat.title_v ?? 0,
 		},
 	};
+	const expectedMessagesVersion = predecessorVersion ?? preflightExpectedMessagesVersion(chat.messages_v);
+	if (expectedMessagesVersion > 0 && !retainedFastAdmission) {
+		recordSendPreparationPhase('saved_admission_history_begin');
+		inferenceRequest.message_history = await prepareSavedPersonalAdmissionHistory({
+			chatId: message.chat_id, messageId: message.message_id, currentContent: message.content ?? '',
+			read: () => chatDB.getMessagesForChat(message.chat_id),
+			category: (row) => resolveHistoryCategoryForInference(row, false,
+				(encrypted) => decryptWithChatKey(encrypted, chatKey)),
+			assertCurrent: assertCurrentAdmissionScope,
+		});
+		recordSendPreparationPhase('saved_admission_history_ready');
+		const requestMessage = inferenceRequest.message as Record<string, unknown>;
+		if (chat.encrypted_active_focus_id) {
+			const focus = await decryptWithChatKey(chat.encrypted_active_focus_id, chatKey);
+			if (focus && !isProjectFocusId(focus)) inferenceRequest.active_focus_id = focus;
+		}
+		if (chat.encrypted_focus_phase_state) {
+			const phase = await decryptWithChatKey(chat.encrypted_focus_phase_state, chatKey);
+			if (phase) inferenceRequest.focus_phase_state = JSON.parse(phase);
+		}
+		if ((chat.title_v ?? 0) > 0 && chat.encrypted_title) {
+			const title = await decryptWithChatKey(chat.encrypted_title, chatKey);
+			if (title) requestMessage.current_chat_title = title;
+		}
+		if (chat.encrypted_chat_summary) {
+			const summary = await decryptWithChatKey(chat.encrypted_chat_summary, chatKey);
+			if (summary) {
+				requestMessage.current_chat_summary = summary;
+				requestMessage.current_chat_summary_v = chat.metadata_v ?? chat.title_v ?? 0;
+			}
+		}
+		if (hasAssistantSpeechPreferenceIntent(message.chat_id) && !chat.encrypted_auto_speak_response
+			&& !includePreflightChatMetadata) await setAssistantSpeechPreference(message.chat_id, true);
+		if ((chat.encrypted_auto_speak_response || hasAssistantSpeechPreferenceIntent(message.chat_id))
+			&& await getAssistantSpeechPreference(message.chat_id)) {
+			Object.assign(requestMessage, { auto_speak_response: true,
+				assistant_speech_lazy_dispatch: true, assistant_response_source_revision: 1 });
+		}
+		assertCurrentAdmissionScope();
+	}
 	const testMockMarker = ((message as unknown) as { testMockMarker?: unknown }).testMockMarker;
 	if (typeof testMockMarker === "string" && testMockMarker.trim().length > 0) {
 		inferenceRequest.test_mock_marker = testMockMarker;
@@ -1276,7 +1325,7 @@ async function dispatchFastPersonalTurn(input: {
 		chat_key_version: CHAT_RECOVERY_KEY_VERSION,
 		encrypted_chat_key: encryptedChatKey,
 		recovery_public_key: recoveryKeypair.publicKey,
-		expected_messages_v: predecessorVersion ?? preflightExpectedMessagesVersion(chat.messages_v),
+		expected_messages_v: expectedMessagesVersion,
 		encrypted_user_message: {
 			client_message_id: message.message_id,
 			chat_id: message.chat_id,
@@ -1297,6 +1346,7 @@ async function dispatchFastPersonalTurn(input: {
 			updated_at: chat.updated_at ?? message.created_at,
 		};
 	}
+	assertCurrentAdmissionScope();
 	const retained = await retainOrReuseDurableTurnPreflight({
 		accountId, chatId: message.chat_id, messageId: message.message_id,
 		createdAt: message.created_at, finalContent: message.content,
@@ -1371,7 +1421,12 @@ async function dispatchFastPersonalTurn(input: {
 	);
 	void admissionAck.catch(() => undefined);
 	try {
+		assertCurrentAdmissionScope();
+		if (!(await ensureChatKeySafeForWrite(message.chat_id, chatKey, 'phased admission dispatch'))) {
+			throw new Error('Personal phased admission chat key changed before dispatch.');
+		}
 		const privacyTransport = await attachFreshPrivacyReceipt(admission, privacyReceipt, message);
+		assertCurrentAdmissionScope();
 		if (privacyTransport) await webSocketService.sendMessage("chat_turn_admit", admission, privacyTransport);
 		else await webSocketService.sendMessage("chat_turn_admit", admission);
 		recordPreflightDebugStep("admission_frame_dispatched", {
@@ -1602,19 +1657,21 @@ export async function sendNewMessageImpl(
 	const includePreflightChatMetadata = shouldIncludePreflightChatMetadata(chat?.messages_v, chat?.chat_visibility);
 
 	// A normal personal text turn can be admitted in one durable frame. The server
-	// owns history and private-context hydration for this protocol; local history
-	// reads and Project/Task/Plan HTTP collectors must not hold the user frame.
-	const retainedFastAdmission = usesPersonalRecovery && retainedJournal && !fastAdmissionAllowed
+	// validates immutable history for this protocol. Saved chats still prepare
+	// their full existing history; Project/Task/Plan collectors run after admission.
+	const retainedFastAdmission = usesPersonalRecovery && retainedJournal
 		? await hasRetainedFastAdmission(message.chat_id, message.message_id) : false;
 	if (retainedFastAdmission && !supportsAdmissionNow()) {
 		await updateMessageStatusForSendRetry(serviceInstance, message, "waiting_for_internet");
 		throw new PendingAdmissionCompatibilityError();
 	}
-	const fastPersonalText = (fastAdmissionAllowed || retainedFastAdmission) && usesPersonalRecovery
+	const fastPersonalText = selectPersonalPhasedAdmission(fastAdmissionAllowed, retainedJournal, retainedFastAdmission) && usesPersonalRecovery
 		&& (retainedFastAdmission ||
-			(predecessorVersion ?? preflightExpectedMessagesVersion(chat?.messages_v)) === 0
-			&& includePreflightChatMetadata)
+			(predecessorVersion ?? preflightExpectedMessagesVersion(chat?.messages_v)) > 0
+			|| includePreflightChatMetadata)
 		&& !projectFocusIntent
+		&& message.preserve_draft !== true
+		&& !((message as unknown as { broadcast?: boolean }).broadcast)
 		&& !encryptedSuggestionToDelete && (!connectedAccountContext || retainedFastAdmission)
 		&& typeof message.content === "string"
 		&& !message.content.includes("```")
@@ -1624,7 +1681,8 @@ export async function sendNewMessageImpl(
 	if (fastPersonalText && chat) {
 		await dispatchFastPersonalTurn({
 			serviceInstance, message, chat, personalTurn, predecessorVersion,
-			includePreflightChatMetadata, privacyReceipt: privacyReceipt!, privacyContentChanged, onUserFrameDispatched,
+			includePreflightChatMetadata, workspaceIdentity: sendWorkspaceIdentity,
+			privacyReceipt: privacyReceipt!, privacyContentChanged, onUserFrameDispatched,
 			retainedFastAdmission, supportsAdmissionNow, supportsSelectionDetailsV2Now, supportsContextFailureNow,
 			postAdmissionConnectedAccounts: postAdmissionConnectedAccounts
 				?? (connectedAccountContext ? Promise.resolve(connectedAccountContext)

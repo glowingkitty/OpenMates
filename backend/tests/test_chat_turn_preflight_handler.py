@@ -955,3 +955,106 @@ async def test_queue_proof_hint_is_server_only(monkeypatch) -> None:
     operation, body = FakeRecoveryService.calls[1]
     assert operation == "prepare_preflight"
     assert body["queued_after_task_id"] == "11111111-2222-4333-8444-555555555555"
+
+
+# contract-test: supporting surface=gui.web assertions=chats.send.immediate-admission,chats.persistence.client-encrypted,chats.message.identity-idempotent
+@pytest.mark.asyncio
+@pytest.mark.parametrize("epoch,initial_metadata", [(0, False), (0, True), (1, False)])
+async def test_saved_preflight_binds_context_before_ack_allows_immediate_phase(monkeypatch, epoch, initial_metadata) -> None:
+    monkeypatch.setenv("CHAT_RECOVERY_COMMITMENT_KEY", "commitment-secret")
+    import asyncio
+    events = []
+    binding = None
+    durable_prepare = epoch != 0 or initial_metadata
+    before_binding = ["cutover"] + (["committed"] if durable_prepare else [])
+    binding_started = asyncio.Event()
+    allow_binding = asyncio.Event()
+
+    class SavedRecovery(FakeRecoveryService):
+        async def execute(self, operation, data):
+            result = await super().execute(operation, data)
+            if operation == "get_cutover_state":
+                result["protocol_epoch"] = epoch
+                events.append("cutover")
+            else:
+                events.append("committed")
+                result.update(admission_chat_projection={"private": "projection"},
+                              admission_protocol_epoch=epoch, admission_sends_paused=False)
+            return result
+
+    class ImmediatePhaseWebSocket(FakeWebSocket):
+        async def send_json(self, frame):
+            if frame["type"] == "chat_turn_preflight_ack":
+                # Model the earliest possible context phase: during ACK send,
+                # before the admission coroutine can execute another statement.
+                assert binding == "server-binding"
+                events.append("phase_accepted")
+                assert not {"client_context_binding_ref", "admission_chat_projection",
+                            "admission_protocol_epoch", "admission_sends_paused"} & frame["payload"].keys()
+            await super().send_json(frame)
+
+    async def bind_before_ack(admission):
+        nonlocal binding
+        assert events == before_binding
+        assert admission["state"] == ("LEGACY" if epoch == 0 else "PREPARED")
+        binding_started.set()
+        await allow_binding.wait()
+        binding = "server-binding"
+        events.append("bound")
+        return binding
+
+    monkeypatch.setattr(chat_turn_preflight_handler, "ChatRecoveryService", SavedRecovery)
+    FakeRecoveryService.calls = []
+    websocket = ImmediatePhaseWebSocket()
+    payload = _payload()
+    payload["inference_request"]["client_context_pending"] = True
+    if initial_metadata:
+        payload["encrypted_chat_metadata"] = {"encrypted_title": "ciphertext"}
+    admission = asyncio.create_task(chat_turn_preflight_handler.handle_chat_turn_preflight(
+        websocket=websocket, manager=FakeManager(), directus_service=_directus_with_chat_metadata(),
+        user_id="user-1", user_id_hash="owner-hash", device_fingerprint_hash="device-hash",
+        payload=payload, atomic_before_ack=bind_before_ack, allow_atomic_first_personal=True,
+    ))
+    try:
+        await asyncio.wait_for(binding_started.wait(), timeout=1)
+        assert events == before_binding
+        assert websocket.messages == []
+    finally:
+        allow_binding.set()
+        result = await admission
+    assert events == before_binding + ["bound", "phase_accepted"]
+    assert result["client_context_binding_ref"] == "server-binding"
+    if durable_prepare:
+        assert result["admission_chat_projection"] == {"private": "projection"}
+    assert [operation for operation, _ in FakeRecoveryService.calls] == [
+        "get_cutover_state",
+    ] + (["prepare_preflight"] if durable_prepare else [])
+    assert [frame["type"] for frame in websocket.messages] == ["chat_turn_preflight_ack"]
+
+
+# contract-test: supporting surface=gui.web assertions=chats.send.immediate-admission,chats.persistence.client-encrypted,chats.message.identity-idempotent
+@pytest.mark.asyncio
+@pytest.mark.parametrize("binding_error", ["protocol", "unexpected"])
+async def test_saved_preflight_context_binding_failure_never_acknowledges(monkeypatch, binding_error) -> None:
+    monkeypatch.setenv("CHAT_RECOVERY_COMMITMENT_KEY", "commitment-secret")
+    monkeypatch.setattr(chat_turn_preflight_handler, "ChatRecoveryService", FakeRecoveryService)
+    FakeRecoveryService.calls = []
+
+    async def fail_binding(_admission):
+        assert FakeRecoveryService.calls[-1][0] == "prepare_preflight"
+        if binding_error == "protocol":
+            raise chat_turn_preflight_handler.ChatRecoveryProtocolError(503, "durable_preflight_failed")
+        raise RuntimeError("binding unavailable")
+
+    websocket = FakeWebSocket()
+    result = await chat_turn_preflight_handler.handle_chat_turn_preflight(
+        websocket=websocket, manager=FakeManager(), directus_service=_directus_with_chat_metadata(),
+        user_id="user-1", user_id_hash="owner-hash", device_fingerprint_hash="device-hash",
+        payload=_payload(), atomic_before_ack=fail_binding, allow_atomic_first_personal=True,
+    )
+    assert result is None
+    assert [operation for operation, _ in FakeRecoveryService.calls] == [
+        "get_cutover_state", "prepare_preflight",
+    ]
+    assert [frame["type"] for frame in websocket.messages] == ["error"]
+    assert websocket.messages[-1]["payload"]["code"] == "durable_preflight_failed"

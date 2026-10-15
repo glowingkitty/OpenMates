@@ -643,11 +643,11 @@ test('SDK-minted first Personal chat admits after fresh Memory privacy and befor
 			if(client.getActiveTeamId())throw Error('Expected paired Personal account');
 			let phase='minted',lastFullPrivacyGeneration=null;
 			const privacyReceipts=new Map();
-			const result={minted:{focus:0,plans:0,projects:0,tasks:0,routingDirectoryCalls:0,routingDirectoryGets:0,
+			const result={minted:{focus:0,plans:0,projects:0,tasks:0,taskDirectoryCalls:0,taskDirectoryPages:[],taskListScopes:[],routingDirectoryCalls:0,routingDirectoryGets:0,
 				projectSettingsGets:0,snapshotDirectoryRowsEnabled:false,combinedRequests:0,memoryRequests:0,
 				combinedProjectRows:false,memoryReady:false,privacyAfterMemoryReceipt:false,
 				projectDeliveredBeforeAdmission:null,admission:null,routing:null,details:null},
-				supplied:{focus:0,plans:0,projects:0,tasks:0,routingDirectoryCalls:0,routingDirectoryGets:0,
+				supplied:{focus:0,plans:0,projects:0,tasks:0,taskDirectoryCalls:0,taskDirectoryPages:[],taskListScopes:[],routingDirectoryCalls:0,routingDirectoryGets:0,
 				projectSettingsGets:0,snapshotDirectoryRowsEnabled:false,combinedRequests:0,memoryRequests:0,
 				combinedProjectRows:false,memoryReady:false,privacyAfterMemoryReceipt:false,
 				projectDeliveredBeforeAdmission:null,admission:null,routing:null,details:null}};
@@ -657,13 +657,25 @@ test('SDK-minted first Personal chat admits after fresh Memory privacy and befor
 				client[method]=async(...args)=>{
 					const currentPhase=phase;
 					result[currentPhase][field]++;
+					if(method==='listUserTasks')result[currentPhase].taskListScopes.push({
+						chatId:args[0]?.chatId??null,limit:args[0]?.limit??null});
 					const value=await original(...args);
 					return value;
 				};
 			}
+			const taskDirectory=client.listUserTaskDiscoveryPage.bind(client);
+			client.listUserTaskDiscoveryPage=async(...args)=>{
+				result[phase].taskDirectoryCalls++;
+				return taskDirectory(...args);
+			};
 			const get=client.http.get.bind(client.http);
 			client.http.get=async(...args)=>{
 				const path=args[0];
+				if(typeof path==='string'&&path.startsWith('/v1/user-tasks?')){
+					const query=new URL(path,'https://fixture.invalid').searchParams;
+					if(!query.has('chat_id'))result[phase].taskDirectoryPages.push({
+						limit:query.get('limit'),paginate:query.get('paginate'),cursor:query.get('cursor')});
+				}
 				if(path==='/v1/projects/routing-directory')result[phase].routingDirectoryGets++;
 				if(typeof path==='string'&&path.startsWith('/v1/projects/')
 					&&path.split('?')[0].endsWith('/settings'))result[phase].projectSettingsGets++;
@@ -750,6 +762,7 @@ test('SDK-minted first Personal chat admits after fresh Memory privacy and befor
 						capturedAdmission=payload;
 						const receipt=privacyReceipts.get(currentPhase);
 						result[phase].admission={...describeContext(payload.inference_request??{}),
+							chatId:payload.chat_id,
 							privacyReceiptBound:receipt?.request.turn_id===payload.turn_id
 								&&receipt?.snapshot.receipt_id===payload.privacy_receipt_id
 								&&receipt?.snapshot.privacy_generation===payload.privacy_generation,
@@ -816,7 +829,10 @@ test('SDK-minted first Personal chat admits after fresh Memory privacy and befor
 		expect(observed.minted.snapshotDirectoryRowsEnabled).toBe(true);
 		expect(observed.minted.projectDeliveredBeforeAdmission).toBe(false);
 		expect(observed.minted.admission.privacyAfterMemoryReceipt).toBe(true);
-		expect(observed.minted.tasks).toBeGreaterThan(0);
+		// A newly minted chat has no canonical chat-scoped Tasks yet. Its
+		// fresh candidate inventory still comes from exactly one bounded page.
+		expect(observed.minted.tasks).toBe(0);
+		expect(observed.minted.taskListScopes).toEqual([]);
 		expect(observed.supplied.focus).toBe(2);
 		expect(observed.supplied.plans).toBe(1);
 		expect(observed.supplied.combinedRequests).toBe(0);
@@ -828,6 +844,14 @@ test('SDK-minted first Personal chat admits after fresh Memory privacy and befor
 		expect(observed.supplied.routingDirectoryGets).toBe(0);
 		expect(observed.supplied.projectSettingsGets).toBe(0);
 		expect(observed.supplied.tasks).toBeGreaterThan(0);
+		expect(observed.supplied.taskListScopes.length).toBe(observed.supplied.tasks);
+		for(const scope of observed.supplied.taskListScopes){
+			expect(scope).toEqual({chatId:observed.supplied.admission.chatId,limit:100});
+		}
+		for(const turn of [observed.minted,observed.supplied]){
+			expect(turn.taskDirectoryCalls).toBe(1);
+			expect(turn.taskDirectoryPages).toEqual([{limit:'100',paginate:'true',cursor:null}]);
+		}
 		expect(observed.minted.selectionDetailsV2).toBe(true);
 		expect(observed.supplied.selectionDetailsV2).toBe(false);
 		expect(observed.minted.admission.discoveryCompleted).toBe(false);
@@ -1668,4 +1692,22 @@ test('sealed child discovery recovers a later parent across pages without rewrit
 		}
 	}
 	if (cleanupErrors.length) throw cleanupErrors[0];
+});
+
+// contract-test: supporting surface=cli assertions=storage.background.complete-sealed-recovery,chats.persistence.client-encrypted
+test('bounded CLI app-output recovery preserves durable parent and acknowledgement fences', async () => {
+  const packageDir = path.resolve(__dirname, '../../../packages/openmates-cli');
+  const output = execFileSync(process.execPath, ['--test', '--test-reporter=tap', '--experimental-strip-types', '--loader', './tests/loader.mjs',
+    'tests/recoveryBatch.test.ts', 'tests/recoveryOutputClient.test.ts', 'tests/recoveryOutputWs.test.ts',
+    'tests/warmSlotRearm.test.ts', 'tests/serverCaddyUpdate.test.ts', 'tests/serverCaddyUpgrade.test.ts'], {
+    cwd: packageDir, encoding: 'utf8', timeout: 90_000,
+    env: { ...process.env, OPENMATES_STATE_DIR: undefined, OPENMATES_PROFILE: undefined,
+      OPENMATES_API_KEY: undefined, OPENMATES_API_URL: undefined },
+  });
+  expect(output).toContain('verifies sealed outputs with four canonical readers and never ACKs before the final reread');
+  expect(output).toContain('drains started recovery workers on failure without starting queued work or returning readiness');
+  expect(output).toContain('recovers parents before children without weakening scope: cross-page');
+  expect(output).toContain('replenishes distinct unused slots for repeated same-owner turns only after cleanup and close');
+  expect(output).toContain('requires the exact account-key preflight independently of disabled Workflows');
+  expect(output).toContain('# fail 0');
 });

@@ -2999,7 +2999,6 @@ export class ChatSynchronizationService extends EventTarget {
       && this.serverCapabilityGate.supportsImmediateChatAdmission();
     const admissionProtocolSupported = supportsAdmissionNow();
     const fastPersonalTextCandidate = admissionProtocolSupported
-      && newLocalChat === true
       && !get(activeTeamId) && !connectedAccountContext
       && !projectFocusIntent && !encryptedSuggestionToDelete
       && typeof message.content === 'string'

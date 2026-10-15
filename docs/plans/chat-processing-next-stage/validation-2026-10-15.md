@@ -110,3 +110,22 @@ Status: **Task acceptance incomplete**. Ordinary TUI and web follow-ups miss sel
 Required encrypted reply persistence, authoritative terminal completion and optional late metadata remain separate milestones. Mandatory ethics/privacy, encryption, fresh authority, selected-resource and spending checks remain unchanged. Historical duplicate crypto wrappers are not eligible for automatic healing.
 
 The explicit deployment/testing freeze is **15 October 2026 at 17:00 Europe/Berlin (15:00 UTC)**. All deployments and runtime mutations must finish before that cutoff so subsequent manual web testing sees a stable revision. This document records the ba865/alpha79 checkpoint; no Apple application code is in scope.
+
+## Resumed development after the testing freeze
+
+The user explicitly authorized completing and deploying the remaining work after the earlier freeze. Preserved client changes were published as `dd1544f5cb99a5f54c0e68c5b7492065e3221904`; application inputs matched the prior passing integration source, with only six supporting test annotations added. The deployed API remained the earlier ba865 checkpoint.
+
+A subsequent real default-routed TUI factual sequence had correct Madrid/Paris/Berlin answers, no app skills and unchanged mandatory instructions/default Gemini LOW policy. These individual observations still miss latency acceptance:
+
+| Milestone | New factual chat | First follow-up | Second follow-up |
+| --- | ---: | ---: | ---: |
+| Optimistic user row |29ms|26ms|25ms|
+| Selected Mate |1453ms|2210ms|2542ms|
+| First authored text |4476ms|6424ms|5247ms|
+| Required persistence |6161ms|8288ms|7416ms|
+
+The request audit passes across913 captured records, with two mechanically identified owned-viewer cancellations, zero client faults, zero related/unattributed backend faults and no capture gaps. Its nonzero benchmark status represents missed latency targets, not failed answers or a clean-audit waiver. All three turns skip detailed preprocessing with a complete empty-context proof and use zero tools. Provider SDK-to-authored times were2444/3220/2092ms; the first follow-up's additional latency is predominantly provider time, not a new serialized discovery branch.
+
+The account-key gateway issue is separately confirmed and repaired: the configured app Origin receives200 credentialed preflight over HTTP/1.1 and HTTP/2, an untrusted Origin receives400 without Allow-Origin, and unauthenticated GET reaches API authorization and receives401. No account key, permission or crypto validation was bypassed. The active Caddy route restoration uses an exclusive native lease and full-config ETag; repository configuration already contained the route. Startup-file drift remains detectable through the mandatory host preflight verifier.
+
+The resumed combined increment includes saved-follow-up phased admission, context-binding-before-ACK, historical encryption batching, bounded CLI output recovery and source-correlated stale composer-suggestion results. Focused checks prove their correctness boundaries; final exact-source integration, activation and real latency measurements remain distinct. This checkpoint does not certify the2s Mate or3s authored targets.

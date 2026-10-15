@@ -306,7 +306,31 @@ test.describe('Assistant response processing rendered contract', () => {
   });
 
   // contract-test: direct surface=gui.web assertions=chats.completion.independent-metadata,chat-processing-feedback.turn-lifecycle
-  test('finishes the response before optional metadata and accepts late chips without replacing the draft', async ({ page }: { page: any }) => {
+  // contract-test: supporting surface=gui.web assertions=chats.followups.main-generated-composer,message-input.suggestion.editable-acceptance
+  test('optional stale suggestion result preserves the draft without a server-fault toast', async ({ page }: { page: any }) => {
+    await openFixtureChat(page);
+    const editor = page.getByTestId('message-editor').locator('.ProseMirror');
+    await editor.fill('My next independently owned draft');
+    const serverFaults: string[] = [];
+    page.on('console', (message: any) => {
+      if (message.type() === 'error' && message.text().includes('[WebSocketService] Received error message from server:')) {
+        serverFaults.push(message.text());
+      }
+    });
+    await page.evaluate(({ chatId }) => {
+      (window as any).__openmatesE2ELifecycle.emit('encrypted_suggested_followup_message_not_stored', {
+        code: 'stale_suggested_followup_source', chat_id: chatId,
+        source_message_id: 'superseded-assistant', source_task_id: 'superseded-task',
+        source_user_message_id: 'superseded-user',
+      });
+    }, { chatId: FIXTURE.chat_id });
+    await expect(editor).toHaveText('My next independently owned draft');
+    await expect(page.getByText('Server error: An unexpected error occurred on the server.', { exact: true })).toHaveCount(0);
+    expect(serverFaults).toEqual([]);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.completion.recovery-takeover,chats.message.identity-idempotent
+test('finishes the response before optional metadata and accepts late chips without replacing the draft', async ({ page }: { page: any }) => {
     await openFixtureChat(page);
     await emitStage(page, 'task-initiated');
     await emitStage(page, 'preprocessing');

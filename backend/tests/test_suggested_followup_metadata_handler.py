@@ -143,6 +143,10 @@ async def test_cache_miss_falls_back_to_latest_directus_assistant():
 async def test_rejects_invalid_and_stale_writes(change, code):
     manager, _, directus = await run(payload(**change))
     assert manager.sent[0]["payload"]["code"] == code
+    assert manager.sent[0]["type"] == (
+        "encrypted_suggested_followup_message_not_stored"
+        if code == "stale_suggested_followup_source" else "error"
+    )
     assert not directus.updates
     assert not manager.broadcasts
 
@@ -153,6 +157,10 @@ async def test_newer_durable_user_turn_defeats_stale_cache_assistant():
     directus = Directus()
     directus.messages = [{"client_message_id": "new-user", "role": "user", "created_at": 21}]
     manager, _, directus = await run(directus=directus)
+    assert manager.sent[0]["type"] == "encrypted_suggested_followup_message_not_stored"
+    assert manager.sent[0]["payload"]["source_message_id"] == ASSISTANT
+    assert manager.sent[0]["payload"]["source_task_id"] == TASK
+    assert manager.sent[0]["payload"]["source_user_message_id"] == USER_MESSAGE
     assert manager.sent[0]["payload"]["code"] == "stale_suggested_followup_source"
     assert manager.sent[0]["payload"]["source_task_id"] == TASK
     assert not directus.updates
@@ -164,6 +172,10 @@ async def test_new_active_task_defeats_previous_completed_suggestion():
     cache = Cache()
     cache.active_task = "new-task-id"
     manager, _, directus = await run(cache=cache)
+    assert manager.sent[0]["type"] == "encrypted_suggested_followup_message_not_stored"
+    assert manager.sent[0]["payload"]["source_message_id"] == ASSISTANT
+    assert manager.sent[0]["payload"]["source_task_id"] == TASK
+    assert manager.sent[0]["payload"]["source_user_message_id"] == USER_MESSAGE
     assert manager.sent[0]["payload"]["code"] == "stale_suggested_followup_source"
     assert not directus.updates
 
@@ -174,6 +186,7 @@ async def test_personal_chat_owner_is_checked_fresh():
     directus = Directus()
     directus.chat_row["hashed_user_id"] = "another-owner"
     manager, _, directus = await run(directus=directus)
+    assert manager.sent[0]["type"] == "error"
     assert manager.sent[0]["payload"]["code"] == "chat_permission_denied"
     assert not directus.updates
 
@@ -200,3 +213,14 @@ async def test_allowed_team_chat_stores_only_ciphertext():
     manager, _, directus = await run(payload(team_id="team-id"), directus=directus)
     assert directus.updates == [(CHAT, {"encrypted_suggested_followup_message": CIPHERTEXT})]
     assert manager.sent[0]["type"] == "encrypted_suggested_followup_message_stored"
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=chats.followups.main-generated-composer
+async def test_actual_storage_failure_is_not_reported_as_stale_result():
+    directus = Directus()
+    async def fail_storage(*args):
+        return False
+    directus.chat.update_chat_fields_in_directus = fail_storage
+    with pytest.raises(RuntimeError, match="Could not store encrypted suggested follow-up metadata"):
+        await run(directus=directus)

@@ -105,7 +105,7 @@ export async function persistComposerGhostSuggestion(
     settled = true;
     clearTimeout(expiry);
     serviceInstance.removeEventListener('aiResponseStorageConfirmed', onStorageConfirmed);
-    webSocketService.off('error', onError);
+    webSocketService.off('encrypted_suggested_followup_message_not_stored', onNotStored);
     webSocketService.off('encrypted_suggested_followup_message_stored', onStored);
   };
   const send = async () => {
@@ -124,10 +124,11 @@ export async function persistComposerGhostSuggestion(
     storageConfirmed = true;
     if (retryAfterStorage) void send().catch(cleanup);
   };
-  const onError = (error: unknown) => {
-    const detail = error as { code?: string; chat_id?: string; source_message_id?: string; source_task_id?: string };
+  const onNotStored = (result: unknown) => {
+    const detail = result as { code?: string; chat_id?: string; source_message_id?: string; source_task_id?: string; source_user_message_id?: string };
     if (detail.code !== 'stale_suggested_followup_source' || detail.chat_id !== payload.chat_id ||
-        detail.source_message_id !== payload.message_id || detail.source_task_id !== payload.task_id) return;
+        detail.source_message_id !== payload.message_id || detail.source_task_id !== payload.task_id ||
+        detail.source_user_message_id !== payload.user_message_id) return;
     if (attempts >= 2) { cleanup(); return; }
     retryAfterStorage = true;
     if (storageConfirmed) void send().catch(cleanup);
@@ -138,7 +139,7 @@ export async function persistComposerGhostSuggestion(
   };
   const expiry = setTimeout(cleanup, 120_000);
   serviceInstance.addEventListener('aiResponseStorageConfirmed', onStorageConfirmed);
-  webSocketService.on('error', onError);
+  webSocketService.on('encrypted_suggested_followup_message_not_stored', onNotStored);
   webSocketService.on('encrypted_suggested_followup_message_stored', onStored);
   try { await send(); } catch (error) { cleanup(); throw error; }
 }

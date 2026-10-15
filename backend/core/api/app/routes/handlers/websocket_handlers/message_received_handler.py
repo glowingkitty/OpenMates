@@ -1938,24 +1938,46 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 # The current turn was already admitted to the AI cache above.
                 # Preserve that exact ID and Vault ciphertext when replacing the
                 # earlier history supplied by the client.
-                recache_step = "delete"
+                recache_step = "prior_rows_encrypt"
                 try:
+                    # Prepare one user-scoped Vault batch before replacing the cache.
+                    # The admitted current row keeps its original ciphertext; empty
+                    # content keeps encrypt_with_user_key's ("", "") behavior.
+                    prior_rows = [
+                        (hist_msg, canonical_history_content(hist_msg))
+                        for hist_msg in client_provided_history
+                        if history_message_id(hist_msg) != message_id
+                    ]
+                    nonempty_contents = [content for _, content in prior_rows if content]
+                    encrypted_rows = (
+                        await encryption_service.encrypt_many_with_user_key(
+                            nonempty_contents, user_vault_key_id,
+                        ) if nonempty_contents else []
+                    )
+                    if len(encrypted_rows) != len(nonempty_contents):
+                        raise RuntimeError("ai_history_encryption_batch_incomplete")
+                    if any(
+                        not isinstance(item, (tuple, list)) or len(item) != 2
+                        or not isinstance(item[0], str) or not item[0].startswith("vault:v")
+                        for item in encrypted_rows
+                    ):
+                        raise RuntimeError("ai_history_encryption_batch_invalid")
+                    encrypted_rows_iter = iter(encrypted_rows)
+
+                    recache_step = "delete"
                     deleted = await cache_service.delete_ai_messages_history(user_id, chat_id)
                     if not deleted and not is_incognito:
                         raise RuntimeError("ai_history_delete_failed")
 
-                    for hist_msg in client_provided_history:
+                    for hist_msg, hist_content in prior_rows:
                         recache_step = "prior_row_prepare"
                         hist_message_id = history_message_id(hist_msg)
-                        if hist_message_id == message_id:
-                            continue
                         retained_context = (
                             retained_native_contexts.get(hist_message_id)
                             if isinstance(hist_message_id, str) and hist_msg.get("role") == "assistant"
                             else None
                         )
                         # Resolve embed references before adding client history to AI context.
-                        hist_content = canonical_history_content(hist_msg)
                         resolved_hist_content = hist_content
                         try:
                             from backend.core.api.app.services.embed_service import EmbedService
@@ -1990,12 +2012,8 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                         )
                     
                         # Re-encrypt and cache for future use
-                        content_str = hist_content
-                        
-                        recache_step = "prior_row_encrypt"
-                        encrypted_hist_content, _ = await encryption_service.encrypt_with_user_key(
-                            content_str,
-                            user_vault_key_id
+                        encrypted_hist_content, _ = (
+                            next(encrypted_rows_iter) if hist_content else ("", "")
                         )
                         
                         cached_msg = MessageInCache(

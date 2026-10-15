@@ -1,3 +1,4 @@
+import { runRecoveryBatch } from "./recoveryBatch.js";
 import type { BuyerAddress } from "./billingAddress.js";
 import { prepareCliMessagePrivacy, type CompiledCliPrivacy } from "./privacyScan.js";
 import { PreparedPrivacyCache } from "./preparedPrivacy.js";
@@ -6041,6 +6042,38 @@ export class OpenMatesClient {
   } | null = null;
   private preparedSendSocketAttemptOwner: string | null = null;
 
+  private foregroundSendCount = 0;
+  private pendingSendSocketRearm: { ws: OpenMatesWsClient; owner: CliPreparedChatOwner;
+    ownerKey: string; teamId: string | null; removeClose: () => void } | null = null;
+
+  private cancelSendSocketRearm(): void {
+    const pending = this.pendingSendSocketRearm;
+    this.pendingSendSocketRearm = null;
+    pending?.removeClose();
+  }
+
+  private maybeRearmSendSocket(): void {
+    const pending = this.pendingSendSocketRearm;
+    if (!pending || this.foregroundSendCount > 0 || pending.ws.isOpen()) return;
+    this.cancelSendSocketRearm();
+    if (!this.interactiveViewerAllowed || !this.preparedChatOwnerCurrent(pending.owner, pending.teamId)
+      || pending.ownerKey !== this.sendSocketOwnerKey(this.requireSession(), pending.teamId)
+      || authCookieFingerprint(this.http.getCookieMap()) !== authCookieFingerprint(this.requireSession().cookies)) return;
+    this.preparedSendSocketAttemptOwner = null;
+    this.warmSendSocket();
+  }
+
+  private rearmSendSocketWhenClosed(ws: OpenMatesWsClient, teamId: string | null): void {
+    if (!this.interactiveViewerAllowed || !this.hasSession()) return;
+    this.cancelSendSocketRearm();
+    const session = this.requireSession();
+    const pending = { ws, teamId, owner: this.preparedChatOwner(session, teamId),
+      ownerKey: this.sendSocketOwnerKey(session, teamId), removeClose: () => {} };
+    this.pendingSendSocketRearm = pending;
+    pending.removeClose = ws.onClose(() => { this.maybeRearmSendSocket(); });
+    this.maybeRearmSendSocket();
+  }
+
   private sendSocketOwnerKey(session: OpenMatesSession, teamId: string | null): string {
     return JSON.stringify([this.preparedChatOwner(session, teamId),
       authCookieFingerprint(session.cookies),
@@ -6064,7 +6097,7 @@ export class OpenMatesClient {
 
   /** Prepare one authenticated send socket for the interactive TUI's next turn. */
   private warmSendSocket(): void {
-    if (!this.interactiveViewerAllowed || this.explicitSession || !this.hasSession()) return;
+    if (!this.interactiveViewerAllowed || this.foregroundSendCount > 0 || this.explicitSession || !this.hasSession()) return;
     const session = this.requireSession();
     const teamId = this.getActiveTeamId();
     const owner = this.preparedChatOwner(session, teamId);
@@ -8283,6 +8316,18 @@ export class OpenMatesClient {
     return { bySubject, acknowledged: new Map(), visiting: new Set() };
   }
 
+  private captureRecoveryOwner(): () => void {
+    const account = this.captureTeamAccountOwner();
+    const team = this.getActiveTeamId();
+    const master = Buffer.from(this.getMasterKeyBytes());
+    return () => {
+      if (!this.hasSession() || !account.isCurrent() || this.getActiveTeamId() !== team
+        || !master.equals(Buffer.from(this.getMasterKeyBytes()))) {
+        throw new Error("Recovery account, Team or key changed; outputs remain pending.");
+      }
+    };
+  }
+
   private async persistAvailableRecoveryOutputs(
     ws: OpenMatesWsClient,
     ownerId: string,
@@ -8297,29 +8342,44 @@ export class OpenMatesClient {
       || (a.output_kind === "message" && b.output_kind === "message"
         ? (a.message_role === "user" ? 0 : 1) - (b.message_role === "user" ? 0 : 1) : 0)
       || a.output_version - b.output_version);
+    const assertOwner = this.captureRecoveryOwner();
     const masterKey = this.getMasterKeyBytes();
     const wrappingKey = await this.getChatWrappingKey(teamId, masterKey);
+    const http = { get: async <T>(path: string, headers: Record<string, string>) => {
+      assertOwner();
+      const result = await this.http.get<T>(path, headers);
+      assertOwner();
+      return result;
+    } };
     let acknowledged = 0;
     const request = async (type: string, responseType: string, recordId: string, payload: Record<string, unknown>) => {
+      assertOwner();
       const requestId = randomUUID();
       const response = ws.waitForMessage(responseType, (value) => {
         const frame = value as Record<string, unknown>;
         return (frame.record_id === recordId || frame.job_id === recordId) && frame.request_id === requestId;
       }, 20_000);
       void response.catch(() => {});
+      assertOwner();
       await ws.sendAsync(type, { protocol_version: 1, record_id: recordId, request_id: requestId, ...payload });
-      return (await response).payload as Record<string, unknown>;
+      const received = await response;
+      assertOwner();
+      return received.payload as Record<string, unknown>;
     };
     const storeWithReceipt = async (
       type: string, responseType: string, embedId: string, payload: Record<string, unknown>,
       recoveryRecordId: string, version?: number,
     ): Promise<Record<string, unknown>> => {
+      assertOwner();
       const requestId = randomUUID();
       const receipt = ws.waitForMessage(responseType,
         (value) => matchesRecoveryEmbedReceipt(value, requestId, embedId, version), 30_000);
       void receipt.catch(() => {});
+      assertOwner();
       await ws.sendAsync(type, { ...payload, request_id: requestId, recovery_record_id: recoveryRecordId });
-      return (await receipt).payload as Record<string, unknown>;
+      const received = await receipt;
+      assertOwner();
+      return received.payload as Record<string, unknown>;
     };
     const reconcileAcknowledgedEmbed = async (
       output: AvailableRecoveryOutputFrame, chatKey: Uint8Array,
@@ -8342,7 +8402,7 @@ export class OpenMatesClient {
       }
       const embedPath = `/v1/embeds/chats/${encodeURIComponent(output.target_chat_id)}/embeds/${encodeURIComponent(output.subject_id)}`
         + (teamId ? `?team_id=${encodeURIComponent(teamId)}` : "");
-      const canonical = await this.http.get<{ embed?: Record<string, unknown> }>(embedPath, this.getCliRequestHeaders());
+      const canonical = await http.get<{ embed?: Record<string, unknown> }>(embedPath, this.getCliRequestHeaders());
       const row = canonical.data?.embed;
       if (!canonical.ok || !row || row.hashed_chat_id !== computeSHA256(output.target_chat_id)
         || typeof row.encrypted_content !== "string" || typeof row.encrypted_type !== "string") {
@@ -8370,7 +8430,7 @@ export class OpenMatesClient {
       } else {
         const query = new URLSearchParams({ capability: "bounded-v1", chat_id: output.target_chat_id });
         if (teamId) query.set("team_id", teamId);
-        const history = await this.http.get<{ rows?: Array<Record<string, unknown>> }>(
+        const history = await http.get<{ rows?: Array<Record<string, unknown>> }>(
           `/v1/embeds/${encodeURIComponent(output.subject_id)}/versions/${output.output_version}?${query}`,
           this.getCliRequestHeaders(),
         );
@@ -8385,12 +8445,14 @@ export class OpenMatesClient {
         if (typeof encryptedPatch === "string") await decryptWithAesGcmCombined(encryptedPatch, embedKey);
       }
     };
-    for (const output of ordered) {
+    const rootKeys = new Map<string, Promise<Uint8Array>>();
+    const prepareOne = async (output: AvailableRecoveryOutputFrame) => {
+      assertOwner();
       const identity = recoveryOutputIdentity(output);
       const committed = dependencies.acknowledged.get(output.record_id);
       if (committed !== undefined) {
         if (committed !== identity) throw new Error("Acknowledged recovery dependency changed identity.");
-        continue;
+        return null;
       }
       if (dependencies.visiting.has(output.record_id) || dependencies.visiting.size >= 32) {
         throw new Error("Recovery embed dependency is cyclic or exceeds the bounded depth.");
@@ -8399,28 +8461,37 @@ export class OpenMatesClient {
         && output.root_hashed_team_id !== (teamId ? computeSHA256(teamId) : null)) {
         throw new Error(`Recovery output ${output.record_id} Team key context is unavailable; output remains pending.`);
       }
-      let root = cache.chats.find((chat) => String(chat.details.id ?? "") === output.root_chat_id);
-      let rootKey = root ? await this.resolveChatKey(cache, root, wrappingKey, teamId) : null;
-      if (!rootKey) {
-        const response = await this.http.get<{ wrappers?: Array<Record<string, unknown>> }>(
-          `/v1/chats/${encodeURIComponent(output.root_chat_id)}/wrappers/window`
-            + (teamId ? `?team_id=${encodeURIComponent(teamId)}` : ""),
-          this.getCliRequestHeaders(),
-        );
-        if (!response.ok) throw new Error(`Recovery root key lookup failed (HTTP ${response.status}); output remains pending.`);
-        const keyType = teamId ? "team" : "master";
-        const wrapper = (response.data.wrappers ?? []).find((item) => item.key_type === keyType
-          && typeof item.encrypted_chat_key === "string" && item.encrypted_chat_key);
-        if (!wrapper) throw new Error(`Recovery root chat ${output.root_chat_id} key wrapper is unavailable.`);
-        cache.chatKeyWrappers ??= [];
-        cache.chatKeyWrappers.push(wrapper);
-        if (!root) {
-          root = { details: { id: output.root_chat_id, encrypted_chat_key: wrapper.encrypted_chat_key }, messages: [] };
-          cache.chats.push(root);
-        }
-        rootKey = await this.resolveChatKey(cache, root, wrappingKey, teamId);
+      let rootKeyPromise = rootKeys.get(output.root_chat_id);
+      if (!rootKeyPromise) {
+        rootKeyPromise = (async () => {
+          let root = cache.chats.find((chat) => String(chat.details.id ?? "") === output.root_chat_id);
+          let rootKey = root ? await this.resolveChatKey(cache, root, wrappingKey, teamId) : null;
+          if (!rootKey) {
+            const response = await http.get<{ wrappers?: Array<Record<string, unknown>> }>(
+              `/v1/chats/${encodeURIComponent(output.root_chat_id)}/wrappers/window`
+                + (teamId ? `?team_id=${encodeURIComponent(teamId)}` : ""),
+              this.getCliRequestHeaders(),
+            );
+            if (!response.ok) throw new Error(`Recovery root key lookup failed (HTTP ${response.status}); output remains pending.`);
+            const keyType = teamId ? "team" : "master";
+            const wrapper = (response.data.wrappers ?? []).find((item) => item.key_type === keyType
+              && typeof item.encrypted_chat_key === "string" && item.encrypted_chat_key);
+            if (!wrapper) throw new Error(`Recovery root chat ${output.root_chat_id} key wrapper is unavailable.`);
+            cache.chatKeyWrappers ??= [];
+            cache.chatKeyWrappers.push(wrapper);
+            if (!root) {
+              root = { details: { id: output.root_chat_id, encrypted_chat_key: wrapper.encrypted_chat_key }, messages: [] };
+              cache.chats.push(root);
+            }
+            rootKey = await this.resolveChatKey(cache, root, wrappingKey, teamId);
+          }
+          if (!rootKey) throw new Error(`Recovery root chat ${output.root_chat_id} key is unavailable.`);
+          return rootKey;
+        })();
+        rootKeys.set(output.root_chat_id, rootKeyPromise);
       }
-      if (!rootKey) throw new Error(`Recovery root chat ${output.root_chat_id} key is unavailable.`);
+      const rootKey = await rootKeyPromise;
+      assertOwner();
       let ready: Record<string, unknown>;
       try {
         ready = await request("recovery_output_get", "recovery_output_ready", output.record_id, {});
@@ -8429,7 +8500,7 @@ export class OpenMatesClient {
         await reconcileAcknowledgedEmbed(output, rootKey);
         dependencies.acknowledged.set(output.record_id, identity);
         acknowledged += 1;
-        continue;
+        return null;
       }
       for (const field of ["record_id", "root_chat_id", "target_chat_id", "turn_id", "subject_id", "output_kind", "output_version", "chat_key_version"] as const) {
         if (ready[field] !== output[field]) throw new Error(`Recovery output ${output.record_id} identity mismatch: ${field}.`);
@@ -8463,6 +8534,33 @@ export class OpenMatesClient {
         throw new Error("Recovery output plaintext identity mismatch.");
       }
       const content = recovered.content as Record<string, unknown>;
+      assertOwner();
+      if (typeof content.parent_embed_id === "string") {
+        const candidates = (dependencies.bySubject.get(content.parent_embed_id) ?? []).filter(candidate => candidate.output_kind === "embed");
+        if (candidates.length && !candidates.some(candidate => candidate.output_kind === "embed"
+          && candidate.root_chat_id === output.root_chat_id && candidate.target_chat_id === output.target_chat_id
+          && candidate.turn_id === output.turn_id && candidate.chat_key_version === output.chat_key_version
+          && (candidate.root_hashed_team_id ?? null) === (output.root_hashed_team_id ?? null))) {
+          // An unrelated sealed record cannot bootstrap this parent. A parent
+          // already canonical remains usable under the normal later key checks.
+          const parentPath = `/v1/embeds/chats/${encodeURIComponent(output.target_chat_id)}/embeds/${encodeURIComponent(content.parent_embed_id)}`
+            + (teamId ? `?team_id=${encodeURIComponent(teamId)}` : "");
+          const parent = await http.get(parentPath, this.getCliRequestHeaders());
+          if (!parent.ok) throw new Error("Canonical recovery parent embed key scope was unavailable.");
+        }
+      }
+      return { output, ready, content, rootKey, identity };
+    };
+    const prepared: Array<Awaited<ReturnType<typeof prepareOne>>> = [];
+    for (const output of ordered) prepared.push(await prepareOne(output));
+    const persistOne = async ({ output, ready, content, rootKey, identity }: NonNullable<typeof prepared[number]>) => {
+      assertOwner();
+      const committed = dependencies.acknowledged.get(output.record_id);
+      if (committed !== undefined) {
+        if (committed !== identity) throw new Error("Acknowledged recovery dependency changed identity.");
+        return;
+      }
+      const messageRole = output.message_role ?? "assistant";
       const childKey = rootKey;
       const now = Math.floor(Date.now() / 1000);
       const encryptedChatKey = typeof ready.encrypted_chat_key === "string" && ready.encrypted_chat_key
@@ -8540,6 +8638,7 @@ export class OpenMatesClient {
           return frame.chat_id === output.target_chat_id && checkpoint?.id === output.subject_id;
         }, 20_000);
         void stored.catch(() => {});
+        assertOwner();
         await ws.sendAsync("store_chat_compression_checkpoint", {
           chat_id: output.target_chat_id, checkpoint_id: output.subject_id, encrypted_summary: encryptedSummary,
           compressed_up_to_timestamp: content.compressed_up_to_timestamp,
@@ -8565,7 +8664,7 @@ export class OpenMatesClient {
         if (content.embed_id !== output.subject_id) throw new Error("Recovery embed identity mismatch.");
         const embedPath = `/v1/embeds/chats/${encodeURIComponent(output.target_chat_id)}/embeds/${encodeURIComponent(output.subject_id)}`
           + (teamId ? `?team_id=${encodeURIComponent(teamId)}` : "");
-        let canonicalBefore = await this.http.get<{ embed?: Record<string, unknown>; embed_keys?: Array<Record<string, unknown>> }>(
+        let canonicalBefore = await http.get<{ embed?: Record<string, unknown>; embed_keys?: Array<Record<string, unknown>> }>(
           embedPath, this.getCliRequestHeaders(),
         );
         let parentId = typeof content.parent_embed_id === "string" ? content.parent_embed_id : null;
@@ -8681,7 +8780,7 @@ export class OpenMatesClient {
           }
           const query = new URLSearchParams({ capability: "bounded-v1", chat_id: output.target_chat_id });
           if (teamId) query.set("team_id", teamId);
-          const existing = await this.http.get<{ rows?: Array<{ version_number: number; encrypted_snapshot?: string | null; encrypted_patch?: string | null }> }>(
+          const existing = await http.get<{ rows?: Array<{ version_number: number; encrypted_snapshot?: string | null; encrypted_patch?: string | null }> }>(
             `/v1/embeds/${encodeURIComponent(output.subject_id)}/versions/${output.output_version}?${query}`,
             this.getCliRequestHeaders(),
           );
@@ -8738,7 +8837,7 @@ export class OpenMatesClient {
             } else {
               const query = new URLSearchParams({ capability: "bounded-v1", chat_id: output.target_chat_id });
               if (teamId) query.set("team_id", teamId);
-              const history = await this.http.get<{
+              const history = await http.get<{
                 embed_id?: string; version_number?: number;
                 rows?: Array<{ version_number: number; encrypted_snapshot?: string | null; encrypted_patch?: string | null }>;
               }>(`/v1/embeds/${encodeURIComponent(output.subject_id)}/versions/${output.output_version}?${query}`,
@@ -8859,7 +8958,7 @@ export class OpenMatesClient {
           && !canonicalBefore.ok && canonicalBefore.status === 404;
         const keyPage = bootstrapRootKeys ? null : keySubject === output.subject_id && canonicalBefore.ok
           ? canonicalBefore
-          : parentPage ?? await this.http.get<{ embed?: Record<string, unknown>; embed_keys?: Array<Record<string, unknown>> }>(
+          : parentPage ?? await http.get<{ embed?: Record<string, unknown>; embed_keys?: Array<Record<string, unknown>> }>(
             keyPath, this.getCliRequestHeaders(),
           );
         if (keyPage && (!keyPage.ok || keyPage.data?.embed?.hashed_chat_id !== computeSHA256(output.target_chat_id))) {
@@ -8873,18 +8972,22 @@ export class OpenMatesClient {
             encrypted_embed_key: await encryptBytesWithAesGcm(embedKey, childKey), hashed_user_id: hashedUserId, created_at: now },
         ].filter((key) => !existingTypes.has(key.key_type));
         if (keys.length > 0) {
-          const requestId = randomUUID();
+          assertOwner();
+      const requestId = randomUUID();
           const receipt = ws.waitForMessage("store_embed_keys_confirmed", (value) => (value as Record<string, unknown>).request_id === requestId, 30_000);
           void receipt.catch(() => {});
+          assertOwner();
           await ws.sendAsync("store_embed_keys", {
             request_id: requestId, recovery_record_id: output.record_id, keys,
           });
-          const result = (await receipt).payload as Record<string, unknown>;
+          const received = await receipt;
+          assertOwner();
+          const result = received.payload as Record<string, unknown>;
           if (result.failed_count !== 0 || result.created_count !== keys.length
             || result.requested_count !== keys.length) {
             throw new Error("Recovery embed key wrappers were not exactly confirmed.");
           }
-          const durable = await this.http.get<{ embed_keys?: Array<Record<string, unknown>> }>(
+          const durable = await http.get<{ embed_keys?: Array<Record<string, unknown>> }>(
             keyPath, this.getCliRequestHeaders(),
           );
           if (!durable.ok) throw new Error("Recovery embed key wrappers were not readable after store.");
@@ -8893,7 +8996,7 @@ export class OpenMatesClient {
             throw new Error("Recovery embed key wrappers are not both durable.");
           }
         }
-        const canonicalAfter = await this.http.get<{ embed?: Record<string, unknown> }>(
+        const canonicalAfter = await http.get<{ embed?: Record<string, unknown> }>(
           embedPath, this.getCliRequestHeaders(),
         );
         if (!canonicalAfter.ok || canonicalAfter.data?.embed?.hashed_chat_id !== computeSHA256(output.target_chat_id)
@@ -8912,7 +9015,7 @@ export class OpenMatesClient {
         } else {
           const query = new URLSearchParams({ capability: "bounded-v1", chat_id: output.target_chat_id });
           if (teamId) query.set("team_id", teamId);
-          const history = await this.http.get<{ rows?: Array<Record<string, unknown>> }>(
+          const history = await http.get<{ rows?: Array<Record<string, unknown>> }>(
             `/v1/embeds/${encodeURIComponent(output.subject_id)}/versions/${output.output_version}?${query}`,
             this.getCliRequestHeaders(),
           );
@@ -8934,7 +9037,26 @@ export class OpenMatesClient {
         }
       }
       dependencies.acknowledged.set(output.record_id, identity);
+      assertOwner();
       acknowledged += 1;
+    };
+    // Keep message/metadata transactions ordered. Independent embed heads may
+    // overlap, but every sealed parent and older version must finish first.
+    for (const kind of ["message", "embed", "diff", "summary", "checkpoint"] as const) {
+      const group = prepared.filter((item): item is NonNullable<typeof item> => item !== null && item.output.output_kind === kind);
+      if (kind === "embed" || kind === "diff") {
+        await runRecoveryBatch(group, persistOne, (item, dependency, index, other) =>
+          (item.output.subject_id === dependency.output.subject_id && other < index)
+          || (item.content.parent_embed_id === dependency.output.subject_id
+            && item.output.root_chat_id === dependency.output.root_chat_id
+            && item.output.target_chat_id === dependency.output.target_chat_id
+            && item.output.turn_id === dependency.output.turn_id
+            && item.output.chat_key_version === dependency.output.chat_key_version
+            && (item.output.root_hashed_team_id ?? null) === (dependency.output.root_hashed_team_id ?? null))
+          || (typeof item.content.parent_embed_id === "string"
+            && item.content.parent_embed_id === dependency.content.parent_embed_id && other < index
+            && !group.some(candidate => candidate.output.subject_id === item.content.parent_embed_id)));
+      } else for (const item of group) await persistOne(item);
     }
     return acknowledged;
   }
@@ -9200,6 +9322,9 @@ export class OpenMatesClient {
     /** Prompt-budget metrics surfaced by the backend when available. */
     promptBudget: AiResponsePromptBudget | null;
   }> {
+    this.cancelSendSocketRearm();
+    this.foregroundSendCount++;
+    try {
     const preWsStartedAt = performance.now();
     // Fixed labels and elapsed numbers only: safe to enable for local send timing.
     type SendTimingPhase = "send_begin" | "snapshot_request" | "snapshot_ready" | "memory_decrypt_ready"
@@ -11167,6 +11292,7 @@ export class OpenMatesClient {
     }
 
     const mateName = category ? (MATE_NAMES[category] ?? null) : null;
+    if (params.interactiveHuman && shouldWaitForAi && !params.incognito) this.rearmSendSocketWhenClosed(ws, teamId);
     return {
       status: "completed",
       chatId,
@@ -11202,6 +11328,10 @@ export class OpenMatesClient {
     }
     } finally {
       historyAbort.abort();
+    }
+    } finally {
+      this.foregroundSendCount--;
+      this.maybeRearmSendSocket();
     }
   }
 
@@ -11490,6 +11620,26 @@ export class OpenMatesClient {
     ownerId: string;
     teamId?: string | null;
   }): Promise<void> {
+    const assertOwner = this.captureRecoveryOwner();
+    const ws = {
+      waitForMessage: (...args: Parameters<OpenMatesWsClient["waitForMessage"]>) => {
+        assertOwner();
+        const result = params.ws.waitForMessage(...args).then(value => { assertOwner(); return value; });
+        void result.catch(() => {});
+        return result;
+      },
+      sendAsync: async (...args: Parameters<OpenMatesWsClient["sendAsync"]>) => {
+        assertOwner();
+        await params.ws.sendAsync(...args);
+        assertOwner();
+      },
+    };
+    const http = { get: async <T>(path: string, headers: Record<string, string>) => {
+      assertOwner();
+      const result = await this.http.get<T>(path, headers);
+      assertOwner();
+      return result;
+    } };
     const finalized = new Map(
       params.embeds
         .filter((embed) => {
@@ -11512,7 +11662,7 @@ export class OpenMatesClient {
     for (const parent of finalized.values()) {
       for (const childId of parent.embed_ids ?? []) {
         if (finalized.has(childId)) continue;
-        const childResponse = params.ws.waitForMessage(
+        const childResponse = ws.waitForMessage(
           "send_embed_data",
           (payload) => {
             const frame = payload as Record<string, unknown>;
@@ -11520,7 +11670,8 @@ export class OpenMatesClient {
             return nested.embed_id === childId;
           },
         );
-        await params.ws.sendAsync("request_embed", { embed_id: childId });
+        assertOwner();
+        await ws.sendAsync("request_embed", { embed_id: childId });
         const envelope = (await childResponse).payload as Record<string, unknown>;
         const child = (envelope.payload ?? envelope) as unknown as SendEmbedDataFrame;
         if (child.parent_embed_id !== parent.embed_id || !child.content
@@ -11539,7 +11690,6 @@ export class OpenMatesClient {
 
     const masterKey = this.getMasterKeyBytes();
     const parentKeys = new Map<string, Uint8Array>();
-    const processed = new Set<string>();
     const cachedEmbeds = loadSyncCache();
 
     const resolveCachedParentKey = async (parentId: string): Promise<Uint8Array | undefined> => {
@@ -11563,6 +11713,7 @@ export class OpenMatesClient {
       embedKey: Uint8Array,
       isChild: boolean,
     ) => {
+      assertOwner();
       const now = Math.floor(Date.now() / 1000);
       const createdAt = normalizeUnixSeconds(embed.createdAt, now);
       const updatedAt = normalizeUnixSeconds(embed.updatedAt, now);
@@ -11607,13 +11758,14 @@ export class OpenMatesClient {
         : [];
 
       const storeRequestId = randomUUID();
-      const storeConfirmed = params.ws.waitForMessage(
+      const storeConfirmed = ws.waitForMessage(
         "store_embed_confirmed",
         (payload) => matchesRecoveryEmbedReceipt(payload, storeRequestId, embed.embed_id),
         30_000,
       );
       void storeConfirmed.catch(() => {});
-      await params.ws.sendAsync("store_embed", {
+      assertOwner();
+      await ws.sendAsync("store_embed", {
         request_id: storeRequestId,
         embed_id: embed.embed_id,
         encrypted_type: encryptedType,
@@ -11642,6 +11794,7 @@ export class OpenMatesClient {
       let storedHead = true;
       try {
         await storeConfirmed;
+      assertOwner();
       } catch (error) {
         if (!(error instanceof WebSocketProtocolError) || error.code !== "embed_write_denied") throw error;
         // Typed recovery can ACK this exact head before the terminal stream
@@ -11649,7 +11802,7 @@ export class OpenMatesClient {
         // A denial is reusable only after an authorized ciphertext/key read
         // proves the same owner, chat, revision, parent and plaintext.
         const query = params.teamId ? `?team_id=${encodeURIComponent(params.teamId)}` : "";
-        const canonical = await this.http.get<{
+        const canonical = await http.get<{
           embed?: Record<string, unknown>; embed_keys?: Array<Record<string, unknown>>;
         }>(`/v1/embeds/chats/${encodeURIComponent(params.chatId)}/embeds/${encodeURIComponent(embed.embed_id)}${query}`,
           this.getCliRequestHeaders());
@@ -11734,10 +11887,11 @@ export class OpenMatesClient {
           const expectedEncryptedType = head.encrypted_type;
           const expectedDigest = computeSHA256(expectedCiphertext);
           const requestId = randomUUID();
-          const confirmed = params.ws.waitForMessage("store_embed_confirmed",
+          const confirmed = ws.waitForMessage("store_embed_confirmed",
             (payload) => matchesRecoveryEmbedReceipt(payload, requestId, embed.embed_id), 30_000);
           void confirmed.catch(() => {});
-          await params.ws.sendAsync("store_embed", {
+          assertOwner();
+          await ws.sendAsync("store_embed", {
             request_id: requestId, embed_id: embed.embed_id, chat_id: params.chatId,
             ...(params.teamId ? { team_id: params.teamId } : {}),
             hashed_user_id: hashedUserId, hashed_chat_id: hashedChatId,
@@ -11752,7 +11906,7 @@ export class OpenMatesClient {
           if (receipt.canonical_source !== "head" || receipt.canonical_digest !== expectedDigest) {
             throw new Error(`Embed ${embed.embed_id} metadata enrichment receipt does not match canonical head.`);
           }
-          const enriched = await this.http.get<{
+          const enriched = await http.get<{
             embed?: Record<string, unknown>; embed_keys?: Array<Record<string, unknown>>;
           }>(`/v1/embeds/chats/${encodeURIComponent(params.chatId)}/embeds/${encodeURIComponent(embed.embed_id)}${query}`,
             this.getCliRequestHeaders());
@@ -11776,7 +11930,7 @@ export class OpenMatesClient {
 
       if (storedHead && keys.length > 0) {
         const keysRequestId = randomUUID();
-        const keysConfirmed = params.ws.waitForMessage(
+        const keysConfirmed = ws.waitForMessage(
           "store_embed_keys_confirmed",
           (payload) => {
             const p = payload as Record<string, unknown>;
@@ -11784,8 +11938,10 @@ export class OpenMatesClient {
           },
           30_000,
         );
-        await params.ws.sendAsync("store_embed_keys", { request_id: keysRequestId, keys });
+        assertOwner();
+        await ws.sendAsync("store_embed_keys", { request_id: keysRequestId, keys });
         const keysReceipt = (await keysConfirmed).payload as Record<string, unknown>;
+        assertOwner();
         if (keysReceipt.failed_count !== 0 || keysReceipt.created_count !== keys.length) {
           throw new Error(`Embed ${embed.embed_id} key wrappers were not durably stored.`);
         }
@@ -11806,7 +11962,7 @@ export class OpenMatesClient {
           if (row.version_number === 1) {
             const query = new URLSearchParams({ capability: "bounded-v1", chat_id: params.chatId });
             if (params.teamId) query.set("team_id", params.teamId);
-            const existing = await this.http.get<{
+            const existing = await http.get<{
               embed_id?: string; version_number?: number;
               rows?: Array<{ version_number: number; encrypted_snapshot?: string | null; encrypted_patch?: string | null }>;
             }>(`/v1/embeds/${encodeURIComponent(embed.embed_id)}/versions/1?${query}`,
@@ -11839,7 +11995,7 @@ export class OpenMatesClient {
               : undefined;
           if (!encryptedSnapshot && !encryptedPatch) continue;
           const diffRequestId = randomUUID();
-          const diffConfirmed = params.ws.waitForMessage(
+          const diffConfirmed = ws.waitForMessage(
             "store_embed_diff_confirmed",
             (payload) => {
               const p = payload as Record<string, unknown>;
@@ -11850,7 +12006,8 @@ export class OpenMatesClient {
             30_000,
           );
           void diffConfirmed.catch(() => {});
-          await params.ws.sendAsync("store_embed_diff", {
+          assertOwner();
+          await ws.sendAsync("store_embed_diff", {
             request_id: diffRequestId,
             embed_id: row.embed_id,
             version_number: row.version_number,
@@ -11860,6 +12017,7 @@ export class OpenMatesClient {
             created_at: normalizeUnixSeconds(row.created_at, now),
           });
           const diffReceipt = (await diffConfirmed).payload as Record<string, unknown>;
+          assertOwner();
           const expectedDigest = computeSHA256(JSON.stringify([encryptedSnapshot ?? null, encryptedPatch ?? null]));
           if (diffReceipt.canonical_source !== "version_row" || diffReceipt.canonical_digest !== expectedDigest) {
             throw new Error(`Embed ${embed.embed_id} v${row.version_number} durable receipt did not match the stored source.`);
@@ -11868,40 +12026,21 @@ export class OpenMatesClient {
       }
     };
 
-    let madeProgress = true;
-    while (processed.size < finalized.size && madeProgress) {
-      madeProgress = false;
-      for (const embed of finalized.values()) {
-        if (processed.has(embed.embed_id)) continue;
-        const parentId = embed.parent_embed_id || null;
-        if (parentId && finalized.has(parentId) && !parentKeys.has(parentId)) {
-          continue;
-        }
-
-        const parentKey = parentId
-          ? parentKeys.get(parentId) ?? await resolveCachedParentKey(parentId)
-          : undefined;
-        if (parentId && !parentKey) continue;
-        const embedKey = parentKey ?? await deriveEmbedKeyFromChatKey(params.chatKeyBytes, embed.embed_id);
-        await persistOne(embed, embedKey, Boolean(parentId));
-        processed.add(embed.embed_id);
-        madeProgress = true;
-      }
-    }
-
-    for (const embed of finalized.values()) {
-      if (processed.has(embed.embed_id)) continue;
+    await runRecoveryBatch([...finalized.values()], async (embed) => {
+      assertOwner();
       const parentId = embed.parent_embed_id || null;
       const parentKey = parentId
         ? parentKeys.get(parentId) ?? await resolveCachedParentKey(parentId)
         : undefined;
+      assertOwner();
       if (parentId && !parentKey) {
         throw new Error(`Cannot persist child embed ${embed.embed_id}: parent embed key ${parentId} is unavailable.`);
       }
       const embedKey = parentKey ?? await deriveEmbedKeyFromChatKey(params.chatKeyBytes, embed.embed_id);
+      assertOwner();
       await persistOne(embed, embedKey, Boolean(parentId));
-      processed.add(embed.embed_id);
-    }
+      assertOwner();
+    }, (embed, dependency) => embed.parent_embed_id === dependency.embed_id);
   }
 
   private async persistPostProcessingMetadata(params: {
@@ -17038,6 +17177,7 @@ export class OpenMatesClient {
   private interactiveViewerGeneration = 0;
 
   beginInteractiveViewerSession(): void {
+    this.cancelSendSocketRearm();
     this.interactiveAdmissionEnabled = true;
     this.interactiveAdmissionOwner = null;
     this.interactiveAdmissionAuth = null;
@@ -17046,6 +17186,7 @@ export class OpenMatesClient {
   }
 
   endInteractiveViewerSession(): void {
+    this.cancelSendSocketRearm();
     this.interactiveAdmissionEnabled = false;
     this.interactiveAdmissionOwner = null;
     this.interactiveAdmissionAuth = null;

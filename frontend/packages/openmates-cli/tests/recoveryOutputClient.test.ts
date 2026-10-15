@@ -71,6 +71,7 @@ describe("CLI typed recovery replay", () => {
     const encryptedType = await encryptWithAesGcmCombined("code", embedKey);
     const digest = createHash("sha256").update(encryptedContent).digest("hex");
     const client = Object.create(OpenMatesClient.prototype) as Record<string, unknown>;
+    client.session = { sessionId: "fixture", hashedEmail: "fixture", activeTeamId: null, apiUrl: "http://fixture.invalid", createdAt: 1, masterKeyExportedB64: "fixture" };
     client.getMasterKeyBytes = () => new Uint8Array(32);
     client.getChatWrappingKey = async () => new Uint8Array(32);
     client.resolveChatKey = async () => rawKey;
@@ -125,7 +126,8 @@ describe("CLI typed recovery replay", () => {
     try {
       const client = Object.create(OpenMatesClient.prototype) as Record<string, unknown>;
       client.resolveTeamContext = () => null;
-      client.getMasterKeyBytes = () => new Uint8Array(32);
+      client.session = { sessionId: "fixture", hashedEmail: "fixture", activeTeamId: null, apiUrl: "http://fixture.invalid", createdAt: 1, masterKeyExportedB64: "fixture" };
+    client.getMasterKeyBytes = () => new Uint8Array(32);
       client.getChatWrappingKey = async () => new Uint8Array(32);
       client.hasSession = () => true;
       client.session = { apiUrl: "http://localhost", sessionId: "recovery-fixture", hashedEmail: "owner-hash",
@@ -228,6 +230,7 @@ describe("CLI typed recovery replay", () => {
     });
     const rawKey = new Uint8Array(Buffer.from(keyVector.chat_key, "base64url"));
     const client = Object.create(OpenMatesClient.prototype) as Record<string, unknown>;
+    client.session = { sessionId: "fixture", hashedEmail: "fixture", activeTeamId: null, apiUrl: "http://fixture.invalid", createdAt: 1, masterKeyExportedB64: "fixture" };
     client.getMasterKeyBytes = () => new Uint8Array(32);
     client.getChatWrappingKey = async () => new Uint8Array(32);
     client.resolveChatKey = async (_cache: unknown, root: { details: { id: string } }) =>
@@ -263,9 +266,9 @@ describe("CLI typed recovery replay", () => {
     const replay = client.replayCurrentTurnRecoveryOutputPages as ReplayCurrentTurnPages;
     await replay.call(client, ws, identity.owner_id, [[old, active]], cache, null, active.root_chat_id);
     assert.deepEqual(sent, ["recovery_output_get", "recovery_output_persist_message"]);
-    assert.deepEqual(lookups, ["/v1/chats/old-root/wrappers/window"]);
+    assert.deepEqual(lookups, [], "current-turn recovery leaves unrelated roots pending");
     await replay.call(client, ws, identity.owner_id, [[old]], cache, null, active.root_chat_id);
-    assert.deepEqual(lookups, ["/v1/chats/old-root/wrappers/window", "/v1/chats/old-root/wrappers/window"]);
+    assert.deepEqual(lookups, [], "unrelated-only pages do not perform current-turn key lookups");
     assert.equal(sent.length, 2, "the older output was never fetched, persisted, or acknowledged");
 
     await assert.rejects(replay.call(client, ws, identity.owner_id, [[active]],
@@ -354,6 +357,7 @@ describe("CLI typed recovery replay", () => {
     });
     const rawKey = new Uint8Array(Buffer.from(keyVector.chat_key, "base64url"));
     const client = Object.create(OpenMatesClient.prototype) as Record<string, unknown>;
+    client.session = { sessionId: "fixture", hashedEmail: "fixture", activeTeamId: null, apiUrl: "http://fixture.invalid", createdAt: 1, masterKeyExportedB64: "fixture" };
     client.getMasterKeyBytes = () => new Uint8Array(32);
     client.getChatWrappingKey = async () => new Uint8Array(32);
     client.resolveChatKey = async () => rawKey;
@@ -443,6 +447,7 @@ describe("CLI typed recovery replay", () => {
     const rawKey = new Uint8Array(Buffer.from(keyVector.chat_key, "base64url"));
     const embedKey = await deriveEmbedKeyFromChatKey(rawKey, keySubject);
     const client = Object.create(OpenMatesClient.prototype) as Record<string, unknown>;
+    client.session = { sessionId: "fixture", hashedEmail: "fixture", activeTeamId: null, apiUrl: "http://fixture.invalid", createdAt: 1, masterKeyExportedB64: "fixture" };
     client.getMasterKeyBytes = () => new Uint8Array(32);
     client.getChatWrappingKey = async () => new Uint8Array(32);
     client.resolveChatKey = async () => rawKey;
@@ -597,6 +602,7 @@ describe("CLI typed recovery replay", () => {
     });
     const rawKey = new Uint8Array(Buffer.from(keyVector.chat_key, "base64url"));
     const client = Object.create(OpenMatesClient.prototype) as Record<string, unknown>;
+    client.session = { sessionId: "fixture", hashedEmail: "fixture", activeTeamId: null, apiUrl: "http://fixture.invalid", createdAt: 1, masterKeyExportedB64: "fixture" };
     client.getMasterKeyBytes = () => new Uint8Array(32);
     client.getChatWrappingKey = async () => new Uint8Array(32);
     client.resolveChatKey = async () => rawKey;
@@ -671,6 +677,7 @@ describe("CLI typed recovery replay", () => {
     });
     const rawKey = new Uint8Array(Buffer.from(keyVector.chat_key, "base64url"));
     const client = Object.create(OpenMatesClient.prototype) as Record<string, unknown>;
+    client.session = { sessionId: "fixture", hashedEmail: "fixture", activeTeamId: null, apiUrl: "http://fixture.invalid", createdAt: 1, masterKeyExportedB64: "fixture" };
     client.getMasterKeyBytes = () => new Uint8Array(32);
     client.getChatWrappingKey = async () => new Uint8Array(32);
     client.resolveChatKey = async () => rawKey;
@@ -757,6 +764,7 @@ describe("CLI typed recovery replay", () => {
     });
     const rawKey = new Uint8Array(Buffer.from(keyVector.chat_key, "base64url"));
     const client = Object.create(OpenMatesClient.prototype) as Record<string, unknown>;
+    client.session = { sessionId: "fixture", hashedEmail: "fixture", activeTeamId: null, apiUrl: "http://fixture.invalid", createdAt: 1, masterKeyExportedB64: "fixture" };
     client.getMasterKeyBytes = () => new Uint8Array(32);
     client.getChatWrappingKey = async () => new Uint8Array(32);
     client.resolveChatKey = async () => rawKey;
@@ -858,7 +866,8 @@ describe("CLI sealed parent dependencies", () => {
           encrypted_embed_key: await encryptBytesWithAesGcm(new Uint8Array(32), master) });
       }
       const client = Object.create(OpenMatesClient.prototype) as Record<string, unknown>;
-      client.getMasterKeyBytes = () => master;
+      client.session = { sessionId: "fixture", hashedEmail: "fixture", activeTeamId: null, apiUrl: "http://fixture.invalid", createdAt: 1, masterKeyExportedB64: "fixture" };
+    client.getMasterKeyBytes = () => master;
       client.getChatWrappingKey = async () => master;
       client.resolveChatKey = async () => rawKey;
       client.getCliRequestHeaders = () => ({});
@@ -920,7 +929,9 @@ describe("CLI sealed parent dependencies", () => {
         : (client.replayRecoveryOutputPages as ReplayOutputPages)(ws, identity.owner_id, pages, cache, null);
       const valid = ["same-page", "cross-page", "current-turn-cross-page", "orphan-head"].includes(scenario);
       if (!valid) {
-        await assert.rejects(replay(), /parent embed key scope|dependency is cyclic|Recovery Team|key wrapper does not match/);
+        await assert.rejects(replay(), scenario === "invalid-parent-wrapper"
+          ? /Existing canonical recovery embed identity was invalid/
+          : /parent embed key scope|dependency is cyclic|Recovery Team|key wrapper does not match/);
         assert.equal(frames.some(row => ["store_embed", "store_embed_keys", "recovery_output_ack_embed"].includes(row.type)), false);
         assert.equal(heads.size, scenario === "invalid-parent-wrapper" ? 1 : 0);
       } else {

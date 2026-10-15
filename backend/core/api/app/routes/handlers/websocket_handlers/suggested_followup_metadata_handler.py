@@ -77,13 +77,18 @@ async def handle_suggested_followup_metadata(
 
     async def reject(code: str) -> None:
         error_payload = {"code": code, "chat_id": chat_id}
+        result_type = "error"
         if code == "stale_suggested_followup_source":
+            # Optional metadata uses a compare-and-set source fence. A losing
+            # write is an explicit not-stored outcome, not a chat/server fault.
+            result_type = "encrypted_suggested_followup_message_not_stored"
             error_payload.update({
                 "source_message_id": source_message_id,
                 "source_task_id": source_task_id,
+                "source_user_message_id": source_user_message_id,
             })
         await manager.send_personal_message(
-            {"type": "error", "payload": error_payload},
+            {"type": result_type, "payload": error_payload},
             user_id,
             device_fingerprint_hash,
         )

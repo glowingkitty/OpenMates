@@ -398,6 +398,19 @@ export async function verifyCaddyCoreRoutes(apiUrl: string, origin: string): Pro
   } });
   if (!embedPreflight.ok || embedPreflight.headers.get("access-control-allow-origin") !== origin ||
     embedPreflight.headers.get("access-control-allow-credentials") !== "true") throw new Error("caddy_embed_reference_cors_failed");
+  // This first-party account route must stay reachable even when Workflow
+  // features are disabled. Missing host matcher paths cause Caddy to abort.
+  let accountKeyPreflight: Response;
+  try {
+    accountKeyPreflight = await request("/v1/account/chat-encryption-key", { method: "OPTIONS", headers: {
+      Origin: origin, "Access-Control-Request-Method": "GET", "Access-Control-Request-Headers": "content-type",
+    } });
+  } catch { throw new Error("caddy_account_chat_key_preflight_failed"); }
+  const accountKeyMethods = accountKeyPreflight.headers.get("access-control-allow-methods")?.split(",").map(value => value.trim().toUpperCase()) ?? [];
+  if (accountKeyPreflight.status !== 200 || accountKeyPreflight.headers.get("access-control-allow-origin") !== origin ||
+    accountKeyPreflight.headers.get("access-control-allow-credentials") !== "true" || !accountKeyMethods.includes("GET")) {
+    throw new Error("caddy_account_chat_key_preflight_failed");
+  }
   const availability = await request("/v1/features/availability");
   if (!availability.ok) throw new Error("caddy_availability_route_failed");
   const features = await availability.json() as { disabled?: string[] };

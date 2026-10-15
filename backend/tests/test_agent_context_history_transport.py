@@ -13,10 +13,10 @@ from backend.core.api.app.services.cache_chat_mixin import ChatCacheMixin
 
 
 class ReceiptEmbedService:
-    def __init__(self, *_args):
+    def __init__(self, *_args, **_kwargs):
         pass
 
-    async def resolve_embed_references_in_content(self, content, *_args):
+    async def resolve_embed_references_in_content(self, content, *_args, **_kwargs):
         return content, {}
 
 
@@ -53,9 +53,11 @@ def test_ask_admission_and_serialization_project_replayed_receipts_only(model):
     assert 'PRIVATE-REPLAY-SENTINEL' not in request.model_dump_json()
 
 
+# contract-test: supporting surface=rest_api assertions=chats.send.immediate-admission,chats.persistence.client-encrypted,chats.message.identity-idempotent
 @pytest.mark.asyncio
 @pytest.mark.parametrize('include_current', [False, True])
-async def test_next_turn_handler_recache_and_queued_worker_transport_remove_private_receipt_bodies(monkeypatch, caplog, include_current):
+@pytest.mark.parametrize('include_empty', [False, True])
+async def test_next_turn_handler_recache_and_queued_worker_transport_remove_private_receipt_bodies(monkeypatch, caplog, include_current, include_empty):
     from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler as handler
     from backend.shared.python_utils.recent_work_summary_client import RecentWorkSummaryClient
     cached_rows = []
@@ -99,15 +101,23 @@ async def test_next_turn_handler_recache_and_queued_worker_transport_remove_priv
         update_user=AsyncMock(),
     )
     directus = SimpleNamespace(chat=SimpleNamespace(get_chat_metadata=AsyncMock(return_value=None),
-        check_chat_ownership=AsyncMock(return_value=True)), get_user_profile=AsyncMock(),
+        check_chat_ownership=AsyncMock(return_value=True),
+        mark_queued_message_pending=AsyncMock(return_value={'status': 'queued'})), get_user_profile=AsyncMock(),
         get_user_fields_direct=AsyncMock(return_value={}))
-    encryption = SimpleNamespace(encrypt_with_user_key=AsyncMock(return_value=('vault-ciphertext', 1)))
+    encryption = SimpleNamespace(
+        encrypt_with_user_key=AsyncMock(return_value=('vault:v1:current-ciphertext', 1)),
+        encrypt_many_with_user_key=AsyncMock(side_effect=lambda contents, _key: [
+            (f'vault:v1:history-{index}', 1) for index, _ in enumerate(contents)
+        ]),
+    )
     monkeypatch.setitem(sys.modules, 'backend.core.api.app.services.embed_service', SimpleNamespace(EmbedService=ReceiptEmbedService))
     monkeypatch.setattr(handler, 'ChatRecoveryCutoverController', lambda *_: SimpleNamespace(
         get_epoch=AsyncMock(return_value=0), admit_legacy_inference=AsyncMock(return_value={'admitted': True}),
         release_legacy_inference=AsyncMock(return_value={'released': True})))
     monkeypatch.setattr(RecentWorkSummaryClient, 'seal_context', AsyncMock(return_value='opaque-turn-binding'))
     source = history()
+    if include_empty:
+        source.append({'message_id': 'empty-history', 'role': 'assistant', 'created_at': 4, 'content': ''})
     if include_current:
         source.append({'id': 'next-user', 'role': 'user', 'created_at': 5,
                        'content': 'Continue fixing the API'})
@@ -124,6 +134,23 @@ async def test_next_turn_handler_recache_and_queued_worker_transport_remove_priv
     current_saved = cache.save_chat_message_and_update_versions.await_args.kwargs['message_data']
     assert cached_rows[0] == current_saved.model_dump_json()
     assert [json.loads(row)['id'] for row in cached_rows].count('next-user') == 1
+    from backend.shared.python_utils.native_cache_history import canonical_history_content
+    expected_prior = [row for row in source if row.get('id') != 'next-user']
+    from backend.shared.python_utils.agent_context_history import project_agent_context_history
+    expected_contents = [canonical_history_content(row) for row in project_agent_context_history(expected_prior)]
+    encryption.encrypt_many_with_user_key.assert_awaited_once_with(
+        [content for content in expected_contents if content], 'vault-key',
+    )
+    encryption.encrypt_with_user_key.assert_awaited_once()
+    chronological_rows = [json.loads(row) for row in reversed(cached_rows)]
+    assert [row['id'] for row in chronological_rows] == [
+        row['message_id'] for row in expected_prior
+    ] + ['next-user']
+    expected_ciphertexts = [f'vault:v1:history-{index}' for index in range(4)]
+    if include_empty:
+        expected_ciphertexts.append('')
+    assert [row['encrypted_content'] for row in chronological_rows[:-1]] == expected_ciphertexts
+    assert chronological_rows[-1]['encrypted_content'] == 'vault:v1:current-ciphertext'
     from backend.shared.python_utils.focus_continuation_history import rebuild_focus_continuation_history
     cache.get.return_value = 'next-user'
     focus_history = await rebuild_focus_continuation_history(
@@ -134,6 +161,7 @@ async def test_next_turn_handler_recache_and_queued_worker_transport_remove_priv
     )
     assert focus_history[-1]['role'] == 'user'
     assert 'PRIVATE-REPLAY-SENTINEL' not in repr(encryption.encrypt_with_user_key.await_args_list)
+    assert 'PRIVATE-REPLAY-SENTINEL' not in repr(encryption.encrypt_many_with_user_key.await_args_list)
     assert 'PRIVATE-REPLAY-SENTINEL' not in repr(cache.add_message_to_chat_history.await_args_list)
     queued = cache.queue_message.await_args.kwargs['message_data']
     assert 'PRIVATE-REPLAY-SENTINEL' not in json.dumps(queued)
@@ -146,8 +174,11 @@ async def test_next_turn_handler_recache_and_queued_worker_transport_remove_priv
     assert queued['message_history'][2]['content'] == source[2]['content']
 
 
+# contract-test: supporting surface=rest_api assertions=chats.send.immediate-admission,chats.persistence.client-encrypted,chats.message.identity-idempotent
 @pytest.mark.asyncio
-@pytest.mark.parametrize('write_failure', ['false', 'exception', 'delete_unavailable'])
+@pytest.mark.parametrize('write_failure', [
+    'false', 'exception', 'delete_unavailable', 'batch_exception', 'batch_incomplete', 'batch_invalid',
+])
 @pytest.mark.parametrize('error_delivery_fails', [False, True])
 async def test_client_history_current_turn_cache_write_failure_stops_inference(
     monkeypatch, write_failure, error_delivery_fails,
@@ -184,7 +215,19 @@ async def test_client_history_current_turn_cache_write_failure_stops_inference(
         get_chat_metadata=AsyncMock(return_value=None),
         check_chat_ownership=AsyncMock(return_value=True),
     ), get_user_profile=AsyncMock(), get_user_fields_direct=AsyncMock(return_value={}))
-    encryption = SimpleNamespace(encrypt_with_user_key=AsyncMock(return_value=('vault-ciphertext', 1)))
+    encryption = SimpleNamespace(
+        encrypt_with_user_key=AsyncMock(return_value=('vault:v1:current-ciphertext', 1)),
+        encrypt_many_with_user_key=AsyncMock(side_effect=lambda contents, _key: [
+            (f'vault:v1:history-{index}', 1) for index, _ in enumerate(contents)
+        ]),
+    )
+    if write_failure == 'batch_exception':
+        encryption.encrypt_many_with_user_key.side_effect = RuntimeError('vault unavailable')
+    elif write_failure in ('batch_incomplete', 'batch_invalid'):
+        encryption.encrypt_many_with_user_key.side_effect = None
+        encryption.encrypt_many_with_user_key.return_value = (
+            [] if write_failure == 'batch_incomplete' else [('', '')]
+        )
     monkeypatch.setitem(sys.modules, 'backend.core.api.app.services.embed_service',
                         SimpleNamespace(EmbedService=ReceiptEmbedService))
     monkeypatch.setattr(handler, 'ChatRecoveryCutoverController', lambda *_: SimpleNamespace(
@@ -210,8 +253,13 @@ async def test_client_history_current_turn_cache_write_failure_stops_inference(
             'created_at': 5, 'chat_has_title': False,
         }},
     )
-    assert writes == (0 if write_failure == 'delete_unavailable' else 2)
-    cache.delete_ai_messages_history.assert_awaited_once_with('owner', 'chat')
+    batch_failure = write_failure.startswith('batch_')
+    assert writes == (0 if batch_failure or write_failure == 'delete_unavailable' else 2)
+    if batch_failure:
+        cache.delete_ai_messages_history.assert_not_awaited()
+    else:
+        cache.delete_ai_messages_history.assert_awaited_once_with('owner', 'chat')
+    encryption.encrypt_many_with_user_key.assert_awaited_once_with(['Earlier'], 'vault-key')
     cache.queue_message.assert_not_awaited()
     manager.dispatch_skill.assert_not_awaited()
     errors = [call.args[0] for call in manager.send_personal_message.await_args_list

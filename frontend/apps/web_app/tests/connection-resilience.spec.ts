@@ -966,3 +966,72 @@ test('secondary client recovers exactly one saved assistant message after origin
 		}
 	}
 });
+
+
+// contract-test: supporting surface=gui.web assertions=chats.send.immediate-admission,chats.message.identity-idempotent
+test('saved Personal follow-up admits full history before phased routing and details', async ({ page }: { page: any }, testInfo: any) => {
+  test.setTimeout(180000);
+  const events: Array<Record<string, any>> = [];
+  const jobChats = new Map<string, string>();
+  page.on('websocket', (socket: any) => {
+    const capture = (direction: string) => (frame: any) => {
+      try {
+        const parsed = JSON.parse(String(frame.payload));
+        const body = parsed.payload ?? {};
+        if (direction === 'sent' && parsed.type === 'recovery_job_persist') {
+          jobChats.set(body.job_id, body.encrypted_assistant_message?.chat_id);
+        }
+        const request = body.inference_request;
+        events.push({ direction, type: parsed.type, turnId: body.turn_id,
+          chatId: body.chat_id ?? jobChats.get(body.job_id), messageId: parsed.type === 'ai_message_update' ? body.user_message_id : body.message_id ?? body.user_message_id,
+          expected: body.expected_messages_v, committed: body.committed_messages_v,
+          phase: body.phase, state: body.state, status: body.status, contextPending: request?.client_context_pending,
+          historyIds: request?.message_history?.map((row: any) => row.message_id),
+          historyRoles: request?.message_history?.map((row: any) => row.role) });
+      } catch { /* Ignore non-JSON control frames. */ }
+    };
+    socket.on('framesent', capture('sent')); socket.on('framereceived', capture('received'));
+  });
+  try {
+  const { logCheckpoint } = await loginAndNavigateToChat(page, test, 'SAVED_FOLLOWUP_PHASES');
+  const chatId = await sendMessageAndGetChatId(page,
+    withMockMarker('What is the capital?', 'chat_flow_capital'), logCheckpoint);
+  await expect(page.getByTestId('message-assistant')).toHaveCount(1, { timeout: 90000 });
+  const terminal = () => events.find(event => event.direction === 'received'
+    && event.type === 'recovery_job_persisted' && event.chatId === chatId && event.state === 'TERMINAL'
+    && Number.isSafeInteger(event.committed));
+  await expect.poll(terminal, { timeout: 90000 }).toBeTruthy();
+  const canonicalVersion = terminal()!.committed;
+  const first = events.find(event => event.direction === 'sent' && event.type === 'chat_turn_admit' && event.chatId === chatId);
+  expect(first?.expected).toBe(0);
+  await sendMessage(page, withMockMarker('And the next capital?', 'chat_flow_capital'), logCheckpoint);
+  const followup = () => events.find(event => event.direction === 'sent' && event.type === 'chat_turn_admit'
+    && event.chatId === chatId && event.messageId !== first?.messageId);
+  await expect.poll(followup, { timeout: 30000 }).toBeTruthy();
+  const admitted = followup()!;
+  expect(admitted.expected).toBe(canonicalVersion);
+  expect(admitted.contextPending).toBe(true);
+  expect(admitted.historyIds).toContain(first!.messageId);
+  expect(admitted.historyRoles).toContain('assistant');
+  expect(admitted.historyIds).toContain(admitted.messageId);
+  await expect(page.getByTestId('message-assistant')).toHaveCount(2, { timeout: 90000 });
+  const admissionIndex = events.indexOf(admitted);
+  const routingIndex = events.findIndex(event => event.direction === 'sent' && event.type === 'chat_turn_context_ready'
+    && event.turnId === admitted.turnId && event.phase === 'routing');
+  const detailsIndex = events.findIndex(event => event.direction === 'sent' && event.type === 'chat_turn_context_ready'
+    && event.turnId === admitted.turnId && event.phase === 'details');
+  expect(routingIndex).toBeGreaterThan(admissionIndex);
+  expect(detailsIndex).toBeGreaterThan(routingIndex);
+  await expect.poll(() => events.findIndex(event => event.direction === 'received' && event.type === 'chat_turn_context_ack'
+    && event.turnId === admitted.turnId && event.phase === 'details' && event.status === 'accepted'),
+    { timeout: 30000 }).toBeGreaterThan(detailsIndex);
+  expect(events.findIndex(event => event.direction === 'received' && event.type === 'ai_message_update'
+    && event.messageId === admitted.messageId)).toBeGreaterThan(detailsIndex);
+  expect(events.some(event => event.direction === 'sent' && ['chat_message_added', 'chat_turn_preflight'].includes(event.type)
+    && event.messageId === admitted.messageId)).toBe(false);
+  } finally {
+    await testInfo.attach('saved-followup-admission-protocol', {
+      body: JSON.stringify(events.slice(-160)), contentType: 'application/json',
+    });
+  }
+});

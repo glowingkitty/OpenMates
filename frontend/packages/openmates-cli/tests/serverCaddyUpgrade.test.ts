@@ -16,7 +16,7 @@ const revision = "b".repeat(40);
 const probe = "/v1/embeds/chats/*/references/availability";
 const template = `api.example.test {
   @actual {
-    path /v1/auth/* ${probe}
+    path /v1/auth/* /v1/account/chat-encryption-key ${probe}
     header Origin https://app.example.test
   }
   handle @actual {
@@ -24,7 +24,7 @@ const template = `api.example.test {
   }
 }
 `;
-const current = template.replace(` ${probe}`, " /operator/*") + "operator.example.test {\n  respond 204\n}\n";
+const current = template.replace(" /v1/account/chat-encryption-key", "").replace(` ${probe}`, " /operator/*") + "operator.example.test {\n  respond 204\n}\n";
 
 async function fixture(registered = true) {
   const root = mkdtempSync(join(tmpdir(), "openmates-caddy-upgrade-"));
@@ -42,6 +42,17 @@ async function fixture(registered = true) {
       const delegatesToBackend = /\n\s*handle\s*\{\s*reverse_proxy localhost:8000/.test(live);
       response.setHeader("Access-Control-Allow-Origin", live.includes(probe) || delegatesToBackend ? request.headers.origin! : "*");
       response.setHeader("Access-Control-Allow-Credentials", "true");
+      response.end();
+    } else if (request.method === "OPTIONS" && request.url === "/v1/account/chat-encryption-key") {
+      const live = readFileSync(config, "utf8");
+      const delegatesToBackend = /\n\s*handle\s*\{\s*reverse_proxy localhost:8000/.test(live);
+      if (!live.includes("/v1/account/chat-encryption-key") && !delegatesToBackend) {
+        request.socket.destroy();
+        return;
+      }
+      response.setHeader("Access-Control-Allow-Origin", request.headers.origin!);
+      response.setHeader("Access-Control-Allow-Credentials", "true");
+      response.setHeader("Access-Control-Allow-Methods", "GET, PUT, OPTIONS");
       response.end();
     } else if (request.url === "/v1/features/availability") {
       response.setHeader("Content-Type", "application/json");
@@ -89,12 +100,13 @@ it("upgrade updates configured Caddy from the installed server release after the
     assert.equal(result.caddy.revision, revision);
     const live = readFileSync(f.config, "utf8");
     assert.match(live, /\/references\/availability \/operator\/\*/);
+    assert.match(live, /\/v1\/account\/chat-encryption-key/);
     assert.ok(live.endsWith("operator.example.test {\n  respond 204\n}\n"));
     assert.equal(JSON.parse(readFileSync(f.baseline, "utf8")).template, template);
     assert.equal(readFileSync(result.caddy.backupPath, "utf8"), current);
     const operations = readFileSync(f.trace, "utf8");
     assert.match(operations, /npm install -g openmates@99\.0\.0[\s\S]*caddy validate[\s\S]*systemctl reload caddy/);
-    assert.deepEqual(f.seen, ["OPTIONS /v1/embeds/chats/00000000-0000-4000-8000-000000000000/references/availability", "GET /v1/features/availability"]);
+    assert.deepEqual(f.seen, ["OPTIONS /v1/embeds/chats/00000000-0000-4000-8000-000000000000/references/availability", "OPTIONS /v1/account/chat-encryption-key", "GET /v1/features/availability"]);
     const again = JSON.parse((await f.run(["update", "--caddy-config", f.config, "--json"])).stdout);
     assert.equal(again.status, "up_to_date");
     assert.equal(again.caddy.status, "unchanged");
@@ -166,7 +178,7 @@ it("Caddy-only update verifies the packaged self-host catchall without requiring
     assert.equal(result.status, "unchanged");
     assert.equal(readFileSync(f.config, "utf8"), before);
     assert.equal(JSON.parse(readFileSync(f.baseline, "utf8")).template, minimal);
-    assert.equal(f.seen.length, 2);
+    assert.equal(f.seen.length, 3);
   } finally { await f.cleanup(); }
 });
 
