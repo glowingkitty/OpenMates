@@ -16,7 +16,7 @@ import hashlib
 import time
 from dataclasses import dataclass
 from weakref import WeakKeyDictionary, WeakSet
-from typing import Dict, Any, List, Optional, Union, AsyncIterator
+from typing import Dict, Any, List, Optional, Union, AsyncIterator, Literal
 import tiktoken
 
 # Use the newer google-genai library
@@ -335,6 +335,11 @@ def _google_thinking_config(model_id: str, thinking_level: Optional[str]) -> typ
 
 
 # --- Pydantic Models for Structured Google Response (remain compatible) ---
+
+class GoogleStreamFinishMetadata(BaseModel):
+    """Private SDK finish status, separate from incurred usage and authored text."""
+    finish_reason: Literal["MAX_TOKENS"]
+
 
 class GoogleUsageMetadata(BaseModel):
     """
@@ -857,7 +862,7 @@ async def invoke_google_ai_studio_chat_completions(
     tool_choice: Optional[str] = None,
     stream: bool = False,
     thinking_level: Optional[str] = None,
-) -> Union[UnifiedGoogleResponse, AsyncIterator[Union[str, ParsedGoogleToolCall, GoogleUsageMetadata]]]:
+) -> Union[UnifiedGoogleResponse, AsyncIterator[Union[str, ParsedGoogleToolCall, GoogleUsageMetadata, GoogleStreamFinishMetadata]]]:
     """
     Google AI Studio (Gemini API) client using `google-genai` API-key auth.
 
@@ -1002,7 +1007,7 @@ async def invoke_google_ai_studio_chat_completions(
 
         return unified_resp
 
-    async def _iterate_stream_response() -> AsyncIterator[Union[str, ParsedGoogleToolCall, GoogleUsageMetadata, UnifiedStreamChunk]]:
+    async def _iterate_stream_response() -> AsyncIterator[Union[str, ParsedGoogleToolCall, GoogleUsageMetadata, GoogleStreamFinishMetadata, UnifiedStreamChunk]]:
         """
         Stream response iterator that yields:
         - str: Regular text content
@@ -1211,6 +1216,11 @@ async def invoke_google_ai_studio_chat_completions(
                 logger.info(f"{log_prefix} Stream failed with error. Not estimating usage - billing will be skipped.")
             await _close_google_client(google_genai_client, unmanaged_session)
 
+        # Emit after usage and client cleanup, even when SDK usage was absent.
+        # Finish status must never fabricate a zero-cost usage record.
+        if getattr(last_finish_reason, "value", last_finish_reason) == "MAX_TOKENS":
+            yield GoogleStreamFinishMetadata(finish_reason="MAX_TOKENS")
+
     if stream:
         return _iterate_stream_response()
     else:
@@ -1247,7 +1257,7 @@ async def invoke_google_chat_completions(
     tool_choice: Optional[str] = None,
     stream: bool = False,
     thinking_level: Optional[str] = None,
-) -> Union[UnifiedGoogleResponse, AsyncIterator[Union[str, ParsedGoogleToolCall, GoogleUsageMetadata]]]:
+) -> Union[UnifiedGoogleResponse, AsyncIterator[Union[str, ParsedGoogleToolCall, GoogleUsageMetadata, GoogleStreamFinishMetadata]]]:
     if secrets_manager:
         # SecretsManager caches Vault reads for five minutes. Refreshing here
         # picks up rotations/config changes without a process restart.
@@ -1396,7 +1406,7 @@ async def invoke_google_chat_completions(
             
         return unified_resp
 
-    async def _iterate_stream_response() -> AsyncIterator[Union[str, ParsedGoogleToolCall, GoogleUsageMetadata, UnifiedStreamChunk]]:
+    async def _iterate_stream_response() -> AsyncIterator[Union[str, ParsedGoogleToolCall, GoogleUsageMetadata, GoogleStreamFinishMetadata, UnifiedStreamChunk]]:
         """
         Stream response iterator that yields:
         - str: Regular text content
@@ -1610,6 +1620,10 @@ async def invoke_google_chat_completions(
                 logger.info(f"{log_prefix} Stream failed with error. Not estimating usage - billing will be skipped.")
             await _close_google_client(google_genai_client, unmanaged_session)
 
+        # Emit after usage and client cleanup, even when SDK usage was absent.
+        # Finish status must never fabricate a zero-cost usage record.
+        if getattr(last_finish_reason, "value", last_finish_reason) == "MAX_TOKENS":
+            yield GoogleStreamFinishMetadata(finish_reason="MAX_TOKENS")
 
     if stream:
         return _iterate_stream_response()

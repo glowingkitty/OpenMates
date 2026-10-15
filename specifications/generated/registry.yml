@@ -11,7 +11,7 @@ specifications:
     version: 1
     status: draft
     path: architecture/app-skill-execution
-    fingerprint: a906910ab64eb3f900e14737f14b0d785787b0f13c8b400503b788c745d5531d
+    fingerprint: 41ef03c3bd9116635cfdae21d53480d0a36692e99fe943078a18d72dafc5ad7f
     required_applies_to:
     - rest_api
     - cli
@@ -865,7 +865,7 @@ assertions:
     specification: architecture.app-skill-execution@1
     specification_id: architecture.app-skill-execution
     type: privacy
-    fingerprint: 6c915f9991a0498104c2cca40e22ab309a2e6cf1fafc808ecb36a4801a134c54
+    fingerprint: fb481211110582c08e3c6c6f7d5fa5edcbeb27f630e020e8967f9180a8618297
     required_applies_to:
     - rest_api
     - cli

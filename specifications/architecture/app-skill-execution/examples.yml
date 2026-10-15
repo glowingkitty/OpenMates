@@ -176,9 +176,9 @@ completion_recovery:
 
 completion_failure:
   - id: partial-media-failure
-    given: A three-image request produces two images and the last job exceeds its deadline.
+    given: A request produces two of three images, the third job exceeds its deadline, and a delegated source verifier reaches its output limit before completing its audit.
     when: The turn finishes.
-    then: The answer displays the two successful images and explains that the third could not complete, without claiming success or submitting a replacement generation automatically.
+    then: The answer displays the two successful images and explains that the third image and the source audit could not complete. The unfinished audit is not counted as completed verification; saved outputs and incurred charges remain preserved, and paid work is not repeated automatically.
     assertion_ids: [app-skills.assistant.bounded-private-failure]
   - id: private-context-expires-during-wait
     given: An authorized turn uses private Project context and its transient inference context expires before a slow job completes.

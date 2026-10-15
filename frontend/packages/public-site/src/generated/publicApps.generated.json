@@ -96,18 +96,6 @@
     "promptDe": "Hilf mir bei Karrierefragen"
   },
   {
-    "id": "web",
-    "iconUrl": "/icons/web.svg",
-    "gradient": "var(--color-app-web)",
-    "capability": {
-      "type": "focus",
-      "id": "research"
-    },
-    "exampleChatId": "example-us-egg-prices-deep",
-    "promptEn": "Deep research the web",
-    "promptDe": "Recherchiere gründlich im Web"
-  },
-  {
     "id": "weather",
     "iconUrl": "/icons/weather.svg",
     "gradient": "var(--color-app-weather)",

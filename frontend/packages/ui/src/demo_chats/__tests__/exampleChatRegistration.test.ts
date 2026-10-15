@@ -1,15 +1,42 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { embedStore } from "../../services/embedStore";
-import { ALL_EXAMPLE_CHATS } from "../exampleChatData";
-import { getExampleChatMessages, getExampleChatEmbed, getExampleChatEmbedPiiMappings, resolveExampleChatEmbedRef, resolveExampleFullscreenTarget } from "../exampleChatStore";
+import { ALL_EXAMPLE_CHATS, INTERNAL_EXAMPLE_CHATS } from "../exampleChatData";
+import { getAllExampleChats, getAllExampleChatData, getRecentExampleChats, getFeaturedExampleChats, getExampleChat, getExampleChatBySlug, getExampleChatsForSkill, getExampleChatsForFocusMode, getExampleChatsForContentEmbed, getExampleChatsForSettingsMemory, getExampleChatMessages, getExampleChatEmbed, getExampleChatEmbedPiiMappings, resolveExampleChatEmbedRef, resolveExampleFullscreenTarget } from "../exampleChatStore";
 import { clearEmbedError, markEmbedAsError, resolveEmbed } from "../../services/embedResolver";
 
 afterEach(() => vi.restoreAllMocks());
 
 describe("example embed registration", () => {
+  // contract-test: supporting surface=gui.web assertions=public-example-chats.catalog.discoverable,public-example-chats.transcript.safe-rendering
+  it.each(INTERNAL_EXAMPLE_CHATS)("keeps $chat_id out of public discovery while preserving direct lookup", (example) => {
+    const publicLists = [
+      getAllExampleChats(), getAllExampleChatData(),
+      getRecentExampleChats(Number.MAX_SAFE_INTEGER), getFeaturedExampleChats(),
+    ];
+    const selectors = [
+      [example.metadata.app_skill_examples, getExampleChatsForSkill],
+      [example.metadata.app_focus_mode_examples, getExampleChatsForFocusMode],
+      [example.metadata.content_embed_examples, getExampleChatsForContentEmbed],
+      [example.metadata.app_settings_memory_examples, getExampleChatsForSettingsMemory],
+    ] as const;
+    for (const [keys, lookup] of selectors) {
+      for (const key of keys ?? []) {
+        const [appId, capabilityId] = key.split(".");
+        publicLists.push(lookup(appId, capabilityId));
+      }
+    }
+    for (const list of publicLists) {
+      expect(list.map((chat) => chat.chat_id)).not.toContain(example.chat_id);
+    }
+    expect(getExampleChat(example.chat_id)?.chat_id).toBe(example.chat_id);
+    expect(getExampleChatBySlug(example.slug)).toBe(example);
+    expect(getExampleChatMessages(example.chat_id)).toHaveLength(example.messages.length);
+    expect(getAllExampleChats().map((chat) => chat.chat_id)).toContain("example-habit-garden-web-application");
+  });
+
   // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering
   it("resolves refs only within the opened example group without writing the private index", () => {
-    const selected = ALL_EXAMPLE_CHATS.find((chat) => chat.chat_id === "example-us-egg-prices-deep")!;
+    const selected = [...ALL_EXAMPLE_CHATS, ...INTERNAL_EXAMPLE_CHATS].find((chat) => chat.chat_id === "example-us-egg-prices-deep")!;
     const other = ALL_EXAMPLE_CHATS.find((chat) => chat.chat_id === "example-community-garden-sunflower-illustration")!;
     const selectedEmbeds = [...selected.embeds, ...(selected.sub_chats ?? []).flatMap((subChat) => subChat.embeds)]
       .filter((embed) => embed.content && embed.embed_id);
@@ -44,6 +71,8 @@ describe("example embed registration", () => {
   it("keeps a source embed UUID private outside its reviewed example group", async () => {
     const example = ALL_EXAMPLE_CHATS.find((chat) => chat.chat_id === "example-community-garden-sunflower-illustration")!;
     const publicEmbed = example.embeds.find((embed) => embed.content && embed.embed_id)!;
+    const { chatDB } = await import("../../services/db");
+    vi.spyOn(chatDB, "getChat").mockResolvedValue(null);
     const privateContent = "private owner ciphertext decoded content";
     const privateRead = vi.spyOn(embedStore, "get").mockResolvedValue({
       embed_id: publicEmbed.embed_id, type: publicEmbed.type, status: "finished", content: privateContent,

@@ -99,7 +99,7 @@ from backend.apps.ai.utils.embeds_map_view import (
 from backend.apps.ai.utils.tool_protocol_guard import ToolProtocolGuard
 from backend.core.api.app.utils.override_parser import UserOverrides
 from backend.apps.ai.llm_providers.mistral_client import ParsedMistralToolCall, MistralUsage
-from backend.apps.ai.llm_providers.google_client import GoogleUsageMetadata, ParsedGoogleToolCall
+from backend.apps.ai.llm_providers.google_client import GoogleUsageMetadata, GoogleStreamFinishMetadata, ParsedGoogleToolCall
 from backend.apps.ai.llm_providers.anthropic_client import ParsedAnthropicToolCall, AnthropicUsageMetadata
 from backend.apps.ai.llm_providers.bedrock_shared import ParsedBedrockToolCall, BedrockUsageMetadata
 from backend.apps.ai.llm_providers.openai_shared import ParsedOpenAIToolCall, OpenAIUsageMetadata
@@ -715,7 +715,14 @@ ANONYMOUS_AI_INPUT_ENVELOPE_TOKENS = 4_096
 DELEGATED_DEEP_RESEARCH_INSTRUCTION = (
     "\n\nDelegated child rule: You are already executing one research angle for a parent report. "
     "Do not call start_sub_chats or activate Deep research again. Research the assigned angle "
-    "directly with the available web tools and return a sourced report to the parent."
+    "directly with the available web tools and return a sourced report to the parent. "
+    "Before reporting an important quantitative, causal, or legal finding, use web-read to inspect "
+    "the underlying primary source; search snippets do not complete this check. If reading fails "
+    "or the source is unavailable, mark the claim unresolved. If assigned verification, return "
+    "the complete numbered claim audit before explanatory prose: evidence status, exact source URL, "
+    "timeframe, geography, population, metric, and legal status. Omitted or cut-off audit items "
+    "remain unverified. Preserve source scope and distinguish observations from modeled "
+    "counterfactuals; benefits, profits, and incentives alone do not establish intent or causal share."
 )
 
 _FALLBACK_DIFF_EDITABLE_EMBED_TYPES = frozenset({
@@ -5042,6 +5049,10 @@ async def handle_main_processing(
             "When the user asks a complex question that would benefit from parallel or distributed processing (e.g., comparing multiple items, batch looping, or deep multi-topic research), "
             "you MUST call 'start_sub_chats' to delegate those tasks to sub-agents. Do not attempt to do everything in a single turn if it would benefit from sub-chats.\n"
             "When spawning sub-chats, provide precise and focused prompts for each sub-chat so they can work independently and efficiently. "
+            "For Deep research, explicitly require web-read of primary sources for material quantitative, causal, and legal claims. "
+            "Give the independent verifier a numbered list of every material provisional quantitative, causal, intent, and legal-status claim with URLs. "
+            "Require the complete compact per-claim audit before prose: supported, qualified, contradicted, or unresolved; exact source URL; "
+            "timeframe, geography, population, metric, and legal status. Omitted or cut-off audit items remain unverified. "
             "If a sub-chat can answer independently, its final assistant response is automatically treated as its completion summary for the parent. "
             "Sub-chats should not call an end function just to finish. If a sub-chat needs clarification from the user, it MUST call 'ask_user_input' with the exact question instead of embedding a marker in normal text. "
             "If the user is complaining about sub-chats or wants you to try starting them, proceed to call 'start_sub_chats' on their request immediately."
@@ -6873,6 +6884,7 @@ async def handle_main_processing(
         # Flag set when AllServersFailedError is caught during stream consumption.
         # When set, the outer loop will attempt the next model in the fallback list.
         _stream_all_servers_failed = False
+        provider_output_limit_reached = False
         _stream_all_servers_error: Optional[AllServersFailedError] = None
         iteration_usage: Optional[Union[MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, BedrockUsageMetadata, OpenAIUsageMetadata]] = None
         iteration_input_tokens = 0
@@ -6895,6 +6907,9 @@ async def handle_main_processing(
                 # Provider reasoning/output is private replay state. It is
                 # neither a product stream event nor a debug/usage payload.
                 iteration_native_output = chunk
+                continue
+            if isinstance(chunk, GoogleStreamFinishMetadata):
+                provider_output_limit_reached = chunk.finish_reason == "MAX_TOKENS"
                 continue
             if isinstance(chunk, (MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, BedrockUsageMetadata, OpenAIUsageMetadata)):
                 iteration_usage = chunk
@@ -7624,7 +7639,10 @@ async def handle_main_processing(
                     logger.error("%s Orchestration usage checkpoint failed", log_prefix, exc_info=True)
                     for billing_event in await terminal_billing_usage_events():
                         yield billing_event
-                    yield main_processing_failure("stream_error")
+                    yield main_processing_failure(
+                        "orchestration_output_limit" if provider_output_limit_reached and request_data.is_sub_chat
+                        else "stream_error"
+                    )
                     break
             if successful_model_id and (llm_turn_had_content or tool_calls_for_this_turn):
                 model_usage_tracker.mark_successful_model(successful_model_id)
@@ -7633,6 +7651,14 @@ async def handle_main_processing(
                 f"'{successful_model_id}' ({iteration_input_tokens} input / "
                 f"{iteration_output_tokens} output tokens)."
             )
+
+        if provider_output_limit_reached and request_data.is_sub_chat:
+            # Checkpoint incurred usage above, then stop before tools, paid
+            # recovery or synthesis can consume an incomplete delegated report.
+            for billing_event in await terminal_billing_usage_events():
+                yield billing_event
+            yield main_processing_failure("orchestration_output_limit")
+            break
 
         final_buffered_text_for_turn = "".join(current_turn_text_buffer)
         if native_prepared_context is not None:

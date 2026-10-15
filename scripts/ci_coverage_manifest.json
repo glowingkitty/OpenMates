@@ -374,6 +374,7 @@
         "landing-default-examples.spec.ts",
         "components/landing-mobile-hero.spec.ts",
         "landing-code-replacement.spec.ts",
+        "landing-public-example-discovery.spec.ts",
         "components/nutrition-serving-macros.spec.ts",
         "public-example-activity-summary.spec.ts",
         "landing-shopping-replacement.spec.ts",

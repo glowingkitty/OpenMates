@@ -204,7 +204,7 @@ assertions:
     depends_on: [examples.completion_recovery]
   - id: app-skills.assistant.bounded-private-failure
     type: privacy
-    must: Skill waits have finite skill-appropriate deadlines. A failed, cancelled or timed-out job produces an honest answer using any available successful results, without claiming nonexistent output or automatically repeating paid generation. Resume state preserves owner, account, chat and turn authorization and existing encryption boundaries; decrypted chats, memories and private Project tool content do not become durable plaintext checkpoints. If authorized inference context has expired or cannot be restored, execution stops visibly without inventing the missing context.
+    must: Skill waits have finite skill-appropriate deadlines. A failed, cancelled or timed-out job produces an honest answer using any available successful results, without claiming nonexistent output or automatically repeating paid generation. Resume state preserves owner, account, chat and turn authorization and existing encryption boundaries; decrypted chats, memories and private Project tool content do not become durable plaintext checkpoints. If authorized inference context has expired or cannot be restored, execution stops visibly without inventing the missing context. A delegated assistant response that reaches the provider output limit is an unsuccessful report, even when earlier tool outputs remain available. It cannot be counted as completed research or verification or trigger automatic paid regeneration; retained authorized outputs and incurred usage remain preserved.
     depends_on: [examples.completion_failure]
   - id: app-skills.media.parent-children-and-attribution
     type: behavior

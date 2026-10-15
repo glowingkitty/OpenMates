@@ -35,8 +35,9 @@ class _Cache:
         return True
 
 
-# contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover,operational-monitoring.chat-failures.email-trigger,focus-modes.full-instruction
-def test_budget_marker_fails_child_and_worker_without_paid_retry(monkeypatch):
+# contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover,operational-monitoring.chat-failures.email-trigger,focus-modes.full-instruction,app-skills.assistant.bounded-private-failure
+@pytest.mark.parametrize("failure_reason", ["orchestration_budget_limit", "orchestration_output_limit"])
+def test_budget_marker_fails_child_and_worker_without_paid_retry(monkeypatch, failure_reason):
     child, parent, task_id = _id(10), _id(1), _id(20)
     request = AskSkillRequest(chat_id=child, message_id=_id(11), user_id="owner",
         user_id_hash="a" * 64, parent_id=parent, is_sub_chat=True, orchestration_id=_id(3),
@@ -60,7 +61,7 @@ def test_budget_marker_fails_child_and_worker_without_paid_retry(monkeypatch):
 
     async def failure_stream(**_kwargs):
         yield "A provisional claim that is not a verified research report."
-        yield main_processing_failure("orchestration_budget_limit")
+        yield main_processing_failure(failure_reason)
 
     publish = AsyncMock()
     monkeypatch.setattr(stream_consumer, "handle_main_processing", failure_stream)
@@ -80,7 +81,7 @@ def test_budget_marker_fails_child_and_worker_without_paid_retry(monkeypatch):
         base_instructions={}, directus_service=None, encryption_service=None, user_vault_key_id=None,
         all_mates_configs=[], discovered_apps_metadata={}, cache_service=cache,
     ))
-    assert result[4]["main_processing_failure_reason"] == "orchestration_budget_limit"
+    assert result[4]["main_processing_failure_reason"] == failure_reason
     assert cache.rows[pending_key]["completed"] == {}  # Worker failure callback owns settlement.
     finals = [call.args[2] for call in publish.await_args_list if call.args[2].get("is_final_chunk")]
     assert len(finals) == 1 and finals[0]["error"] is True
@@ -110,7 +111,7 @@ def test_budget_marker_fails_child_and_worker_without_paid_retry(monkeypatch):
         task.pop_request()
     assert entered == [True]
     assert failed_result["_celery_task_state"] == "FAILURE"
-    assert failed_result["failure_reason"] == "orchestration_budget_limit"
+    assert failed_result["failure_reason"] == failure_reason
     assert transitions == ["failed"]
     entry = cache.rows[pending_key]["completed"][child]
     assert entry["failed"] is True and entry["cancelled"] is False

@@ -2487,7 +2487,7 @@ async def _prepare_artifact_context(
 
 
 def _orchestration_budget_failure_result(debug_metadata: object) -> dict[str, Any] | None:
-    """Keep the bounded budget stop on the existing structured failure path."""
+    """Keep bounded orchestration stops on the existing structured failure path."""
     from backend.apps.ai.utils.main_processing_failure import (
         MAIN_PROCESSING_FAILURE_MARKER, main_processing_failure_reason,
     )
@@ -2497,11 +2497,15 @@ def _orchestration_budget_failure_result(debug_metadata: object) -> dict[str, An
         MAIN_PROCESSING_FAILURE_MARKER: True,
         "reason": debug_metadata.get("main_processing_failure_reason"),
     })
-    if reason != "orchestration_budget_limit":
+    messages = {
+        "orchestration_budget_limit": "Research stopped at its orchestration credit limit.",
+        "orchestration_output_limit": "Research stopped before its delegated report was complete.",
+    }
+    if reason not in messages:
         return None
     return {
         "status": "main_processing_failed", "failure_reason": reason,
-        "reason": "MainProcessingFailure", "message": "Research stopped at its orchestration credit limit.",
+        "reason": "MainProcessingFailure", "message": messages[reason],
         "preprocessing_summary": {}, "main_processing_output": None, "postprocessing_summary": {},
         "interrupted_by_soft_time_limit": False, "interrupted_by_revocation": False,
         "_celery_task_state": "FAILURE",

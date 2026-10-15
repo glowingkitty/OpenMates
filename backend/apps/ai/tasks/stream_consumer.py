@@ -11290,7 +11290,7 @@ async def _consume_main_processing_stream(
         else:
             final_payload["recovery_job_id"] = recovery_job["job_id"]
             final_payload["recovery_protocol_version"] = 1
-    if terminal_failure_applies and terminal_failure_reason == "orchestration_budget_limit":
+    if terminal_failure_applies and terminal_failure_reason in {"orchestration_budget_limit", "orchestration_output_limit"}:
         final_payload["error"] = True
     with _project_file_finalization_stage("marker", project_file_reference_output, log_prefix=log_prefix), ai_phase_span("finalize.marker"):
         await _publish_to_redis(
@@ -11305,10 +11305,10 @@ async def _consume_main_processing_stream(
             log_prefix, (time.monotonic() - project_file_finalization_started_at) * 1000,
         )
     
-    # The existing worker failure branch settles budget-stopped children once.
+    # The existing worker failure branch settles bounded orchestration stops once.
     # Retain sealed outputs above; never publish the service error as a report.
     if completion_summary is not None and not (
-        terminal_failure_applies and terminal_failure_reason == "orchestration_budget_limit"
+        terminal_failure_applies and terminal_failure_reason in {"orchestration_budget_limit", "orchestration_output_limit"}
     ):
         await _record_sub_chat_completion_and_maybe_continue_parent(
             cache_service=cache_service,

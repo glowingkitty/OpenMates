@@ -59,11 +59,21 @@ def test_deep_research_runtime_keeps_full_authored_prompt_and_independent_verifi
     assert runtime.strip() == authored
     assert runtime.startswith(canonical)
     assert runtime.count("## ") == 6
-    assert "separate source-verification child after the initial research children finish" in runtime
-    assert "without starting additional sub-chats" in runtime
+    assert "Delegate exactly three distinct angles in parallel" in runtime
+    assert "the server dispatches exactly one independent source-verification child" in runtime
+    assert "Neither a continuation nor a delegated research or verification child may start additional sub-chats" in runtime
     assert "Reconcile the source-verification child's findings before final synthesis" in runtime
     assert "A document titled Proposed Final Judgment does not establish court approval" in runtime
     assert "including the short answer and bottom line" in runtime
+    assert "Before reporting an important quantitative, causal, or legal finding, use web-read" in runtime
+    assert "Return the complete audit before explanatory prose" in runtime
+    assert "Claims omitted from or cut off in the audit remain unverified" in runtime
+    assert "metric or denominator, assumptions, and observed result versus modeled counterfactual" in runtime
+    assert "Benefits, profits, and incentives alone do not establish intent or causal share" in runtime
+    assert "target 600–900 words across the six required sections" in runtime
+    assert "6–10 distinct material findings in a numbered Evidence ledger" in runtime
+    assert "not truncation rules or hard ceilings: retain necessary qualifications" in runtime
+    assert "including material counterevidence" in runtime
 
 
 # contract-test: supporting surface=rest_api assertions=focus-modes.full-instruction
@@ -83,6 +93,12 @@ def test_all_landing_focus_runtime_locales_keep_complete_instructions() -> None:
         english = data["en"]
         for lang in locale_codes:
             translated = data[lang]
+            canonical_path = ROOT / "backend/apps/web/focus_modes/research" / (
+                "SKILL.md" if lang == "en" else f"SKILL.{lang}.md"
+            )
+            if name == "web_research":
+                canonical_prompt = canonical_path.read_text().split("## System prompt\n", 1)[1].strip()
+                assert canonical_prompt == translated.strip(), lang
             assert len(translated.split("\n\n")) == len(english.split("\n\n")), (name, lang)
             assert translated.count("## ") == english.count("## "), (name, lang)
             assert translated.count("\n- ") == english.count("\n- "), (name, lang)

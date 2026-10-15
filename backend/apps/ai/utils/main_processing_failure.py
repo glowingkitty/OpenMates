@@ -10,6 +10,7 @@ MAIN_PROCESSING_FAILURE_REASONS: Final = frozenset(
     {
         "anonymous_usage_limit",
         "orchestration_budget_limit",
+        "orchestration_output_limit",
         "provider_exhausted",
         "protocol_guard",
         "empty_post_tool_response",

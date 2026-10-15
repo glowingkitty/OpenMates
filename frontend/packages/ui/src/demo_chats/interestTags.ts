@@ -92,7 +92,7 @@ const DEFINITIONS: InterestTagDefinition[] = [
   {
     id: "finance_bookkeeping", type: "mate", audience: "work", fallbackLabel: "finance & bookkeeping", icon: "calculator", appId: "ai", gradientCategory: "finance",
     related: ["data_spreadsheets", "admin_operations", "legal_compliance", "business_planning", "personal_finances"],
-    exampleChats: ["example-finance-cash-flow-overview", "example-vital-farms-sec-financials", "example-us-egg-prices-deep", ],
+    exampleChats: ["example-finance-cash-flow-overview", "example-vital-farms-sec-financials", ],
     suggestions: ["chat.new_chat_suggestions.stock_market", "chat.new_chat_suggestions.improve_productivity"],
   },
   {
@@ -158,7 +158,7 @@ const DEFINITIONS: InterestTagDefinition[] = [
   {
     id: "research_analysis", type: "mate", audience: "work", fallbackLabel: "research & analysis", icon: "search-check", appId: "web", gradientCategory: "general_knowledge",
     related: ["data_spreadsheets", "legal_compliance", "learning_new_skills", "news_current_events"],
-    exampleChats: ["example-us-egg-prices-deep", "example-vital-farms-sec-financials", "example-right-to-repair-laws", "example-housing-policy-dinner-discussion", "example-gigantic-airplanes", "example-framework-store-reputation-check", "example-rust-vector-database-repos", "example-pdf-view-page-layout", "example-sqlite-strict-tables-summary", "example-fediverse-activitypub-social-search", "example-buck-converters-24v-5v"],
+    exampleChats: ["example-vital-farms-sec-financials", "example-right-to-repair-laws", "example-housing-policy-dinner-discussion", "example-gigantic-airplanes", "example-framework-store-reputation-check", "example-rust-vector-database-repos", "example-pdf-view-page-layout", "example-sqlite-strict-tables-summary", "example-fediverse-activitypub-social-search", "example-buck-converters-24v-5v"],
     suggestions: ["chat.new_chat_suggestions.quantum_computing", "chat.new_chat_suggestions.ml_vs_ai"],
   },
   {
@@ -254,7 +254,7 @@ const DEFINITIONS: InterestTagDefinition[] = [
   {
     id: "personal_finances", type: "mate", audience: "personal", fallbackLabel: "personal finances", icon: "wallet-cards", appId: "ai", gradientCategory: "finance",
     related: ["finance_bookkeeping", "find_apartments", "data_spreadsheets", "privacy_personal_data"],
-    exampleChats: ["example-deutschlandticket-train-fare-breakdown", "example-us-egg-prices-deep"],
+    exampleChats: ["example-deutschlandticket-train-fare-breakdown"],
     suggestions: ["chat.new_chat_suggestions.stock_market"],
   },
   {
@@ -266,7 +266,7 @@ const DEFINITIONS: InterestTagDefinition[] = [
   {
     id: "news_current_events", type: "mate", audience: "personal", fallbackLabel: "news & current events", icon: "newspaper", appId: "news", gradientCategory: "general_knowledge",
     related: ["research_analysis", "legal_compliance", "find_local_events", "privacy_personal_data"],
-    exampleChats: ["example-right-to-repair-laws", "example-housing-policy-dinner-discussion", "example-us-egg-prices-deep", "example-fediverse-activitypub-social-search", "example-rostock-heavy-rain-radar", "example-berlin-weather-bike-commute", "example-lh400-flight-status-check"],
+    exampleChats: ["example-right-to-repair-laws", "example-housing-policy-dinner-discussion", "example-fediverse-activitypub-social-search", "example-rostock-heavy-rain-radar", "example-berlin-weather-bike-commute", "example-lh400-flight-status-check"],
     suggestions: ["chat.new_chat_suggestions.discover_news_search", "chat.new_chat_suggestions.ai_news"],
   },
   {
