@@ -112,6 +112,7 @@ def _runner_profile(tmp_path, monkeypatch, **options):
     "audio-recording-deferred-send.spec.ts",
     "workflow-metadata-warmup.spec.ts",
     "connection-resilience.spec.ts",
+    "chat-saved-followup-admission.spec.ts",
     "skill-web-search.spec.ts",
     "native-cache-selected-tools.spec.ts",
 ])
