@@ -2486,6 +2486,28 @@ async def _prepare_artifact_context(
             )
 
 
+def _orchestration_budget_failure_result(debug_metadata: object) -> dict[str, Any] | None:
+    """Keep the bounded budget stop on the existing structured failure path."""
+    from backend.apps.ai.utils.main_processing_failure import (
+        MAIN_PROCESSING_FAILURE_MARKER, main_processing_failure_reason,
+    )
+    if not isinstance(debug_metadata, dict):
+        return None
+    reason = main_processing_failure_reason({
+        MAIN_PROCESSING_FAILURE_MARKER: True,
+        "reason": debug_metadata.get("main_processing_failure_reason"),
+    })
+    if reason != "orchestration_budget_limit":
+        return None
+    return {
+        "status": "main_processing_failed", "failure_reason": reason,
+        "reason": "MainProcessingFailure", "message": "Research stopped at its orchestration credit limit.",
+        "preprocessing_summary": {}, "main_processing_output": None, "postprocessing_summary": {},
+        "interrupted_by_soft_time_limit": False, "interrupted_by_revocation": False,
+        "_celery_task_state": "FAILURE",
+    }
+
+
 async def _consume_sub_chat_recovery_children(
     request_data: AskSkillRequest, task_id: str,
     cache_service: CacheService, directus_service: DirectusService,
@@ -4027,6 +4049,10 @@ async def _async_process_ai_skill_ask_task(
                         completion_timing=completion_timing,
                         before_first_chunk_publish=publish_initial_metadata_after_seal if initial_metadata_task else None,
                     )
+                if not revoked_in_consumer and not soft_limited_in_consumer:
+                    budget_failure = _orchestration_budget_failure_result(main_processor_debug_metadata)
+                    if budget_failure is not None:
+                        return budget_failure
                 _log_team_ai_pipeline_stage(request_data, task_id, "main", "completed")
             logger.info(f"[Task ID: {task_id}] Main processing stream consumed.")
             if main_processor_debug_metadata.get("same_turn_skill_paused"):

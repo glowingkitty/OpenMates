@@ -30,6 +30,7 @@ ORCHESTRATION_OPERATIONS = {
     "mark_parent_continuation_dispatched",
     "get_root_state",
     "reserve_operation",
+    "checkpoint_ai_operation",
     "fail_operation",
     "cleanup_expired_reservations",
     "reserve_personal_credits",

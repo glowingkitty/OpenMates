@@ -79,6 +79,10 @@ const OPERATION_FIELDS = Object.freeze({
     'protocol_version', 'operation_id', 'charge_id', 'orchestration_id', 'hashed_user_id',
     'root_chat_id', 'actual_chat_id', 'depth', 'app_id', 'skill_id', 'phase', 'quoted_credits',
   ]),
+  checkpoint_ai_operation: new Set([
+    'protocol_version', 'operation_id', 'charge_id', 'orchestration_id', 'hashed_user_id',
+    'actual_chat_id', 'actual_credits',
+  ]),
   fail_operation: new Set([
     'protocol_version', 'operation_id', 'orchestration_id', 'hashed_user_id',
   ]),
@@ -263,6 +267,9 @@ function verifierIdentity(root, kind) {
 const operationReservationFits = (root, quotedCredits) => (
   root.spent_credits + root.reserved_credits + quotedCredits <= root.credit_limit
 );
+// Completed AI calls retain confirmed usage until the existing final charge.
+// The original admission quote stays immutable for replay/identity validation.
+const operationHeldCredits = (row) => row.actual_credits ?? row.quoted_credits;
 const reservedOperationResponse = (row, idempotent) => ({
   operation_id: row.operation_id,
   charge_id: row.charge_id,
@@ -509,8 +516,8 @@ async function transitionChild(database, raw, now) {
         const reservations = await trx(OPERATIONS).where({
           orchestration_id: orchestrationId, actual_chat_id: childChatId, state: 'reserved',
         }).forUpdate();
-        const releasedCredits = reservations.reduce((total, row) => total + row.quoted_credits, 0);
-        if (releasedCredits > 0) {
+        const releasedCredits = reservations.reduce((total, row) => total + operationHeldCredits(row), 0);
+        if (reservations.length) {
           const rootUpdated = await trx(ORCHESTRATIONS).where({ id: root.id, version: root.version }).update({
             reserved_credits: Math.max(root.reserved_credits - releasedCredits, 0),
             version: root.version + 1,
@@ -576,7 +583,7 @@ async function transitionRoot(database, raw, now) {
     let releasedCredits = 0;
     if (['failed', 'cancelled', 'expired'].includes(state)) {
       const reservations = await trx(OPERATIONS).where({ orchestration_id: orchestrationId, state: 'reserved' }).forUpdate();
-      releasedCredits = reservations.reduce((total, row) => total + row.quoted_credits, 0);
+      releasedCredits = reservations.reduce((total, row) => total + operationHeldCredits(row), 0);
       if (reservations.length) {
         await trx(OPERATIONS).whereIn('id', reservations.map((row) => row.id)).update({
           state: 'failed', actual_credits: 0, updated_at: now, settled_at: now,
@@ -740,6 +747,37 @@ async function reserveOperation(database, raw, now) {
   });
 }
 
+async function checkpointAiOperation(database, raw, now) {
+  const body = operationBody(raw, 'checkpoint_ai_operation');
+  const operationId = string(body.operation_id, 'invalid_operation_id', 255);
+  const chargeId = string(body.charge_id, 'invalid_charge_id', 255);
+  const orchestrationId = uuid(body.orchestration_id, 'invalid_orchestration_id');
+  const ownerHash = string(body.hashed_user_id, 'invalid_owner', 128);
+  const actualChatId = uuid(body.actual_chat_id, 'invalid_actual_chat_id');
+  const actualCredits = integer(body.actual_credits, 'invalid_actual_credits');
+  return database.transaction(async (trx) => {
+    // Match the root-before-operation lock order used by settlement and failure.
+    const root = await lockedRoot(trx, orchestrationId, ownerHash);
+    const operation = await trx(OPERATIONS).where({ operation_id: operationId }).forUpdate().first();
+    if (!operation || operation.orchestration_id !== orchestrationId) fail(404, 'operation_not_found');
+    assertOperationIdentity(operation, { charge_id: chargeId, actual_chat_id: actualChatId, app_id: 'ai', skill_id: 'ask' });
+    if (operation.state !== 'reserved') fail(409, 'operation_not_reserved');
+    if (operation.actual_credits !== null && operation.actual_credits !== undefined) {
+      if (operation.actual_credits !== actualCredits) fail(409, 'operation_checkpoint_mismatch');
+      return reservedOperationResponse(operation, true);
+    }
+    if (root.status !== 'active' || new Date(root.expires_at) <= now) fail(409, 'orchestration_not_active');
+    if (actualCredits > operation.quoted_credits) fail(409, 'operation_actual_exceeds_quote');
+    const updated = await trx(ORCHESTRATIONS).where({ id: root.id, version: root.version }).update({
+      reserved_credits: root.reserved_credits - operation.quoted_credits + actualCredits,
+      version: root.version + 1, updated_at: now,
+    });
+    if (updated !== 1) fail(409, 'orchestration_conflict');
+    await trx(OPERATIONS).where({ id: operation.id }).update({ actual_credits: actualCredits, updated_at: now });
+    return reservedOperationResponse({ ...operation, actual_credits: actualCredits }, false);
+  });
+}
+
 async function failOperation(database, raw, now) {
   const body = operationBody(raw, 'fail_operation');
   const operationId = string(body.operation_id, 'invalid_operation_id', 255);
@@ -752,7 +790,7 @@ async function failOperation(database, raw, now) {
     if (operation.state === 'failed') return reservedOperationResponse(operation, true);
     if (operation.state !== 'reserved') fail(409, 'operation_not_reserved');
     const updated = await trx(ORCHESTRATIONS).where({ id: root.id, version: root.version }).update({
-      reserved_credits: Math.max(root.reserved_credits - operation.quoted_credits, 0),
+      reserved_credits: Math.max(root.reserved_credits - operationHeldCredits(operation), 0),
       version: root.version + 1,
       updated_at: now,
     });
@@ -782,11 +820,12 @@ async function settleChargeReservations(trx, {
     fail(409, 'operation_reservation_required');
   }
   const quotedCredits = reservations.reduce((total, row) => total + row.quoted_credits, 0);
-  if (root.spent_credits + root.reserved_credits - quotedCredits + actualCredits > root.credit_limit) {
+  const heldCredits = reservations.reduce((total, row) => total + operationHeldCredits(row), 0);
+  if (root.spent_credits + root.reserved_credits - heldCredits + actualCredits > root.credit_limit) {
     fail(409, 'orchestration_credit_limit_exceeded');
   }
   const updated = await trx(ORCHESTRATIONS).where({ id: root.id, version: root.version }).update({
-    reserved_credits: Math.max(root.reserved_credits - quotedCredits, 0),
+    reserved_credits: Math.max(root.reserved_credits - heldCredits, 0),
     spent_credits: root.spent_credits + actualCredits,
     version: root.version + 1,
     updated_at: now,
@@ -3063,6 +3102,7 @@ export const operations = Object.freeze({
   mark_parent_continuation_dispatched: markParentContinuationDispatched,
   get_root_state: getRootState,
   reserve_operation: reserveOperation,
+  checkpoint_ai_operation: checkpointAiOperation,
   fail_operation: failOperation,
   cleanup_expired_reservations: cleanupExpiredReservations,
   reserve_personal_credits: reservePersonalCredits,

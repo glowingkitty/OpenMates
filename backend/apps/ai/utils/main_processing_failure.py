@@ -9,6 +9,7 @@ MAIN_PROCESSING_FAILURE_MARKER: Final = "__main_processing_failure__"
 MAIN_PROCESSING_FAILURE_REASONS: Final = frozenset(
     {
         "anonymous_usage_limit",
+        "orchestration_budget_limit",
         "provider_exhausted",
         "protocol_guard",
         "empty_post_tool_response",

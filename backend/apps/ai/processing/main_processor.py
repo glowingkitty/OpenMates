@@ -123,7 +123,7 @@ from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.services.translations import TranslationService
-from backend.core.api.app.services.sub_chat_orchestration_service import SubChatOrchestrationService
+from backend.core.api.app.services.sub_chat_orchestration_service import SubChatOrchestrationProtocolError, SubChatOrchestrationService
 
 # Import tool generator
 from backend.apps.ai.processing.tool_generator import generate_tools_from_apps
@@ -2898,7 +2898,7 @@ async def _fit_parent_continuation_output_token_limit(
         customer_cache_pricing_enabled=_normal_chat_cache_pricing_scope(request_data),
     )
     if fitted_limit is None:
-        raise RuntimeError("Remaining orchestration credits cannot cover parent synthesis input")
+        raise SubChatOrchestrationProtocolError(409, "orchestration_credit_limit_exceeded")
     if fitted_limit < requested_output_token_limit:
         logger.info(
             "%s [SUB_CHAT] Reduced parent synthesis output limit from %s to %s tokens to fit %s remaining credits",
@@ -3067,6 +3067,42 @@ async def _reserve_ai_iteration(
             "quoted_credits": quote,
         })
     return operation_id
+
+
+async def _checkpoint_orchestrated_ai_iteration(
+    *, operation_id: str, task_id: str, cumulative_credits: int,
+    checkpointed_credits: int, request_data: AskSkillRequest,
+    directus_service: DirectusService,
+) -> int:
+    """Release unused completed-call capacity without charging the wallet early."""
+    checkpoint_credits = cumulative_credits - checkpointed_credits
+    if checkpoint_credits < 0:
+        raise RuntimeError("Cumulative orchestration usage decreased")
+    receipt = await SubChatOrchestrationService(directus_service).execute("checkpoint_ai_operation", {
+        "protocol_version": 1,
+        "operation_id": operation_id,
+        "charge_id": f"ai-ask:{task_id}:main",
+        "orchestration_id": request_data.orchestration_id,
+        "hashed_user_id": request_data.user_id_hash,
+        "actual_chat_id": request_data.chat_id,
+        "actual_credits": checkpoint_credits,
+    })
+    if (
+        receipt.get("operation_id") != operation_id
+        or receipt.get("charge_id") != f"ai-ask:{task_id}:main"
+        or receipt.get("orchestration_id") != request_data.orchestration_id
+        or receipt.get("state") != "reserved"
+        or isinstance(receipt.get("actual_credits"), bool)
+        or not isinstance(receipt.get("actual_credits"), int)
+        or receipt.get("actual_credits") != checkpoint_credits
+        or isinstance(receipt.get("quoted_credits"), bool)
+        or not isinstance(receipt.get("quoted_credits"), int)
+        or receipt["quoted_credits"] <= 0
+        or receipt["quoted_credits"] < checkpoint_credits
+        or not isinstance(receipt.get("idempotent"), bool)
+    ):
+        raise RuntimeError("Orchestration AI checkpoint receipt is invalid")
+    return cumulative_credits
 
 
 async def _fail_reserved_operation(
@@ -5985,6 +6021,8 @@ async def handle_main_processing(
     # tracker above, but its uncertain reservation stays intact until then.
     anonymous_completed_usage = ModelUsageTracker()
     anonymous_checkpointed_credits = 0
+    orchestrated_completed_usage = ModelUsageTracker()
+    orchestrated_checkpointed_credits = 0
     ordinary_reservation_state: Dict[str, Any] = {}
     last_reported_usage: Optional[Union[MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, BedrockUsageMetadata, OpenAIUsageMetadata]] = None
     usage_events_emitted = False
@@ -6756,6 +6794,14 @@ async def handle_main_processing(
             except AnonymousUsageAccountingError:
                 logger.error("%s Anonymous inference accounting failed before provider dispatch", log_prefix, exc_info=True)
                 preparation_failure_reason = "stream_error"
+                break
+            except SubChatOrchestrationProtocolError as admission_error:
+                if admission_error.code != "orchestration_credit_limit_exceeded":
+                    raise
+                # This root budget is shared by every model. A fallback cannot
+                # repair admission and must not turn the error into a report.
+                logger.warning("%s Orchestration AI admission reached its credit limit", log_prefix)
+                preparation_failure_reason = "orchestration_budget_limit"
                 break
             except Exception as model_error:
                 await _fail_reserved_operation(
@@ -7543,6 +7589,37 @@ async def handle_main_processing(
                     # acknowledgement. Do not dispatch more work or switch models
                     # until accounting is known; the live hold remains reversible.
                     logger.error("%s Anonymous usage checkpoint failed", log_prefix, exc_info=True)
+                    for billing_event in await terminal_billing_usage_events():
+                        yield billing_event
+                    yield main_processing_failure("stream_error")
+                    break
+            if request_data.orchestration_id and current_ai_operation_id:
+                if iteration_normalized_usage_by_attempt:
+                    for reported in iteration_normalized_usage_by_attempt.values():
+                        orchestrated_completed_usage.record_reported_usage(
+                            model_id=reported.model_id, normalized_usage=reported,
+                            attempt_id=reported.attempt_id,
+                        )
+                else:
+                    orchestrated_completed_usage.record_reported_usage(
+                        model_id=current_model_id, input_tokens=iteration_input_tokens,
+                        output_tokens=iteration_output_tokens,
+                    )
+                try:
+                    cumulative_credits = calculate_model_usage_credits(
+                        orchestrated_completed_usage.usage_by_model,
+                        config_manager.get_model_pricing,
+                    )
+                    orchestrated_checkpointed_credits = await _checkpoint_orchestrated_ai_iteration(
+                        operation_id=current_ai_operation_id, task_id=logical_billing_task_id,
+                        cumulative_credits=cumulative_credits,
+                        checkpointed_credits=orchestrated_checkpointed_credits,
+                        request_data=request_data, directus_service=directus_service,
+                    )
+                except Exception:
+                    # An acknowledgement may be lost after the atomic checkpoint.
+                    # Stop paid work; preserve the ledger for terminal settlement.
+                    logger.error("%s Orchestration usage checkpoint failed", log_prefix, exc_info=True)
                     for billing_event in await terminal_billing_usage_events():
                         yield billing_event
                     yield main_processing_failure("stream_error")
