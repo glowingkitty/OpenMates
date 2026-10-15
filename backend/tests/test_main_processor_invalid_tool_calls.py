@@ -287,6 +287,7 @@ async def _run_mocked_protocol_guard_main_processor(
     all_mates_configs=None,
     user_overrides_for_main=None,
     exact_base_instructions=False,
+    resolved_chat_depth=0,
 ):
     """Run the real main processor loop with only external integrations mocked."""
     for name in (
@@ -377,7 +378,7 @@ async def _run_mocked_protocol_guard_main_processor(
     monkeypatch.setattr(main_processor, "model_history_token_budget", lambda *_args, **_kwargs: history_budget)
     monkeypatch.setattr(main_processor, "generate_tools_from_apps", lambda **_kwargs: generated_tools or [])
     monkeypatch.setattr(main_processor, "evaluate_task_queue_post_turn", no_task_queue_retry)
-    monkeypatch.setattr(main_processor, "resolve_sub_chat_depth", lambda _request: 0)
+    monkeypatch.setattr(main_processor, "resolve_sub_chat_depth", lambda _request: resolved_chat_depth)
     monkeypatch.setattr(main_processor, "has_transcribed_web_audio_recording", lambda _history: False)
     monkeypatch.setattr(
         main_processor,

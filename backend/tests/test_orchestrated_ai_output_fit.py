@@ -18,7 +18,8 @@ class ProtocolError(RuntimeError):
 
 
 def _admit(request, *, spent=806, held=200, input_quote=900, model_limit=65536,
-           directus_available=True, service_error=None, reservation_race_credits=0):
+           directus_available=True, service_error=None, reservation_race_credits=0,
+           reasoning=False, output_credit_unit=30, capture_provider_limit=False):
     source = Path(__file__).parents[1] / "apps/ai/processing/main_processor.py"
     tree = ast.parse(source.read_text())
     functions = {node.name: node for node in tree.body if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))}
@@ -29,7 +30,7 @@ def _admit(request, *, spent=806, held=200, input_quote=900, model_limit=65536,
     client = object()
 
     def quote(**kwargs):
-        return input_quote + math.ceil(kwargs["output_token_limit"] / 30)
+        return input_quote + math.ceil(kwargs["output_token_limit"] / output_credit_unit)
 
     class Service:
         def __init__(self, directus):
@@ -56,11 +57,15 @@ def _admit(request, *, spent=806, held=200, input_quote=900, model_limit=65536,
                  "is_sub_chat_continuation": lambda req: req.is_sub_chat_continuation,
                  "_normal_chat_cache_pricing_scope": lambda _: False,
                  "_quote_ai_iteration_credits": quote,
-                 "ORCHESTRATED_AI_MAX_OUTPUT_TOKENS": 8192,
-                 "ANONYMOUS_AI_MAX_OUTPUT_TOKENS": 1024,
                  "logger": SimpleNamespace(info=lambda *args: None, warning=lambda *args: None),
                  "config_manager": SimpleNamespace(get_model_pricing=lambda *args: {
-                     "features": {"max_output_tokens": model_limit}})}
+                     "reasoning": reasoning, "features": {"max_output_tokens": model_limit}})}
+    constants = [node for node in tree.body if isinstance(node, ast.Assign)
+                 and any(isinstance(target, ast.Name) and target.id in {
+                     "ORCHESTRATED_AI_MAX_OUTPUT_TOKENS", "ORCHESTRATED_REASONING_AI_MAX_OUTPUT_TOKENS",
+                     "ANONYMOUS_AI_MAX_OUTPUT_TOKENS",
+                 } for target in node.targets)]
+    exec(compile(ast.Module(body=constants, type_ignores=[]), str(source), "exec"), namespace)
     names = [fitter_name, "_max_affordable_ai_output_tokens", "_orchestrated_ai_output_token_limit", "_reserve_ai_iteration"]
     exec(compile(ast.Module(body=[functions[name] for name in names], type_ignores=[]), str(source), "exec"), namespace)
 
@@ -82,7 +87,12 @@ def _admit(request, *, spent=806, held=200, input_quote=900, model_limit=65536,
                           and handler.type.id == "SubChatOrchestrationProtocolError")
     body = ast.parse("async def run():\n    while True:\n        pass\n").body[0]
     body.body[0].body = [ast.Try(body=assignments, handlers=[budget_handler], orelse=[], finalbody=[]), ast.Break()]
-    body.body += ast.parse("return current_output_token_limit, current_ai_operation_id, preparation_failure_reason, current_model_index").body
+    provider_call = next(call for node in preparation.body for call in ast.walk(node)
+                         if isinstance(call, ast.Call) and isinstance(call.func, ast.Name)
+                         and call.func.id == "call_main_llm_stream")
+    provider_limit = next(keyword.value for keyword in provider_call.keywords if keyword.arg == "max_tokens")
+    body.body.append(ast.Assign(targets=[ast.Name(id="provider_output_limit", ctx=ast.Store())], value=provider_limit))
+    body.body += ast.parse("return current_output_token_limit, current_ai_operation_id, preparation_failure_reason, current_model_index, provider_output_limit").body
     # All state is explicit fixture data; the extracted production assignments
     # mutate global dispatch state exactly once in this isolated namespace.
     body.body.insert(0, ast.Global(names=["current_output_token_limit", "current_ai_operation_id", "preparation_failure_reason", "current_model_index"]))
@@ -93,7 +103,8 @@ def _admit(request, *, spent=806, held=200, input_quote=900, model_limit=65536,
                       "current_output_token_limit": None, "current_ai_operation_id": None,
                       "preparation_failure_reason": None, "current_model_index": 0})
     exec(compile(ast.fix_missing_locations(ast.Module(body=[body], type_ignores=[])), str(source), "exec"), namespace)
-    return asyncio.run(namespace["run"]()), events
+    result = asyncio.run(namespace["run"]())
+    return (result if capture_provider_limit else result[:4]), events
 
 
 def _request(*, depth=1, continuation=False, orchestration="trusted-root", external=False):
@@ -163,3 +174,59 @@ def test_full_output_allowance_is_preserved_when_authoritative_capacity_covers_i
 def test_missing_durable_service_cannot_authorize_orchestrated_paid_work():
     with pytest.raises(RuntimeError, match="Orchestrated AI reservation requires Directus"):
         _admit(_request(), directus_available=False)
+
+
+def _output_limit(model_config, *, model_id="google/test", orchestration="trusted-root", anonymous=False):
+    source = Path(__file__).parents[1] / "apps/ai/processing/main_processor.py"
+    tree = ast.parse(source.read_text())
+    helper = next(node for node in tree.body if isinstance(node, ast.FunctionDef)
+                  and node.name == "_orchestrated_ai_output_token_limit")
+    constants = [node for node in tree.body if isinstance(node, ast.Assign)
+                 and any(isinstance(target, ast.Name) and target.id in {
+                     "ORCHESTRATED_AI_MAX_OUTPUT_TOKENS", "ORCHESTRATED_REASONING_AI_MAX_OUTPUT_TOKENS",
+                     "ANONYMOUS_AI_MAX_OUTPUT_TOKENS",
+                 } for target in node.targets)]
+    namespace = {"Optional": typing.Optional, "config_manager": SimpleNamespace(
+        get_model_pricing=lambda *args: model_config)}
+    exec(compile(ast.Module(body=[*constants, helper], type_ignores=[]), str(source), "exec"), namespace)
+    return namespace[helper.name](model_id, orchestration, anonymous)
+
+
+# contract-test: supporting surface=rest_api assertions=billing.credits.idempotent-charge
+@pytest.mark.parametrize("config,expected", [
+    ({"reasoning": True, "features": {"max_output_tokens": 65536}}, 16384),
+    ({"reasoning": True, "features": {"max_output_tokens": 10000}}, 10000),
+    ({"reasoning": False, "features": {"max_output_tokens": 65536}}, 8192),
+    ({"reasoning": "true", "features": {"max_output_tokens": 65536}}, 8192),
+    ({"features": {"max_output_tokens": 65536}}, 8192),
+    (None, 8192),
+])
+def test_only_trusted_reasoning_capability_receives_the_bounded_larger_allowance(config, expected):
+    assert _output_limit(config) == expected
+
+
+# contract-test: supporting surface=rest_api assertions=billing.credits.idempotent-charge
+@pytest.mark.parametrize("kwargs,expected", [
+    ({"orchestration": None}, None),
+    ({"anonymous": True}, 4096),
+    ({"model_id": "unknown"}, 8192),
+])
+def test_reasoning_allowance_preserves_unorchestrated_anonymous_and_unknown_model_defaults(kwargs, expected):
+    assert _output_limit({"reasoning": True, "features": {"max_output_tokens": 65536}}, **kwargs) == expected
+
+
+# contract-test: supporting surface=rest_api assertions=billing.credits.idempotent-charge
+def test_reasoning_allowance_still_fits_the_exact_reserved_quote_and_provider_limit():
+    result, events = _admit(_request(), reasoning=True, output_credit_unit=90, capture_provider_limit=True)
+    assert result == (8460, "ai-ask:task:main:iteration:1:model:google/test", None, 0, 8460)
+    assert events[-1][1]["quoted_credits"] == 994
+    assert 806 + 200 + events[-1][1]["quoted_credits"] == 2000
+
+
+# contract-test: supporting surface=rest_api assertions=billing.credits.idempotent-charge
+def test_reasoning_allowance_is_requested_when_full_reservation_fits_the_same_credit_cap():
+    result, events = _admit(_request(), reasoning=True, spent=100, held=0,
+                            output_credit_unit=90, capture_provider_limit=True)
+    assert result == (16384, "ai-ask:task:main:iteration:1:model:google/test", None, 0, 16384)
+    assert events[-1][1]["quoted_credits"] == 1083
+    assert 100 + events[-1][1]["quoted_credits"] <= 2000

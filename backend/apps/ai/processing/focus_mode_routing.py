@@ -4,7 +4,10 @@
 # policy changes apply only after focus state has been explicitly activated.
 # Tests live in backend/tests/test_focus_mode_routing.py.
 
+import re
+from dataclasses import dataclass
 from typing import Any, Iterable
+from urllib.parse import urlsplit
 
 
 DEEP_RESEARCH_FOCUS_ID = "web-research"
@@ -144,3 +147,57 @@ def resolve_deep_research_tool_choice(
 def can_synthesize_deep_research(stage: str | None) -> bool:
     """Legacy roots stay final-only; tracked roots must finish verification."""
     return stage in {None, "synthesis", "failed"}
+
+
+@dataclass
+class DelegatedPrimaryReadState:
+    """Require bounded source discovery/read attempts using only authorized tools."""
+
+    enabled: bool
+    has_source_urls: bool = False
+    search_attempted: bool = False
+    read_attempted: bool = False
+
+    def select_tools(
+        self, tools: list[dict[str, Any]], tool_choice: str,
+    ) -> tuple[list[dict[str, Any]], str]:
+        if not self.enabled or self.read_attempted or tool_choice != "auto":
+            return tools, tool_choice
+        name = "web-read" if self.has_source_urls else (
+            "web-search" if not self.search_attempted else None
+        )
+        selected = [tool for tool in tools if tool.get("function", {}).get("name") == name]
+        return (selected, "required") if name and selected else (tools, tool_choice)
+
+    def observe_attempt(self, tool_name: str) -> None:
+        # Validation and provider errors are still attempts, never forced retries.
+        if self.enabled:
+            self.search_attempted |= tool_name == "web-search"
+            self.read_attempted |= tool_name == "web-read"
+
+    def observe_search_results(self, results: Any) -> None:
+        if not self.enabled:
+            return
+        if isinstance(results, list):
+            for result in results:
+                self.observe_search_results(result)
+        elif (isinstance(results, dict) and not results.get("error")
+              and results.get("status") not in {"error", "failed"}):
+            self.has_source_urls |= has_http_source_url(results.get("url"))
+            # Only the registered web-search result containers, never arbitrary
+            # strings/instructions or URLs returned by unrelated/private apps.
+            self.observe_search_results(results.get("results"))
+
+
+def has_http_source_url(text: Any) -> bool:
+    """Recognize assigned HTTP sources; the normal read skill still validates URLs."""
+    if not isinstance(text, str):
+        return False
+    for candidate in re.findall(r"https?://[^\s<>\"`]+", text):
+        try:
+            parsed = urlsplit(candidate.rstrip(".,;)]}"))
+            if parsed.hostname and not parsed.username and not parsed.password:
+                return True
+        except ValueError:
+            continue
+    return False

@@ -175,6 +175,8 @@ from backend.apps.ai.processing.connected_account_receipts import (
 )
 from backend.apps.ai.processing.focus_mode_routing import (
     brand_naming_research_skill_scope,
+    DelegatedPrimaryReadState,
+    has_http_source_url,
     gate_tools_for_deep_research,
     resolve_deep_research_tool_choice,
     resolve_automatic_focus_proposal,
@@ -710,6 +712,7 @@ async def _deliver_direction_instruction(
 
 logger = logging.getLogger(__name__)
 ORCHESTRATED_AI_MAX_OUTPUT_TOKENS = 8_192
+ORCHESTRATED_REASONING_AI_MAX_OUTPUT_TOKENS = 16_384
 ANONYMOUS_AI_MAX_OUTPUT_TOKENS = 4_096
 ANONYMOUS_AI_INPUT_ENVELOPE_TOKENS = 4_096
 DELEGATED_DEEP_RESEARCH_INSTRUCTION = (
@@ -2931,6 +2934,10 @@ def _orchestrated_ai_output_token_limit(
         return hard_limit
     provider_id, model_suffix = model_id.split("/", 1)
     model_config = config_manager.get_model_pricing(provider_id, model_suffix) or {}
+    if not is_anonymous and model_config.get("reasoning") is True:
+        # Reasoning shares the output allowance with the finished answer. This
+        # request still passes through the durable budget fit and reservation.
+        hard_limit = ORCHESTRATED_REASONING_AI_MAX_OUTPUT_TOKENS
     configured_limit = (model_config.get("features") or {}).get("max_output_tokens")
     if isinstance(configured_limit, int) and configured_limit > 0:
         return min(configured_limit, hard_limit)
@@ -6071,6 +6078,12 @@ async def handle_main_processing(
     budget_warning_injected = False
     images_search_executed = False  # Track whether images-search ran, to inject embed preview instruction
     force_no_tools = False  # When True, force tool_choice="none" to make LLM answer with gathered info
+    delegated_primary_read = DelegatedPrimaryReadState(
+        enabled=bool(request_data.is_sub_chat and request_data.orchestration_id
+                     and request_data.user_id_hash and not getattr(request_data, "is_anonymous", False)
+                     and request_data.active_focus_id == "web-research"),
+        has_source_urls=has_http_source_url(request_data.current_user_content),
+    )
     task_queue_guard_retries = 0
     answer_recovery = AnswerRecoveryState()
     protocol_guard_recovery_started = False
@@ -6308,6 +6321,10 @@ async def handle_main_processing(
         images_search_executed = bool(resume_checkpoint["images_search_executed"])
         omitted_news_search_requests = int(resume_checkpoint.get("omitted_news_search_requests", 0))
         force_no_tools = bool(resume_checkpoint["force_no_tools"])
+        primary_read_checkpoint = resume_checkpoint.get("delegated_primary_read") or {}
+        delegated_primary_read.has_source_urls |= bool(primary_read_checkpoint.get("has_source_urls"))
+        delegated_primary_read.search_attempted = bool(primary_read_checkpoint.get("search_attempted"))
+        delegated_primary_read.read_attempted = bool(primary_read_checkpoint.get("read_attempted"))
         completed_skill_calls = dict(resume_checkpoint["completed_skill_calls"])
         native_state = resume_checkpoint.get("native_state")
         native_main_cursor = resume_checkpoint.get("native_main_cursor")
@@ -6399,6 +6416,15 @@ async def handle_main_processing(
             )
         
         iteration_tools = available_tools_for_llm if not force_no_tools else None
+        if not force_no_tools:
+            iteration_tools, current_tool_choice = delegated_primary_read.select_tools(
+                iteration_tools, current_tool_choice,
+            )
+        iteration_allowed_tool_names = (
+            {tool["function"]["name"] for tool in iteration_tools}
+            if current_tool_choice == "required" and delegated_primary_read.enabled
+            else allowed_tool_names
+        )
         await refresh_agentic_context()
         # Build system prompt for this iteration
         # Inject budget warning if we've exceeded the soft limit
@@ -6997,7 +7023,7 @@ async def handle_main_processing(
                 normalized_from_explicit_task_app = canonical_name != _canonicalize_tool_name(raw_function_name)
                 is_sub_chat_violation = (canonical_name == "start-sub-chats" and chat_depth >= 2)
                 if (
-                    canonical_name not in allowed_tool_names or canonical_name == "projects-search"
+                    canonical_name not in iteration_allowed_tool_names or canonical_name == "projects-search"
                     or is_sub_chat_violation
                 ):
                     rejection_reason = "Nesting depth limit exceeded: Tier 2 (grandchild) chats cannot spawn sub-chats." if is_sub_chat_violation else INVALID_TOOL_RESULT_REASON
@@ -8249,6 +8275,7 @@ async def handle_main_processing(
             tool_name = explicit_task_app_skill_tool_name(tool_call.function_name, task_app_skill_mentions)
             tool_arguments_str = tool_call.function_arguments_raw
             tool_call_id = tool_call.tool_call_id
+            delegated_primary_read.observe_attempt(tool_name)
             tool_result_content_str: str
             omitted_news_requests_for_call: List[Any] = []
 
@@ -10073,6 +10100,8 @@ async def handle_main_processing(
                 first_response: Optional[Dict[str, Any]] = None  # Initialize to avoid UnboundLocalError
                 grouped_results: Optional[List[Dict[str, Any]]] = None  # Preserve grouping for embed creation
                 provider_result_data = results  # Preserve trusted response wrappers before LLM flattening.
+                if (app_id, skill_id) == ("web", "search"):
+                    delegated_primary_read.observe_search_results(provider_result_data)
                 
                 # Detect multimodal content block results from view skills (e.g., images.view).
                 # These return [[{"type": "text", ...}, {"type": "image_url", ...}]] — a list
@@ -11588,6 +11617,11 @@ async def handle_main_processing(
                 "images_search_executed": images_search_executed,
                 "omitted_news_search_requests": omitted_news_search_requests,
                 "force_no_tools": force_no_tools,
+                "delegated_primary_read": {
+                    "has_source_urls": delegated_primary_read.has_source_urls,
+                    "search_attempted": delegated_primary_read.search_attempted,
+                    "read_attempted": delegated_primary_read.read_attempted,
+                },
                 "completed_skill_calls": completed_skill_calls,
                 "native_state": native_state,
                 "native_main_cursor": native_main_cursor,
