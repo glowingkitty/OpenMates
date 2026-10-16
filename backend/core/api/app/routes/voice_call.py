@@ -106,6 +106,10 @@ def _context(value: Any) -> tuple[str, list[dict[str, Any]]]:
                 if isinstance(message_id, str) and re.fullmatch(r"[0-9a-f]{64}", message_id):
                     # Legacy assistant messages use SHA-256 identities.
                     row["message_id"] = message_id
+                elif (item["role"] == "user" and isinstance(message_id, str)
+                      and re.fullmatch(r"[0-9a-f]{10}-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", message_id)):
+                    # The composer prefixes user UUIDs with the chat's last ten characters.
+                    row["message_id"] = message_id
                 else:
                     row["message_id"] = str(uuid.UUID(message_id))
             except (ValueError, TypeError, AttributeError) as exc:

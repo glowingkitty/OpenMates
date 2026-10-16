@@ -53,6 +53,9 @@ export interface Notification {
   messageSecondary?: string; // Secondary message (displayed in bold)
   duration?: number; // Duration in ms, if undefined, notification is persistent until dismissed
   dismissible?: boolean; // Whether the notification can be dismissed by the user
+  keepOnAction?: boolean; // Keep asynchronous actions visible until their owner completes.
+  actionsDisabled?: boolean; // Prevent duplicate actions while background work is pending.
+  messageLink?: { href: string; label: string }; // Optional plain-text reference link.
   isProcessing?: boolean; // Whether background work is actively running with no known finish time
   isExiting?: boolean; // Internal UI lifecycle state while the exit animation completes
 
@@ -79,6 +82,9 @@ export interface NotificationOptions {
   messageSecondary?: string;
   duration?: number;
   dismissible?: boolean;
+  keepOnAction?: boolean; // Keep asynchronous actions visible until their owner completes.
+  actionsDisabled?: boolean; // Prevent duplicate actions while background work is pending.
+  messageLink?: { href: string; label: string }; // Optional plain-text reference link.
   isProcessing?: boolean;
   onAction?: () => void; // Optional callback for action button
   actionLabel?: string; // Label text for the action button

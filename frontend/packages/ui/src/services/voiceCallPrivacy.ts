@@ -1,7 +1,8 @@
 /** First-party, server-profile acknowledgement before any voice capture. */
-import { mount, unmount } from 'svelte';
+import { get } from 'svelte/store';
+import { text } from '../i18n/translations';
+import { notificationStore } from '../stores/notificationStore';
 import { getApiUrl } from '../config/api';
-import VoiceCallPrivacyDialog from '../components/voicecall/VoiceCallPrivacyDialog.svelte';
 
 interface ProcessingAcknowledgement { version: 1; acknowledged: boolean; acknowledged_at: number | null }
 async function acknowledgement(signal: AbortSignal, save: boolean): Promise<ProcessingAcknowledgement> {
@@ -18,36 +19,77 @@ async function acknowledgement(signal: AbortSignal, save: boolean): Promise<Proc
   return result;
 }
 
-/** Always check the authoritative profile so another session/device is remembered. */
+let requestInProgress = false;
+
+/** Always check the authoritative profile; share the existing global notification UI. */
 export async function ensureVoiceCallPrivacyAcknowledgement(signal: AbortSignal, onContinueGesture: () => void): Promise<boolean> {
-  if (signal.aborted) return false;
-  const profile = await acknowledgement(signal, false);
-  if (signal.aborted) return false;
-  if (profile.acknowledged) return true;
-  return new Promise<boolean>((resolve, reject) => {
-    let dialog: ReturnType<typeof mount> | null = null;
-    let settled = false;
-    const finish = (accepted: boolean) => {
-      if (settled) return;
-      settled = true;
-      signal.removeEventListener('abort', cancel);
-      if (dialog) void unmount(dialog);
-      resolve(accepted);
-    };
-    const cancel = () => finish(false);
-    try {
-      dialog = mount(VoiceCallPrivacyDialog, { target: document.body, props: {
-        onCancel: cancel,
-        onContinue: async () => {
-          if (settled || signal.aborted) return;
-          onContinueGesture();
-          const saved = await acknowledgement(signal, true);
-          if (!saved.acknowledged) throw new Error('Voice privacy acknowledgement was not saved');
-          if (!signal.aborted) finish(true);
+  if (signal.aborted || requestInProgress) return false;
+  requestInProgress = true;
+  try {
+    const profile = await acknowledgement(signal, false);
+    if (signal.aborted) return false;
+    if (profile.acknowledged) return true;
+    return await new Promise<boolean>((resolve) => {
+      let settled = false;
+      let saving = false;
+      let notificationId = '';
+      let unsubscribe = () => {};
+      const translate = get(text);
+      const finish = (accepted: boolean) => {
+        if (settled) return;
+        settled = true;
+        signal.removeEventListener('abort', cancel);
+        unsubscribe?.();
+        if (notificationId) notificationStore.removeNotification(notificationId);
+        resolve(accepted);
+      };
+      const cancel = () => finish(false);
+      notificationId = notificationStore.addNotificationWithOptions('info', {
+        title: translate('voicecall.privacy_title'),
+        message: translate('voicecall.privacy_description'),
+        messageLink: { href: 'https://ai.google.dev/gemini-api/terms#paid-services', label: translate('voicecall.privacy_terms') },
+        duration: 0,
+        dismissible: true,
+        dedupeKey: 'voice-call-privacy',
+        keepOnAction: true,
+        actionLabel: translate('voicecall.privacy_continue'),
+        secondaryActionLabel: translate('common.cancel'),
+        onSecondaryAction: cancel,
+        onAction: async () => {
+          if (settled || saving || signal.aborted) return;
+          saving = true;
+          notificationStore.updateNotification(notificationId!, {
+            isProcessing: true, actionsDisabled: true,
+            actionLabel: translate('voicecall.privacy_saving'), messageSecondary: undefined,
+          });
+          try {
+            // Warm playback during this click, before the profile POST yields.
+            onContinueGesture();
+            const saved = await acknowledgement(signal, true);
+            if (!saved.acknowledged) throw new Error('Voice privacy acknowledgement was not saved');
+            if (!signal.aborted) finish(true);
+          } catch {
+            if (!settled && !signal.aborted) notificationStore.updateNotification(notificationId!, {
+              messageSecondary: translate('voicecall.privacy_save_failed'),
+            });
+          } finally {
+            saving = false;
+            if (!settled) notificationStore.updateNotification(notificationId!, {
+              isProcessing: false, actionsDisabled: false, actionLabel: translate('voicecall.privacy_continue'),
+            });
+          }
         },
-      } });
+      });
+      unsubscribe = notificationStore.subscribe(state => {
+        const owned = state.notifications.find(notification => notification.id === notificationId);
+        if (!owned || owned.isExiting) finish(false);
+      });
+      // A store may synchronously remove the notice during initial subscription.
+      if (settled) { unsubscribe(); return; }
       signal.addEventListener('abort', cancel, { once: true });
       if (signal.aborted) cancel();
-    } catch (error) { reject(error); }
-  });
+    });
+  } finally {
+    requestInProgress = false;
+  }
 }

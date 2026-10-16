@@ -56,8 +56,9 @@
 
     function handlePrimaryAction(event: MouseEvent): void {
         event.stopPropagation();
+        if (notification.actionsDisabled) return;
         notification.onAction?.();
-        notificationStore.removeNotification(notification.id);
+        if (!notification.keepOnAction) notificationStore.removeNotification(notification.id);
     }
     
     /**
@@ -191,12 +192,16 @@
             {#if notification.messageSecondary}
                 <span class="notification-message-secondary">{notification.messageSecondary}</span>
             {/if}
+            {#if notification.messageLink}
+                <a class="notification-message-secondary" href={notification.messageLink.href} target="_blank" rel="noopener noreferrer">{notification.messageLink.label}</a>
+            {/if}
             {#if notification.onAction && notification.actionLabel}
                 <div class="notification-action-row">
                     {#if notification.onSecondaryAction && notification.secondaryActionLabel}
                         <button
                             class="notification-action-btn notification-action-btn-secondary"
                             data-testid="notification-secondary-action"
+                            disabled={notification.actionsDisabled}
                             onclick={(e: MouseEvent) => {
                                 e.stopPropagation();
                                 notification.onSecondaryAction?.();
@@ -208,6 +213,7 @@
                     <button
                         class="notification-action-btn notification-action-btn-primary"
                         data-testid="notification-action"
+                        disabled={notification.actionsDisabled}
                         onclick={handlePrimaryAction}
                     >
                         {notification.actionLabel}
