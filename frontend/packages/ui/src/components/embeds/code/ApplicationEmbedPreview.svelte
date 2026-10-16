@@ -21,7 +21,8 @@
     type ApplicationPreviewStatusValue,
   } from '../../../services/applicationPreviewService';
 
-  const AUTO_START_STATUS_ATTEMPTS = 40;
+  // Cold sandbox browser installation can outlast the initial 80-second window.
+  const AUTO_START_STATUS_ATTEMPTS = 360;
   const AUTO_START_STATUS_DELAY_MS = 2_000;
   const ACTIVE_PREVIEW_STATUSES = new Set<ApplicationPreviewStatusValue>(['queued', 'starting', 'running']);
 
@@ -121,7 +122,7 @@
     try {
       await fetchAndDecryptImage(screenshotRef?.s3_base_url || '', s3Key, aesKey, aesNonce, previewVariant);
       const decryptedUrl = getCachedImageUrl(s3Key);
-      if (!decryptedUrl) return;
+      if (destroyed || screenshotRef?.files?.preview?.s3_key !== s3Key || !decryptedUrl) return;
       decryptedScreenshotUrl = decryptedUrl;
       retainedScreenshotKey = s3Key;
       retainCachedImage(s3Key);
@@ -151,6 +152,7 @@
       autoStartRequested ||
       status !== 'finished' ||
       screenshotUrl ||
+      screenshotRef?.files?.preview?.s3_key ||
       !chatId ||
       !id ||
       !$authStore.isAuthenticated

@@ -3549,6 +3549,9 @@ export async function handleEmbedUpdateImpl(
 
             // If this embed has child embed_ids, pre-cache the key for children immediately
             if (
+              // Application files are independent encrypted artifacts, not
+              // children sharing the application's key.
+              existingEmbed.type !== "application" &&
               existingEmbed.embed_ids &&
               Array.isArray(existingEmbed.embed_ids) &&
               existingEmbed.embed_ids.length > 0
@@ -4742,6 +4745,7 @@ export async function handleSendEmbedDataImpl(
         // CRITICAL: Pre-cache parent key for all known child embeds
         // This prevents race conditions where child embeds try to get parent key before it's cached
         if (
+          embedData.type !== "application" &&
           embedData.embed_ids &&
           Array.isArray(embedData.embed_ids) &&
           embedData.embed_ids.length > 0
@@ -5112,6 +5116,7 @@ export async function handleSendEmbedDataImpl(
       // or if new child embed IDs were discovered during processing.
       if (
         !isChildEmbed &&
+        embedData.type !== "application" &&
         embedData.embed_ids &&
         Array.isArray(embedData.embed_ids) &&
         embedData.embed_ids.length > 0

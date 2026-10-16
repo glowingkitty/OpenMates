@@ -461,3 +461,31 @@ def test_preview_planning_requires_entrypoints_and_ports() -> None:
             files=[ApplicationPreviewFile(path="index.html", content="ok")],
             entrypoints=[ApplicationPreviewEntrypoint(name="frontend", command="npm run dev", port=70_000)],
         )
+
+
+# contract-test: supporting surface=gui.web assertions=code-run.execution.stream-status-visible,app-skills.media.application-screenshot
+def test_preview_exposes_ready_runtime_before_screenshot_capture(monkeypatch) -> None:
+    import sys
+    from backend.shared.providers import e2b_application_preview as provider
+    events = []
+    class Sandbox:
+        sandbox_id = "fixture-sandbox"
+        files = SimpleNamespace(write_files=lambda _files: None)
+        commands = SimpleNamespace(run=lambda *_args, **_kwargs: None)
+        @classmethod
+        def create(cls, **_kwargs): return cls()
+        def get_host(self, port): return f"{port}-fixture.e2b.app"
+    monkeypatch.setitem(sys.modules, "e2b", SimpleNamespace(Sandbox=Sandbox))
+    monkeypatch.setattr(provider, "_wait_for_preview_ready", lambda _url: events.append("healthy"))
+    def capture(_sandbox, _port):
+        assert events == ["healthy", "runtime-visible"]
+        return PNG_BYTES
+    monkeypatch.setattr(provider, "_sandbox_screenshot_bytes", capture)
+    def ready(runtime):
+        assert runtime.upstream_base_url == "https://5173-fixture.e2b.app"
+        assert runtime.latest_screenshot_bytes is None
+        events.append("runtime-visible")
+    result = start_application_preview_in_e2b(files=[ApplicationPreviewFile(path="index.html", content="<main>Fixture</main>")],
+        entrypoints=[ApplicationPreviewEntrypoint(name="frontend", command="python3 -m http.server 5173", port=5173)],
+        api_key="fixture", on_runtime_ready=ready)
+    assert result.latest_screenshot_bytes == PNG_BYTES

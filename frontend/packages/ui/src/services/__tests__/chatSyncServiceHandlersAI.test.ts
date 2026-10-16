@@ -1447,6 +1447,31 @@ describe("handleSendEmbedDataImpl", () => {
     });
   });
 
+  // contract-test: supporting surface=gui.web assertions=app-skills.media.application-screenshot,chats.persistence.client-encrypted
+  it.each([["application", false], ["app_skill_use", true]] as const)("keeps referenced application files independent while %s composites preserve inheritance", async (type, inherited) => {
+    const parentKey = new Uint8Array([4, 5, 6]);
+    mockChatDB.getChat.mockResolvedValue({ chat_id: "chat-1" });
+    mockChatKeyManager.getKeySync.mockReturnValue(new Uint8Array([1, 2, 3]));
+    mockChatKeyManager.getKey.mockResolvedValue(new Uint8Array([1, 2, 3]));
+    mockDeriveEmbedKeyFromChatKey.mockResolvedValue(parentKey);
+    mockEncryptWithEmbedKey.mockImplementation(async value => `encrypted:${value}`);
+    mockWrapEmbedKeyWithChatKey.mockResolvedValue("wrapped-chat-key");
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    for (const version of [1, 2]) {
+      clearProcessedEmbedsTracking();
+      await handleSendEmbedDataImpl(service, { type: "send_embed_data", payload: {
+        embed_id: "parent-fixture", type, chat_id: "chat-1", message_id: "message-1", user_id: "user-1",
+        status: "finished", version_number: version, embed_ids: ["independent-file"],
+        content: JSON.stringify({ type, app_id: inherited ? "images" : "code", skill_id: inherited ? "generate" : "application",
+          status: "finished", file_refs: [{ embed_id: "independent-file", path: "index.html" }],
+          ...(version === 2 ? { latest_screenshot: { files: { preview: { s3_key: "fixture" } } } } : {}) }),
+      } } as unknown as Parameters<typeof handleSendEmbedDataImpl>[1], undefined, { localOnly: true });
+      const inheritedCalls = mockEmbedStore.setEmbedKeyInCache.mock.calls.filter(([id]) => id === "independent-file");
+      expect(inheritedCalls.length > 0).toBe(inherited);
+      expect(mockEmbedStore.putEncrypted).toHaveBeenCalled();
+    }
+  });
+
   // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted
   it("stores anonymous embeds locally without invoking remote persistence", async () => {
     const chatKey = new Uint8Array([1, 2, 3]);

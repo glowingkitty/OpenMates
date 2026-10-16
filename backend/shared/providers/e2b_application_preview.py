@@ -186,6 +186,7 @@ def start_application_preview_in_e2b(
     entrypoints: list[ApplicationPreviewEntrypoint],
     api_key: str,
     enable_internet: bool = True,
+    on_runtime_ready: Callable[[ApplicationPreviewRuntime], None] | None = None,
 ) -> ApplicationPreviewRuntime:
     """Start a generated application preview in E2B and return proxy metadata."""
     try:
@@ -221,7 +222,14 @@ def start_application_preview_in_e2b(
 
     primary_name = "frontend" if "frontend" in upstream_base_urls else next(iter(upstream_base_urls))
     _wait_for_preview_ready(upstream_base_urls[primary_name])
+    runtime = ApplicationPreviewRuntime(
+        sandbox_id=str(getattr(sandbox, "sandbox_id", "")),
+        upstream_base_url=upstream_base_urls[primary_name],
+        upstream_base_urls=upstream_base_urls, ports=ports,
+    )
     try:
+        if on_runtime_ready:
+            on_runtime_ready(runtime)
         screenshot_bytes = _sandbox_screenshot_bytes(sandbox, ports[primary_name])
     except Exception:
         # A capture failure is a failed preview, not a successfully rendered
