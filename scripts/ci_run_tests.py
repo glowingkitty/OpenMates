@@ -370,7 +370,7 @@ def provision_startup_sync_chats(account: dict) -> None:
     """Seed disposable encrypted history before a startup browser sync begins."""
     require_runner()
     result = subprocess.run(
-        ["node", "--experimental-strip-types", str(Path(__file__).with_name("ci_startup_sync_fixture.mjs")), str(ROOT)],
+        ["node", "--experimental-strip-types", str(ROOT / "scripts" / "ci_startup_sync_fixture.mjs"), str(ROOT)],
         env={**os.environ, "OPENMATES_STATE_DIR": account["OPENMATES_STATE_DIR"],
              "OPENMATES_CI_FIXTURE_CMS_TOKEN": cms_admin_token(json.loads(COMPOSE_PATH.read_text()))},
         capture_output=True, text=True, timeout=180,
@@ -378,8 +378,10 @@ def provision_startup_sync_chats(account: dict) -> None:
     if result.returncode:
         raise RuntimeError("Fresh encrypted startup chat provisioning failed; no shared-account fallback")
     summary = json.loads(result.stdout)
-    if summary.get("chats") != 22 or summary.get("messages") != 32:
-        raise RuntimeError("Encrypted startup chat fixture has the wrong bounded shape")
+    if (summary.get("chats") != 22 or summary.get("messages") != 32
+            or summary.get("persisted_null_messages_v_count") != 1):
+        raise RuntimeError("Encrypted startup chat fixture has the wrong bounded shape or legacy version")
+    print("Startup sync fixture: " + json.dumps(summary, sort_keys=True), flush=True)
 
 
 def activate_isolated_recovery_epoch() -> dict:

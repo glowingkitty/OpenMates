@@ -101,20 +101,21 @@ cmd_open() {
     local otp=""
     if [[ -t 0 ]]; then
         # Interactive terminal — prompt the operator directly
-        read -r -s -p "[prod-ssh] TOTP code for ${PROD_SSH_USER}@${PROD_SSH_HOST}: " otp
+        read -r -s -p "[prod-ssh] TOTP code for ${PROD_SSH_USER}@${PROD_SSH_HOST}: " otp || die "Unable to read TOTP code."
         echo >&2
     else
         # Non-interactive (e.g. Claude's Bash tool) — read from stdin
         # Usage: echo "123456" | ./prod-ssh.sh open
-        read -r otp
+        read -r otp || [[ -n "$otp" ]] || die "Unable to read TOTP code."
     fi
     [[ -n "$otp" ]] || die "Empty TOTP code."
 
     # Backgrounded master: -M -N -f keeps ssh running to hold the control socket.
     # expect feeds the 2-prompt keyboard-interactive flow; the key factor is
     # handled silently by ssh via -i.
+    local expect_status=0
     PROD_SSH_PASSWORD="$PROD_SSH_PASSWORD" PROD_SSH_OTP="$otp" \
-    expect <<'EXPECT_EOF'
+    expect <<'EXPECT_EOF' || expect_status=$?
 set timeout 30
 set password $env(PROD_SSH_PASSWORD)
 set otp      $env(PROD_SSH_OTP)
@@ -132,37 +133,74 @@ set ssh_opts [list \
     "$env(PROD_SSH_USER)@$env(PROD_SSH_HOST)" \
 ]
 
+# SSH can echo credentials. Report fixed messages, never the raw buffer.
 log_user 0
 set prompt_count 0
+set password_sent 0
+set otp_sent 0
+proc fail {message code} {
+    puts stderr "\[prod-ssh\] ERROR: $message"
+    exit $code
+}
+proc send_otp {} {
+    global otp_sent otp prompt_count
+    if {$otp_sent} {
+        fail "SSH requested another verification code; stopped to avoid reusing the TOTP. Check the access window and use a fresh code." 2
+    }
+    set otp_sent 1
+    incr prompt_count
+    send -- "$otp\r"
+}
 spawn ssh {*}$ssh_opts
 expect {
-    -nocase "*verification code:*" {
-        incr prompt_count
-        puts stderr "\n\[prod-ssh\] matched verification-code prompt."
-        send -- "$otp\r"
-        exp_continue
-    }
-    -nocase "*totp*:*" {
-        incr prompt_count
-        puts stderr "\n\[prod-ssh\] matched TOTP prompt."
-        send -- "$otp\r"
-        exp_continue
-    }
+    -nocase "*verification code:*" { send_otp; exp_continue -continue_timer }
+    -nocase "*totp*:*" { send_otp; exp_continue -continue_timer }
     -nocase "*password:*" {
+        if {$password_sent} {
+            fail "SSH requested the password again; stopped to avoid repeated authentication attempts. Check PROD_SSH_PASSWORD in the canonical .env." 2
+        }
+        set password_sent 1
         incr prompt_count
-        puts stderr "\n\[prod-ssh\] matched password prompt."
         send -- "$password\r"
-        exp_continue
+        exp_continue -continue_timer
     }
-    -nocase "*permission denied*"  { puts stderr "\n\[prod-ssh\] ssh denied — check key window / password / OTP"; exit 2 }
-    timeout                       { puts stderr "\n\[prod-ssh\] ssh timed out waiting for prompt after $prompt_count prompt(s)"; exit 3 }
-    eof
+    -nocase "*permission denied*" {
+        fail "SSH denied authentication; check the temporary key window, configured password, and fresh TOTP." 2
+    }
+    -nocase "*host key verification failed*" {
+        fail "SSH host-key verification failed. Verify the production host identity and known_hosts entry manually." 2
+    }
+    -nocase "*are you sure you want to continue connecting*" {
+        fail "SSH needs host-key confirmation. Verify the production host identity and register its known_hosts entry manually." 2
+    }
+    -nocase "*connection refused*" {
+        fail "SSH connection refused. Check the production SSH access window, listener, and IP blocking on the server." 2
+    }
+    -nocase "*could not resolve hostname*" {
+        fail "SSH could not resolve the configured production hostname. Check PROD_SSH_HOST and DNS." 2
+    }
+    -nocase "*connection timed out*" {
+        fail "SSH connection timed out. Check network reachability and the production SSH access window." 3
+    }
+    timeout {
+        fail "SSH timed out after $prompt_count authentication prompt(s). Check connectivity and the keyboard-interactive prompt format." 3
+    }
+    eof {}
 }
-catch wait result
-exit [lindex $result 3]
+if {[catch {wait} result] || [lindex $result 2] != 0} {
+    fail "Unable to collect SSH exit status; master connection was not confirmed." 1
+}
+set ssh_status [lindex $result 3]
+if {$ssh_status != 0} {
+    fail "SSH exited with status $ssh_status after $prompt_count authentication prompt(s). Check the production SSH authentication logs and temporary access window; the TOTP alone does not confirm authentication." 1
+}
+exit 0
 EXPECT_EOF
 
-    unset PROD_SSH_OTP
+    unset otp PROD_SSH_OTP
+    if (( expect_status != 0 )); then
+        die "Master connection was not established (authentication helper status ${expect_status})."
+    fi
 
     if master_active; then
         log "Master connection established (persists ${PERSIST_DURATION} idle)."
