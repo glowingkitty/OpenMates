@@ -1896,6 +1896,7 @@
               aria-label={$text('daily_inspiration.watch_video')}
             >
               <VideoEmbedPreview
+                presentationOnly={true}
                 id={embedPreviewId}
                 url={videoUrl}
                 title={current.video?.title ?? undefined}

@@ -100,3 +100,42 @@ test('expanded and full-image previews keep one visible info bar above content',
   expect(imageBounds.barBottom).toBeLessThanOrEqual(imageBounds.detailsTop + 1);
   expect(imageBounds.detailsBottom).toBeLessThanOrEqual(imageBounds.cardBottom + 1);
 });
+
+// contract-test: supporting surface=gui.web assertions=chats.rendering.preview-info-top
+test('metadata-only inspiration videos rotate without persisted embed reads and retain fullscreen intent', async ({ page }) => {
+  const persistedReads: string[] = [];
+  const fullscreen: string[] = [];
+  page.on('request', (request) => {
+    if (/\/v1\/(?:embeds(?:\/|\?)|chats\/[^/]+\/embeds(?:\/|\?)|sdk\/embeds(?:\/|\?))/.test(request.url())) persistedReads.push(request.url());
+  });
+  page.on('websocket', (socket) => socket.on('framesent', ({ payload }) => {
+    try {
+      const frame = JSON.parse(String(payload));
+      if (frame.type === 'request_embed') persistedReads.push('websocket:request_embed');
+    } catch { /* Non-JSON transport data is not an embed read. */ }
+  }));
+  page.on('console', (message) => {
+    if (message.text().startsWith('[Preview] onEmbedFullscreen')) fullscreen.push(message.text());
+    if (message.text().includes('[embedResolver] Embed missing locally')) persistedReads.push('resolver:missing-locally');
+  });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  // Preview canvas width does not populate the banner's explicit layout prop.
+  const bannerProps = encodeURIComponent(JSON.stringify({ containerWidth: 1100 }));
+  await page.goto(`/dev/preview/DailyInspirationBanner?chrome=0&theme=light&background=%23dbeafe&width=1100&variant=carousel&props=${bannerProps}`);
+  await waitForComponentPreview(page);
+  const card = page.getByTestId('embed-preview');
+  await expect(card).toHaveAttribute('data-status', 'finished');
+  await expect(card).toContainText('How to Build a Great');
+  await expect(card).not.toHaveAttribute('data-embed-id', /.+/);
+  await expect(card.locator('.video-thumbnail')).toBeVisible();
+  expect(persistedReads).toEqual([]);
+  await page.getByTestId('daily-inspiration-next').click();
+  await expect(card).toContainText('The Power of Compound');
+  await expect(card).not.toHaveAttribute('data-embed-id', /.+/);
+  await expect(card).toHaveAttribute('data-status', 'finished');
+  await expect(card.locator('.video-thumbnail')).toBeVisible();
+  expect(persistedReads).toEqual([]);
+  await card.click();
+  await expect.poll(() => fullscreen).toEqual(['[Preview] onEmbedFullscreen abc123finance']);
+  expect(persistedReads).toEqual([]);
+});

@@ -80,6 +80,8 @@
     taskId?: string;
     /** Whether to use mobile layout */
     isMobile?: boolean;
+    /** Render supplied metadata without resolving a persisted embed. */
+    presentationOnly?: boolean;
     /** Click handler for fullscreen - receives fetched metadata so fullscreen can display it */
     onFullscreen: (metadata: VideoMetadata) => void;
     // === Metadata from decodedContent (embed store) ===
@@ -116,6 +118,7 @@
     status,
     taskId,
     isMobile = false,
+    presentationOnly = false,
     onFullscreen,
     // Metadata from decodedContent (embed store)
     channelName,
@@ -331,6 +334,7 @@
   skillName={shortenedTitle}
   {taskId}
   {isMobile}
+  {presentationOnly}
   onFullscreen={handleFullscreen}
   onStop={handleStop}
   showStatus={!!customStatusText}
