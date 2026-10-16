@@ -60,6 +60,37 @@ def test_context_rejects_invalid_message_identities(message_id) -> None:
         _context({"messages": [{"role": "assistant", "text": "Ramen", "message_id": message_id}]})
 
 
+# contract-test: supporting surface=gui.web assertions=video-call.chat.launch-and-provider,video-call.privacy
+def test_context_preserves_canonical_composer_user_and_legacy_assistant_identities() -> None:
+    chat_id = str(uuid.uuid4())
+    user_id = f"{chat_id[-10:]}-{uuid.uuid4()}"
+    messages = [
+        {"role": "user", "text": "Capital of Germany?", "message_id": user_id},
+        {"role": "assistant", "text": "Berlin", "message_id": hashlib.sha256(b"legacy assistant").hexdigest()},
+    ]
+    assert _start(json.dumps({"type": "start", "chat_id": chat_id,
+                              "context": {"messages": messages}})) == (chat_id, "", messages, 0)
+    with pytest.raises(ValueError, match="Invalid context message identity"):
+        _context({"messages": [{"role": "assistant", "text": "Berlin", "message_id": user_id}]})
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.chat.launch-and-provider,video-call.privacy
+@pytest.mark.parametrize("message_id", [
+    "a" * 9 + "-" + "12345678-1234-1234-1234-123456789abc",
+    "a" * 11 + "-" + "12345678-1234-1234-1234-123456789abc",
+    "g" * 10 + "-" + "12345678-1234-1234-1234-123456789abc",
+    "A" * 10 + "-" + "12345678-1234-1234-1234-123456789abc",
+    "a" * 10 + "-" + "12345678-1234-1234-1234-123456789abg",
+    "a" * 10 + "-" + "12345678123412341234123456789abc",
+    "a" * 10 + "-" + "12345678-1234-1234-1234-123456789abc\n",
+    "a" * 10 + "-" + "12345678-1234-1234-1234-123456789ab\x00",
+])
+# contract-test: supporting surface=gui.web assertions=video-call.chat.launch-and-provider,video-call.privacy
+def test_context_rejects_malformed_composer_user_identities(message_id) -> None:
+    with pytest.raises(ValueError, match="Invalid context message identity"):
+        _context({"messages": [{"role": "user", "text": "Ramen", "message_id": message_id}]})
+
+
 # contract-test: supporting surface=gui.web assertions=video-call.chat.transcripts,video-call.lifecycle.recovery-and-billing
 def test_equal_second_voice_ids_sort_by_creation_order() -> None:
     first, position = _ordered_message_id()
