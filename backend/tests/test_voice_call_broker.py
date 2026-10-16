@@ -350,10 +350,12 @@ async def test_real_flash_branch_validates_then_executes_bills_and_embeds(monkey
                   "uncached_input_tokens": 4, "output_tokens": 2, "inference_host": "google_ai_studio"}
     usage_chunk = SimpleNamespace(prompt_token_count=4, _normalized_llm_usage=normalized)
     invocations = []
+    tariff_snapshot = {"model_id": runtime.FLASH_MODEL, "revision": "admitted-tariff"}
 
     async def stream(*, task_id, model_id, system_prompt, message_history, temperature,
                      secrets_manager, tools, tool_choice, max_tokens, private_logging, pre_dispatch_admission):
-        assert await pre_dispatch_admission("google_ai_studio", max_tokens) == 2048
+        assert await pre_dispatch_admission("google_ai_studio", max_tokens,
+                                            tariff_snapshot=tariff_snapshot, region="us-central1") == 2048
         invocations.append({"model": model_id, "prompt": system_prompt, "private": private_logging,
                             "messages": message_history})
         yield chunk
@@ -454,6 +456,8 @@ async def test_real_flash_branch_validates_then_executes_bills_and_embeds(monkey
         complete_receipt.assert_not_called()
     precheck.assert_awaited_once()
     fit.assert_awaited_once()
+    assert fit.call_args.kwargs["tariff_snapshot"] is tariff_snapshot
+    assert fit.call_args.kwargs["region"] == "us-central1"
     billing_request = fit.call_args.kwargs["request_data"]
     assert isinstance(billing_request, AskSkillRequest)
     assert billing_request.message_history == []

@@ -56,7 +56,10 @@ const mocks = vi.hoisted(() => {
       delete (decrypted as Record<string, unknown>).encrypted_content;
       return decrypted;
     }),
-    getMessageWindowForChat: vi.fn(async () => ({ messages: [] })),
+    getMessageWindowForChat: vi.fn(async (_chatId: string, _options: unknown): Promise<{
+      messages: Array<Record<string, unknown>>; hasMoreBefore?: boolean;
+      startCursor?: number; startCursorMessageId?: string;
+    }> => ({ messages: [] })),
     getPendingMessageRetryPage: vi.fn(async () => ({ rows: [...rows.values()].filter((row) => row.status === "sending"), nextCursor: null })),
     getTransaction: vi.fn(async () => transaction()),
     getEncryptedFields: vi.fn(async (message: { content?: string; category?: string; model_name?: string; sender_name?: string }) => ({
@@ -134,6 +137,13 @@ import { applyCallMessageChanged, loadCallContext, markTypedCallMessageFailed,
 
 const artifactReferenceText = (id: string) => '```json\n' + JSON.stringify({ embed_id: id,
   type: "app_skill_use", app_id: "web", skill_id: "search" }) + '\n```';
+
+// contract-test: supporting surface=gui.web assertions=video-call.chat.transcripts
+it("persists only spoken text when the assistant is interrupted", async () => {
+  await upsertCallTranscript({ callId: "call-test-1234", chatId: "chat-uuid-1234", messageId: "interrupted-reply",
+    role: "assistant", text: "Spoken answer.", final: true, interrupted: true });
+  expect((await mocks.db.getMessage("interrupted-reply"))?.content).toBe("Spoken answer.");
+});
 
 beforeEach(() => {
   vi.mocked(fetchAuthenticatedChatMessageWindow).mockReset().mockImplementation((chatId, { includeCanonicalMessages: _canonical, ...options }) => mocks.db.getMessageWindowForChat(chatId, options) as never);
@@ -229,7 +239,7 @@ describe("voice call transcript persistence", () => {
   it("emits the persisted call origin for spoken rows and typed input awaiting acceptance", async () => {
     const emitted = (messageId: string) => mocks.dispatchEvent.mock.calls
       .map(([event]) => (event as CustomEvent<{ newMessage?: Record<string, unknown> }>).detail.newMessage)
-      .findLast((message) => message?.message_id === messageId);
+      .reverse().find((message) => message?.message_id === messageId);
     await upsertCallTranscript({ ...base, messageId: "spoken-user", role: "user", text: "Spoken words", final: false });
     expect(emitted("spoken-user")).toMatchObject({ status: "streaming",
       call_persistence_v1: { call_id: base.callId, typed_pending: false } });

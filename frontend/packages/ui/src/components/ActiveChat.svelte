@@ -17463,9 +17463,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         .top-buttons:not(.top-buttons-flow) {
             top: 10px;
             left: 10px;
-            /* The fixed Settings profile and GitHub control occupy the outer
-               columns. Keep the complete chat targets beside those hit areas. */
-            right: 110px;
+            /* Global header controls sit above the chat on compact screens. */
+            right: 10px;
         }
         /* On mobile the daily inspiration banner is fixed at 190px (not 35vh).
            Include the welcome top-buttons row below it so the greeting centers in
@@ -17492,8 +17491,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
     @media (max-width: 730px) {
         :global([dir="rtl"]) .top-buttons:not(.top-buttons-flow) {
-            /* Settings anchors both fixed controls to inline-end in RTL too. */
-            left: 110px;
+            left: 10px;
             right: 10px;
         }
     }

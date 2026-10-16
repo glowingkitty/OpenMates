@@ -520,11 +520,13 @@ async def execute_voice_skills(data: dict, selection: dict, apps: dict, registry
     request = AskSkillRequest(user_id=data["user_id"], user_id_hash=data["user_hash"],
         chat_id=data["chat_id"], message_id=data["user_message_id"], message_history=[])
 
-    async def admit(host: str, output_cap: int | None) -> int:
+    async def admit(host: str, output_cap: int | None, *,
+                    tariff_snapshot: dict | None = None, region: str | None = None) -> int:
         return await _fit_personal_chat_output_token_limit(request_data=request, cache_service=cache,
             model_usage_tracker=usage, model_id=FLASH_MODEL, system_prompt=prompt, message_history=messages,
             tools=tools, requested_output_token_limit=min(output_cap or 2048, 2048), inference_host=host,
-            directus_service=directus, encryption_service=encryption)
+            directus_service=directus, encryption_service=encryption,
+            tariff_snapshot=tariff_snapshot, region=region)
 
     calls = []
     generation = call_main_llm_stream

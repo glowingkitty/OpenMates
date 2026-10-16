@@ -416,3 +416,31 @@ test.describe('Call and Close header actions', () => {
     await expect(page.getByTestId('chat-close-button')).toBeVisible();
   });
 });
+
+for (const width of [390, 1180]) {
+  for (const direction of ['ltr', 'rtl']) {
+    // contract-test: supporting surface=gui.web assertions=video-call.chat.launch-and-provider,video-call.chat.call-strip-layout
+    test(`keeps the idle close target at the chat edge at ${width}px ${direction}`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 844 });
+      await page.goto(`/dev/preview/voicecall/ActiveChatCallHeaderPreview?${new URLSearchParams({
+        chrome: '0', width: String(width), variant: 'headerViewport', props: JSON.stringify({ direction }),
+      })}`);
+      await waitForComponentPreview(page);
+      await page.getByTestId('voice-call-hangup').click();
+      const close = page.getByTestId('chat-close-button');
+      await expect(close).toBeVisible();
+      await page.mouse.move(0, 0);
+      await waitForComponentMotion(close);
+      const toolbar = page.getByTestId('chat-top-actions');
+      const geometry = await toolbar.evaluate((element, dir) => {
+        const parent = (element as HTMLElement).offsetParent!;
+        const parentBox = parent.getBoundingClientRect();
+        const box = element.getBoundingClientRect();
+        return dir === 'rtl' ? box.x - parentBox.x : parentBox.right - box.right;
+      }, direction);
+      expect(geometry).toBeCloseTo(width <= 730 ? 10 : 15, 0);
+      await expect(close).toBeEnabled();
+      await page.screenshot({ path: testInfo.outputPath(`chat-close-edge-${width}-${direction}.png`) });
+    });
+  }
+}
