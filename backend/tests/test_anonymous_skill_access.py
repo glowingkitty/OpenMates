@@ -630,12 +630,21 @@ async def test_anonymous_sse_forwards_transient_app_skill_embeds(monkeypatch: py
 
 @pytest.mark.asyncio
 # contract-test: direct surface=rest_api assertions=chats.streaming.ordered-final,billing.anonymous.hard-capped-provider-metering
-@pytest.mark.parametrize("snapshot_kind", ["standardized", "empty", "absent"])
+@pytest.mark.parametrize(
+    ("snapshot_kind", "separator"),
+    [("standardized", ""), ("empty", ""), ("absent", ""),
+     ("partial", "\u0085"), ("partial", "\u2028"), ("partial", "\u2029")],
+)
+@pytest.mark.parametrize("terminated_frame", [True, False])
 async def test_anonymous_sse_reports_pre_dispatch_usage_limit_without_generic_error(
     monkeypatch: pytest.MonkeyPatch,
     snapshot_kind: str,
+    separator: str,
+    terminated_frame: bool,
 ) -> None:
     from backend.apps.ai.utils.preprocessing_history import STANDARDIZED_USER_ERROR_MESSAGE
+
+    partial_content = f"Completed useful{separator}work."
 
     async def limited_stream():
         terminal_frame = {
@@ -643,9 +652,14 @@ async def test_anonymous_sse_reports_pre_dispatch_usage_limit_without_generic_er
             "failure_reason": "anonymous_usage_limit",
         }
         if snapshot_kind != "absent":
-            terminal_frame["full_content"] = STANDARDIZED_USER_ERROR_MESSAGE if snapshot_kind == "standardized" else ""
-        yield "data: " + json.dumps(terminal_frame) + "\n\n"
-        yield "data: [DONE]\n\n"
+            terminal_frame["full_content"] = (
+                partial_content if snapshot_kind == "partial" else
+                STANDARDIZED_USER_ERROR_MESSAGE if snapshot_kind == "standardized" else ""
+            )
+        # AskSkill's model_dump_json preserves Unicode separators inside JSON strings.
+        yield "data: " + json.dumps(terminal_frame, ensure_ascii=False) + ("\n\n" if terminated_frame else "")
+        if terminated_frame:
+            yield "data: [DONE]\n\n"
 
     class FakeRegistry:
         async def dispatch_skill(self, _app_id: str, _skill_id: str, _body: dict) -> StreamingResponse:
@@ -676,7 +690,10 @@ async def test_anonymous_sse_reports_pre_dispatch_usage_limit_without_generic_er
     body = "".join([chunk.decode() if isinstance(chunk, bytes) else str(chunk) async for chunk in response.body_iterator])
     events = [json.loads(line.removeprefix("data: ")) for line in body.splitlines() if line.startswith("data: ")]
     final = next(event for event in events if event.get("is_final_chunk"))
-    assert final["full_content_so_far"] == "Create an account to keep using OpenMates."
+    expected = "Create an account to keep using OpenMates."
+    if snapshot_kind == "partial":
+        expected = f"{partial_content}\n\n{expected}"
+    assert final["full_content_so_far"] == expected
     assert final["rejection_reason"] == "anonymous_usage_limit"
     assert [event["status"] for event in events if event["type"] == "ai_task_ended"] == ["failed"]
     assert not any(event["type"] == "post_processing_completed" for event in events)
@@ -685,9 +702,11 @@ async def test_anonymous_sse_reports_pre_dispatch_usage_limit_without_generic_er
 @pytest.mark.asyncio
 # contract-test: direct surface=rest_api assertions=chats.streaming.ordered-final,billing.anonymous.local-only-content
 @pytest.mark.parametrize("failure_reason", [None, "anonymous_usage_limit"])
+@pytest.mark.parametrize("separator", ["\u0085", "\u2028", "\u2029"])
 async def test_anonymous_sse_uses_authoritative_final_snapshot_after_redis_prefix_rewrite(
     monkeypatch: pytest.MonkeyPatch,
     failure_reason: str | None,
+    separator: str,
 ) -> None:
     from types import MethodType
 
@@ -706,7 +725,7 @@ async def test_anonymous_sse_uses_authoritative_final_snapshot_after_redis_prefi
         app_fence,
         app_fence + "This draft answer is longer and will be replaced.",
         app_fence + "Corrected",
-        app_fence + "Corrected [source](embed:source-ref).\n\n" + STANDARDIZED_USER_ERROR_MESSAGE,
+        app_fence + f"Corrected{separator}[source](embed:source-ref).\n\n" + STANDARDIZED_USER_ERROR_MESSAGE,
     ]
     task_id = "redis-prefix-rewrite-task"
     resolved_embed = {
@@ -811,7 +830,7 @@ async def test_anonymous_sse_uses_authoritative_final_snapshot_after_redis_prefi
     events = [json.loads(line.removeprefix("data: ")) for line in body.splitlines() if line.startswith("data: ")]
     final_chunk = next(event for event in events if event["type"] == "ai_message_chunk" and event["is_final_chunk"])
     expected_content = (
-        app_fence + "Corrected [source](embed:source-ref).\n\nCreate an account to keep using OpenMates."
+        app_fence + f"Corrected{separator}[source](embed:source-ref).\n\nCreate an account to keep using OpenMates."
         if failure_reason else snapshots[-1]
     )
     assert final_chunk["full_content_so_far"] == expected_content

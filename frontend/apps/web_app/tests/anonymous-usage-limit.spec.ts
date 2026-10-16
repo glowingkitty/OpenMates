@@ -16,6 +16,7 @@ for (const partial of [false, true]) {
     // Deliberately leave this stale: the stream's admission decision is authoritative.
     await page.route('**/v1/anonymous/free-usage/status**', (route: any) => route.fulfill({ json: availability }));
     let sends = 0;
+    const partialContent = 'Completed useful work.\u0085Preserved line separator\u2028and paragraph separator\u2029content.';
     await page.route('**/v1/anonymous/chat/stream', async (route: any) => {
       sends++;
       const body = route.request().postDataJSON();
@@ -28,9 +29,9 @@ for (const partial of [false, true]) {
         { type: 'ai_typing_started', chat_id: body.client_chat_id, user_message_id: body.client_message_id,
           message_id: messageId, task_id: taskId, category: 'general_knowledge', model_name: null,
           provider_name: null, server_region: null },
-        ...(partial ? [{ ...chunk, sequence: 1, is_final_chunk: false, full_content_so_far: 'Completed useful work.' }] : []),
+        ...(partial ? [{ ...chunk, sequence: 1, is_final_chunk: false, full_content_so_far: partialContent }] : []),
         { ...chunk, sequence: partial ? 2 : 1, is_final_chunk: true, rejection_reason: 'anonymous_usage_limit',
-          full_content_so_far: `${partial ? 'Completed useful work.\n\n' : ''}Create an account to keep using OpenMates.` },
+          full_content_so_far: `${partial ? `${partialContent}\n\n` : ''}Create an account to keep using OpenMates.` },
         { type: 'ai_task_ended', chatId: body.client_chat_id, taskId, status: 'failed' },
       ];
       await route.fulfill({ status: 200, contentType: 'text/event-stream',
@@ -46,7 +47,11 @@ for (const partial of [false, true]) {
     const answer = page.getByTestId('message-assistant').last();
     await expect(answer).toHaveAttribute('data-streaming', 'false', { timeout: 30000 });
     await expect(answer).toContainText('Create an account to keep using OpenMates.');
-    if (partial) await expect(answer).toContainText('Completed useful work.');
+    if (partial) {
+      await expect(answer).toContainText('Completed useful work.');
+      await expect(answer).toContainText('Preserved line separator');
+      await expect(answer).toContainText('and paragraph separator');
+    }
     await expect(answer).not.toContainText('The AI service encountered an error');
     const notice = page.getByTestId('notification').filter({ hasText: "You've reached the free usage limit." });
     await expect(notice).toBeVisible();

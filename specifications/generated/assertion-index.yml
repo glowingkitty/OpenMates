@@ -55086,22 +55086,22 @@ assertions:
       surface: rest_api
     - &id6912
       path: backend/tests/test_anonymous_skill_access.py
-      line: 634
+      line: 639
       name: test_anonymous_sse_reports_pre_dispatch_usage_limit_without_generic_error
       surface: rest_api
     - &id6914
       path: backend/tests/test_anonymous_skill_access.py
-      line: 1030
+      line: 1049
       name: test_anonymous_sse_sanitizes_internal_inference_errors
       surface: rest_api
     - &id6916
       path: backend/tests/test_anonymous_skill_access.py
-      line: 1183
+      line: 1202
       name: test_anonymous_chat_keeps_json_response_for_native_clients
       surface: rest_api
     - &id6917
       path: backend/tests/test_anonymous_skill_access.py
-      line: 1239
+      line: 1258
       name: test_anonymous_json_does_not_double_finalize_worker_usage
       surface: rest_api
     - &id6918
@@ -55254,12 +55254,12 @@ assertions:
       surface: rest_api
     - &id6913
       path: backend/tests/test_anonymous_skill_access.py
-      line: 951
+      line: 970
       name: test_anonymous_sse_does_not_double_finalize_worker_usage
       surface: rest_api
     - &id6915
       path: backend/tests/test_anonymous_skill_access.py
-      line: 1111
+      line: 1130
       name: test_anonymous_sse_emits_initial_lifecycle_before_budget_reservation
       surface: rest_api
     - &id6921
@@ -55537,7 +55537,7 @@ assertions:
       surface: rest_api
     - &id6952
       path: backend/tests/test_anonymous_skill_access.py
-      line: 688
+      line: 706
       name: test_anonymous_sse_uses_authoritative_final_snapshot_after_redis_prefix_rewrite
       surface: rest_api
     - &id6953
@@ -74152,12 +74152,12 @@ assertions:
       surface: rest_api
     - &id9403
       path: backend/tests/test_anonymous_skill_access.py
-      line: 634
+      line: 639
       name: test_anonymous_sse_reports_pre_dispatch_usage_limit_without_generic_error
       surface: rest_api
     - &id9404
       path: backend/tests/test_anonymous_skill_access.py
-      line: 688
+      line: 706
       name: test_anonymous_sse_uses_authoritative_final_snapshot_after_redis_prefix_rewrite
       surface: rest_api
     - &id9407
@@ -74250,7 +74250,7 @@ assertions:
       surface: gui.web
     - &id9405
       path: backend/tests/test_anonymous_skill_access.py
-      line: 846
+      line: 865
       name: test_openai_stream_missing_terminal_frame_notifies_once_and_returns_error_frame
       surface: rest_api
     - &id9406
