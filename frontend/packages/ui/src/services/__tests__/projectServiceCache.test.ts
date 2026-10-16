@@ -14,6 +14,10 @@ vi.mock('../../stores/userProfile', async () => {
   const { writable } = await import('svelte/store');
   return { userProfile: writable({ user_id: 'project-cache-test' }) };
 });
+vi.mock('../../stores/appSkillsStore', async () => {
+  const { writable } = await import('svelte/store');
+  return { featureAvailabilityStore: writable({ disabledById: {}, initialized: true, loading: false }) };
+});
 vi.mock('../cryptoService', () => ({
   decryptChatKeyWithMasterKey: vi.fn(async () => new Uint8Array(32)),
   decryptWithEmbedKey: vi.fn(async (value: string) => value.replace('sealed:', '')),
@@ -29,7 +33,8 @@ vi.mock('../../message_parsing/utils', async (importOriginal) => ({
   computeSHA256: vi.fn(async (value: string) => `hash:${value}`),
 }));
 
-import { createProject, decryptProject, getProject, listProjects, peekProjects, updateProjectMetadata, deleteProject } from '../projectService';
+import { createProject, decryptProject, getProject, getActiveProjectFocus, listFreshProjectsForSend, listProjects, peekProjects, updateProjectMetadata, deleteProject } from '../projectService';
+import { featureAvailabilityStore } from '../../stores/appSkillsStore';
 import { invalidateWorkspaceCaches } from '../workspaceCacheLifecycle';
 import { setActiveTeamContext } from '../../stores/teamStore';
 import { computeSHA256 } from '../../message_parsing/utils';
@@ -48,7 +53,30 @@ function deferred() {
 }
 
 describe('recent Project projections', () => {
-  beforeEach(() => { vi.restoreAllMocks(); vi.stubGlobal('crypto', webcrypto); setActiveTeamContext(null); invalidateWorkspaceCaches(); });
+  beforeEach(() => {
+    vi.restoreAllMocks(); vi.stubGlobal('crypto', webcrypto); setActiveTeamContext(null); invalidateWorkspaceCaches();
+    featureAvailabilityStore.set({ disabledById: {}, initialized: true, loading: false });
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.send.immediate-admission,chat-processing-feedback.selection-after-acceptance
+  it('supplies empty optional chat context without requests when Projects is disabled', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ projects: [record()] }));
+    await listProjects();
+    fetchMock.mockClear();
+    featureAvailabilityStore.set({ disabledById: { 'platform:projects': true }, initialized: true, loading: false });
+    await expect(listProjects()).resolves.toEqual([]);
+    await expect(listFreshProjectsForSend()).resolves.toMatchObject({ projects: [] });
+    await expect(getActiveProjectFocus('personal-chat')).resolves.toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chat-processing-feedback.selection-after-acceptance
+  it.each([true, false])('preserves discovery errors when Projects is enabled or availability is unknown (%s)', async (initialized) => {
+    featureAvailabilityStore.set({ disabledById: {}, initialized, loading: false });
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => Response.json({ detail: 'FEATURE_DISABLED' }, { status: 404 }));
+    await expect(listFreshProjectsForSend()).rejects.toThrow('Projects API failed (404)');
+    await expect(getActiveProjectFocus('personal-chat')).rejects.toThrow('Projects API failed (404)');
+  });
 
   // contract-test: supporting surface=gui.web assertions=teams.context.full-switch-local,projects.lifecycle.encrypted-crud
   it('uses the active Team for list, key decryption, creation, and deletion', async () => {

@@ -5,6 +5,8 @@
 // represented as embeds first, then linked into a project via project_items.
 
 import { getApiEndpoint, storageArchiveFetch } from "../config/api";
+import { get } from "svelte/store";
+import { featureAvailabilityStore } from "../stores/appSkillsStore";
 import { WorkspaceQueryCache, getWorkspaceCacheIdentity, WorkspaceCacheDiscardedError } from "./workspaceQueryCache";
 import { PROJECTS_CHANGED_EVENT } from "./projectBrowserEvents";
 import { getTeamKey } from './teamService';
@@ -430,7 +432,13 @@ export function peekProjects(): ProjectViewModel[] | undefined { return projectL
 export function subscribeProjects(listener: () => void): () => void { return projectListCache.subscribe(listener); }
 export function getProjectsRefreshError(): unknown { return projectListCache.getError(activeProjectListKey()); }
 
+function projectsAreDisabled(): boolean {
+  const availability = get(featureAvailabilityStore);
+  return availability.initialized && availability.disabledById?.["platform:projects"] === true;
+}
+
 export async function listProjects(options: { force?: boolean; teamId?: string | null; freshRequest?: boolean } = {}): Promise<ProjectViewModel[]> {
+  if (projectsAreDisabled()) return [];
   const teamId = 'teamId' in options ? options.teamId : getActiveTeamContextSnapshot().teamId;
   return projectListCache.load(projectListKey(teamId), async () => {
     const data = await requestJson<{ projects: EncryptedProjectRecord[] }>(withProjectRemoteQuery("/v1/projects", { team_id: teamId }));
@@ -1169,6 +1177,7 @@ export async function activateProjectFocus(
 }
 
 export async function getActiveProjectFocus(chatId: string): Promise<ActiveProjectFocus | null> {
+  if (projectsAreDisabled()) return null;
   const data = await requestJson<{ focus: ActiveProjectFocus | null }>(`/v1/projects/focus/current?chat_id=${encodeURIComponent(chatId)}`);
   return data.focus?.active ? data.focus : null;
 }
