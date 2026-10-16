@@ -8,7 +8,7 @@
  * Tests: frontend/packages/openmates-cli/tests/cli.test.ts and server.test.ts
  */
 
-export const SUPPORT_URL = "https://openmates.org/#settings/support";
+export const SUPPORT_URL = "https://app.openmates.org/#settings/support";
 export const SUPPORT_TITLE = "Support OpenMates development";
 export const SUPPORT_MESSAGE = "Financial support is voluntary and helps keep OpenMates maintained.";
 

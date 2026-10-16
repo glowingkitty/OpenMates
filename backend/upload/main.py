@@ -177,6 +177,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://openmates.org",
+        "https://app.openmates.org",
         "https://app.dev.openmates.org",
     ],
     allow_credentials=True,

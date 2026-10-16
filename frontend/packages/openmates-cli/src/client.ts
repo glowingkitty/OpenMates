@@ -3093,7 +3093,7 @@ export function deriveAppUrl(apiUrl: string): string {
       return "https://app.dev.openmates.org";
     }
     if (url.hostname === "api.openmates.org") {
-      return "https://openmates.org";
+      return "https://app.openmates.org";
     }
     if (isLocalHost(url.hostname)) {
       return "http://localhost:5173";
@@ -3103,7 +3103,7 @@ export function deriveAppUrl(apiUrl: string): string {
     }
     return normalizeOrigin(url);
   } catch {
-    return "https://openmates.org";
+    return "https://app.openmates.org";
   }
 }
 
@@ -16549,7 +16549,7 @@ export class OpenMatesClient {
    * @param chatId          UUID or short ID of the chat to share
    * @param durationSeconds Expiry (0 = no expiry, default)
    * @param password        Optional password protection (max 10 chars)
-   * @returns Full share URL, e.g. https://openmates.org/share/chat/{id}#key={blob}
+   * @returns Full share URL, e.g. https://app.openmates.org/share/chat/{id}#key={blob}
    */
   async createChatShareLink(
     chatId: string,
@@ -16646,7 +16646,7 @@ export class OpenMatesClient {
    * @param embedIdOrShort  UUID or short prefix of the embed to share
    * @param durationSeconds Expiry (0 = no expiry, default)
    * @param password        Optional password protection (max 10 chars)
-   * @returns Full share URL, e.g. https://openmates.org/share/embed/{id}#key={blob}
+   * @returns Full share URL, e.g. https://app.openmates.org/share/embed/{id}#key={blob}
    */
   async createEmbedShareLink(
     embedIdOrShort: string,

@@ -15,7 +15,8 @@ let modelsByNormalizedKey: Record<string, AIModelMetadata> | null = null;
 
 function modelLookupCandidates(modelNameOrId: string): string[] {
   const raw = modelNameOrId.trim();
-  const withoutProviderPrefix = raw.includes("/") ? raw.split("/").at(-1) ?? raw : raw;
+  const parts = raw.split("/");
+  const withoutProviderPrefix = parts[parts.length - 1] ?? raw;
   const withoutProviderSuffix = withoutProviderPrefix.includes(":")
     ? withoutProviderPrefix.split(":")[0]
     : withoutProviderPrefix;
@@ -63,6 +64,9 @@ function getModelsById(): Record<string, AIModelMetadata> {
  * getModelDisplayName("Claude Sonnet 4.5")          // "Claude Sonnet 4.5" (passthrough)
  */
 export function getModelDisplayName(modelNameOrId: string): string {
+  if (modelLookupCandidates(modelNameOrId).includes("gemini-3.8-live")) {
+    return "Gemini 3.8 Live";
+  }
   // Try to get name from model metadata (if input looks like a model ID)
   const models = getModelsById();
   const model = modelLookupCandidates(modelNameOrId)

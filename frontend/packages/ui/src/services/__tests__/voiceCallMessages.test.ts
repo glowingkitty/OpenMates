@@ -138,6 +138,13 @@ import { applyCallMessageChanged, loadCallContext, markTypedCallMessageFailed,
 const artifactReferenceText = (id: string) => '```json\n' + JSON.stringify({ embed_id: id,
   type: "app_skill_use", app_id: "web", skill_id: "search" }) + '\n```';
 
+// contract-test: supporting surface=gui.web assertions=video-call.chat.transcripts
+it("persists only spoken text when the assistant is interrupted", async () => {
+  await upsertCallTranscript({ callId: "call-test-1234", chatId: "chat-uuid-1234", messageId: "interrupted-reply",
+    role: "assistant", text: "Spoken answer.", final: true, interrupted: true });
+  expect((await mocks.db.getMessage("interrupted-reply"))?.content).toBe("Spoken answer.");
+});
+
 beforeEach(() => {
   vi.mocked(fetchAuthenticatedChatMessageWindow).mockReset().mockImplementation((chatId, { includeCanonicalMessages: _canonical, ...options }) => mocks.db.getMessageWindowForChat(chatId, options) as never);
   mocks.rows.clear();

@@ -33,6 +33,7 @@ import { storageArchiveFetch } from "../config/api";
   import { truncateTiptapContent } from '../utils/messageTruncation';
   import { orderSharedInteractiveQuestionMessages } from '../utils/sharedInteractiveQuestionOrdering';
   import { restorePIIInText } from './enter_message/services/piiDetectionService';
+  import { voiceTranscriptDisplayText } from '../utils/voiceTranscriptDisplay';
   import type { PIIMapping } from '../types/chat';
   import { piiVisibilityStore } from '../stores/piiVisibilityStore';
   import { editMessageStore } from '../stores/editMessageStore';
@@ -321,7 +322,7 @@ import { storageArchiveFetch } from "../config/api";
     let processedContent: unknown;
     
     if (typeof incomingMessage.content === 'string') {
-      let contentToProcess = normalizeRawChatErrorMessage(incomingMessage.content);
+      let contentToProcess = voiceTranscriptDisplayText(normalizeRawChatErrorMessage(incomingMessage.content), incomingMessage.role);
       
       // PII RESTORATION: Restore PII placeholders with original values before parsing
       // This applies to both user and assistant messages when mappings are available

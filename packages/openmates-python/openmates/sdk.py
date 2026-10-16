@@ -554,7 +554,7 @@ class OpenMates:
         if not origin and parsed_api_url.hostname == "api.dev.openmates.org":
             origin = "https://app.dev.openmates.org"
         elif not origin and parsed_api_url.hostname == "api.openmates.org":
-            origin = "https://openmates.org"
+            origin = "https://app.openmates.org"
         elif not origin:
             origin = f"{parsed_api_url.scheme}://{parsed_api_url.netloc}"
         headers = {
@@ -800,7 +800,7 @@ class OpenMates:
         if parsed.hostname == "api.dev.openmates.org":
             hostname = "app.dev.openmates.org"
         elif parsed.hostname == "api.openmates.org":
-            hostname = "openmates.org"
+            hostname = "app.openmates.org"
         else:
             hostname = (parsed.hostname or "openmates.org").removeprefix("api.")
             if parsed.hostname and parsed.hostname.startswith("api."):

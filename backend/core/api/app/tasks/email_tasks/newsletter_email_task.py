@@ -57,7 +57,7 @@ def _resolve_webapp_base_url() -> str:
             base_url = os.getenv("E2E_DEV_TEST_BASE_URL", base_url)
 
     if not base_url:
-        base_url = os.getenv("WEBAPP_URL", "https://openmates.org" if not is_dev else "http://localhost:5173")
+        base_url = os.getenv("WEBAPP_URL", "https://app.openmates.org" if not is_dev else "http://localhost:5173")
 
     if not base_url.startswith("http"):
         base_url = f"https://{base_url}"

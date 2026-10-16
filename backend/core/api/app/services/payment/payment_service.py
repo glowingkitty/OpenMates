@@ -289,7 +289,7 @@ class PaymentService:
     async def get_customer_portal_url(
         self,
         customer_id: str,
-        return_url: str = "https://openmates.org/settings/support",
+        return_url: str = "https://app.openmates.org/settings/support",
     ) -> Optional[str]:
         """
         Get a Stripe billing portal URL.

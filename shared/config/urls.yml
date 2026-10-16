@@ -19,7 +19,7 @@ urls:
       production: "https://openmates.org"
     webapp:
       development: "http://localhost:5173" 
-      production: "https://openmates.org"
+      production: "https://app.openmates.org"
     api:
       development: "http://localhost:8000"
       production: "https://api.openmates.org"

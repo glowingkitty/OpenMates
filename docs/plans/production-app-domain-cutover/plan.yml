@@ -1,0 +1,22 @@
+schema_version: 2
+profile: concise
+id: production-app-domain-cutover
+title: Preserve login while separating the production app and website
+status: implementing
+goal: >-
+  we have to move the app to app.openmates.org, but also need to prevent if
+  possible that users cant login anymore / cant access their data.
+scope:
+  - Serve the website at openmates.org and the app at app.openmates.org.
+  - Preserve existing production passkey RP ID and encryption derivation.
+  - Verify passkey, password and recovery-key login; retain existing master keys.
+  - Update production through the CLI, verify published npm/PyPI packages and guest chat.
+decisions:
+  - User authorized direct production fixes without another pull request.
+  - User excluded transfer of old-origin browser-only data from this release.
+  - Keep existing disabled and development-only feature gates.
+checks:
+  - Production RP mapping regression tests and focused browser login coverage.
+  - Exact-origin API, WebSocket and Caddy acceptance; reject unknown origins.
+  - Production runtime health and authenticated key unlock/sync.
+  - Signed-out real-inference chat and contextual follow-up on the new app origin.

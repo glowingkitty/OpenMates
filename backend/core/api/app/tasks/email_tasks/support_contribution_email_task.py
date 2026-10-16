@@ -137,7 +137,7 @@ async def _async_process_support_contribution_receipt_and_send_email(
             try:
                 customer_portal_url = await task.payment_service.get_customer_portal_url(
                     customer_id=stripe_customer_id,
-                    return_url="https://openmates.org/settings/support"
+                    return_url="https://app.openmates.org/settings/support"
                 )
                 logger.info(f"Generated customer portal URL for recurring support subscription order {order_id}")
             except Exception as portal_err:
@@ -358,7 +358,7 @@ async def _async_process_guest_support_contribution_receipt_and_send_email(
                 # For guest support, use the generic support page as return URL
                 customer_portal_url = await task.payment_service.get_customer_portal_url(
                     customer_id=stripe_customer_id,
-                    return_url="https://openmates.org/support"
+                    return_url="https://app.openmates.org/support"
                 )
                 logger.info(f"Generated customer portal URL for recurring guest support subscription order {order_id}")
             except Exception as portal_err:

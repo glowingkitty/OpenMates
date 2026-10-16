@@ -15396,7 +15396,7 @@ function printSettingsHelp(client?: OpenMatesClient, filter?: string[]): void {
     })
     .sort((a, b) => a.path.join(" ").localeCompare(b.path.join(" ")));
 
-  const appUrl = client ? deriveAppUrl(client.apiUrl) : "https://openmates.org";
+  const appUrl = client ? deriveAppUrl(client.apiUrl) : "https://app.openmates.org";
   const title = filter && filter.length > 0
     ? `Settings: ${filter.join(" ")}`
     : "Settings";

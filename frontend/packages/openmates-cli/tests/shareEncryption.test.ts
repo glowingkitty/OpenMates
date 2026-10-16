@@ -141,6 +141,7 @@ async function decryptEmbedBlob(
 // ── Chat share blob ─────────────────────────────────────────────────────
 
 describe("generateChatShareBlob", () => {
+  // contract-test: supporting surface=cli assertions=chats.persistence.client-encrypted,chat-share-settings.shared-link-open
   it("produces a non-empty URL-safe base64 blob", async () => {
     const chatId = "550e8400-e29b-41d4-a716-446655440000";
     const chatKey = randomKey();
@@ -149,6 +150,7 @@ describe("generateChatShareBlob", () => {
     assert.ok(!blob.includes("+") && !blob.includes("/"), "should be URL-safe");
   });
 
+  // contract-test: supporting surface=cli assertions=chats.persistence.client-encrypted,chat-share-settings.shared-link-open
   it("round-trips the chat key (no expiry, no password)", async () => {
     const chatId = "test-chat-id-round-trip";
     const chatKey = randomKey();
@@ -164,6 +166,7 @@ describe("generateChatShareBlob", () => {
     });
   });
 
+  // contract-test: supporting surface=cli assertions=chats.persistence.client-encrypted,chat-share-settings.shared-link-open
   it("embeds the correct expiry duration", async () => {
     const chatId = "expiry-test";
     const chatKey = randomKey();
@@ -172,6 +175,7 @@ describe("generateChatShareBlob", () => {
     assert.equal(decoded.duration_seconds, 86400);
   });
 
+  // contract-test: supporting surface=cli assertions=chats.persistence.client-encrypted,chat-share-settings.shared-link-open
   it("sets pwd=1 when password-protected", async () => {
     const chatId = "pwd-test";
     const chatKey = randomKey();
@@ -182,6 +186,7 @@ describe("generateChatShareBlob", () => {
     assert.notEqual(decoded.chat_encryption_key, Buffer.from(chatKey).toString("base64"));
   });
 
+  // contract-test: supporting surface=cli assertions=chats.persistence.client-encrypted,chat-share-settings.shared-link-open
   it("password-protected chat blobs decrypt only with the correct password", async () => {
     const chatId = "pwd-round-trip";
     const chatKey = randomKey();
@@ -199,6 +204,7 @@ describe("generateChatShareBlob", () => {
     );
   });
 
+  // contract-test: supporting surface=cli assertions=chats.persistence.client-encrypted,chat-share-settings.shared-link-open
   it("produces different blobs each call (random IV)", async () => {
     const chatId = "random-iv-test";
     const chatKey = randomKey();
@@ -211,6 +217,7 @@ describe("generateChatShareBlob", () => {
 // ── Embed share blob ────────────────────────────────────────────────────
 
 describe("generateEmbedShareBlob", () => {
+  // contract-test: supporting surface=cli assertions=chats.persistence.client-encrypted,chat-share-settings.shared-link-open
   it("round-trips the embed key", async () => {
     const embedId = "embed-round-trip-test";
     const embedKey = randomKey();
@@ -224,12 +231,14 @@ describe("generateEmbedShareBlob", () => {
     assert.equal(decoded.pwd, 0);
   });
 
+  // contract-test: supporting surface=cli assertions=chats.persistence.client-encrypted,chat-share-settings.shared-link-open
   it("embeds expiry duration in the blob", async () => {
     const blob = await generateEmbedShareBlob("e-id", randomKey(), 604800);
     const decoded = await decryptEmbedBlob("e-id", blob);
     assert.equal(decoded.duration_seconds, 604800);
   });
 
+  // contract-test: supporting surface=cli assertions=chats.persistence.client-encrypted,chat-share-settings.shared-link-open
   it("password-protects the embed key", async () => {
     const embedId = "embed-pwd";
     const embedKey = randomKey();
@@ -239,6 +248,7 @@ describe("generateEmbedShareBlob", () => {
     assert.notEqual(decoded.embed_encryption_key, Buffer.from(embedKey).toString("base64"));
   });
 
+  // contract-test: supporting surface=cli assertions=chats.persistence.client-encrypted,chat-share-settings.shared-link-open
   it("password-protected embed blobs decrypt only with the correct password", async () => {
     const embedId = "embed-pwd-round-trip";
     const embedKey = randomKey();
@@ -260,33 +270,39 @@ describe("generateEmbedShareBlob", () => {
 // ── URL helpers ─────────────────────────────────────────────────────────
 
 describe("deriveWebOrigin", () => {
+  // contract-test: supporting surface=cli assertions=chats.persistence.client-encrypted,chat-share-settings.shared-link-open
   it("strips api. prefix", () => {
-    assert.equal(deriveWebOrigin("https://api.openmates.org"), "https://openmates.org");
+    assert.equal(deriveWebOrigin("https://api.openmates.org"), "https://app.openmates.org");
   });
 
+  // contract-test: supporting surface=cli assertions=chats.persistence.client-encrypted,chat-share-settings.shared-link-open
   it("maps self-hosted api subdomains to app subdomains", () => {
     assert.equal(deriveWebOrigin("https://api.example.com"), "https://app.example.com");
   });
 
+  // contract-test: supporting surface=cli assertions=chats.persistence.client-encrypted,chat-share-settings.shared-link-open
   it("handles dev subdomain", () => {
     assert.equal(deriveWebOrigin("https://api.dev.openmates.org"), "https://app.dev.openmates.org");
   });
 
+  // contract-test: supporting surface=cli assertions=chats.persistence.client-encrypted,chat-share-settings.shared-link-open
   it("falls back gracefully on invalid URL", () => {
-    assert.equal(deriveWebOrigin("not-a-url"), "https://openmates.org");
+    assert.equal(deriveWebOrigin("not-a-url"), "https://app.openmates.org");
   });
 });
 
 describe("buildChatShareUrl / buildEmbedShareUrl", () => {
+  // contract-test: supporting surface=cli assertions=chats.persistence.client-encrypted,chat-share-settings.shared-link-open
   it("builds chat share URL", () => {
-    const url = buildChatShareUrl("https://openmates.org", "chat-123", "blobdata");
+    const url = buildChatShareUrl("https://app.openmates.org", "chat-123", "blobdata");
     docAssert("cli-share-links-use-web-share-routes", () => {
-      assert.equal(url, "https://openmates.org/share/chat/chat-123#key=blobdata");
+      assert.equal(url, "https://app.openmates.org/share/chat/chat-123#key=blobdata");
     });
   });
 
+  // contract-test: supporting surface=cli assertions=chats.persistence.client-encrypted,chat-share-settings.shared-link-open
   it("builds embed share URL", () => {
-    const url = buildEmbedShareUrl("https://openmates.org", "embed-456", "blobdata");
-    assert.equal(url, "https://openmates.org/share/embed/embed-456#key=blobdata");
+    const url = buildEmbedShareUrl("https://app.openmates.org", "embed-456", "blobdata");
+    assert.equal(url, "https://app.openmates.org/share/embed/embed-456#key=blobdata");
   });
 });

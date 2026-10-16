@@ -78,6 +78,31 @@ ${DEPLOY_UPLOAD_DOMAIN} {
 		}
 	}
 
+	# Requests from the production app subdomain (app.openmates.org)
+	# Self-hosters: replace with your production app domain
+	@prod_app_origin expression {header.Origin} == "https://app.openmates.org"
+	handle @prod_app_origin {
+		@upload_api path /v1/upload/*
+		@upload_options method OPTIONS
+		route {
+			handle @upload_options {
+				reverse_proxy localhost:8000 {
+					header_up Host {http.request.host}
+					header_up X-Target-Env "prod"
+				}
+			}
+			handle @upload_api {
+				reverse_proxy localhost:8000 {
+					header_up Host {http.request.host}
+					header_up X-Target-Env "prod"
+				}
+			}
+			handle {
+				abort
+			}
+		}
+	}
+
 	# Requests from the production web app (openmates.org)
 	# Self-hosters: replace with your production app domain
 	@prod_origin expression {header.Origin} == "https://openmates.org"

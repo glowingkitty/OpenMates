@@ -8,7 +8,6 @@ import { get } from "svelte/store";
 import { callArtifactReferencesInText, formatVoiceArtifactReference, loadVoiceArtifactReference,
   parseVoiceArtifactReference, type VoiceArtifactReference } from "./voiceCallArtifactReferences";
 import { websocketStatus } from "../stores/websocketStatusStore";
-import { text as translatedText } from "../i18n/translations";
 import { getWorkspaceCacheIdentity } from "./workspaceQueryCache";
 import { fetchAuthenticatedChatMessageWindow, loadCanonicalCallCheckpoints } from "./authenticatedChatMessageWindow";
 import { getWorkspaceCacheEpoch } from "./workspaceCacheLifecycle";
@@ -493,8 +492,7 @@ async function applyCallTranscript(event: CallTranscriptUpdate): Promise<CallMes
     const text = [spokenText, ...[...references.values()].filter((reference) => !existingTextRefs.has(reference.embed_id))
       .map(formatVoiceArtifactReference)].filter(Boolean).join("\n\n");
     if (!text) return;
-    const content = event.interrupted && event.role === "assistant"
-      ? `${text}\n\n_(${get(translatedText)("voicecall.interrupted")})_` : text;
+    const content = text;
     const attribution = event.role === "assistant" ? {
       model_name: event.modelName ?? existing?.model_name,
       category: event.category ?? existing?.category,

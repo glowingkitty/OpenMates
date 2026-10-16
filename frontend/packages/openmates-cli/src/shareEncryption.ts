@@ -35,7 +35,7 @@ export type ShareDuration =
   | 7776000; // 90 days
 
 // ── Base64 URL-safe helpers ────────────────────────────────────────────
-// Mirrors shareEncryption.ts base64UrlEncode / base64UrlDecode
+// Mirrors shareEncryption.ts base64UrlEncode
 
 function base64UrlEncode(data: Uint8Array): string {
   return Buffer.from(data)
@@ -43,12 +43,6 @@ function base64UrlEncode(data: Uint8Array): string {
     .replace(/\+/g, "-")
     .replace(/\//g, "_")
     .replace(/=+$/, "");
-}
-
-function base64UrlDecode(str: string): Uint8Array {
-  let b64 = str.replace(/-/g, "+").replace(/_/g, "/");
-  while (b64.length % 4) b64 += "=";
-  return new Uint8Array(Buffer.from(b64, "base64"));
 }
 
 // ── AES-GCM helpers ───────────────────────────────────────────────────
@@ -190,12 +184,12 @@ export async function generateEmbedShareBlob(
 export function deriveWebOrigin(apiUrl: string): string {
   try {
     const url = new URL(apiUrl);
-    // api.openmates.org → https://openmates.org
+    // api.openmates.org → https://app.openmates.org
     // api.dev.openmates.org → https://app.dev.openmates.org
     if (url.hostname === "api.dev.openmates.org") {
       url.hostname = "app.dev.openmates.org";
     } else if (url.hostname === "api.openmates.org") {
-      url.hostname = "openmates.org";
+      url.hostname = "app.openmates.org";
     } else {
       url.hostname = url.hostname.replace(/^api\./, "app.");
     }
@@ -205,7 +199,7 @@ export function deriveWebOrigin(apiUrl: string): string {
     url.port = "";
     return url.origin;
   } catch {
-    return "https://openmates.org";
+    return "https://app.openmates.org";
   }
 }
 
