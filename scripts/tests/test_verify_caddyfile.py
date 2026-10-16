@@ -390,3 +390,14 @@ def test_hosted_project_file_routes_retain_credentialed_cors(caddyfile: Path) ->
         assert matched_methods == {"OPTIONS", "actual"}
         return
     pytest.fail(f"Could not find public and first-party embed routes in {caddyfile}")
+
+
+def test_production_account_chat_key_uses_exact_first_party_handlers() -> None:
+    content = CADDYFILES[1].read_text()
+    route = "/v1/account/chat-encryption-key"
+    assert content.count(route) == 3
+    assert "/v1/account/*" not in content
+    for name in ("@webapp_paths path ", "@webapp_general_options {", "@webapp_actual {"):
+        assert route in content.split(name, 1)[1].split("\n", 2)[0 if name.endswith("path ") else 1]
+    public = next(line for line in content.splitlines() if line.strip().startswith("@public_api_paths path "))
+    assert route not in public
