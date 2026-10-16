@@ -79,9 +79,9 @@
 <style>
   /* This frame never scrolls. Unlike hidden, clip prevents focus restoration
      during a viewport resize from scrolling the whole workspace sideways. */
-  .apps-route { position: relative; display: grid; grid-template-rows: auto minmax(0, 1fr); grid-template-columns: minmax(0, 1fr) auto; width: 100%; height: 100dvh; overflow: clip; container: main-content / inline-size; }
+  .apps-route { position: relative; display: grid; grid-template-rows: auto minmax(0, 1fr); grid-template-columns: minmax(0, 1fr) auto; width: calc(100% - 10px); margin-inline-start: 10px; height: 100dvh; overflow: clip; container: main-content / inline-size; }
   .apps-route-header { grid-column: 1 / -1; min-width: 0; }
-  .apps-route-body { display: flex; position: relative; grid-row: 2; grid-column: 1; min-width: 0; min-height: 0; box-sizing: border-box; padding: 10px 20px 10px 10px; }
+  .apps-route-body { display: flex; position: relative; grid-row: 2; grid-column: 1; min-width: 0; min-height: 0; box-sizing: border-box; padding: 10px 20px 20px 10px; }
   main { flex: 1; min-width: 0; min-height: 0; position: relative; }
   .settings-pane { grid-row: 2; grid-column: 2; min-height: 0; width: 0; overflow: hidden; }
   .apps-auth-layer { position: absolute; inset: 0; z-index: var(--z-index-modal,200); overflow: auto; background: var(--color-grey-0); }
@@ -91,5 +91,5 @@
     .settings-open .apps-route-body { padding-inline-end: 0; }
     .settings-open .settings-pane { box-sizing: border-box; width: 343px; padding: 10px 20px 10px 0; }
   }
-  @media(max-width: 600px) { .apps-route-body { padding-inline-end: 10px; } }
+  @media(max-width: 600px) { .apps-route { width: 100%; margin-inline-start: 0; } .apps-route-body { padding-inline-end: 10px; padding-bottom: 10px; } }
 </style>

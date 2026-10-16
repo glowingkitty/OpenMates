@@ -26,7 +26,6 @@ import { activeChatStore } from "./activeChatStore";
 import { chatListCache } from "../services/chatListCache";
 import {
   INTRO_CHATS,
-  LEGAL_CHATS,
   getAllExampleChats,
   translateDemoChat,
 } from "../demo_chats";
@@ -83,7 +82,7 @@ let chatListOwnedByChatsComponent = false;
 let navigationGeneration = 0;
 
 function inActiveContext(chats: Chat[], teamId: string | null): Chat[] {
-  return chats.filter((chat) => (chat.team_id ?? null) === teamId);
+  return chats.filter((chat) => !chat.chat_id.startsWith("legal-") && (chat.team_id ?? null) === teamId);
 }
 
 export function isHeaderNavigableChat(chat: Chat): boolean {
@@ -305,11 +304,6 @@ export function updateNavFromCache(activeChatId: string): void {
     chat.group_key = "intro";
     return chat;
   });
-  const legalChats: Chat[] = LEGAL_CHATS.map((legal) => {
-    const chat = convertDemoChatToChat(translateDemoChat(legal));
-    chat.group_key = "legal";
-    return chat;
-  });
   // Example chats are static Chat objects — always available synchronously
   const exampleChats: Chat[] = getAllExampleChats().map((chat) => ({
     ...chat,
@@ -319,7 +313,7 @@ export function updateNavFromCache(activeChatId: string): void {
   // Apply public-only list immediately (synchronous) so arrows are visible right away.
   // This is especially important after logout on mobile (sidebar closed = Chats.svelte
   // unmounted) where the DB fetch below takes a few hundred ms to resolve.
-  const publicOnlyChats = context.teamId ? [] : [...introChats, ...exampleChats, ...legalChats];
+  const publicOnlyChats = context.teamId ? [] : [...introChats, ...exampleChats];
   if (publicOnlyChats.length > 0) {
     _applyNavigableList(publicOnlyChats, activeChatId);
   }
@@ -346,7 +340,6 @@ export function updateNavFromCache(activeChatId: string): void {
           ...chat,
           group_key: "examples" as const,
         }))),
-        ...(context.teamId ? [] : legalChats),
       ];
       _applyNavigableList(allChats, activeChatId);
     })
@@ -375,8 +368,8 @@ function _applyNavigableList(allChats: Chat[], activeChatId: string): void {
   // whether any chat lacks a group_key (only real user chats have none).
   const hasUserChats = allChats.some((c) => !c.group_key);
   const groupOrder: Record<string, number> = hasUserChats
-    ? { intro: 1, examples: 2, legal: 3 } // authenticated order
-    : { intro: 0, examples: 1, legal: 2 }; // unauthenticated order
+    ? { intro: 1, examples: 2 } // authenticated order
+    : { intro: 0, examples: 1 }; // unauthenticated order
 
   const navigable = [...allChats].sort((a, b) => {
     const aGroup = a.group_key

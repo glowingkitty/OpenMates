@@ -13,34 +13,28 @@ const fs = require('fs');
 const JSZip = require('jszip');
 
 const GENERATED_AUDIO_USAGE_CASES = [
-	{
-		chatId: 'example-community-garden-volunteer-chime',
-		totalCredits: /83\s*credits/i,
-		aiCredits: '43',
-		audioLabel: 'audio | generate',
-		audioCredits: '40',
-		filename: 'community-garden-volunteer-chime.mp3'
-	},
-	{
-		chatId: 'example-audio-speak-openmates-welcome-message',
-		totalCredits: /37\s*credits/i,
-		aiCredits: '18',
-		audioLabel: 'audio | speak',
-		audioCredits: '19',
-		filename: 'audio-speak-openmates-welcome-message.mp3'
-	}
+  {
+    chatId: 'example-community-garden-volunteer-chime',
+    totalCredits: /83\s*credits/i,
+    aiCredits: '43',
+    audioLabel: 'audio | generate',
+    audioCredits: '40',
+    filename: 'community-garden-volunteer-chime.mp3'
+  }
 ] as const;
 
 const STATIC_FILE_CASES = [
 	{
-		chatId: 'example-python-squares-code-run',
-		filename: 'square_parity.py',
-		metadata: 'Code file'
+		chatId: 'example-screenshot-to-html-pricing',
+		filename: 'index.html',
+		metadata: 'Code file',
+    usage: true
 	},
 	{
 		chatId: 'example-community-garden-volunteer-onboarding',
 		filename: 'Volunteer_Onboarding_Guide.docx',
-		metadata: 'Document'
+		metadata: 'Document',
+    usage: false
 	}
 ] as const;
 
@@ -101,19 +95,18 @@ test.describe('Example chat settings usage', () => {
 	// contract-test: direct surface=gui.web assertions=billing.usage.receipt-token-breakdown,public-example-chats.surface.semantic-parity
 	test('guest example chat with static usage exposes usage tab and rows', async ({ page }: { page: any }) => {
 		test.setTimeout(60000);
-		const exampleChatId = 'example-screenshot-to-html-pricing';
+		const exampleChatId = 'example-private-plumber-email';
 
 		const settingsMenu = await openExampleUsageTab(page, exampleChatId);
-		await expect(settingsMenu.getByTestId('chat-settings-usage-total')).toContainText(/250\s*credits/i);
-		await expect(settingsMenu.getByTestId('chat-settings-usage-row')).toHaveCount(2);
-		await expect(settingsMenu.getByTestId('chat-settings-usage-row').first()).toContainText('ai | ask');
-		await expect(settingsMenu.getByTestId('chat-settings-usage-row').first()).toContainText('Google AI Studio / US');
-		await expect(settingsMenu.getByTestId('chat-settings-usage-row').first()).toContainText('25');
-		await expect(settingsMenu.getByTestId('chat-settings-usage-row').nth(1)).toContainText('code | image_to_html');
-		await expect(settingsMenu.getByTestId('chat-settings-usage-row').nth(1)).toContainText('225');
+		await expect(settingsMenu.getByTestId('chat-settings-usage-total')).toContainText(/14\s*credits/i);
+		const rows = settingsMenu.getByTestId('chat-settings-usage-row');
+		await expect(rows).toHaveCount(1);
+		await expect(rows.first()).toContainText('ai | ask');
+		await expect(rows.first()).toContainText('Google AI Studio / US');
+		await expect(rows.first()).toContainText('14');
 	});
 
-	// contract-test: direct surface=gui.web assertions=billing.usage.receipt-token-breakdown,audio-generate.billing.success-only,audio-speak.billing.success-only
+	// contract-test: direct surface=gui.web assertions=billing.usage.receipt-token-breakdown,audio-generate.billing.success-only
 	test('generated audio example chats include audio app-skill usage rows', async ({ page }: { page: any }) => {
 		test.setTimeout(90000);
 
@@ -122,14 +115,16 @@ test.describe('Example chat settings usage', () => {
 				expectFilesTab: true
 			});
 			const rows = settingsMenu.getByTestId('chat-settings-usage-row');
+      const aiRow = rows.filter({ hasText: 'ai | ask' });
+      const audioRow = rows.filter({ hasText: exampleCase.audioLabel });
 			await expect(settingsMenu.getByTestId('chat-settings-usage-total')).toContainText(exampleCase.totalCredits);
 			await expect(rows).toHaveCount(2);
-			await expect(rows.first()).toContainText('ai | ask');
-			await expect(rows.first()).toContainText('Google AI Studio / US');
-			await expect(rows.first()).toContainText(exampleCase.aiCredits);
-			await expect(rows.nth(1)).toContainText(exampleCase.audioLabel);
-			await expect(rows.nth(1)).toContainText('ElevenLabs / US');
-			await expect(rows.nth(1)).toContainText(exampleCase.audioCredits);
+			await expect(aiRow).toContainText('ai | ask');
+			await expect(aiRow).toContainText('Google AI Studio / US');
+			await expect(aiRow).toContainText(exampleCase.aiCredits);
+			await expect(audioRow).toContainText(exampleCase.audioLabel);
+			await expect(audioRow).toContainText('ElevenLabs / US');
+			await expect(audioRow).toContainText(exampleCase.audioCredits);
 		}
 	});
 
@@ -140,7 +135,7 @@ test.describe('Example chat settings usage', () => {
 		for (const exampleCase of STATIC_FILE_CASES) {
 			const settingsMenu = await openExampleSettings(page, exampleCase.chatId, {
 				expectFilesTab: true,
-				expectUsageTab: false
+				expectUsageTab: exampleCase.usage
 			});
 
 			await settingsMenu.getByTestId('chat-settings-tab-files').click();
@@ -155,7 +150,7 @@ test.describe('Example chat settings usage', () => {
 	// contract-test: direct surface=gui.web assertions=billing.usage.receipt-token-breakdown,public-example-chats.surface.semantic-parity
 	test('example chat cost label deep links to usage details', async ({ page }: { page: any }) => {
 		test.setTimeout(60000);
-		const exampleChatId = 'example-audio-speak-openmates-welcome-message';
+		const exampleChatId = 'example-community-garden-volunteer-chime';
 
 		await page.goto(getE2EDebugUrl(`/#chat-id=${exampleChatId}`), {
 			waitUntil: 'domcontentloaded'
@@ -163,7 +158,7 @@ test.describe('Example chat settings usage', () => {
 
 		await expect(page.getByTestId('example-chat-badge')).toBeVisible({ timeout: 15000 });
 		const costLink = page.getByTestId('generated-by-cost').first();
-		await expect(costLink).toContainText(/37\s*credits/i, { timeout: 10000 });
+		await expect(costLink).toContainText(/83\s*credits/i, { timeout: 10000 });
 		await costLink.click();
 
 		const settingsMenu = page.getByTestId('settings-menu');
@@ -172,11 +167,11 @@ test.describe('Example chat settings usage', () => {
 			timeout: 10000
 		});
 		await expect(settingsMenu.getByTestId('chat-settings-tabpanel-usage')).toBeVisible({ timeout: 10000 });
-		await expect(settingsMenu.getByTestId('chat-settings-usage-total')).toContainText(/37\s*credits/i);
+		await expect(settingsMenu.getByTestId('chat-settings-usage-total')).toContainText(/83\s*credits/i);
 		await expect(settingsMenu.getByTestId('chat-settings-usage-row')).toHaveCount(2);
 	});
 
-	// contract-test: direct surface=gui.web assertions=public-example-chats.surface.semantic-parity,audio-generate.output.playable-audio,audio-speak.output.playable-audio,audio-generate.surface-parity,audio-speak.surface-parity
+	// contract-test: direct surface=gui.web assertions=public-example-chats.surface.semantic-parity,audio-generate.output.playable-audio,audio-generate.surface-parity
 	test('generated audio example chats expose static MP3 files in settings and ZIP exports', async ({ page }: { page: any }, testInfo: any) => {
 		test.setTimeout(120000);
 

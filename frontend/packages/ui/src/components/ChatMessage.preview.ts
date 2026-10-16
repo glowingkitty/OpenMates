@@ -10,6 +10,13 @@
 
 import { embedStore } from '../services/embedStore';
 import { createAssistantRenderPlan } from '../message_parsing/streamingMessageBlocks';
+import { parse as parseYaml } from 'yaml';
+import { communityGardenWelcomeMelodyChat as mediaMusic } from '../demo_chats/data/example_chats/community-garden-welcome-melody';
+import { communityGardenVolunteerChimeChat as mediaAudio } from '../demo_chats/data/example_chats/community-garden-volunteer-chime';
+import { communityGardenSunflowerIllustrationChat as mediaImage } from '../demo_chats/data/example_chats/community-garden-sunflower-illustration';
+import musicSource from '../i18n/sources/example_chats/community_garden_welcome_melody.yml?raw';
+import audioSource from '../i18n/sources/example_chats/community_garden_volunteer_chime.yml?raw';
+import imageSource from '../i18n/sources/example_chats/community_garden_sunflower_illustration.yml?raw';
 import { settingsDeepLink } from '../stores/settingsDeepLinkStore';
 
 // Preview-only navigation observation for focused click tests.
@@ -126,8 +133,27 @@ const defaultProps = {
 
 export default defaultProps;
 
+// Real retained generation fixtures, including an echoed parent link from older
+// saved/live responses. The result child must stay inline after deduplication.
+function generatedMediaPreview(fixture: typeof mediaMusic, source: string, streaming = false) {
+  const parent = fixture.embeds.find(embed => !embed.parent_embed_id)!;
+  for (const embed of fixture.embeds) embedStore.registerStaticEmbed({
+    embedId: embed.embed_id, type: embed.type, content: embed.content,
+    parentEmbedId: embed.parent_embed_id, embedIds: embed.embed_ids,
+  });
+  const markdown = `${parseYaml(source).message_2.en}\n\n[!](embed:${parent.embed_id})`;
+  return { ...defaultProps, role: 'assistant' as const,
+    content: createAssistantRenderPlan(markdown, { phase: streaming ? 'streaming' : 'final', chatId: fixture.chat_id }).document,
+    status: streaming ? 'streaming' as const : 'synced' as const,
+    original_message: { chat_id: fixture.chat_id, created_at: 1, role: 'assistant', content: markdown } };
+}
+
 /** Named variants for different message types and states */
 export const variants = {
+  generatedMusic: generatedMediaPreview(mediaMusic, musicSource),
+  generatedAudio: generatedMediaPreview(mediaAudio, audioSource),
+  generatedImage: generatedMediaPreview(mediaImage, imageSource),
+  generatedMusicStreaming: generatedMediaPreview(mediaMusic, musicSource, true),
   voiceUserSending: {
     ...defaultProps, content: 'Spoken words', status: 'sending' as const,
     original_message: { message_id: 'voice-user', chat_id: 'preview-chat', role: 'user' as const,
@@ -170,7 +196,7 @@ export const variants = {
     content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'embed', attrs: {
       type: 'focus-mode-activation', id: 'preview-legacy-focus', app_id: 'web', focus_id: 'web-research', focus_mode_name: 'Deep research', status: 'finished',
     } }] }, { type: 'paragraph', content: [{ type: 'text', text: 'A concise research answer.' }] }] },
-    original_message: { chat_id: 'example-us-egg-prices-deep', created_at: 1781095355, role: 'assistant', content: '' },
+    original_message: { chat_id: 'demo-activity-parent', created_at: 1781095355, role: 'assistant', content: '' },
   },
 	anonymousFeatureNotice: {
 		...defaultProps,

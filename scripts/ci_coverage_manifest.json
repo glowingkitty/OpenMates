@@ -306,7 +306,6 @@
         "paste-classification.spec.ts",
         "plumber-privacy-example.spec.ts",
         "preview-error.spec.ts",
-        "proof-audio-speech-example.spec.ts",
         "proof-video-architecture.spec.ts",
         "public-publications.spec.ts",
         "report-issue-email-fallback.spec.ts",
@@ -407,7 +406,12 @@
         "components/landing-section-replay.spec.ts",
         "components/landing-mobile-stories.spec.ts",
         "components/chat-message-voice-transcript-status.spec.ts",
-        "components/voice-call-privacy.spec.ts"
+        "components/voice-call-privacy.spec.ts",
+        "components/workspace-pane-motion.spec.ts",
+        "components/assistant-generated-media-activity.spec.ts",
+        "guest-workspace-navigation.spec.ts",
+        "legal-website-navigation.spec.ts",
+        "example-chat-removals.spec.ts"
       ],
       "enabling_work": "Run existing public browser/component/source assertions on the built candidate; report product failures rather than holding execution.",
       "execution": "e2e"

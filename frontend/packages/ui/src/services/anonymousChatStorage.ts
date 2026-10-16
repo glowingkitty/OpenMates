@@ -453,8 +453,8 @@ class AnonymousChatStorage {
 
   private async getPublicSourceMessages(sourceDemoId: string, chatId: string): Promise<Message[]> {
     try {
-      const { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isExampleChat, getExampleChatEmbeds } = await import("../demo_chats");
-      const messages = getDemoMessages(sourceDemoId, DEMO_CHATS, LEGAL_CHATS);
+      const { DEMO_CHATS, getDemoMessages, isExampleChat, getExampleChatEmbeds } = await import("../demo_chats");
+      const messages = getDemoMessages(sourceDemoId, DEMO_CHATS);
       if (isExampleChat(sourceDemoId)) {
         try {
           const { embedStore } = await import("./embedStore");

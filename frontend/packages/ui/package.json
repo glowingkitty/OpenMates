@@ -27,11 +27,6 @@
       "types": "./src/demo_chats/resolveI18nServer.ts",
       "default": "./src/demo_chats/resolveI18nServer.ts"
     },
-    "./legal": {
-      "types": "./src/legal/index.ts",
-      "svelte": "./src/legal/index.ts",
-      "default": "./src/legal/index.ts"
-    },
     "./components/*": "./src/components/*",
     "./services/voiceCall": {
       "types": "./src/services/voiceCall.ts",

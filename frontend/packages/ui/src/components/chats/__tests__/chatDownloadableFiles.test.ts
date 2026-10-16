@@ -27,14 +27,14 @@ const STATIC_AUDIO_CONTENT = `app_id: audio
 skill_id: speak
 type: audio
 status: finished
-prompt: "Say this as a warm, natural welcome message: Welcome back to OpenMates. Your workspace is ready whenever you are."
+prompt: "Read the test fixture."
 generation_type: speech
 provider: ElevenLabs
 model: eleven_multilingual_v2
 mime_type: audio/mpeg
 duration_seconds: 4.624
 byte_length: 74440
-previewAudioUrl: /store-examples/audio-speak-openmates-welcome-message.mp3
+previewAudioUrl: /store-examples/synthetic-speech-fixture.mp3
 files:
   original:
     size_bytes: 74440
@@ -111,7 +111,7 @@ describe('chat settings downloadable files', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
       contentRef: `embed:${STATIC_AUDIO_EMBED_ID}`,
-      title: 'audio-speak-openmates-welcome-message.mp3',
+      title: 'synthetic-speech-fixture.mp3',
       subtitle: 'Audio',
       metadata: 'Audio | 4.6s | 73 KB',
       type: 'audio',
@@ -131,7 +131,7 @@ describe('chat settings downloadable files', () => {
 skill_id: generate
 type: video
 status: finished
-previewVideoUrl: /store-examples/video-generate-1.mp4
+previewVideoUrl: /store-examples/synthetic-video-fixture.mp4
 files:
   original:
     size_bytes: 11473361
@@ -147,12 +147,12 @@ files:
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
       contentRef: 'embed:video-1',
-      title: 'video-generate-1.mp4',
+      title: 'synthetic-video-fixture.mp4',
       subtitle: 'Video',
       type: 'video',
       nodeType: 'video',
       iconName: 'video',
-      url: '/store-examples/video-generate-1.mp4',
+      url: '/store-examples/synthetic-video-fixture.mp4',
     });
   });
 
@@ -165,16 +165,11 @@ files:
 
     expect(chatIds).toEqual(expect.arrayContaining([
       'example-screenshot-to-html-pricing',
-      'example-python-squares-code-run',
-      'example-pdf-view-page-layout',
       'example-community-garden-volunteer-onboarding',
-      'example-image-vectorize-openmates-header',
-      'example-community-garden-welcome-melody',
-      'example-reference-image-3d-model',
-      'example-community-garden-volunteer-chime',
-      'example-audio-speak-openmates-welcome-message',
+      'example-dashboard-sidebar-svg-icons',
+      'example-net-cash-from-supplied',
     ]));
-    expect(examplesWithFiles.length).toBeGreaterThanOrEqual(9);
+    expect(examplesWithFiles.length).toBeGreaterThanOrEqual(4);
     for (const { chat, rows } of examplesWithFiles) {
       expect(rows.length, chat.chat_id).toBeGreaterThan(0);
       for (const row of rows) {

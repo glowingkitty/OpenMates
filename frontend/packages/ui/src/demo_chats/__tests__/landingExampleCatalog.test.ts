@@ -1,10 +1,12 @@
 // Public catalog curation and shared landing defaults.
-// These invariants preserve capability coverage while removing redundant chats.
+// Quality takes priority over retaining an example for every capability.
 // Internal renderer fixtures are deliberately excluded from public discovery.
 // The test uses committed metadata only and makes no provider requests.
 import { describe, expect, it } from 'vitest';
 import { ALL_EXAMPLE_CHATS, INTERNAL_EXAMPLE_CHATS } from '../exampleChatData';
 import landingDefaults from '../../generated/landingExampleChats.generated.json';
+import { getExampleChatData, getExampleChatBySlug, getExampleChat, getExampleChatMessages } from '../exampleChatStore';
+import { INTEREST_TAGS } from '../interestTags';
 import expectations from './fixtures/curatedExampleExpectations.json';
 
 const capabilityKeys = (chat: (typeof ALL_EXAMPLE_CHATS)[number]) => [
@@ -20,12 +22,29 @@ describe('curated public example catalog', () => {
     expect(publicIds.size).toBe(ALL_EXAMPLE_CHATS.length);
     for (const id of landingIds) expect(publicIds.has(id), id).toBe(true);
     for (const example of expectations.retiredExamples) expect(publicIds.has(example.chatId), example.chatId).toBe(false);
+    for (const example of expectations.retiredExamples) {
+      expect(ALL_EXAMPLE_CHATS.find(chat => chat.slug === example.slug), example.slug).toBeUndefined();
+      expect(INTEREST_TAGS.some(tag => tag.exampleChats.includes(example.chatId)), example.chatId).toBe(false);
+    }
     for (const fixture of INTERNAL_EXAMPLE_CHATS) expect(publicIds.has(fixture.chat_id)).toBe(false);
   });
+  // contract-test: supporting surface=gui.web assertions=marketing-landing.example-catalog-alignment,public-example-chats.catalog.discoverable
+  it('cannot load retired low-quality chats by ID or direct slug', () => {
+    for (const example of expectations.qualityRetiredExamples) {
+      expect(getExampleChatData(example.chatId), example.chatId).toBeUndefined();
+      expect(getExampleChat(example.chatId), example.chatId).toBeNull();
+      expect(getExampleChatMessages(example.chatId), example.chatId).toEqual([]);
+      expect(getExampleChatBySlug(example.slug), example.slug).toBeUndefined();
+      expect(INTERNAL_EXAMPLE_CHATS.find(chat => chat.chat_id === example.chatId), example.chatId).toBeUndefined();
+    }
+  });
   // contract-test: supporting surface=gui.web assertions=marketing-landing.example-catalog-alignment
-  it('preserves a demonstration of every previously represented skill and focus mode', () => {
-    const keys = new Set(ALL_EXAMPLE_CHATS.flatMap(capabilityKeys));
-    for (const key of expectations.capabilityKeys) expect(keys.has(key), key).toBe(true);
+  it('keeps all surviving landing defaults in the approved order', () => {
+    for (const id of expectations.qualityRetiredChildIds) {
+      expect(getExampleChat(id), id).toBeNull();
+      expect(getExampleChatMessages(id), id).toEqual([]);
+    }
+    expect(landingDefaults).toEqual(expectations.landingDefaults);
   });
   // contract-test: supporting surface=gui.web assertions=marketing-landing.example-catalog-alignment
   it('keeps extra examples only when they are the sole survivor for a capability', () => {

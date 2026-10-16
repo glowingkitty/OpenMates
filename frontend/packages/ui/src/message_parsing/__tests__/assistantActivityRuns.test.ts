@@ -23,16 +23,21 @@ describe('mixed assistant activity source positions', () => {
     expect(runs[0].id).toBe('skills:focus');
   });
   // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,app-skills.media.visible-assistant-results
-  it('gives repeated generation invocations distinct keys at their source positions', () => {
+  it('shows one activity for repeated invocation refs while preserving distinct calls and results', () => {
     const invocation = embed({ type: 'app-skill-use', id: 'saved-generation', app_id: 'images', skill_id: 'generate' });
     const prose = { type: 'paragraph', content: [{ type: 'text', text: 'The generated result follows.' }] };
-    const nodes = [invocation, prose, invocation];
-    const runs = splitAssistantActivityRuns({ type: 'doc', content: nodes })!;
+    const result = { type: 'embedPreviewLarge', attrs: { embedId: 'generated-child' } };
+    const second = { id: 'second-generation', app_id: 'images', skill_id: 'generate' };
+    const group = embed({ type: 'app-skill-use-group', id: 'mixed', groupedItems: [
+      { id: 'saved-generation', app_id: 'images', skill_id: 'generate' }, second, second,
+    ], groupCount: 3 });
+    const source = { type: 'doc', content: [invocation, prose, invocation, result, group] };
+    const runs = splitAssistantActivityRuns(source)!;
     expect(runs.map(run => run.kind)).toEqual(['skills', 'content', 'skills']);
-    expect(runs[0].id).toBe('skills:saved-generation');
-    expect(new Set(runs.map(run => run.id)).size).toBe(runs.length);
-    expect(runs.flatMap(run => run.document.content)).toEqual(nodes);
     expect(runs.filter(run => run.kind === 'skills').map(run => run.skillIds)).toEqual([['generate'], ['generate']]);
-    expect(splitAssistantActivityRuns({ type: 'doc', content: nodes })?.map(run => run.id)).toEqual(runs.map(run => run.id));
+    expect(runs[1].document.content).toEqual([prose, result]);
+    expect(runs[2].document.content[0]).toMatchObject({ content: [{ attrs: { groupedItems: [second], groupCount: 1 } }] });
+    expect((group.content[0].attrs as any).groupCount).toBe(3);
+    expect(splitAssistantActivityRuns(source)?.map(run => run.id)).toEqual(runs.map(run => run.id));
   });
 });

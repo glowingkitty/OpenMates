@@ -4252,7 +4252,10 @@
     },
     "resume_last_chat": {
       "title": {
-        "text": "前回の続きから"
+        "text": "前回の続きから："
+      },
+      "guest_title": {
+        "text": "チャットの例を見てみましょう："
       },
       "decrypting": {
         "text": "チャットを復号中..."
@@ -7892,6 +7895,48 @@
           "text": "このプロジェクトのファイル"
         }
       }
+    },
+    "jobs": {
+      "search": {
+        "result_count": {
+          "text": "{count} 件の求人"
+        },
+        "partial_results": {
+          "text": "一部の提供元を利用できませんでした"
+        },
+        "result": {
+          "title": {
+            "text": "求人情報"
+          },
+          "remote": {
+            "text": "リモート"
+          },
+          "published": {
+            "text": "掲載日"
+          },
+          "source": {
+            "text": "{provider} で見る"
+          },
+          "listing": {
+            "text": "求人元"
+          },
+          "apply": {
+            "text": "応募ページを開く"
+          },
+          "company": {
+            "text": "会社"
+          },
+          "employment_type": {
+            "text": "雇用形態"
+          },
+          "salary": {
+            "text": "給与"
+          },
+          "description": {
+            "text": "説明"
+          }
+        }
+      }
     }
   },
   "enter_message": {
@@ -8457,6 +8502,38 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"e7002718-62f4-43b0-9078-1ab77993edc0\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI workshop\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b110fb02-f635-45b1-8ba7-aaf75b3f7de7\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI meetup\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b2b2b2a7-6b9c-464d-a86e-86ceafcd3bcc\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"build with AI\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"0e453b88-1f20-43fc-9aa1-aad8aab6ae8a\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"top AI developer meetups Berlin 2026 for beginners\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"c7b51044-a947-4471-a287-496459454ad6\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Berlin AI builder communities and recurring workshops\", \"provider\": \"Brave\"}\n```\n\nBerlin has one of Europe's most active [AI](wiki:Artificial_intelligence) builder scenes, transitioning from general theory to practical \"hands-on\" engineering. For someone learning to build with AI tools, the focus in June 2026 is heavily on [AI agents](wiki:Software_agent), [RAG (Retrieval-Augmented Generation)](wiki:Retrieval-augmented_generation), and production-ready architectures.\n\nHere are the top upcoming workshops and meetups in Berlin where you can build, demo, and learn from other practitioners.\n\n### Featured Hands-On Workshops\nThese sessions are specifically designed for those who want to write code and build prototypes.\n\n*   **BLISS x QuantCo: Build Your Own AI Agent**\n    *   **Date:** June 10, 2026 | 17:30\n    *   **Location:** Berlin-Mitte (Altonaer Str. 26)\n    *   **Focus:** An interactive session transitioning from [LLM APIs](wiki:Large_language_model) to building a custom agent that automates complex document workflows. **Bring your laptop.**\n    *   [Event Details & RSVP](embed:bliss-x-quantco-dWg)\n*   **Open Source Europe Tour: AI in Practice**\n    *   **Date:** June 8, 2026 | 17:30\n    *   **Location:** Netlight Consulting (Invalidenstraße 117)\n    *   **Focus:** A \"hype-free\" walkthrough of modern AI, explaining Agentic AI, fine-tuning vs. RAG, and connecting AI to data architectures.\n    *   [Event Details & RSVP](embed:open-source-europe-S4k)\n*   **AI Future-Club Kickoff (Hackers / Founders)**\n    *   **Date:** June 11, 2026 | 18:00\n    *   **Location:** TBD (Berlin)\n    *   **Focus:** A session for developers to \"get their hands dirty,\" discussing what to build and ship together, featuring live demos of recent projects.\n    *   [Event Details & RSVP](embed:ai-future-club-XOk)\n\n### Community Meetups for Builders\nThese events are excellent for networking and seeing what other local developers are currently building.\n\n*   **OpenClaw Anonymous Berlin #9**\n    *   **Date:** June 9, 2026 | 19:00\n    *   **Location:** w3.hub (Möckernstraße 120)\n    *   **Focus:** Informal \"laptop-out\" meetup where people showcase OpenClaw and AI agent setups. Perfect for sharing what works and what doesn't.\n    *   [Event Details & RSVP](embed:openclaw-anonymous-berlin-JA8)\n*   **AI Tinkerers Berlin**\n    *   **Date:** June 17, 2026\n    *   **Focus:** A screened, demo-first, \"no-pitch\" community. Expect live code, architecture lessons, and technical Q&A from local founders and engineers.\n    *   Berlin AI Tinkerers Portal\n*   **Spec-Driven Development: AI for Full-Stack Java**\n    *   **Date:** June 9, 2026 | 18:30\n    *   **Location:** Capgemini (Potsdamer Platz 5)\n    *   **Focus:** Learning how AI can generate code, diagrams, and tests from structured specifications.\n    *   [Event Details & RSVP](embed:spec-driven-development-rxI)\n\n### Key Hubs to Follow\nIf you want to stay in the loop, these organizations host the majority of builder-centric AI events in Berlin:\n\n*   **Merantix AI Campus**: Located in Nord-Mitte, this 6,000m² campus is the heart of the Berlin AI ecosystem, hosting weekly reading groups and tech talks.\n    *   Campus Events Calendar\n*   **BLISS (Berlin AI Community)**: A student and professional community that organizes high-quality workshops and speaker series.\n    *   BLISS Official Site\n*   **[CODE University](wiki:CODE_University_of_Applied_Sciences)**: Often hosts \"Global AI Bootcamps\" and hands-on sessions for students and the public at their Delta Campus in Neukölln.\n\n### Practical Tips for Joining\n1.  **RSVP Early:** Many of these events (especially the BLISS and Tinkerers sessions) have limited spots and require screening or early registration.\n2.  **Bring a Laptop:** Most \"workshops\" expect you to follow along with code. Ensure you have a local environment or a [GitHub](wiki:GitHub) account ready.\n3.  **Join the Slacks:** Groups like AI Tinkerers and [Hackers/Founders](/#settings/apps/web) have local Slack/Discord channels where most \"last-minute\" build sessions are organized.\n\nWould you like me to help you find more specific resources for a particular AI tool you're learning, such as [PyTorch](wiki:PyTorch) or [LangChain](wiki:LangChain)?\n\n**Next Steps:**\n- [Browse more AI events in Berlin](/#settings/apps/events)\n- [Search for AI tutorials on YouTube](/#settings/apps/videos)"
       }
     },
+    "air_fryers_amazon_germany": {
+      "title": {
+        "text": "ドイツで買えるエアフライヤーの比較"
+      },
+      "summary": {
+        "text": "Amazonドイツの人気エアフライヤーを価格、容量、評価で比較し、2人暮らしにはPhilips Airfryer 2000シリーズをおすすめしました。"
+      },
+      "message_1": {
+        "text": "ドイツでオンライン購入できるエアフライヤーを、Amazonの出品を含めて探して。現在の価格、容量、レビュー評価を比較し、出典リンクを付けて2人暮らし向けの1台をおすすめして。"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\n現在ドイツのAmazonで販売されている高評価のエアフライヤーについて、価格、容量、購入者の評価を比較します。\n\n---\n\n### ドイツで人気のモデルを比較\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### 2人暮らしに最もおすすめのモデル\n\n#### **第一候補：[Philips Airfryer 2000 Series 6.2L](embed:philips-airfryer-2000-fay)**\n\n* **2人に最適な理由：**\n  * **適切な容量（6.2 L）：** 4.5–5 L未満のバスケットでは、2人分でも何回かに分けて調理する必要があります。6.2 Lならサーモンの切り身2枚と野菜やフライドポテトを一層に広げて、むらなく加熱できます。\n  * **キッチンでの設置面積：** NinjaやRussell Hobbsのような2ゾーン型は調理台をかなり占有します。6 Lのシングルバスケットなら、一般的なドイツのキッチンでも比較的省スペースで、十分な調理容量を確保できます。\n  * **透明窓：** 引き出しを開けて熱を逃がさずに焼き色を確認できます。\n  * **価格と性能のバランス：** €99.99で、[Philips](wiki:Philips)の安定した温度管理が得られる、手頃な価格のモデルです。\n\n#### **別の候補（異なる温度で2品を同時に作ることが多い場合）：[Philips Dual Basket 3000 Series (9.0L)](embed:philips-airfryer-dual-pjD)**\n肉や魚と付け合わせの野菜を異なる温度と時間で同時に調理したい場合（例：鶏むね肉を180 °C、カリカリのポテトを200 °C）、このモデルは現在€119.99に値下げされており、2つのバスケットの調理完了時刻をそろえられます。\n\n---\n\n### 購入前に確認したいポイント\n1. **バスケットの形：** 四角いバスケット（CosoriやPhilipsなど）は、同じ容量の丸いバスケットより、ステーキや焼き型、串など平らな食品を入れやすくなります。\n2. **食洗機に入るか：** 6 Lのシングルバスケットを入れられる高さがあるか確認しましょう。フッ素樹脂などの焦げ付き防止コーティングを長持ちさせたいなら、手洗いも検討してください。"
+      },
+      "follow_up_1": {
+        "text": "エアフライヤー専用のレシピを探す"
+      },
+      "follow_up_2": {
+        "text": "シングルバスケットとデュアルバスケットのエアフライヤーの主な違いを説明して"
+      },
+      "follow_up_3": {
+        "text": "このエアフライヤーに対応した調理用アクセサリーを探す"
+      },
+      "follow_up_4": {
+        "text": "エアフライヤーで作れる初心者向けの夕食レシピを挙げて"
+      },
+      "follow_up_5": {
+        "text": "これらのモデルの現在の消費電力を確認して"
+      },
+      "follow_up_6": {
+        "text": "セラミックコーティングとテフロンコーティングの洗浄・手入れ方法を比較して"
+      }
+    },
     "artemis_ii_mission": {
       "title": {
         "text": "Artemis II ミッションのハイライトと探査"
@@ -8495,34 +8572,6 @@
       },
       "message_2": {
         "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"8d96310e-a05a-41e8-a687-08ce2ce1ce9a\",\"app_id\":\"audio\",\"skill_id\":\"generate\"}\n```\n\nI created a short, friendly product success chime you can use as a subtle workflow-complete notification."
-      }
-    },
-    "audio_speak_friendly_welcome_message": {
-      "title": {
-        "text": "Audio Speak Friendly Welcome Message"
-      },
-      "summary": {
-        "text": "Turn a short welcome line into a friendly spoken message with the Audio Speak app skill."
-      },
-      "message_1": {
-        "text": "Say this as a warm, natural welcome message: Welcome back to OpenMates. Your workspace is ready whenever you are."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"463ace0f-02f9-43c2-94ee-cf385162bb75\",\"app_id\":\"audio\",\"skill_id\":\"speak\"}\n```\n\nI generated the welcome line as a friendly spoken audio message."
-      }
-    },
-    "audio_transcribe_voice_note": {
-      "title": {
-        "text": "Transcribe a voice note"
-      },
-      "summary": {
-        "text": "See how OpenMates turns an uploaded voice note into an exact transcript, including corrected transcript metadata."
-      },
-      "message_1": {
-        "text": "Please transcribe this audio file. Do not search the web and do not include any markdown links. Just quote the exact transcript:\n```json\n{\n  \"type\": \"audio-recording\",\n  \"embed_id\": \"4e7bca90-2a2a-4cf2-b773-ac5b3a4dc40b\"\n}\n```"
-      },
-      "message_2": {
-        "text": "OpenMates can transcribe short voice notes from the command line."
       }
     },
     "autumn_basil_balcony_care": {
@@ -8913,20 +8962,6 @@
         "text": "自分の返答に、意図しない防衛的な表現やトーンが含まれていないか確認して"
       }
     },
-    "cancel_test_reminder": {
-      "title": {
-        "text": "Cancel a Scheduled Reminder"
-      },
-      "summary": {
-        "text": "A reminder management example that cancels a scheduled reminder by ID and confirms it will not fire."
-      },
-      "message_1": {
-        "text": "@skill:reminder:cancel-reminder Cancel reminder 6bfe1188-e21c-49f4-97b4-6f8b41f851c9 and confirm that it will no longer fire."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"2654ed6e-e439-4c21-98c7-95269083da71\", \"app_id\": \"reminder\", \"skill_id\": \"cancel-reminder\"}\n```\n\nOK. I've cancelled the reminder with ID `6bfe1188-e21c-49f4-97b4-6f8b41f851c9`. It will no longer fire.\n\nWould you like me to [set a new reminder](/#settings/apps/reminder) for something else, or should I [check your remaining active reminders](/#settings/apps/reminder)?"
-      }
-    },
     "classic_car_reverse_image_search": {
       "title": {
         "text": "写真からクラシックカーを特定する"
@@ -9048,7 +9083,7 @@
         "text": "コミュニティガーデンの配布物用に、ひまわりの温かみのあるボタニカルイラストを作成してください。背景はすっきりとした明るい色で、テキストは入れないでください。"
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"83e98b9b-8bcb-4774-9223-be000504a84a\",\"app_id\":\"images\",\"skill_id\":\"generate\"}\n```\n\nコミュニティガーデンの配布資料にぴったりの、温かみのあるヒマワリのボタニカルイラストがこちらです：\n\n[!](embed:generated-images-ff26d807eb07)\n\n### デザインとワークフローの提案\n\n- **手書き要素との組み合わせ：** コミュニティ向けの資料では、デジタルやAIで生成されたアートワークに、手書きの温かみを加えるのが効果的です。例えば、このイラストを背景やビジュアルの主役として印刷し、その周りにコミュニティのメンバーが植え付け図をスケッチしたり、手書きで手入れのコツを書き込んだり、押し葉や種を添えたりすることができます。\n- **配布資料のレイアウトと階層：**\n  - **余白：** ヒマワリの周囲に十分な余白を設けることで、資料に開放感と親しみやすさが生まれます。\n  - **タイポグラフィ：** 見出しにはオーガニックまたはヒューマニスト・セリフ体（[Garamond](wiki:Garamond)や[Georgia](wiki:Georgia_(typeface))など）を使い、植え付け手順や土作りの詳細、イベント日程などには読みやすいサンセリフ体を組み合わせましょう。\n  - **カラーパレット：** 花びらのアンバーやゴールデントーンをアクセントラインや小見出しに、深いフォレストグリーンを重要なハイライトに使用してみてください。\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"garden_handout_next_step\",\n  \"multiple\": false,\n  \"question\": \"What would you like to work on next for the handout?\",\n  \"options\": [\n    {\n      \"id\": \"layout_tips\",\n      \"text\": \"Get advice on typography and grid layout for the printed flyer\"\n    },\n    {\n      \"id\": \"variations\",\n      \"text\": \"Generate a complementary plant illustration (e.g., tomato, bee, or garden herb)\"\n    },\n    {\n      \"id\": \"custom\",\n      \"text\": \"Something else\"\n    }\n  ],\n  \"custom_option_id\": \"custom\",\n  \"custom_placeholder\": \"Describe what you need...\"\n}\n```\n\n[!](embed:generated-media-images-83e98b9b8bcb)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"83e98b9b-8bcb-4774-9223-be000504a84a\",\"app_id\":\"images\",\"skill_id\":\"generate\"}\n```\n\nコミュニティガーデンの配布資料にぴったりの、温かみのあるヒマワリのボタニカルイラストがこちらです：\n\n[!](embed:generated-images-ff26d807eb07)\n\n### デザインとワークフローの提案\n\n- **手書き要素との組み合わせ：** コミュニティ向けの資料では、デジタルやAIで生成されたアートワークに、手書きの温かみを加えるのが効果的です。例えば、このイラストを背景やビジュアルの主役として印刷し、その周りにコミュニティのメンバーが植え付け図をスケッチしたり、手書きで手入れのコツを書き込んだり、押し葉や種を添えたりすることができます。\n- **配布資料のレイアウトと階層：**\n  - **余白：** ヒマワリの周囲に十分な余白を設けることで、資料に開放感と親しみやすさが生まれます。\n  - **タイポグラフィ：** 見出しにはオーガニックまたはヒューマニスト・セリフ体（[Garamond](wiki:Garamond)や[Georgia](wiki:Georgia_(typeface))など）を使い、植え付け手順や土作りの詳細、イベント日程などには読みやすいサンセリフ体を組み合わせましょう。\n  - **カラーパレット：** 花びらのアンバーやゴールデントーンをアクセントラインや小見出しに、深いフォレストグリーンを重要なハイライトに使用してみてください。\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"garden_handout_next_step\",\n  \"multiple\": false,\n  \"question\": \"What would you like to work on next for the handout?\",\n  \"options\": [\n    {\n      \"id\": \"layout_tips\",\n      \"text\": \"Get advice on typography and grid layout for the printed flyer\"\n    },\n    {\n      \"id\": \"variations\",\n      \"text\": \"Generate a complementary plant illustration (e.g., tomato, bee, or garden herb)\"\n    },\n    {\n      \"id\": \"custom\",\n      \"text\": \"Something else\"\n    }\n  ],\n  \"custom_option_id\": \"custom\",\n  \"custom_placeholder\": \"Describe what you need...\"\n}\n```"
       },
       "follow_up_1": {
         "text": "ラベンダーに止まる忙しいミツバチのイラストをもう一枚生成して"
@@ -9080,7 +9115,7 @@
         "text": "コミュニティガーデンアプリでボランティアが登録した時のための、短くて温かみのある通知音を作成して。穏やかな2音のチャイムで、音声なし、3秒以内で。"
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fdda9f85-fa01-48ca-acf7-7746de6dc0f3\",\"app_id\":\"audio\",\"skill_id\":\"generate\"}\n```\n\nコミュニティガーデンのボランティア登録通知用に作成した、穏やかで温かみのある2音のチャイムです：\n\n[!](embed:generated-audio-17f56f2e73be)\n\n### サウンドプロフィール\n- **トーン:** 自然と成長を連想させる、オーガニックで響きのある木製チャイム/マリンバの音色。\n- **テンポ:** 誰かが手伝いに加わった時に、気分を高揚させ、歓迎する雰囲気を与える上昇する2音のシーケンス。\n- **長さ:** 2秒。アプリユーザーの邪魔にならないよう短くまとめています。\n\nこのトーンは、アプリの他のUIパレットと合っていますか？必要に応じて、音色を調整することも可能です（例：より柔らかなアコースティックギターの撥弦音、シンギングボウル、より明るいガラスベルなど）。\n\n[!](embed:generated-media-audio-fdda9f85fa01)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fdda9f85-fa01-48ca-acf7-7746de6dc0f3\",\"app_id\":\"audio\",\"skill_id\":\"generate\"}\n```\n\nコミュニティガーデンのボランティア登録通知用に作成した、穏やかで温かみのある2音のチャイムです：\n\n[!](embed:generated-audio-17f56f2e73be)\n\n### サウンドプロフィール\n- **トーン:** 自然と成長を連想させる、オーガニックで響きのある木製チャイム/マリンバの音色。\n- **テンポ:** 誰かが手伝いに加わった時に、気分を高揚させ、歓迎する雰囲気を与える上昇する2音のシーケンス。\n- **長さ:** 2秒。アプリユーザーの邪魔にならないよう短くまとめています。\n\nこのトーンは、アプリの他のUIパレットと合っていますか？必要に応じて、音色を調整することも可能です（例：より柔らかなアコースティックギターの撥弦音、シンギングボウル、より明るいガラスベルなど）。"
       },
       "follow_up_1": {
         "text": "より柔らかなアコースティックギターの撥弦音バージョンを生成して"
@@ -9144,7 +9179,7 @@
         "text": "コミュニティガーデンのウェルカム動画用に、ボーカルなしの短くて穏やかなインストゥルメンタル曲を作ってくれますか？"
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"3e5014d0-2082-4604-b968-1553d6cc43e4\",\"app_id\":\"music\",\"skill_id\":\"generate\"}\n```\n\nコミュニティガーデンのウェルカム動画用に作曲された、穏やかなアコースティックのインストゥルメンタル曲です。\n\n[!](embed:generated-media-music-3e5014d02082)\n[!](embed:generated-music-c89ee4a5f418)\n\n### トラックの詳細\n- **雰囲気とトーン:** 温かく、親しみやすく、平和的\n- **楽器構成:** アコースティックギターのスリーフィンガー・ピッキングに、柔らかなピアノのコードと軽やかなメロディのアクセント\n- **長さ:** 30秒\n- **形式:** 完全なインストゥルメンタル（ボーカルなし）。ナレーションやテキスト紹介の背景音楽として最適です。\n\n### 次のステップの提案\n動画の制作や、新しいメンバーにガーデンを紹介するスクリプトの作成を検討されている場合は、以下をお試しください。\n\n- [短いウェルカムスクリプトをドラフトする](/#message=Help%20me%20write%20a%20warm%2030-second%20welcome%20video%20script%20for%20our%20community%20garden.)\n- [アップテンポなアコースティックの別案を生成する](/#message=Create%20a%20slightly%20more%20upbeat%20acoustic%20track%20for%20our%20community%20garden%20video.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"3e5014d0-2082-4604-b968-1553d6cc43e4\",\"app_id\":\"music\",\"skill_id\":\"generate\"}\n```\n\nコミュニティガーデンのウェルカム動画用に作曲された、穏やかなアコースティックのインストゥルメンタル曲です。\n\n[!](embed:generated-music-c89ee4a5f418)\n\n### トラックの詳細\n- **雰囲気とトーン:** 温かく、親しみやすく、平和的\n- **楽器構成:** アコースティックギターのスリーフィンガー・ピッキングに、柔らかなピアノのコードと軽やかなメロディのアクセント\n- **長さ:** 30秒\n- **形式:** 完全なインストゥルメンタル（ボーカルなし）。ナレーションやテキスト紹介の背景音楽として最適です。\n\n### 次のステップの提案\n動画の制作や、新しいメンバーにガーデンを紹介するスクリプトの作成を検討されている場合は、以下をお試しください。\n\n- [短いウェルカムスクリプトをドラフトする](/#message=Help%20me%20write%20a%20warm%2030-second%20welcome%20video%20script%20for%20our%20community%20garden.)\n- [アップテンポなアコースティックの別案を生成する](/#message=Create%20a%20slightly%20more%20upbeat%20acoustic%20track%20for%20our%20community%20garden%20video.)"
       },
       "follow_up_1": {
         "text": "コミュニティガーデンの動画用に、もう少しアップテンポなアコースティック曲を作成して"
@@ -9357,48 +9392,6 @@
         "text": "[ai] 暗号化とプライバシーへの潜在的な影響を分析して"
       }
     },
-    "example_chat_task_planning_checklist": {
-      "title": {
-        "text": "Task Planning Checklist"
-      },
-      "summary": {
-        "text": "A real CLI-created Tasks app-skill chat that turns a public demo release checklist into three structured tasks."
-      },
-      "message_1": {
-        "text": "@skill:tasks:create Do not ask follow-up questions. Create exactly these three tasks for a public OpenMates demo release checklist. Task 1 title: Review transcript for private data. Description: Confirm the source chat does not contain secrets, personal data, or private account details before publishing. Assign to me. Task 2 title: Verify Tasks and Workflows embeds. Description: Open the public example pages and confirm both parent embeds and child previews render and open fullscreen. Assign to me. Task 3 title: Write public release note. Description: Draft a short release note for developers explaining that the examples come from real CLI-created app-skill chats. Assign to OpenMates."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"7996e3b5-8d25-46bd-b527-8da6f9c65ecf\", \"app_id\": \"tasks\", \"skill_id\": \"create\"}\n```\n\nI've created the three tasks for the OpenMates demo release checklist:\n\n1.  **Review transcript for private data** (Assigned to you)\n2.  **Verify Tasks and Workflows embeds** (Assigned to you)\n3.  **Write public release note** (Assigned to OpenMates)"
-      }
-    },
-    "family_stays_kyoto": {
-      "title": {
-        "text": "Family Stays In Kyoto"
-      },
-      "summary": {
-        "text": "Find family-friendly Kyoto stays near public transit and compare location, price, and ratings."
-      },
-      "message_1": {
-        "text": "Find family-friendly stays in Kyoto for two adults and one child for five nights in October, preferably near public transit, and compare price, location, and guest rating."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"c5e222f6-b05e-4c6f-8874-7b595604d7ce\", \"app_id\": \"travel\", \"skill_id\": \"search_stays\", \"query\": \"Family friendly hotels near public transit in Kyoto\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"ab6a375c-d92a-42fb-a6f0-b1c2456f1199\", \"app_id\": \"travel\", \"skill_id\": \"search_stays\", \"query\": \"Hotels in Kyoto\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"c90ccab0-0788-4e41-a49f-bc359016aa2e\", \"app_id\": \"travel\", \"skill_id\": \"search_stays\", \"query\": \"Hotels near Kyoto Station\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"48320665-f5ea-4c75-9b79-8e01f1b602ae\", \"app_id\": \"travel\", \"skill_id\": \"search_stays\", \"query\": \"Kyoto\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"7a6cfd2a-6000-4686-ae1e-c0360b46c752\", \"app_id\": \"travel\", \"skill_id\": \"search_stays\", \"query\": \"Kyoto\"}\n```\n\nWhile I am unable to pull live, real-time pricing for your exact dates right this second, I can provide a highly reliable comparison of the absolute best family-friendly hotels in Kyoto based on historical October pricing, locations, and consistent guest ratings.\n\nOctober is a peak travel month in Kyoto as the weather cools down and autumn foliage begins, so family rooms at these transit-friendly properties book up quickly!\n\nHere is a comparison of four fantastic options for 2 adults and 1 child:\n\n### 1. Mimaru Kyoto Station (The \"Home Away From Home\")\nMimaru is a beloved apartment-style hotel chain in Japan designed specifically with families in mind.\n*   **Location:** Outstanding. It's just a 3 to 5-minute walk from Kyoto Station. This is perfect for quick access to the Shinkansen (bullet train), local subways, and the main bus terminal.\n*   **Family Friendliness:** Excellent. They offer spacious rooms with small kitchenettes, dining tables, and even fun bunk-bed layouts which kids love.\n*   **Typical October Price:** **$$$** (Usually between $250 - $400 USD / night)\n*   **Guest Rating:** ⭐️⭐️⭐️⭐️⭐️ **(4.8 / 5)** – Families consistently rate this as the best due to the sheer size of the rooms (a rarity in Japan).\n\n### 2. Hotel Granvia Kyoto (The \"Maximum Convenience\")\nIf you want to completely eliminate transit stress, this is the place.\n*   **Location:** Unbeatable. The hotel is literally integrated *inside* the massive Kyoto Station complex. You can step off your train and be in the lobby in minutes without ever stepping outside—ideal when traveling with a child and luggage.\n*   **Family Friendliness:** Great. It's a large, traditional full-service luxury hotel. They offer larger family rooms and have plenty of dining options right downstairs in the station complex.\n*   **Typical October Price:** **$$$$** (Usually between $350 - $600+ USD / night)\n*   **Guest Rating:** ⭐️⭐️⭐️⭐️½ **(4.5 / 5)** – Rated very highly for its world-class service and unmatched convenience.\n\n### 3. Cross Hotel Kyoto (The \"Downtown Explorer\")\nIf you prefer being near the lively cultural heart of the city rather than the main train station, this is a stylish option.\n*   **Location:** Fantastic. Located near Sanjo Station and Kawaramachi. You have easy access to the subway and Keihan rail line, but you are also within walking distance of the famous Gion district, Pontocho Alley, and the Kamo River.\n*   **Family Friendliness:** Very good. They offer spacious family rooms, and the location means you can easily take a family stroll for dinner without needing to hop on a train at the end of the day.\n*   **Typical October Price:** **$$$** (Usually between $200 - $350 USD / night)\n*   **Guest Rating:** ⭐️⭐️⭐️⭐️⭐️ **(4.7 / 5)** – Highly praised for its beautiful modern design, superb breakfast, and quiet rooms despite the central location.\n\n### 4. Karaksa Hotel Kyoto I (The \"Budget-Friendly Connector\")\nDesigned to be a modern, highly functional base camp for groups and families.\n*   **Location:** Great. Located near Karasuma and Shijo subway stations (right in the middle of the city), giving you easy access to both the Kyoto Station area and the cultural sights in the north and east.\n*   **Family Friendliness:** Excellent. They specialize in \"connecting rooms,\" meaning you can book two adjoining rooms for extra space and privacy at a reasonable price, which is perfect for parents and an older child.\n*   **Typical October Price:** **$$** (Usually between $150 - $250 USD / night)\n*   **Guest Rating:** ⭐️⭐️⭐️⭐️½ **(4.5 / 5)** – Loved for its value, cleanliness, and thoughtful family-oriented layouts.\n\n***\n\n### Summary Comparison\n\n*   **Best for Budget:** Karaksa Hotel\n*   **Best for Transit & Day Trips:** Hotel Granvia & Mimaru Kyoto Station\n*   **Best for Space & Amenities (Kitchen):** Mimaru Kyoto Station\n*   **Best for Evening Strolls & Dining:** Cross Hotel Kyoto\n\nSince I cannot browse the live October rates for you right now, I'd highly recommend plugging your exact 5 nights into a search engine soon, as October is high-season.\n\nTo help narrow it down: **Do you prefer having a kitchenette to prepare quick meals for your child (like Mimaru), or would you rather have the traditional full-service hotel experience (like Granvia/Cross Hotel)?**"
-      }
-    },
-    "fediverse_activitypub_social_search": {
-      "title": {
-        "text": "Fediverse ActivityPub Social Search"
-      },
-      "summary": {
-        "text": "A social media search example summarizing recent posts about the Fediverse and ActivityPub."
-      },
-      "message_1": {
-        "text": "@skill:social_media:search Search social posts about the Fediverse and ActivityPub from the last week, then summarize recurring themes and notable links."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b991a34b-9bac-42e0-a39f-00b346c10efe\", \"app_id\": \"social_media\", \"skill_id\": \"search\", \"query\": \"Fediverse ActivityPub\", \"provider\": \"Bluesky\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"f9048332-7b70-4e59-974d-3cdc6fa5f39e\", \"app_id\": \"social_media\", \"skill_id\": \"search\", \"query\": \"Fediverse ActivityPub\", \"provider\": \"Bluesky\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"20103241-65c5-4867-83ec-8b557d55b730\", \"app_id\": \"social_media\", \"skill_id\": \"search\", \"query\": \"Fediverse ActivityPub\", \"provider\": \"Bluesky\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"9f253e36-f4a4-42c1-a61b-81e2717b7514\", \"app_id\": \"social_media\", \"skill_id\": \"search\", \"query\": \"Fediverse ActivityPub\", \"provider\": \"Bluesky\"}\n```\n\nDiscussions about the [Fediverse](wiki:Fediverse) and [ActivityPub](wiki:ActivityPub) over the past week (June 1–8, 2026) have focused heavily on infrastructure growth beyond [Mastodon](wiki:Mastodon_(social_network)), the technical nuances of cross-protocol bridging, and server management.\n\n### Recurring Themes\n\n*   **The Rise of Non-Microblogging Platforms:** Data from trackers like [VM Crawl](embed:thefulcrum-eurosky-social-DrV) suggests a shift in the landscape. While Mastodon remains the face of the Fediverse, [Ghost](wiki:Ghost_(blogging_platform)) and [WordPress](wiki:WordPress) instances are rapidly increasing, indicating that \"long-form\" federated content is becoming a primary driver of network growth.\n*   **Protocol Bridging (ActivityPub ↔ ATproto):** With Bluesky gaining traction, there is a significant push for interoperability. Users are actively sharing guides on using bridges like `brid.gy` to interact across [ActivityPub](wiki:ActivityPub) and [AT Protocol](wiki:AT_Protocol), specifically focusing on maintaining a consistent identity using custom domain handles.\n*   **Technical Optimization & AI Defense:** Developers are discussing better ways to handle [federation](wiki:Federation_(information_technology)) flow, such as prioritizing HTTP \"Accept\" headers over User-Agent sniffing. There is also a notable focus on writing [WAF](wiki:Web_application_firewall) rules that allow Fediverse traffic while blocking [AI crawlers](wiki:Web_crawler) from [OpenAI](wiki:OpenAI).\n*   **Decentralized Activism:** There is ongoing interest in how these technological models can scale grassroots activist organizing, moving beyond corporate-owned platforms to resilient, community-run infrastructure.\n\n### Notable Links and Resources\n\n*   **[Bridge Fediverse Accounts to Bluesky](embed:momtchil-momtchev-com-el3):** A detailed blog post by Chris McLeod on setting up custom domain handles for bridged accounts.\n*   **VM Crawl Dashboard:** An analytics tool showing a heat map of detected ActivityPub platforms and instance comparisons.\n*   **[GoToSocial Installation Guide](embed:fediverse-activitypub-awakari-PrM):** A \"10-minute launch guide\" for setting up the lightweight GoToSocial server on a Linux VPS.\n*   **[Linked Data in HTTP Headers](embed:reiver-mastodon-social-y8F):** A technical breakdown of content negotiation for Fediverse servers.\n*   **[Decentralized Networks Explained](embed:izby-bsky-social-Qqo):** A Russian-language primer (compatible with browser translators) on how Mastodon and the Fediverse differ from traditional social media.\n\nBased on the current date of June 8, 2026, the Fediverse appears to be evolving from a \"Mastodon-centric\" network into a more diverse ecosystem of blogs and specialized tools, with a high priority on protecting these spaces from automated data scraping.\n\n**Next Steps:**\n*   Would you like a more technical breakdown of how to set up a bridge between [Mastodon](wiki:Mastodon_(social_network)) and Bluesky?\n*   Should I look for specific discussions regarding [WordPress](wiki:WordPress) and [Ghost](wiki:Ghost_(blogging_platform)) federation settings?"
-      }
-    },
     "finance_cash_flow_overview": {
       "title": {
         "text": "Summarize recent business finances"
@@ -9505,20 +9498,6 @@
       },
       "follow_up_6": {
         "text": "[travel-search_stays] バンコクのリーズナブルな宿泊施設をおすすめする"
-      }
-    },
-    "framework_store_reputation_check": {
-      "title": {
-        "text": "Frameworkのストアは安全ですか？"
-      },
-      "summary": {
-        "text": "Framework公式ストアのウェブ上の評判調査。詐欺の兆候、独立した検索結果、カスタマーサービスの注意点、安全な購入手順を比較します。"
-      },
-      "message_1": {
-        "text": "```json\n{\n  \"type\": \"website\",\n  \"embed_id\": \"d36f6802-aad0-4fbe-90b4-5f80b3c6f2da\",\n  \"url\": \"https://frame.work\"\n}\n``` から購入しても安全ですか？詐欺・評判チェックとして、判定、具体的な危険サイン、具体的な安心材料、不足している証拠、安全な次のステップだけが必要です。"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"efbcb86b-b030-4edc-babf-97578474a5c5\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Framework Computer Inc reputation reviews 2025 2026 scam check\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"53132fec-cc2f-4341-82bf-ea1042516afe\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"is frame.work website safe to buy from reddit reviews\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"3ce962e6-07f3-4c83-8393-5443e09a18cd\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Framework Computer customer service issues news 2026\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"2b69bc24-2882-49af-b90e-357c015d65ea\", \"app_id\": \"images\", \"skill_id\": \"search\", \"query\": \"Framework Laptop 13 and 16 modular laptop images\", \"provider\": \"Brave Search\"}\n```\n\nはい、**frame.work** は購入にあたって**安全かつ正当な**ウェブサイトです。これは、[サンフランシスコ](wiki:San_Francisco)に拠点を置く、定評のあるアメリカのテクノロジー企業 [Framework Computer Inc.](wiki:Framework_Computer) の公式ストアフロントです。同社は[モジュール式](wiki:Modularity)で修理性の高いノートパソコンで有名であり、テックコミュニティや[修理する権利](wiki:Right_to_repair)（Right to Repair）運動において高い評価を得ています。\n\n### **判定：安全（正当な企業）**\n詐欺サイトではなく、実在するメーカーです。ただし、[Dell](wiki:Dell) や [Apple](wiki:Apple_Inc.) のような巨大企業と比較すると、小規模な「スケールアップ」企業であるため、カスタマーエクスペリエンスに関して特有のメリットとデメリットがあります。\n\n[!](embed:bikmantech.com-cQQ)\n[!](embed:theregister.com-zAx)\n[!](embed:theguardian.com-pKV)\n[!](embed:frame.work-d7D)\n\n---\n\n### **具体的な安心材料（グリーンフラッグ）**\n*   **業界での幅広い認知度：** [PCMag](embed:pcmag.com-rux)、[The Guardian](embed:theguardian.com-pKV)、[The Register](embed:theregister.com-zAx) などの主要なテックメディアが定期的に製品をレビュー・紹介しており、2026年初頭に発売された最新の **Framework Laptop 13 Pro** も含まれています。\n*   **活発な公式コミュニティ：** 公開の [Framework Community](embed:community.frame.work-25f) フォーラムを運営しており、ユーザーが問題、修正方法、カスタマイズについてオープンに議論しています。詐欺サイトが、不満を投稿できるような公開フォーラムを運営することはありません。\n*   **透明性の高いアップデート：** [公式ブログ](embed:frame.work-OMn)は定期的に更新されており、2026年5月の最近の投稿では、法人向け注文や在庫管理について説明されています。\n*   **企業の責任体制：** CEOの [Nirav Patel](wiki:Framework_Computer) 氏は公人であり、頻繁にインタビューに応じたり、Computex などの業界イベントで登壇したりしています。\n\n### **具体的な懸念点（レッドフラッグ：カスタマーサービスと品質管理）**\n*   **サポートの対応時間：** [Trustpilot](embed:trustpilot.com-xf0) や [Reddit](embed:reddit.com-w2T) でよく見られる不満は、カスタマーサポートの対応が遅かったり、一貫性がなかったりすることです。複雑な保証請求の際に「たらい回し」にされたという報告もあります。\n*   **品質管理（QC）のばらつき：** 新しいハードウェア（Framework 16 など）を順次投入しているため、初期ロットでは軽微なメカニカルな不具合やソフトウェアのバグが発生することがあり、コミュニティ主導の修正が必要になる場合があります。\n*   **配送とロジスティクス：** 注文後の配送状況の可視性が低く、配達予定日が不透明であるという報告が一部の顧客から寄せられています。\n\n### **不足している証拠**\n*   **直接の電話サポート：** 主にメールとチケットでサポートを行っています。24時間365日の堅牢な電話サポートラインが存在するという確かな証拠は限られており、これを重視するユーザーにとっては懸念点かもしれません。\n*   **実店舗の不在：** 特定の提携先を除き、通常は店舗に持ち込んで Framework ノートパソコンを修理することはできません。パーツやデバイスを返送することに頼る必要があります。\n\n### **安全な次のステップ**\n1.  **特定のロット（Batch）を確認する：** 発売されたばかりのモデルを購入する場合は、r/framework サブレディットで「バッチ固有」の問題を調べ、何が起こり得るかを把握しておきましょう。\n2.  **保護された支払い方法を使用する：** 高額な電子機器の購入には、常に[クレジットカード](wiki:Credit_card)または [PayPal](wiki:PayPal) を使用してください。配送に問題が生じた場合、[チャージバック](wiki:Chargeback)保護という追加の安全策が得られます。\n3.  **保証規定を確認する：** モジュール式という性質上、保証条件が従来のノートパソコンよりも詳細に規定されている場合があるため、購入前に保証ポリシーをよく読んでおきましょう。\n\nモデル選びの参考に、**Framework 13** と **Framework 16** の具体的な比較レビューをお探ししましょうか？\n\n**次のステップ：**\n*   [Framework Laptop 13 の最新レビューを確認する](/#settings/apps/web)\n*   [Framework の価格を他のモジュール式ノートパソコンと比較する](/#settings/apps/shopping)"
       }
     },
     "furnished_apartments_berlin": {
@@ -9637,20 +9616,6 @@
         "text": "インタラクティブなSvelteコンポーネントの自動テストの作成方法を説明する"
       }
     },
-    "habit_tracker_onboarding_draft": {
-      "title": {
-        "text": "Habit Tracker Onboarding Draft"
-      },
-      "summary": {
-        "text": "A quick draft image-generation example for a mobile habit tracker onboarding screen."
-      },
-      "message_1": {
-        "text": "@skill:images:generate_draft Make a quick rough draft image concept for a mobile habit tracker onboarding screen: friendly abstract shapes, progress rings, calm green palette, placeholder UI blocks, no readable text."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"79e332e8-5d75-4fd0-9e75-2fe0cb8e209b\", \"app_id\": \"images\", \"skill_id\": \"generate_draft\"}\n```\n\nI'm generating that image for you now. It'll feature the calm green palette and abstract shapes you described to give you a solid starting point for the onboarding flow.\n\nWhile that's processing, here are a few design principles I'd recommend for a habit tracker's onboarding:\n\n*   **Progressive Disclosure:** Instead of showing all the features at once, use the onboarding to walk them through setting up their first habit.\n*   **Visual Gratification:** The progress rings you mentioned are great. In [UX design](wiki:User_experience_design), providing immediate visual feedback when a task is completed (even a placeholder one in onboarding) helps build [dopamine](wiki:Dopamine) loops that encourage habit formation.\n*   **Color Psychology:** Green is an excellent choice. In [color theory](wiki:Color_theory), it's associated with growth, health, and tranquility—perfect for a \"calm\" habit-building experience.\n\nWould you like to explore a specific layout for the habit-setting screen next, or perhaps look at some icon styles that would match this aesthetic?"
-      }
-    },
     "housing_policy_dinner_discussion": {
       "title": {
         "text": "住宅政策に関する夕食時の議論に備える"
@@ -9683,18 +9648,36 @@
         "text": "住宅市場の供給が価格統制にどのように反応するか説明して"
       }
     },
-    "image_vectorize_openmates_header": {
+    "jobs_in_sweden": {
       "title": {
-        "text": "Vectorize an image to SVG"
+        "text": "スウェーデンの開発者求人"
       },
       "summary": {
-        "text": "Convert an uploaded raster image into a scalable SVG vector graphic."
+        "text": "ストックホルムとマルメの最新の開発者求人を、元の募集要項や出典に基づいた職場の詳細情報とともに比較します。"
       },
       "message_1": {
-        "text": "Use images.vectorize once on the uploaded image named openmates_header.png. Convert it to SVG. After starting the conversion, briefly say the SVG vectorization is processing:\n```json\n{\n  \"type\": \"image\",\n  \"embed_id\": \"d25f5a45-1247-4eaf-bd27-c0a194a18371\"\n}\n```"
+        "text": "スウェーデンの公共職業安定所から、ストックホルムのソフトウェア開発者の最新求人を2件、マルメの求人を2件探してください。それぞれについて、職種名、雇用主、勤務地、元の求人へのリンクを短い箇条書きで示してください。給与額や在宅勤務の取り決めについては、その求人に明記されている場合のみ含め、そうでない場合は「記載なし」としてください。回答は200語以内にまとめてください。"
       },
       "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"3a8114d9-0472-4627-9a73-8d331bef481f\", \"app_id\": \"images\", \"skill_id\": \"vectorize\"}\n```\n\nI'll convert that image to SVG for you now.Your SVG vectorization is processing! The conversion is underway and I'll update you once it's complete. This typically takes a moment as the system traces the raster image and converts it into scalable vector paths."
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"ea23f42b-6a8d-4faf-912d-988d2ba20cf4\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"a9fafbeb-7f05-42d5-9dcd-cbc752f42ffd\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\nスウェーデン公立雇用庁（Platsbanken）による現在のソフトウェア開発者の求人情報：\n\n### ストックホルム\n\n* **職種：** Senior Systemutvecklare  \n  **雇用主：** NXT Interim Stockholm AB  \n  **勤務地：** ストックホルム  \n  **元の求人リンク：** [Platsbanken annons 31589252](embed:senior-systemutvecklare-2ps)  \n  **給与額：** 記載なし  \n  **在宅勤務の形態：** リモートワーク可能（*remote-arbetsplatser*）\n\n* **職種：** Javautvecklare  \n  **雇用主：** AFRY AB  \n  **勤務地：** ストックホルム  \n  **元の求人リンク：** [Platsbanken annons 31588186](embed:javautvecklare-y47)  \n  **給与額：** 記載なし  \n  **在宅勤務の形態：** ハイブリッドワークの可能性あり（*möjlighet till hybridarbete*）\n\n---\n\n### マルメ\n\n* **職種：** Senior AI Engineer  \n  **雇用主：** Iver Accelerate AB  \n  **勤務地：** マルメ  \n  **元の求人リンク：** [Platsbanken annons 31588387](embed:senior-ai-engineer-Duw)  \n  **給与額：** 記載なし  \n  **在宅勤務の形態：** ハイブリッドワークの可能性あり（*möjlighet till hybridarbete*）\n\n* **職種：** Malmö: Systemutvecklare Affärssystem Hybrid  \n  **雇用主：** Jobbakuten Väst AB  \n  **勤務地：** マルメ  \n  **元の求人リンク：** [Platsbanken annons 31574628](embed:malm-systemutvecklare-aff-umf)  \n  **給与額：** 記載なし（求人票には具体的な金額ではなく市場レートの給与と記載）  \n  **在宅勤務の形態：** ハイブリッドワーク（*Hybridarbete*）"
+      },
+      "follow_up_1": {
+        "text": "ヨーテボリのリモートソフトウェア開発者の求人を検索"
+      },
+      "follow_up_2": {
+        "text": "これらのシニア開発者の応募要件を比較"
+      },
+      "follow_up_3": {
+        "text": "ストックホルムのフロントエンド開発者の求人を検索"
+      },
+      "follow_up_4": {
+        "text": "これらの求人に記載されている主要な技術スタックを一覧表示"
+      },
+      "follow_up_5": {
+        "text": "スウェーデンのジュニア開発者の求人を検索"
+      },
+      "follow_up_6": {
+        "text": "スウェーデンのテック系求人におけるリモートワークの傾向を要約"
       }
     },
     "launch_readiness_checklist_doc": {
@@ -9709,34 +9692,6 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"document\", \"embed_id\": \"a0f880c3-d136-41e5-8c37-bfe0f8d36c2e\"}\n```\n\n\n\nThis document provides a concise five-step framework to ensure all technical, marketing, and operational bases are covered before a small product goes live.\n\n**Next steps:**\n* Would you like me to expand any of these tasks into a more detailed [project plan](/#settings/apps/docs)?\n* I can also help you [generate an image](/#settings/apps/images) for your launch announcement if you have a theme in mind."
-      }
-    },
-    "lh400_flight_status_check": {
-      "title": {
-        "text": "LH400 Flight Status Check"
-      },
-      "summary": {
-        "text": "A flight-tracking example showing what live status details travelers should check before leaving."
-      },
-      "message_1": {
-        "text": "@skill:travel:get_flight Track Lufthansa flight LH400 and summarize the kind of live status details a traveler should check before leaving for the airport."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"198325d7-550c-48ad-b7ff-a3f277ec7f28\", \"app_id\": \"travel\", \"skill_id\": \"get_flight\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"8f9aeb1f-d6d5-4159-89f3-9599aa4ef637\", \"app_id\": \"travel\", \"skill_id\": \"get_flight\"}\n```\n\nI found relevant information, but I could not complete every requested action automatically. Here is the best answer I can provide from the available results."
-      }
-    },
-    "library_book_return_workflow": {
-      "title": {
-        "text": "Library Book Return Workflow"
-      },
-      "summary": {
-        "text": "A real CLI-created Workflows app-skill chat that turns a simple library-return routine into a manual workflow."
-      },
-      "message_1": {
-        "text": "@skill:workflows:create-or-modify Do not ask follow-up questions. Create a simple manual workflow titled Library Book Return Checklist. It should have a manual trigger and three manual steps: gather borrowed books from the shelf, check due dates in the library account, and pack books in a tote bag before leaving home. Keep it concise and suitable for a public demo."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"cda4695f-7f68-42d7-9cfe-d719aa08dc3e\", \"app_id\": \"workflows\", \"skill_id\": \"create-or-modify\"}\n```\n\nI have created the **Library Book Return Checklist** workflow. This manual automation includes the following steps:\n\n1.  **Gather books**: Gather borrowed books from the shelf.\n2.  **Check due dates**: Check due dates in the library account.\n3.  **Pack tote bag**: Pack books in a tote bag before leaving home.\n\nYou can view and manage this checklist in the [Workflows app](/#settings/apps/workflows)."
       }
     },
     "mastodon_account_recent_posts": {
@@ -10223,20 +10178,6 @@
         "text": "4,200ユーロの貯蓄が緊急資金として十分かどうか評価するのを手伝って"
       }
     },
-    "nonprofit_event_planning_use_case": {
-      "title": {
-        "text": "Nonprofit Event Planning Use Case"
-      },
-      "summary": {
-        "text": "An OpenMates use-case example for nonprofit event planning with research, reminders, and shared summaries."
-      },
-      "message_1": {
-        "text": "@skill:openmates:share-usecase Draft a concise use case for OpenMates: a small nonprofit coordinates event planning with web research, reminders, and shared source-backed summaries. Make it suitable for the public use-case gallery."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"bbd60a9e-95f4-491e-8cfc-70888ca110a6\", \"app_id\": \"openmates\", \"skill_id\": \"share-usecase\"}\n```\n\nThat is a fantastic use case! It highlights exactly how OpenMates can help teams collaborate more effectively by handling the information-heavy side of planning.\n\nHere is the drafted summary for the public use-case gallery:\n\n**Nonprofit Event Coordination**\n> \"Small nonprofit organizations use OpenMates to streamline event planning and coordination. By leveraging [web research](/#settings/apps/web) for venues and vendors, setting automated [reminders](/#settings/apps/reminder) for team deadlines, and generating shared summaries backed by verified sources, teams can stay aligned and efficient. This collaborative approach ensures all members have access to the same source-backed information, allowing the organization to focus more on its community mission.\"\n\nI've shared this anonymously with the OpenMates team to help showcase how the platform is being used in the real world.\n\nWould you like to explore how to set up [automated reminders](/#settings/apps/reminder) for your team, or should we look into how to [share summaries](/#settings/apps/docs) effectively?"
-      }
-    },
     "northstar_metrics_svg_logo": {
       "title": {
         "text": "Climate Dashboard SVG App Icon"
@@ -10327,52 +10268,6 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b1cc44d0-1a21-4666-9e69-6d0429965b9f\", \"app_id\": \"pdf\", \"skill_id\": \"read\"}\n```\n\nThe secret word on page 1 of sample.pdf is **ALPHA**.\n\nThis document is a test file designed to verify that the [OpenMates](/#settings/apps/openmates) PDF upload and AI reading features are functioning correctly.\n\nWould you like me to read page 2 or search for anything else within the document?"
-      }
-    },
-    "pdf_view_page_layout": {
-      "title": {
-        "text": "View a PDF page"
-      },
-      "summary": {
-        "text": "Inspect a rendered PDF page and ask OpenMates to describe the visual structure."
-      },
-      "message_1": {
-        "text": "Use pdf.view on the uploaded file named sample.pdf. View page 1 and describe the visual layout, including the title and bullet list structure:  --timeout-ms 240000\n```json\n{\n  \"type\": \"pdf\",\n  \"embed_id\": \"9d2331ef-af7e-4855-8890-c23a371e1e42\"\n}\n```"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"54a8d949-0a13-463f-bc6a-958e1f746f79\", \"app_id\": \"pdf\", \"skill_id\": \"view\", \"query\": \"Please describe the visual layout of this page, including the title and the structure of any bulleted lists.\"}\n```\n\n_\nThe first page of sample.pdf features a clean, professional layout with the following structure:\n\n### **Visual Layout Overview**\n*   **Title:** The document begins with a prominent, bold heading: **\"OpenMates PDF Test Document\"**.\n*   **Subheading:** Immediately below the title is a line indicating the page and section: \"Page 1 of 2 — Introduction\".\n*   **Introductory Paragraph:** A brief paragraph explains that the document is intended for testing PDF upload and AI reading features.\n*   **Bullet List Structure:** \n    *   The list is introduced by the phrase \"Key facts on this page:\".\n    *   It consists of **three bullet points**, each marked with a standard black circular bullet (•).\n    *   The bullets highlight the document title, a \"secret word\" (ALPHA), and the nature of the text on the page.\n*   **Closing Text:** A final sentence notes that an AI assistant should be able to read the content and identify the secret word.\n\nWould you like me to [read the text](/#settings/apps/pdf) from page 2 or [search for specific keywords](/#settings/apps/pdf) within the document?"
-      }
-    },
-    "plumber_message_email_phone_privacy": {
-      "title": {
-        "text": "Write a plumber message with protected contact details"
-      },
-      "summary": {
-        "text": "Draft a kitchen sink repair request while protecting a fictional email and phone number."
-      },
-      "message_1": {
-        "text": "Help me write a message to a plumber. My kitchen sink has been leaking since yesterday, and I’m available tomorrow afternoon. Ask them to contact me at [EMAIL_1_com] or [PHONE_1_147] to arrange a visit."
-      },
-      "message_2": {
-        "text": "Here is a polite and direct message you can send to your plumber:\n\n```json\n{\"type\": \"mail\", \"embed_id\": \"aa8bee97-be75-43c8-b96c-779c4c36624f\"}\n```\n\nWould you like me to help you find local plumbing services in your area, or is there anything else you need assistance with?"
-      },
-      "follow_up_1": {
-        "text": "Find local emergency plumbers near me"
-      },
-      "follow_up_2": {
-        "text": "Explain how to prepare for a plumber’s visit"
-      },
-      "follow_up_3": {
-        "text": "Search for plumbers with same-day availability"
-      },
-      "follow_up_4": {
-        "text": "List questions to ask a plumber before hiring"
-      },
-      "follow_up_5": {
-        "text": "Compare reviews for top-rated plumbers in my area"
-      },
-      "follow_up_6": {
-        "text": "Describe signs of water damage to check before the visit"
       }
     },
     "printable_benchy_phone_stand_models": {
@@ -10529,20 +10424,6 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"65404c52-39dc-4793-9fc7-05c369b2a0af\", \"app_id\": \"music\", \"skill_id\": \"generate\"}\n```\n\nI'm creating that track for you now! It will feature a warm synth bass and light percussion to capture that optimistic mood for your product teaser.\n\nWhile that's generating, are there any specific visual elements or themes in your teaser that I should keep in mind for future variations?\n\n**Next steps you might consider:**\n*   Once it's ready, you can let me know if you'd like to adjust the tempo or intensity.\n*   I can also help draft a short [script](wiki:Screenplay) or catchy tagline to go along with your product launch."
       }
     },
-    "python_squares_code_run": {
-      "title": {
-        "text": "Run a Python Squares Snippet"
-      },
-      "summary": {
-        "text": "A code execution example that runs a tiny Python loop and explains its output."
-      },
-      "message_1": {
-        "text": "@skill:code:run Run this small Python snippet and explain the output: for n in range(1, 8): print(n, n*n, 'even' if n % 2 == 0 else 'odd')"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"5fc00e79-43bc-4343-b965-4452d79e8fb8\", \"app_id\": \"code\", \"skill_id\": \"run\"}\n```\n\nHere is the execution and explanation of the [Python](wiki:Python_(programming_language)) snippet you provided.\n\n```json\n{\"type\": \"code\", \"embed_id\": \"df9131ca-18fb-4f9b-9063-23e6abead1ff\"}\n```\n\n\n\n### Output\n```json\n{\"type\": \"code\", \"embed_id\": \"a6cf69a2-a9cc-41d5-9317-826b02fbfa16\"}\n```\n\n\n\n### Explanation\nThe code uses a `for` loop to iterate through a sequence of numbers and prints three values for each iteration:\n\n1.  **`range(1, 8)`**: This generates a sequence starting at **1** and ending at **7** (the stop value, 8, is exclusive).\n2.  **`n`**: The first column prints the current number in the loop.\n3.  **`n*n`**: The second column calculates and prints the **square** of the number.\n4.  **`'even' if n % 2 == 0 else 'odd'`**: This is a conditional expression (ternary operator).\n    *   It checks if `n` is divisible by 2 using the modulo operator (`%`).\n    *   If the remainder is `0`, it prints \"even\".\n    *   Otherwise, it prints \"odd\".\n\nThis snippet is a concise way to demonstrate basic iteration, arithmetic, and inline conditional logic in Python.\n\n**What would you like to do next?**\n- Would you like to see how to rewrite this using a **List Comprehension**?\n- Should we modify the code to handle a larger range or different mathematical operations?\n\nLearn more about Python Control Flow"
-      }
-    },
     "quiet_cafes_tempelhofer_feld": {
       "title": {
         "text": "Quiet Cafés Near Tempelhofer Feld"
@@ -10571,20 +10452,6 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"11ff377e-a0a2-40ed-81c3-9556b68142f3\", \"app_id\": \"videos\", \"skill_id\": \"search\", \"query\": \"retrieval augmented generation explained for beginners\", \"provider\": \"Brave\"}\n```\n\nI've found some excellent beginner-friendly videos that explain Retrieval-Augmented Generation (RAG). Here is a curated selection to get you started:\n\n[!](embed:youtube.com-OCK)\n[!](embed:youtube.com-20R)\n[!](embed:youtube.com-8SW)\n[!](embed:youtube.com-Fn4)\n[!](embed:youtube.com-rgp)\n\n### Which one should you watch first?\n\nI highly recommend starting with **[What is Retrieval-Augmented Generation (RAG)?](embed:youtube.com-OCK)** by **IBM Technology**.\n\n**Why this one first?**\n*   **Conciseness:** At just 6 and a half minutes, it provides the most efficient \"conceptual hook\" without getting bogged down in implementation details.\n*   **High-Level Clarity:** IBM’s explanations are famous for being professional and easy to follow. They focus on the *why* (fixing LLM hallucinations and outdated data) before diving into the *what*.\n*   **Authoritative:** It establishes a solid foundation from a reputable industry leader, which helps you better understand the more technical or \"hands-on\" videos later.\n\n### What to watch next?\n\nOnce you have the concept down, here are two paths depending on your interest:\n\n1.  **For a better intuitive understanding:** Watch **[RAG Explained in 12 Minutes](embed:youtube.com-20R)** by **Aishwarya Srinivasan**. She uses a brilliant \"Open-Book Exam\" analogy that makes the whole process click instantly for most beginners.\n2.  **For a technical overview:** If you want to see the \"moving parts\" (like vector databases and embeddings), check out **[RAG Explained For Beginners](embed:youtube.com-8SW)** by **KodeKloud**. It breaks the process down into a simple 3-step framework: Retrieval, Augmentation, and Generation.\n\nIf you're interested in building a RAG system yourself, I can help you find documentation for popular tools like [LangChain](wiki:LangChain) or LlamaIndex. Would you like to see how a simple RAG implementation looks in code?\n\n**Further exploration:**\n*   [Check out more AI tutorials](/#settings/apps/videos)\n*   [Search for RAG documentation](/#settings/apps/code)"
       }
     },
-    "reference_image_3d_model": {
-      "title": {
-        "text": "Reference Image to 3D Model"
-      },
-      "summary": {
-        "text": "A 3D generation example that turns a reference image into a textured GLB model preview."
-      },
-      "message_1": {
-        "text": "@skill:models3d:generate Turn this reference image into a textured 3D GLB model suitable for a product mockup."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"85716124-48d5-4c4c-9919-3126b733b41e\",\"app_id\":\"models3d\",\"skill_id\":\"generate\"}\n```\n\nI generated a textured GLB model from the reference image and attached the 3D model preview above."
-      }
-    },
     "right_to_repair_laws_eu_us": {
       "title": {
         "text": "EUと米国の「修理する権利」法"
@@ -10597,20 +10464,6 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"3031e3c2-e832-40fa-99e0-126fe7a5077f\", \"app_id\": \"news\", \"skill_id\": \"search\", \"query\": \"right-to-repair laws EU recent news June 2026\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"e7366974-55a3-4025-8a0b-6d40f600fa6a\", \"app_id\": \"news\", \"skill_id\": \"search\", \"query\": \"right-to-repair laws US recent news June 2026\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"af660c08-2d9e-4684-ad3c-deceafd8ab0c\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"expert analysis right-to-repair laws 2026 EU US\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"e4146998-76de-4683-a010-ceffcdb53005\", \"app_id\": \"images\", \"skill_id\": \"search\", \"query\": \"right to repair electronics repairability label EU\", \"provider\": \"Brave Search\"}\n```\n\n2026年6月現在、「修理する権利（Right to Repair）」運動は、[欧州連合](wiki:European_Union)と[アメリカ合衆国](wiki:United_States)の両方で重要な実施段階に達しています。EUが大陸全土で統一された義務化へと進んでいる一方で、米国では州レベルでの勝利と激しいロビー活動の攻防が入り混じった状況が続いています。\n\n### 欧州連合における最近の動向\n\n最も重要な最近の出来事は、2026年6月3日にEUが発表した**「技術主権（Tech Sovereignty）」パッケージ**です。この取り組みは、自国独自の代替手段を育成し、消費者権利を強化することで、米国のビッグテックへの依存を減らすことを目的としています。\n\n*   **実施へのカウントダウン：** 画期的な[EU修理する権利指令](wiki:Right_to_repair)（指令 (EU) 2024/1799）は、**2026年7月31日**までにすべての加盟国で完全に施行される予定です。\n*   **デジタル製品パスポート：** 2026年7月19日より、EUは**デジタル製品パスポート（DPP）**登録を開始します。これにより、製品（まずはバッテリーと繊維製品から）に耐久性と修理可能性に関するデータを提供するQRコードの貼付が義務付けられます。\n*   **法的警告：** 2026年6月4日、欧州委員会は「グリーン移行」指令を国内法に置き換える2026年3月の期限を守らなかった**20の加盟国**に対し、正式な警告を発しました。この指令は、[グリーンウォッシング](wiki:Greenwashing)や「早期の[陳腐化](wiki:Obsolescence)」を防ぐために不可欠なものです。\n\n[!](embed:euronewsweek.co.uk-aq1)\n[!](embed:termopasty.com-0tB)\n[!](embed:ecomondo.com-9xC)\n\n### アメリカ合衆国における最近の動向\n\n米国では、連邦法案が[議会](wiki:United_States_Congress)で停滞しているため、運動の焦点は依然として州レベルにあります。\n\n*   **州レベルの拡大：** 2026年半ばの時点で、**アメリカ人の4分の1以上**が、施行可能な修理する権利法を持つ州に居住しています。**テキサス州**と**コネチカット州**の新法が本格的に施行される**2026年秋までには、この割合は35%**に跳ね上がると予想されています。\n*   **企業のロビー活動：** [公共利益調査グループ（PIRG）](wiki:Public_Interest_Research_Group)などの擁護団体は、[Google](wiki:Google)や[Apple](wiki:Apple_Inc.)といった企業が、ソフトウェアによって交換部品を特定のデバイスにロックする「パーツペアリング」の制限に対して、引き続きロビー活動を行っていると報告しています。\n\n### 専門家の見解\n\n法的および技術的な専門家は、これらの新しい法律について、楽観論と慎重論を織り交ぜた見解を示しています。\n\n1.  **「テック解放」論争：** EU当局は2026年6月3日を「テック解放の日」と称賛していますが、*コンピュータ・通信産業協会（CCIA）*の専門家は、ヨーロッパには依然として[Nvidia](wiki:Nvidia)や[TSMC](wiki:TSMC)に対抗できる企業が存在しないことを指摘し、[ビッグテック](wiki:Big_Tech)からの真の独立には数十年かかると主張しています。\n2.  **抜け穴とパーツペアリング：** *Cybernews*や*Earth911*の専門家は、法律が修理する「権利」を義務付けている一方で、純正部品の高コストや[ソフトウェアロック](wiki:Digital_rights_management)（パーツペアリング）を通じて、依然としてメーカーが「主導権を握っている」と警告しています。彼らは、予備部品のより厳格な価格管理がなければ、修理は買い替えよりも高価なままになる可能性があると主張しています。\n3.  **保証によるインセンティブ：** *Fieldfisher*の法律アナリストは、EU法の「隠れた逸品」を強調しています。保証期間中に消費者が交換ではなく修理を選択した場合、**保証期間が12ヶ月延長される**というものです。これは、消費者の行動を「使い捨て文化」から脱却させるための大きなインセンティブと見なされています。\n\n> [メーカーは、2026年7月31日より前に消費者が購入した製品であっても、対象製品を修理する義務を負います。](embed:fieldfisher.com-e9q)\n\n### まとめ表：2026年のマイルストーン\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"e4d7b998-1c4c-4680-9ef6-2a0f34ce0249\"}\n```\n\n\n次に何を調べますか？米国の特定の州法について調査したり、デジタル製品パスポートの要件について詳細を提供したりすることができます。\n\n*   [米国の州別の状況を確認する](/#settings/apps/web)\n*   [地元の修理店を探す](/#settings/apps/maps)\n---\n*⚠️ これは教育目的の情報提供のみを目的としており、法的助言ではありません。法的アドバイスについては弁護士にご相談ください。*"
-      }
-    },
-    "rostock_heavy_rain_radar": {
-      "title": {
-        "text": "ロストック激甚雨レーダー"
-      },
-      "summary": {
-        "text": "ロストックのDWD雨雲レーダーを確認し、レーダーのタイムライン上で激しい雨を表示するライブ気象チャットです。"
-      },
-      "message_1": {
-        "text": "ロストックで今、雨は降っていますか？雨雲レーダーを見せてください。"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"deb8e4c2-e07c-49c3-ae5c-300a21859563\", \"app_id\": \"weather\", \"skill_id\": \"rain_radar\", \"query\": \"Rostock rain radar\", \"provider\": \"Deutscher Wetterdienst (DWD) via Bright Sky\", \"location\": \"Rostock\"}\n```\n\nはい、現在[ロストック](wiki:Rostock)では激しい雨が降っています。[ドイツ気象局](wiki:Deutscher_Wetterdienst)の最新データによると、市内ではかなりの降水が観測されており、少なくとも今後2時間は続く見込みです。\n\nレーダーでは、周辺地域の100%が雨雲に覆われており、強度はピークに達しています。しばらくは屋内にいたほうがいいかもしれません！\n\n今夜の残りの時間の[詳細な1時間ごとの予報](/#settings/apps/weather)を確認しますか？"
       }
     },
     "rust_vector_database_repos": {
@@ -10691,20 +10544,6 @@
         "text": "このソーシャル系アプリにさらに3つのブランディング案を提案する"
       }
     },
-    "sqlite_strict_tables_summary": {
-      "title": {
-        "text": "SQLite STRICT Tables for App Developers"
-      },
-      "summary": {
-        "text": "A website-reading example that summarizes SQLite STRICT tables and when app developers should use them."
-      },
-      "message_1": {
-        "text": "@skill:web:read Read ```json\n{\n  \"type\": \"website\",\n  \"embed_id\": \"ba10b9f4-6d3e-495e-a5d6-7658434e52b1\",\n  \"url\": \"https://www.sqlite.org/stricttables.html\"\n}\n``` and summarize what STRICT tables change for application developers. Include when they are useful and one migration caveat."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"c5d97a24-2211-4169-9ac3-39353e923e24\", \"app_id\": \"web\", \"skill_id\": \"read\"}\n```\n\nIntroduced in version 3.37.0, STRICT tables allow [SQLite](wiki:SQLite) to move away from its traditional \"flexible\" typing system toward a rigid system similar to [PostgreSQL](wiki:PostgreSQL) or [Oracle Database](wiki:Oracle_Database).\n\n### Changes for Application Developers\nThe `STRICT` keyword, added to the end of a `CREATE TABLE` statement, enforces several new rules:\n*   **Mandatory Datatypes:** Every column definition must include a datatype; datatypeless columns are no longer permitted.\n*   **Restricted Type Names:** You can only use six specific types: `INT`, `INTEGER`, `REAL`, `TEXT`, `BLOB`, and `ANY`.\n*   **Lossless Coercion:** SQLite still attempts to coerce data (e.g., converting the string `'123'` to an integer `123`), but if the conversion cannot be done losslessly (like inserting `'abc'` into an `INT` column), it now throws an `SQLITE_CONSTRAINT_DATATYPE` error instead of silently storing the original string.\n*   **The `ANY` Datatype:** A new `ANY` type is introduced for columns that truly need to store mixed data. Unlike flexible tables, `ANY` in a `STRICT` table preserves the exact input without any numeric conversion (e.g., the string `'000123'` remains a string rather than becoming the integer `123`).\n*   **Implicit Constraints:** `PRIMARY KEY` columns in `STRICT` tables are implicitly `NOT NULL`.\n\n### When They Are Useful\nSTRICT tables are particularly beneficial in the following scenarios:\n*   **Data Integrity:** When you want to ensure that a \"dirty\" input (like an empty string or a non-numeric identifier) doesn't pollute an integer column.\n*   **Matching Other Systems:** If your application is designed to be database-agnostic, using `STRICT` makes SQLite's behavior more predictable and consistent with other enterprise SQL engines.\n*   **Debugging:** It catches type-mismatch bugs at the insertion layer rather than letting them persist as silent data corruption that causes issues during later calculations.\n\n### Migration Caveat: Restricted Type Names\nOne significant caveat when migrating existing schemas is that **standard SQL type names like `VARCHAR`, `NUMERIC`, or `DATETIME` are not allowed.** \n\nIf you are converting an existing table that uses `VARCHAR(255)`, you must change it to `TEXT`. Similarly, `BOOLEAN` or `DATETIME` columns must be converted to `INT`, `REAL`, or `TEXT` depending on how you store those values.\n\n**Next Steps:**\n* Would you like to see a code example of a `CREATE TABLE` statement using `STRICT`?\n* Are you interested in learning about the `WITHOUT ROWID` optimization which can be combined with `STRICT`?"
-      }
-    },
     "svelte_runes_docs": {
       "title": {
         "text": "Svelte Runes Docs"
@@ -10751,20 +10590,6 @@
         "text": "人前で話す際にあがり症を克服するためのヒントをリストアップする"
       }
     },
-    "upcoming_reminders_list": {
-      "title": {
-        "text": "Upcoming Reminders List"
-      },
-      "summary": {
-        "text": "A reminder listing example that groups upcoming reminders by due date."
-      },
-      "message_1": {
-        "text": "@skill:reminder:list-reminders List my upcoming reminders and group them by when they are due."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"3640d177-a970-4f2e-bf5f-16eed4c34db5\", \"app_id\": \"reminder\", \"skill_id\": \"list-reminders\"}\n```\n\nIt looks like your schedule is completely clear—you don't have any upcoming [reminders](/#settings/apps/reminder) set at the moment.\n\nSince we're starting with a blank slate, is there anything you'd like to get off your mind and onto a list? I can help you [set a reminder](/#settings/apps/reminder) for a specific task, a daily habit you're building, or even a random nudge later this week.\n\n**What would you like to do next?**\n*   **Set a new reminder?** Just let me know what it's for and when.\n*   **Explore habit tracking?** We could set up a recurring reminder for something you're working on.\n---\n*⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*"
-      }
-    },
     "urban_heat_island_at_night": {
       "title": {
         "text": "夜になっても都市が暑い理由"
@@ -10797,86 +10622,6 @@
         "text": "都市のキャニオン構造が夜間に放射熱を閉じ込める仕組みを説明する"
       }
     },
-    "us_egg_prices_deep_research": {
-      "title": {
-        "text": "米国の卵価格が高止まりした理由"
-      },
-      "summary": {
-        "text": "鳥インフルエンザの沈静化後も米国の卵価格が高止まりした理由を分析し、供給の回復、市場集中度、マージン、規制を比較しました。"
-      },
-      "message_1": {
-        "text": "鳥インフルエンザが沈静化した後も、なぜ米国の卵価格は高止まりしたのでしょうか？供給の回復、市場集中度、小売業者のマージン、規制、および反論を比較してください。確認された証拠と推論による証拠を区別して述べてください。"
-      },
-      "message_2": {
-        "text": "[!](embed:5654e466-f25a-4da2-befb-7369fabd64b3)\n\n[!](embed:324b04a0-1134-448f-b651-3d6ff198f89c)\n\n## 簡潔な回答\n米国の卵価格は、最初の[鳥インフルエンザ](wiki:Avian_influenza)（HPAI）の急増後も、生物学的な生産の遅れ、繰り返される季節的な病気の波、市場構造の特性、および川下の価格設定の摩擦が重なり、高止まりと不安定な状態が続きました。世論では、単一のアウトブレイクがすっきりと解決したと考えられがちでしたが、HPAIは2023年を通じて、また2024,年後半にも深刻な波となって再発しました。これが、代わりの若雌鶏を性成熟させるための避けられない20〜22週間の生物学的な遅延（および、多段階齢の商業コンプレックスを完全に補充するための12〜18ヶ月）と重なりました。同時に、州レベルのケージフリー飼育規制（[カリフォルニア州](wiki:California)の提案第12号など）が供給プールを分断し、ケージフリー施設が殺処分に見舞われた際に、州外の従来型の卵が地域の不足を補うことを妨げました。川下では、小売スーパーマーケットの価格設定において非対称な価格転嫁（「ロケットと羽」現象）が見られました。これは、食料品店が以前の利益圧縮を回収し、遅行する契約指数公式を調整するために、卸売価格の下落に対して30〜60日の遅れを持って対応したためです。\n\n## 表面的な説明\n業界団体、農業経済学者、および主流の報道機関による従来の説明では、卵価格の持続的な高騰は、競争的な商品市場内で発生した前例のない家畜衛生の惨事に起因するとされています。[米国農務省](wiki:United_States_Department_of_Agriculture)（USDA）の[動植物検疫局](wiki:Animal_and_Plant_Health_Inspection_Service)（APHIS）が執行する連邦政府の「スタンピングアウト（根絶）」プロトコルの下では、1羽でもHPAIが検出されると、感染拡大を抑えるために施設全体の強制的な殺処分が必要となります。採卵鶏は寿命が長く、高密度の高収容鶏舎で飼育されているため、商業的な採卵事業が家禽の殺処分の大部分を占めることになりました。\n\n卵に対する消費者需要は価格弾力性が非常に低いため（歴史的に-0.1から-0.2の間と推定されています）、卵は直接的な料理の代用品がほとんどない不可欠な主食として扱われます。その結果、全国の卵の総供給量が3%〜6%というわずかな減少であっても、需要を抑制し市場を均衡させるためには、急激で非線形な卸売価格の上昇が必要となります。感染した施設が殺処分、死骸処理、および化学消毒を完了しても、すぐに成鶏を購入することはできません。1日齢の雌のヒナ（若雌鶏）が産卵年齢に達するまで待つ必要があります。この観点からは、価格の高騰は単に農業における病気からの回復の自然なタイムラインと、基本的な投入コストの圧力を反映したものに過ぎませんでした。\n\n## 他に何が起きている可能性があるか\n病気のショックが危機のきっかけとなりましたが、いくつかの構造的、規制的、および契約的なメカニズムが価格の高騰を長引かせ、あるいは局地的な価格ショックを引き起こしました。\n\n1. **単一の事象ではなく、繰り返されるアウトブレイクの波:** \n   鳥インフルエンザが2022年後半以降に恒久的に「緩和」したという前提は、事実として不完全です。2023,年中盤に症例は減少しましたが、ウイルスは北米の渡りルート沿いの渡り鳥の間で風土病となり、2023年後半に深刻な季節的再燃を引き起こし、2024年後半から2025.年初頭にかけての大規模な殺処分に至りました。採卵鶏群は、再構築が始まろうとする矢先に繰り返し打撃を受けました。\n\n2. **州の動物飼育義務化による市場の断片化:** \n   州のケージフリー義務化の実施（最も顕著なのは、2023年5月に[合衆国最高裁判所](wiki:Supreme_Court_of_the_United_States)によって支持されたカリフォルニア州の提案第12号と、マサチューセッツ州の質問第3号）により、ケージ飼いの鶏から供給された卵の販売が禁止されています。これにより、全国の卸売市場は孤立した規制プールに分断されました。渡り鳥が西部のケージフリー施設に感染させた際、州をまたぐ流通業者は、中西部や南部からの余剰な従来型の卵で食料品店の棚を法的に補充することができず、カリフォルニアの小売価格は1ダースあたり$8.00〜$9.00ドルを超えました。\n\n3. **薄いスポット市場のベンチマークと業界の集中:** \n   米国の殻付き卵セクターは適度に集中しています。最大手の生産者であるカルメイン・フーズ（Cal-Maine Foods）が国内生産の約20%を支配しており、上位20社の生産者が全国の採卵鶏群の70%〜75%を占めています。より重要なのは、業界全体の卸売価格が、物理的な取引のわずか5%〜10%しか占めていない、交渉による「スポット」市場によって決定される公表された民間ベンチマーク（アーナー・バリーなど）に連動していることです。局地的な不足により、切羽詰まった買い手が薄いマージナルなスポット貨物に対して積極的に入札せざるを得なくなると、その結果生じるスポット価格の急騰が、残りの90%％以上の契約量の調達価格を自動的に膨らませます。鶏群が感染しなかった生産者は、ピーク時のスポット連動価格で標準的な量を販売し、莫大な利益率の拡大をもたらしました（例：カルメインの売上総利益は、2022年後半に前年同期比で10倍に増加しました）。\n\n4. **小売業者の「ロケットと羽」と利益の回収:** \n   スーパーマーケットの価格設定は、非対称な価格転嫁によって特徴付けられます。卸売価格（農場出荷価格）が急騰すると、小売価格は急速に調整されます（「ロケット」）。卸売価格が急落しても、小売価格の下落は緩やかです（「羽」）。スーパーマーケットの調達契約は、30〜60日の移動平均に紐付けられていることが多く、これは食料品店の納入在庫コストが、スポット市場の暴落から数週間後に低下することを意味します。さらに、多くの食料品店は卵を客寄せのための[ロスリーダー](wiki:Loss_leader)（目玉商品）として扱っています。ショックのピーク時にマイナスまたは圧縮された売上総利益を吸収したため、食料品店は、冷蔵および乳製品部門の収益性を再構築するために、卸売価格が急落しても高い棚価格を維持しました。\n\n5. **飼料コストとの乖離:**  \n   主要な飼料原料（トウモロコシと大豆粕）は、ウクライナでの戦争勃発と全般的なサプライチェーンのインフレを受けて 2022 にピークを迎えましたが、2023 から 2024. にかけて 20% から 40% 下落しました。したがって、2022 以降の価格急騰は、農業投入コストのプッシュ型インフレでは説明できません。\n\n## 証拠\n\n以下の台帳は、2022年から2025年にかけての卵価格の動向に関する、重要な定量的、因果的、および法的地位に関する主張を検証したものです。\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"94a028ba-3773-4c97-8c03-a8952cd3be30\"}\n```\n\n## 反論\n卵の高価格が企業の共謀、野放図なグリードフレーション（強欲インフレ）、または規制の失敗のみによる結果であるという仮説に対して、いくつかの強力な経済的および運営上の要因が異議を唱えています。\n\n- **競争的なコモディティ市場のメカニズム:**  \n  殻付き卵は非常に傷みやすく、賞味期限は 30 日から 45 日です。腐敗させずに市場から保管したり買いだめしたりすることはできません。消費者の需要が極めて非弾力的な市場では、4%% から 5%% の物理的な不足が発生すると、市場を均衡させるために急激で非線形な価格上昇が必要となります。供給が急激に収縮した際にスポット価格が高騰するのは、教科書通りの競争的な市場清算均衡として予想される事態です。\n- **企業利益の対称的な崩壊:**  \n  鳥インフルエンザの症例が減少し、2023, 年半ばに供給が一時的に回復すると、卸売価格と小売価格は急速に急落しました。2024, 会計年度において、カルメイン・フーズ（Cal-Maine Foods）の純利益は 63.3% 減少しました（$758.0 万ドルから $277.9 万ドルへ）。一方的な独占価格決定権を持つ強固なカルテルであれば、卸売価格と純利益が12ヶ月以内に 60% 以上も崩壊することを許さないでしょう。\n- **契約フォーミュラの遅延 vs. スポット価格の誤解:**  \n  批判者はしばしば、日次のスポット指標の急落を週次のスーパーマーケットの店頭価格と比較し、その差を小売業者の価格つり上げと解釈します。実際には、大手スーパーマーケットチェーンは、30 日から 60 日の移動平均を組み込んだフォーミュラ契約を通じて卵を購入しています。食料品店は、スポットチャートが下落した後も数週間にわたり、高騰した納入コストを支払い続けました。さらに、食料品店は、店舗への客足を維持するために初期の価格急騰時にしばしばマイナスの売上総利益を吸収し、その後の卸売価格が低い時期を利用して運営上の損失を回収しました。\n- **物理的損失の分布 vs. 飼育環境の義務化:**  \n  カリフォルニア州の提案 12 号やマサチューセッツ州の質問 3 号によって、従来型の卵がそれらの州に流入することが妨げられましたが、地域的な不足の主な要因は、高病原性鳥インフルエンザ（HPAI）が西部のケージフリー（平飼い）の大規模農場を直撃したことでした。ケージフリーの飼育環境が鳥インフルエンザを引き起こしたのではなく、渡り鳥の移動がケージフリーと従来型の両方の群れを同様に感染させたのです。\n\n## 結論\n- **確認済み（一次データにより裏付け）:**  \n  - HPAIは、一度の回復で完全に収束するのではなく、2022 年から 2024, 年末にかけて繰り返された波を通じて、数千万羽の商業用採卵鶏を死滅させました。\n  - 生物学的な入れ替えには、若雌鶏が産卵できるまで成熟するのに 20 週間から 22 週間という絶対的な生理学的最小期間が必要であり、多世代の商業施設全体を再構築するには 12 ヶ月から 18 ヶ月を要します。\n  - テーブルエッグ（家庭用卵）の需要は価格弾力性が非常に低いため、群れのわずかな減少が 100%% 以上の価格急騰につながります。\n  - カルメイン・フーズは、自社の生産施設が感染を免れる一方で、スポット指標に連動した市場価格が2倍になったため、2023 会計年度に記録的な売上総利益と純利益を計上しました。\n  - 飼料投入コストは 2023 年から 2024, 年にかけて 20%% から 40%% 下落しており、投入コストのインフレが 2022 年以降の価格上昇の要因ではなかったことを証明しています。\n  - 以前の別の歴史的な訴訟（*加工卵製品反トラスト訴訟*）では、卵生産者は 2000s 年代に発生した供給制限行為に対して責任があると判断されましたが、2022 年から 2025. 年の期間について、連邦裁判所や規制当局が違法な共謀を認定した事実はありません。\n- **可能性が高い（強力な経済的および実証的推論）:**  \n  - 州のケージフリー飼育義務化（例：カリフォルニア州プロップ 12）は、ケージフリーの群れが殺処分された際に州をまたぐ代替を法的に制限したため、地域的な価格ショックを悪化させました。\n  - 小売レベルでの非対称な価格転嫁（「ロケットと羽」現象）は、主に 30 日から 60 日の遅行的な契約調達フォーミュラと、目玉商品としての卵による以前のマイナス利益を食料品店が回収したことによって引き起こされました。\n  - 薄いスポット市場の価格形成（スポット取引量の 5%% から 10%% が、供給契約の 90%% 以上の指標を決定する）が、全国的な卸売価格の変動を著しく増幅させました。\n- **妥当だが未証明（精査中の主張）:**  \n  - 主要な卵生産者がHPAIを積極的に利用して、群れの補充を人為的に遅らせたり価格を調整したりしたという擁護団体による主張は、依然として証明されていない申し立てや調査段階の事項であり、確立された法的事実ではありません。\n- **不確実:**  \n  - 個々の民間食料品小売業者における固定マージン調達とスポット連動調達の正確な内訳は依然として機密事項であり、企業ごとの小売利益の抽出を正確に公的に測定することは不可能です。\n---\n*⚠️ これは教育目的の情報提供のみを目的としており、財務上のアドバイスではありません。財務上の決定については、資格のある金融専門家または税務顧問にご相談ください。*"
-      },
-      "message_2_thinking": {
-        "text": "**価格の説明を統合中**\n\n鳥インフルエンザ後の米国の卵価格高騰を説明するため、サブチャットからの洞察を統合しています。サプライチェーンの回復、市場集中の影響、小売業者の利益率、規制上の制約、および潜在的な対策の相互作用に焦点を当てています。現在、これらの要因の相対的な影響を比較検討しています。最も重要な理由について簡潔な説明を目指しています。\n\n\n**証拠と構造の分析**\n\n要件を詳しく検討し、構造化された回答形式の概要をまとめています。証拠を指定されたMarkdownセクションに整理し、主張/証拠台帳を準備することに重点を置いています。確認済みの証拠と推論を明確に区別する必要があります。番号付きの主張/証拠台帳が、すべての重要な主張を網羅するように確認しています。\n\n\n**データの整合性の検証**\n\n一次資料の検証に成功し、子サブチャットのデータを取得しました。現在、最終回答に指定された見出しと必要なレイアウトを確認しています。\n\n\n## 短い回答\n\n**回復の軌跡の分析**\n\n短い回答に焦点を当て、簡潔な説明を提示しようとしています。また、他の潜在的な寄与要因についても調査しています。この主張を裏付ける証拠と、どのような反論が存在するかを検討し始めました。最後に、短い回答の要約に含める結論を決定します。"
-      },
-      "follow_up_1": {
-        "text": "今年の現在の米国の卵価格と生産予測を検索する"
-      },
-      "follow_up_2": {
-        "text": "Urner Barryの卸売卵ベンチマークがどのように算出されるか説明する"
-      },
-      "follow_up_3": {
-        "text": "大手卵生産者に関する司法省（DOJ）の最近の独占禁止法の最新情報を検索する"
-      },
-      "follow_up_4": {
-        "text": "州のケージフリー法が州間の食品流通に与える影響を分析する"
-      },
-      "follow_up_5": {
-        "text": "食料品市場における非対称な価格転嫁に関する学術研究を検索する"
-      },
-      "follow_up_6": {
-        "text": "従来の卵生産者とケージフリーの卵生産者の利益率を比較する"
-      },
-      "sub_chat_1_title": {
-        "text": "サブチャット"
-      },
-      "sub_chat_1_summary": {
-        "text": "## 簡潔な回答\n2022年から2024年にかけての[高病原性鳥インフルエンザ](wiki:Avian_influenza)（HPAI）の発生を受け、米国の卵の卸売および小売価格は歴史的な高値に達しました。これにより、最大手生産者であるカルメイン・フーズ（Cal-Maine Foods）などの企業は記録的な利益を享受しました。同社の会計年度2023年の純利益は$758.0万ドルに急増した後、会計年度$277.9年には2024.万ドルに減少しました。業界関係者は、価格高騰の原因を深刻な群れの殺処分、投入コストのインフレ、および標準的なコモディティ・ベンチマーク価格設定を通じて作用する非弾力的な消費者需要に求めていますが、ファーム・アクション（Farm Action）のような擁護団体は、市場調整と価格吊り上げを主張して[連邦取引委員会](wiki:Federal_Trade_Commission)（FTC）に請願書を提出しました。中程度の生産者集中度（カルメインの市場シェアは約20%、上位20社の生産者で約70〜75%）と、薄いスポット市場の卸売価格形成（アーナー・バリー（Urner Barry）指数など）の構造的な合流が、供給ショック時の価格変動を大幅に増幅させています。しかし、過去の独占禁止法訴訟では2015年以前の供給操作に対して陪審評決が下されたものの、2022年から2024年の価格高騰に関して、FTCによる公式な執行措置や違法な共謀の司法的認定は確立されていません。\n\n---\n\n## 表面的な説明\n卵の生産者、農業経済学者、および業界団体によって提示されている従来の説明は、卵価格の劇的な高騰は、前例のない高病原性鳥インフルエンザ（HPAI）の発生と、極めて非弾力的な消費者需要が衝突したことによる、避けられない市場反応であったというものです。\n\nこの説明によれば、以下の通りです。\n1. **生物学的な供給の破壊**: 2022,年初頭から、ウイルスの封じ込めのための措置として、全米で数千万羽の商業用採卵鶏の強制的な殺処分がHPAIによって必要となりました。家禽の生産サイクルにおいて成熟した採卵鶏を補充するには数ヶ月を要するため、国内のテーブルエッグ（食用卵）の総供給量は、地域的および全国的に突然の収縮に見舞われました。\n2. **極端な価格非弾力性**: 卵は消費者の主食であり、工業用製パンの原材料でもあり、即座に代用できるものがほとんどありません。テーブルエッグに対する消費者の[需要の価格弾力性](wiki:Price_elasticity_of_demand)は歴史的に低く（多くの場合、-0.1から-0.2の間と推定されます）、需要が非弾力的なあらゆる競争的な[コモディティ市場](wiki:Commodity_market)において、総供給量が4%から6%減少しただけでも、市場を均衡させるためには急激な価格上昇が必要となります。\n3. **投入コストのインフレ**: パンデミック後のサプライチェーンの混乱や地政学的紛争を受けて、飼料穀物価格（トウモロコシや大豆粕）およびエネルギー・包装コストが急騰し、卵1ダースあたりの生産の基準となる限界費用が上昇しました。\n4. **数式による卸売ベンチマーク**: 大手生産者は、生産量の大部分を小売業者との長期契約に基づいて販売しており、それらの価格は、透明性のある第三者が公表する市場ベンチマーク（アーナー・バリーや[米国農務省](wiki:United_States_Department_of_Agriculture)の相場など）に従って自動的に調整されます。したがって、生産者は、卸売価格の動きは一方的な生産者の決定ではなく、より広範な市場清算のスポット・ダイナミクスを反映していると主張しています。\n\n---\n\n## 他に何が起きている可能性があるか\n生物学的な供給ショックが紛れもない事実であった一方で、経済監視団体、農業擁護組織、および議員たちは、生産者の価格決定力、価格形成メカニズム、および便乗的なマージン拡大に関する代替的な構造的仮説を提起しました。\n\n1. **コスト上昇から切り離された棚ぼた的利益**:\n   競争的なコモディティ市場では、供給ショック時の価格上昇は通常、セクター全体の高い限界投入コストと販売量の損失を補填するものです。しかし、カルメイン・フーズ（米国で唯一の上場大手生産者）の財務開示によれば、2022,年11月26,日までの26週間の粗利益は、前年同期比で10倍に増加しました（$50.4万ドルから$535.3万ドルへ）。生産コストと飼料コストの上昇は約22%であったのに対し、純販売価格は100%から150%以上上昇しました。さらに、カルメインは2022年の主要な感染急増期を通じて、自社施設でのHPAI陽性の群れはゼロであったと報告しており、同社は緊急の品不足価格で通常に近い量を販売することができました。\n\n2. **薄いスポット市場の価格形成の仕組み**:\n   食料品およびフードサービス業界全体の卸売殻付き卵の契約は、民間のコモディティ価格報告機関であるアーナー・バリーが公表する価格相場に連動することが頻繁にあります。極めて重要なことに、全米の殻付き卵の流通量のうち、公開された交渉による「スポット」市場で取引されるのは、ごくわずかな割合（通常5%から10%と推定される）に過ぎません。大口の買い手が局地的な不足に直面し、希少な限界的なスポット貨物を求めて積極的に入札すると、スポット価格は垂直に急騰します。指数連動型の供給契約は契約価格をこれらのスポット・ベンチマークに直接固定しているため、90%%以上の契約市場全体で支払われる価格が即座に上昇し、個々の施設が群れを失ったかどうかにかかわらず、業界全体に巨額の棚ぼた的なキャッシュフローが発生します。\n\n3. **市場集中と資本の再投資**:\n   国内の卵産業は古典的な独占ではありませんが、地域的な流通において顕著な寡占的集中を示しています。カルメインは国内の殻付き卵市場の約20%を支配しており、上位20社の生産者が国内の採卵鶏の群れの約4分の3を占めています。擁護団体は、支配的な生産者が棚ぼた利益を使って生産能力を急速に拡大することを選ばず、代わりに余剰資本を業界の再編（2023.年のカルメインによるファッシオ・エッグ・ファームズ（Fassio Egg Farms）の買収など）に投入したと主張しました。\n\n4. **市場構造と違法な共謀の区別**:\n   ファーム・アクション（Farm Action）による2023年1月と2025年2月の請願書は、連邦取引委員会（FTC）に対し、「明白な価格つり上げ、価格調整、およびその他の不公正または欺瞞的な行為や慣行」について、支配的な卵生産者を調査するよう促しました。しかし、現在公開されている証拠は、2022年から2024.年にかけて生産者の間で明示的な不法合意やカルテルがあったことを証明するものではありません。公開されたベンチマーク価格設定と非弾力的な需要を伴う寡占状態においては、生産者は違法な調整に関与することなく、個々の利益最大化行動や受動的なインデックス化を通じて、棚ぼた的な利益を得ることができます。\n\n---\n\n## 証拠\n\n以下の監査台帳は、2022年から2024年の卵市場に関する重要な定量的、因果的、および法的地位に関する主張を評価したものです。\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"bf9d1bc6-5987-4a01-904d-7a5cdde084e4\"}\n```\n\n\n---\n\n## 反論\n卵の高価格が、価格つり上げ、協調的な市場支配力、または人為的な供給制限のみの結果であったという説を複雑にする、いくつかの強力な経済的および運用的議論が存在します。\n\n1. **純粋なコモディティにおけるミクロ経済的な価格形成**:\n   殻付き卵は腐りやすいコモディティ商品であり、腐敗させずに長期間買いだめしたり市場から遠ざけたりすることはできません。病気のショックによって数千万羽の鶏が失われた場合、市場を均衡させるには、需要量が供給量と一致するまで限界価格が上昇する必要があります。消費者需要は著しく非弾力的であることで知られているため、急激な価格上昇は教科書通りの競争均衡の結果であり、必ずしも共謀や反競争的行為の証拠ではありません。\n\n2. **生産者間での非対称な病気への曝露**:\n   カルメイン（Cal-Maine）は2022,年後半の群れの感染を免れましたが、他の商業生産者は壊滅的な損失を被り、全頭殺処分、鶏舎の消毒、および収益ゼロのダウンタイムを余儀なくされました。2023年度のカルメインの記録的な利益は、主に、地域の競合他社が供給不足に直面している間にフル稼働していたことによる副産物でした。その後、カルメインの施設（2023年後半から2024年初頭にかけてのテキサス州やカンザス州のコンプレックスなど）に病気が侵入した際、カルメインもまた淘汰の被害に遭いました。\n\n3. **コモディティサイクルにおける対称的なダウンサイド**:\n   卵生産者は、本質的に不安定で周期的な業界で事業を行っています。2023,年後半に鳥インフルエンザの圧力が緩和されると、卸売価格と小売価格は急落しました。その結果、カルメインの純利益は2024年度に63.3%減少（$758.0百万ドルから$277.9百万ドルへ）し、コモディティサイクルが下降に転じたことを反映しました。強固な一方的価格決定力を持つ真のカルテルであれば、卸売価格や営業利益率がこれほど急速に崩壊することを許すことは稀でしょう。\n\n4. **規制当局による告発や内部告発の証拠の欠如**:\n   [リナ・カーン（Lina Khan）](wiki:Lina_Khan)委員長の下でのFTCによる厳しい監視や、上院の著名な議員からの公開書簡にもかかわらず、2022年から2024年の発生期間中に価格操作や不法な調整を申し立てる独占禁止法違反の訴状を提出した連邦機関はありません。アドボカシー団体（ファーム・アクションなど）による主張は、政策上の議論や執行の請願を代表するものであり、不法行為が確認された結果ではありません。\n\n---\n\n## 結論\n- **確定**: \n  1. 2022年から2024年の高病原性鳥インフルエンザ（HPAI）の発生により、数千万羽の採卵鶏が失われ、国内の卵供給が深刻に混乱しました。\n  2. カルメイン・フーズ（Cal-Maine Foods）は、自社の生産コストが約22%上昇した一方で、販売価格が2倍以上に跳ね上がったことにより、2023年度に歴史的な記録となる収益と利益（純利益$758.0百万ドル）を達成しました。\n  3. テーブルエッグ（家庭用卵）業界は中程度に集中しており、カルメインが約20%の市場シェアを保持し、上位20社の生産者が全国の採卵鶏の約70から75%を保有しています。\n  4. 複数のアドボカシーグループや議員が、FTCによる独占禁止法および価格つり上げの調査を正式に求めました。\n  5. 以前の無関係な歴史的訴訟（*加工卵製品独占禁止法訴訟*）において、陪審員は、2000s年代に発生した供給制限の共謀について、主要な卵生産者に責任があると判断しました。\n\n- **可能性が高い**: \n  卸売価格の発見メカニズム、具体的には、大規模な小売先渡契約を薄商いのスポット市場であるアーナー・バリー（Urner Barry）のベンチマークに連動させる仕組みが、価格変動を大幅に誇張し、被害を受けていない生産者が病気の発生中に莫大な構造的棚ぼた利益を得ることを可能にしました。\n\n- **妥当だが未証明**: \n  支配的な生産者が意図的に群れの再構築を遅らせたり、暗黙の調整を利用して2022年から2024年の間に高価格を維持したりしたという仮説は、依然としてアドボカシーグループによる主張の域を出ません。\n\n- **不確実 / 未裁定**: \n  2022年から2024年のHPAI発生時に、反競争的合意、欺瞞的慣行、または独占禁止法違反が発生したかどうかは、連邦規制当局による正式な執行措置、同意判決、または司法判断が下されていないため、証明されていません。\n\n---\n\n### 推奨される追跡調査\nこのトピックの特定の側面をより詳細に調査したい場合は、以下を調べることができます。\n- `[Investigate Urner Barry's price reporting methodology](/#message=Explain%20how%20Urner%20Barry%20gathers%20data%20and%20calculates%20its%20wholesale%20egg%20market%20price%20benchmarks.)`\n- `[Review historical egg antitrust litigation verdicts](/#message=Summarize%20the%20jury%20verdict%20and%20findings%20in%20In%20re%20Processed%20Egg%20Products%20Antitrust%20Litigation.)`\n- `[Examine USDA layer flock depopulation and repopulation data](/#message=Show%20USDA%20data%20on%20commercial%20laying%20hen%20depopulations%20from%20avian%20influenza%20between%202022%20and%202024.)`"
-      },
-      "sub_chat_1_message_1": {
-        "text": "鳥インフルエンザの発生（2022-2024）後の米国の卵価格に関する、生産者の市場集中度、卸売価格形成、企業の収益性、および独占禁止法/規制上の監視について調査してください。\n\n\n以下に焦点を当ててください：\n\n1. 生産者の集中度と価格決定力：Cal-Maine FoodsやRose Acre Farmsなどの大手生産者が、テーブルエッグ市場のどの程度のシェアを支配していますか？\n\n2. Cal-Maine Foodsの財務実績：2023年度および2024.年度の主要なSEC 10-K / 10-Q提出書類。四半期/年間の収益、純利益、1ダースあたりの平均販売価格、および売上総利益率を報告してください。生産量が横ばいまたは減少している間に、利益は急増しましたか？\n\n3. 卸売価格の形成：Urner Barryはどのように卸売卵の相場をベンチマークしていますか？薄商いのスポット市場取引が価格変動を増幅させていますか？\n\n4. 独占禁止法の申し立てと規制措置：Farm ActionのFTCへの請願は何を主張しましたか？FTC、州司法長官、または議会はどのような措置を講じましたか？正式な申し立てや書簡を、司法判断やFTCの執行措置と区別してください。歴史的な独占禁止法の文脈（例：以前の卵に関する独占禁止法訴訟）に留意してください。\n\n\n要件：\n\n- ウェブ検索とウェブ閲覧を使用して、SECの提出書類、FTCのリリース、および法的ドケットを確認してください。\n\n- 正確な一次資料の抜粋、URL、および期間を提示してください。\n\n- 確認された司法/規制上の判断を、未裁決の申し立てや擁護団体の請願と明確に区別してください。\n\n- ステータス（支持、限定的、矛盾、未解決）、URL、抜粋、および範囲を含む、番号付きの証拠台帳を出力してください。"
-      },
-      "sub_chat_1_message_2": {
-        "text": "[!](embed:b0d298ba-3ba3-4fac-b946-7a4721aaa083)\n\n[!](embed:022a1c4c-89a5-4568-ac80-bc21860576ca)\n\n[!](embed:29f1f94a-9215-4586-8db7-53597e682caf)\n\n[!](embed:ede14a82-4cb4-4c58-a12e-ea88df205b25)\n\n[!](embed:f72d4b54-3c63-4824-bab6-811c749cfa70)\n\n## 簡潔な回答\n2022年から2024年にかけての[高病原性鳥インフルエンザ](wiki:Avian_influenza)（HPAI）の発生を受け、米国の卵の卸売および小売価格は歴史的な高値に達しました。これにより、最大手生産者であるカルメイン・フーズ（Cal-Maine Foods）などの企業は記録的な利益を享受しました。同社の会計年度2023年の純利益は$758.0万ドルに急増した後、会計年度$277.9年には2024.万ドルに減少しました。業界関係者は、価格高騰の原因を深刻な群れの殺処分、投入コストのインフレ、および標準的なコモディティ・ベンチマーク価格設定を通じて作用する非弾力的な消費者需要に求めていますが、ファーム・アクション（Farm Action）のような擁護団体は、市場調整と価格吊り上げを主張して[連邦取引委員会](wiki:Federal_Trade_Commission)（FTC）に請願書を提出しました。中程度の生産者集中度（カルメインの市場シェアは約20%、上位20社の生産者で約70〜75%）と、薄いスポット市場の卸売価格形成（アーナー・バリー（Urner Barry）指数など）の構造的な合流が、供給ショック時の価格変動を大幅に増幅させています。しかし、過去の独占禁止法訴訟では2015年以前の供給操作に対して陪審評決が下されたものの、2022年から2024年の価格高騰に関して、FTCによる公式な執行措置や違法な共謀の司法的認定は確立されていません。\n\n---\n\n## 表面的な説明\n卵の生産者、農業経済学者、および業界団体によって提示されている従来の説明は、卵価格の劇的な高騰は、前例のない高病原性鳥インフルエンザ（HPAI）の発生と、極めて非弾力的な消費者需要が衝突したことによる、避けられない市場反応であったというものです。\n\nこの説明によれば、以下の通りです。\n1. **生物学的な供給の破壊**: 2022,年初頭から、ウイルスの封じ込めのための措置として、全米で数千万羽の商業用採卵鶏の強制的な殺処分がHPAIによって必要となりました。家禽の生産サイクルにおいて成熟した採卵鶏を補充するには数ヶ月を要するため、国内のテーブルエッグ（食用卵）の総供給量は、地域的および全国的に突然の収縮に見舞われました。\n2. **極端な価格非弾力性**: 卵は消費者の主食であり、工業用製パンの原材料でもあり、即座に代用できるものがほとんどありません。テーブルエッグに対する消費者の[需要の価格弾力性](wiki:Price_elasticity_of_demand)は歴史的に低く（多くの場合、-0.1から-0.2の間と推定されます）、需要が非弾力的なあらゆる競争的な[コモディティ市場](wiki:Commodity_market)において、総供給量が4%から6%減少しただけでも、市場を均衡させるためには急激な価格上昇が必要となります。\n3. **投入コストのインフレ**: パンデミック後のサプライチェーンの混乱や地政学的紛争を受けて、飼料穀物価格（トウモロコシや大豆粕）およびエネルギー・包装コストが急騰し、卵1ダースあたりの生産の基準となる限界費用が上昇しました。\n4. **数式による卸売ベンチマーク**: 大手生産者は、生産量の大部分を小売業者との長期契約に基づいて販売しており、それらの価格は、透明性のある第三者が公表する市場ベンチマーク（アーナー・バリーや[米国農務省](wiki:United_States_Department_of_Agriculture)の相場など）に従って自動的に調整されます。したがって、生産者は、卸売価格の動きは一方的な生産者の決定ではなく、より広範な市場清算のスポット・ダイナミクスを反映していると主張しています。\n\n---\n\n## 他に何が起きている可能性があるか\n生物学的な供給ショックが紛れもない事実であった一方で、経済監視団体、農業擁護組織、および議員たちは、生産者の価格決定力、価格形成メカニズム、および便乗的なマージン拡大に関する代替的な構造的仮説を提起しました。\n\n1. **コスト上昇から切り離された棚ぼた的利益**:\n   競争的なコモディティ市場では、供給ショック時の価格上昇は通常、セクター全体の高い限界投入コストと販売量の損失を補填するものです。しかし、カルメイン・フーズ（米国で唯一の上場大手生産者）の財務開示によれば、2022,年11月26,日までの26週間の粗利益は、前年同期比で10倍に増加しました（$50.4万ドルから$535.3万ドルへ）。生産コストと飼料コストの上昇は約22%であったのに対し、純販売価格は100%から150%以上上昇しました。さらに、カルメインは2022年の主要な感染急増期を通じて、自社施設でのHPAI陽性の群れはゼロであったと報告しており、同社は緊急の品不足価格で通常に近い量を販売することができました。\n\n2. **薄いスポット市場の価格形成の仕組み**:\n   食料品およびフードサービス業界全体の卸売殻付き卵の契約は、民間のコモディティ価格報告機関であるアーナー・バリーが公表する価格相場に連動することが頻繁にあります。極めて重要なことに、全米の殻付き卵の流通量のうち、公開された交渉による「スポット」市場で取引されるのは、ごくわずかな割合（通常5%から10%と推定される）に過ぎません。大口の買い手が局地的な不足に直面し、希少な限界的なスポット貨物を求めて積極的に入札すると、スポット価格は垂直に急騰します。指数連動型の供給契約は契約価格をこれらのスポット・ベンチマークに直接固定しているため、90%%以上の契約市場全体で支払われる価格が即座に上昇し、個々の施設が群れを失ったかどうかにかかわらず、業界全体に巨額の棚ぼた的なキャッシュフローが発生します。\n\n3. **市場集中と資本の再投資**:\n   国内の卵産業は古典的な独占ではありませんが、地域的な流通において顕著な寡占的集中を示しています。カルメインは国内の殻付き卵市場の約20%を支配しており、上位20社の生産者が国内の採卵鶏の群れの約4分の3を占めています。擁護団体は、支配的な生産者が棚ぼた利益を使って生産能力を急速に拡大することを選ばず、代わりに余剰資本を業界の再編（2023.年のカルメインによるファッシオ・エッグ・ファームズ（Fassio Egg Farms）の買収など）に投入したと主張しました。\n\n4. **市場構造と違法な共謀の区別**:\n   ファーム・アクション（Farm Action）による2023年1月と2025年2月の請願書は、連邦取引委員会（FTC）に対し、「明白な価格つり上げ、価格調整、およびその他の不公正または欺瞞的な行為や慣行」について、支配的な卵生産者を調査するよう促しました。しかし、現在公開されている証拠は、2022年から2024.年にかけて生産者の間で明示的な不法合意やカルテルがあったことを証明するものではありません。公開されたベンチマーク価格設定と非弾力的な需要を伴う寡占状態においては、生産者は違法な調整に関与することなく、個々の利益最大化行動や受動的なインデックス化を通じて、棚ぼた的な利益を得ることができます。\n\n---\n\n## 証拠\n\n以下の監査台帳は、2022年から2024年の卵市場に関する重要な定量的、因果的、および法的地位に関する主張を評価したものです。\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"bf9d1bc6-5987-4a01-904d-7a5cdde084e4\"}\n```\n\n---\n\n## 反論\n卵の高価格が、価格つり上げ、協調的な市場支配力、または人為的な供給制限のみの結果であったという説を複雑にする、いくつかの強力な経済的および運用的議論が存在します。\n\n1. **純粋なコモディティにおけるミクロ経済的な価格形成**:\n   殻付き卵は腐りやすいコモディティ商品であり、腐敗させずに長期間買いだめしたり市場から遠ざけたりすることはできません。病気のショックによって数千万羽の鶏が失われた場合、市場を均衡させるには、需要量が供給量と一致するまで限界価格が上昇する必要があります。消費者需要は著しく非弾力的であることで知られているため、急激な価格上昇は教科書通りの競争均衡の結果であり、必ずしも共謀や反競争的行為の証拠ではありません。\n\n2. **生産者間での非対称な病気への曝露**:\n   カルメイン（Cal-Maine）は2022,年後半の群れの感染を免れましたが、他の商業生産者は壊滅的な損失を被り、全頭殺処分、鶏舎の消毒、および収益ゼロのダウンタイムを余儀なくされました。2023年度のカルメインの記録的な利益は、主に、地域の競合他社が供給不足に直面している間にフル稼働していたことによる副産物でした。その後、カルメインの施設（2023年後半から2024年初頭にかけてのテキサス州やカンザス州のコンプレックスなど）に病気が侵入した際、カルメインもまた淘汰の被害に遭いました。\n\n3. **コモディティサイクルにおける対称的なダウンサイド**:\n   卵生産者は、本質的に不安定で周期的な業界で事業を行っています。2023,年後半に鳥インフルエンザの圧力が緩和されると、卸売価格と小売価格は急落しました。その結果、カルメインの純利益は2024年度に63.3%減少（$758.0百万ドルから$277.9百万ドルへ）し、コモディティサイクルが下降に転じたことを反映しました。強固な一方的価格決定力を持つ真のカルテルであれば、卸売価格や営業利益率がこれほど急速に崩壊することを許すことは稀でしょう。\n\n4. **規制当局による告発や内部告発の証拠の欠如**:\n   [リナ・カーン（Lina Khan）](wiki:Lina_Khan)委員長の下でのFTCによる厳しい監視や、上院の著名な議員からの公開書簡にもかかわらず、2022年から2024年の発生期間中に価格操作や不法な調整を申し立てる独占禁止法違反の訴状を提出した連邦機関はありません。アドボカシー団体（ファーム・アクションなど）による主張は、政策上の議論や執行の請願を代表するものであり、不法行為が確認された結果ではありません。\n\n---\n\n## 結論\n- **確定**: \n  1. 2022年から2024年の高病原性鳥インフルエンザ（HPAI）の発生により、数千万羽の採卵鶏が失われ、国内の卵供給が深刻に混乱しました。\n  2. カルメイン・フーズ（Cal-Maine Foods）は、自社の生産コストが約22%上昇した一方で、販売価格が2倍以上に跳ね上がったことにより、2023年度に歴史的な記録となる収益と利益（純利益$758.0百万ドル）を達成しました。\n  3. テーブルエッグ（家庭用卵）業界は中程度に集中しており、カルメインが約20%の市場シェアを保持し、上位20社の生産者が全国の採卵鶏の約70から75%を保有しています。\n  4. 複数のアドボカシーグループや議員が、FTCによる独占禁止法および価格つり上げの調査を正式に求めました。\n  5. 以前の無関係な歴史的訴訟（*加工卵製品独占禁止法訴訟*）において、陪審員は、2000s年代に発生した供給制限の共謀について、主要な卵生産者に責任があると判断しました。\n\n- **可能性が高い**: \n  卸売価格の発見メカニズム、具体的には、大規模な小売先渡契約を薄商いのスポット市場であるアーナー・バリー（Urner Barry）のベンチマークに連動させる仕組みが、価格変動を大幅に誇張し、被害を受けていない生産者が病気の発生中に莫大な構造的棚ぼた利益を得ることを可能にしました。\n\n- **妥当だが未証明**: \n  支配的な生産者が意図的に群れの再構築を遅らせたり、暗黙の調整を利用して2022年から2024年の間に高価格を維持したりしたという仮説は、依然としてアドボカシーグループによる主張の域を出ません。\n\n- **不確実 / 未裁定**: \n  2022年から2024年のHPAI発生時に、反競争的合意、欺瞞的慣行、または独占禁止法違反が発生したかどうかは、連邦規制当局による正式な執行措置、同意判決、または司法判断が下されていないため、証明されていません。\n\n---\n\n### 推奨される追跡調査\nこのトピックの特定の側面をより詳細に調査したい場合は、以下を調べることができます。\n- `[Investigate Urner Barry's price reporting methodology](/#message=Explain%20how%20Urner%20Barry%20gathers%20data%20and%20calculates%20its%20wholesale%20egg%20market%20price%20benchmarks.)`\n- `[Review historical egg antitrust litigation verdicts](/#message=Summarize%20the%20jury%20verdict%20and%20findings%20in%20In%20re%20Processed%20Egg%20Products%20Antitrust%20Litigation.)`\n- `[Examine USDA layer flock depopulation and repopulation data](/#message=Show%20USDA%20data%20on%20commercial%20laying%20hen%20depopulations%20from%20avian%20influenza%20between%202022%20and%202024.)`"
-      },
-      "sub_chat_1_message_2_thinking": {
-        "text": "{\"text\": \"**卵の価格動向の分析**\n\n私は、2022年から2024.年にかけての鳥インフルエンザ発生後の米国における卵の価格分析に焦点を当てています。現在、生産者の市場集中度を詳しく調べています。最大手企業、特にカル・メイン・フーズ（Cal-Maine Foods）のテーブルエッグ（食用卵）市場における価格決定力を定量化したいと考えています。これには、彼らの市場シェアを特定し、それが流行中および流行後の価格決定にどのように影響したかを理解することが含まれます。\n\n\n**価格形成の調査**\n\n現在、卸売価格の形成、具体的にはアーナー・バリー（Urner Barry）がどのようにベンチマークを設定しているか、そして薄いスポット市場での取引が価格変動を誇張しているかどうかを調査しています。また、独占禁止法違反の申し立てや規制当局の行動についても掘り下げ始めており、正式な請願と実際の執行を区別しています。調査の枠組みは整っており、分析を導くために「簡潔な回答、表面的な説明、他に何が起きている可能性があるか、証拠、反論、結論」の形式を採用します。\n\n\n**ツールの制限の明確化**\n\n`start_sub_chats`ツールが利用できないことに気づきました。複雑な調査に対する当初のアプローチはそれを前提としていたため、適応する必要があります。現在、利用可能な`web-search`機能のみに頼るよう戦略を調整しています。これは、広範な質問をより小さく、より焦点を絞った検索に分解し、体系的に情報を収集する必要があることを意味します。複数のソースからの情報を統合することに特に留意する必要があります。\n\n\n**調査アプローチの洗練**\n\n`web-search`ツールの制限と、定義されたばかりの新しい構造化出力形式に基づいて、アプローチを完全に再構築しています。指定された6つの見出しと、この構造内で限られたウェブアクセスをどのように使用するかに焦点を当てています。具体的には、番号付きの証拠台帳を統合し、主張のタイプを区別し、カル・メイン・フーズの10-K届出書などの情報源を特定しています。\n\n\n**検索戦略の実行**\n\nデータを収集するための検索戦略を策定しました。カル・メインの2023年度および2024,年度の財務状況、ファーム・アクション（Farm Action）によるFTCへの請願、アーナー・バリーの価格発見メカニズム、主要な卵生産者の市場シェアデータ、および「加工卵製品独占禁止法訴訟（In re Processed Egg Products Antitrust Litigation）」の結果に焦点を当てた5つの並列`web-search`クエリを設計しました。目的は、分析のための一次データおよび二次データの基盤を構築することです。\n\n\n**カル・メインのデータの分析**\n\nさて、カル・メイン・フーズの10-K届出書を詳しく調べています。私の焦点は、主要なデータポイントを抽出することにあります。特に、純売上高、純利益、1ダースあたりの平均販売価格、および総販売ダース数を確認するために、FY2023およびFY2024の財務データに関心があります。\n\n\n**カル・メインの数値の特定**\n\n直接のSEC URLで問題が発生しました。Edgarが自動アクセスをブロックしているようなので、方針を転換します。現在はウェブ検索を使用して、カル・メインの正確な10-Kの数値を特定しています。データの正確性を確保するために、決算発表、SEC届出書のミラーサイト、または財務データベースなどの信頼できる情報源から情報を見つけることに集中しています。\n\n\n**卵の価格動向の分析**\n\n現在、鳥インフルエンザの発生（2022-2024）が米国の卵価格に与えた影響を調査しています。生産者の集中度と価格決定力に焦点を当て、特にカル・メイン・フーズとローズ・エーカー・ファームズ（Rose Acre Farms）を調査しています。また、SEC届出書（10-K/10-Q）を確認することで、カル・メインの財務パフォーマンスも調査しています。目的は、これらの要因がどのように相互作用して市場のダイナミクスに影響を与えるかを理解することです。\n\n\n**独占禁止法への影響の検討**\n\n現在、独占禁止法の側面を調査しており、特にファーム・アクションのFTC請願と議会の監視に焦点を当てています。申し立てと正式な行動を区別し、「加工卵製品独占禁止法訴訟」の判決を確認しています。アーナー・バリーの相場を使用して卸売価格の形成を追跡しています。また、価格行動をよりよく理解するために、2023および2024の財務データ（収益、利益、マージン）を調査しています。\n\n\n**制約遵守の確認**\n\n予算の警告が出ているため、特に「最終回答の復旧（Final-answer recovery）」プロトコルと、これ以上のツール使用の禁止に関して、すべての指示を注意深く見直し、厳格に遵守するようにしています。最終回答の構成に関するガイドラインに焦点を当てており、最終回答がタスクの要件を満たすようにこれらのガイドラインに従います。既存のすべての安全要件と制約を維持しながら、会話内の完成した証拠に基づいて回答を作成する必要があります。回答の構造、アクティブなフォーカスのガイドラインに焦点を当て、ツール関連のアクションをすべて回避します。\n\n\n**回答構造の定義**\n\n現在、回答形式の構築に完全に没頭しています。「簡潔な回答」、「表面的な説明」、「他に何が起きている可能性があるか」、「証拠」、「反論」、「結論」の指定された6つの見出しを使用する必要があります。ハルシネーションを防ぐために、特にURLの使用に関する証拠の出典ガイドラインを確認しています。会話履歴からのソースのみに焦点を当てます。焦点を絞り、準拠した最終回答を作成するために、規定の構造の遵守を優先しています。\n\n\n**関連URLの収集**\n\n会話履歴からURLを注意深くカタログ化しました。「証拠」セクションを組み立てる際、適切な出典を確保し、ハルシネーションを避けるために、これらのリンクを慎重に使用する必要があります。最終回答内で行う主張を裏付けるために、これらのURLのみを使用します。\n\n\n**関連証拠の収集**\n\n提供されたソースから追加の裏付け資料を収集しました。現在、これらの参照資料を「証拠」セクションに統合することに集中しており、主張と正式な確認を慎重に区別し、真実性を遵守して捏造を避けるようにしています。指示に従い、未解決の主張があればそれを注記するようにしています。\n\n\n**最終回答の構造化**\n\n\"}\n\n提供された構成を使用して回答をフォーマットすることに集中しており、「簡潔な回答」、「表面的な説明」、「他に何が起きている可能性があるか」、「証拠」、「反論」、「結論」の各セクションを追加しています。各セクションの指示を確認し、最終的な回答をまとめる準備ができています。証拠を正確に提示するように細心の注意を払っています。\n\n\n**代替的な説明の統合**\n\n現在、代替的な説明を回答に統合しています。公式なHPAI（高病原性鳥インフルエンザ）のナラティブに焦点を当て、それを市場集中度や価格設定のダイナミクスと対比させています。非弾力的な需要、投入コスト、透明性の高いコモディティ価格設定の役割を認めなければなりません。また、卸売価格の発見におけるUrner Barryの役割についても検討しています。Cal-Maineの目覚ましいFY2023の純利益データは、棚ぼた利益の証拠として含める予定です。\n\n\n**価格吊り上げの主張の監査**\n\n現在、特に擁護団体による価格吊り上げの主張を慎重に監査しており、疑惑と証明された違法な意図を区別することに重点を置いています。集約化におけるM&A活動の役割や、棚ぼた利益を利用した競合他社の買収について調査しています。証拠とURLを含めた主張台帳を維持します。例えば、2023と2024,におけるCal-Maineの純利益や売上高を含む財務実績を評価する必要があります。\n\n\n**販売実績の分析**\n\n現在、Cal-Maineの最近の販売データに焦点を当てています。2024第4四半期の販売数量は2023,と比較して減少しましたが、純利益は前年よりは低いものの、依然として相当な額を維持しています。具体的には、2024,会計年度の純利益は$277.9百万ドルでした。また、含めるべき証拠として、2022の価格急騰時におけるCal-Maineの売上総利益の劇的な増加についても確認しています。Farm Actionの請願データは極めて重要です。\n\n\n**市場集中度の評価**\n\n現在、市場集中度を評価しています。Wattagnetによると、米国の卵生産者の上位21社が市場のほぼ4分の3を支配していることがわかります。2021から2024.の具体的な販売数量の数値を盛り込んでいます。現在、2021から2024.にかけての卸売価格が大幅に上昇したという主張を評価しています。\n\n\n**主張の検証の評価**\n\n現在、議論の中での主張を慎重に検証し、利用可能な文書と照らし合わせています。Farm Actionが引用しているように、コストの増加と価格の上昇を対比させる際、特に正確さを優先しています。また、Cal-Maineが直面している規制当局の監視についても確認することを目指しています。前回のレビューからの販売実績指標を現在取り入れています。既存のデータと比較して、それらの主張を検証しています。\n\n\n\n**訴訟と価格設定の関連付け**\n\n現在、歴史的な独占禁止法の文脈、特に過去の訴訟結果を、Farm Actionの書簡を参考にしながら分析に統合しています。過去の共謀と現在のHPAI関連の価格変動との違いに注目しています。また、卸売価格形成におけるUrner Barryの相場の役割を検討し、薄いスポット取引が急激な価格変動を招く可能性があることを認識しています。\n\n\n**訴訟と価格設定の関連付け**\n\n現在、歴史的な独占禁止法の文脈、特に過去の訴訟結果を、Farm Actionの書簡を参考にしながら分析に統合しています。過去の共謀と現在のHPAI関連の価格変動との違いに注目しています。また、卸売価格形成におけるUrner Barryの相場の役割を検討し、薄いスポット取引が急激な価格変動を招く可能性があることを認識しています。現在、回答に反論を取り入れており、2022から2024の正確な取引データの欠如が未解決であることを認識していますが、これは但し書きとして認めるつもりです。\n\n\n**主な調査結果の要約**\n\n現在、純利益の推移に焦点を当て、何が確実で、何が可能性が高く、何が妥当だが未証明であるかを判断するために、すべての情報を統合しています。2023,の記録的な利益のような確認された要素や、市場の薄さと非弾力的な需要による誇張された価格変動のような可能性の高い要因を特定できたと考えています。また、留意すべき妥当なシナリオもあります。まだ不確実なことについては認める必要があります。\n\n\n**コンプライアンス遵守の評価**\n\n現在、フォーマットと主張の検証に重点を置き、コンプライアンス・チェックリストを厳格に適用しています。制約事項、特に指定された6つの見出し、番号付きの証拠、およびURLの使用に焦点を当てています。これまでのすべての主張を注意深く見直し、それぞれが裏付けられているか、限定的か、矛盾しているか、あるいは未解決であるかを確認し、会話履歴からの関連する裏付けURLにリンクされていることを確認しています。期間、地理、対象、指標、および法的地位を特定することで、正確性を確保しています。\n\n\n**記事タイトルの使用の検証**\n\n現在、正確性を期すために、*Cal-Maine Foods*や*Avian influenza*（鳥インフルエンザ）など、最初に言及する際にはWikipediaの標準的なタイトルを慎重に採用しています。*Sherman Antitrust Act*（シャーマン独占禁止法）や*Clayton Antitrust Act*（クレイトン独占禁止法）などのすべてのタイトルを検証し、正しいフォーマットとコンプライアンスを確認しています。また、URLの捏造を防ぐために、会話履歴からの検証済みURLのみを使用しているかどうかもチェックしています。\n\n\n**利益ダイナミクスの計算**\n\n現在、Cal-Maineの利益ダイナミクスを理解するために、最近の財務データを分析しています。相当な売上があるにもかかわらず、FY2023からFY2024,にかけて純利益が大幅に減少したことに注目しています。コスト削減、特に生産コストと飼料コストを売上高と比較しています。また、データポイントとして追加するために、2022の売上総利益の推移を計算しています。"
-      },
-      "sub_chat_2_title": {
-        "text": "サブチャット"
-      },
-      "sub_chat_2_summary": {
-        "text": "## 要約\n\n2022後半から2024にかけての米国における卵価格の高騰は、主に高病原性鳥インフルエンザ（HPAI）による殺処分という生物学的な現実によって引き起こされました。これにより数千万羽の採卵鶏が失われ、それに消費者の卵需要の極端な価格非弾力性が組み合わさりました。採卵鶏は国内の家禽飼養羽数の4%未満であるにもかかわらず、国内の家禽損失全体の75%を占めました。また、生産を回復させるための生物学的なタイムラグとして、若雌鶏が成熟するまでに少なくとも20〜22週間を要し、多段齢の商業施設を完全に再構築するには最大80週間かかります。HPAIは完全に収束することなく、深刻な季節的な波として再発しました。2022,後半にピークを迎え、2023,後半に急激に再燃し、2024後半にはカリフォルニア州や中西部全域でさらに激化しました。[カリフォルニア州](wiki:California)の提案12のような州レベルのケージフリー飼育法は地域市場を分断し、HPAIがケージフリー施設を不釣り合いに襲った際に、ケージフリーの供給プールを極めて脆弱な状態にしました。一方で、主要な飼料コストは2022のピークから20%から40%にかけて実際には低下しており、卵価格のインフレは投入コストの押し上げ現象ではなく、構造的かつ疾病主導のものであったことが裏付けられています。\n\n---\n\n## 表面的な説明\n\n農業当局や業界団体が提示している主な説明は、卵価格の急騰は前例のない動物衛生危機の避けられない経済的帰結であるというものです。[米国農務省](wiki:United_States_Department_of_Agriculture)（USDA）の[動植物検疫局](wiki:Animal_and_Plant_Health_Inspection_Service)（APHIS）が執行する連邦政府の「スタンピングアウト（根絶）」命令の下では、1羽でも陽性が確認されれば、病気の蔓延を抑えるために施設全体の迅速な殺処分が義務付けられています。\n\n採卵鶏は肉用鶏よりも寿命が長く、大規模な商業鶏舎に集中しているため、商業的な採卵事業は壊滅的な群れの減少に見舞われました。数百万羽の生産性の高い鶏が排除されると、商業用の卵の供給は突然収縮します。殻付き卵に対する消費者の需要は価格弾力性が非常に低いため（消費者が卵を、すぐに代用できる調理食材が少ない不可欠な主食と見なしていることを意味します）、国内生産量がわずかな割合（テーブルエッグ生産量の2%から5%の減少など）で減少しただけでも、卸売価格や小売価格は劇的な割合で急騰します。農場が義務付けられた死骸の処分、清掃、消毒、および環境的な休止期間を完了した後、新しい卵が小売店の棚に戻るまでには、補充用の若雌鶏が孵化し、成長し、性成熟に達するまで数ヶ月待たなければなりません。\n\n---\n\n## 他に何が起きている可能性があるか\n\n疾病による供給の収縮が根本的な触媒である一方で、いくつかの相互に関連する構造的、規制的、および市場の力学が、価格急騰の深刻さと地理的な分布を増幅させました。\n\n1. **州の動物飼育義務化による市場の断片化:** \n 州レベルのケージフリー法の全面施行（最も顕著なのは、卵に対して施行され、2023年5月に[合衆国最高裁判所](wiki:Supreme_Court_of_the_United_States)によって支持されたカリフォルニア州提案12、およびマサチューセッツ州質問3,であり、これに続いてコロラド州、ワシントン州、オレゴン州などの州でも法律が制定されました）により、全米の卵市場は法的に分割されました。これらの管轄区域の小売業者は、従来のケージ施設から調達された卵を合法的に販売することができません。2023後半から2024,にかけて渡り鳥がケージフリーの採卵鶏群に感染させた際、州外の供給業者は地域の不足分を従来の卵の余剰分で補うことができませんでした。この規制上の摩擦が局地的な不足を悪化させ、2024後半から2025.初めにかけて、カリフォルニア州の卸売価格は1ダースあたり$10.00を超え、小売価格は$8.90を突破しました。\n\n2. **卵価格と飼料・投入コストの切り離し:** \n 初期の2022のインフレの波の間、農業生産者は家禽飼料、天然ガス、包装、ディーゼルの変動コストの上昇に直面しました。しかし、2023後半から2024,を通じて、トウモロコシと大豆粕（採卵鶏の飼料成分の80%から90%を占める）の指標価格は大幅に下落しました。農場レベルの生産コストデータは、1ダースあたりの飼料コストが大幅に低下した一方で卵の市場価格が上昇したことを示しており、2023–2024の価格急騰が一般的な投入コストのインフレによって引き起こされたという仮説を否定しています。\n\n3. **非対称なスポット価格設定と企業の利益率:** \n 卵は日次および週次の卸売スポット価格やフォーミュラ指標（アーナー・バリー指数の相場など）に基づいて取引されるため、局地的な供給パニックが発生すると価格は即座に上方修正されます。影響を受けなかった事業を持つ商業生産者は、標準的な生産量をスポット市場のプレミアム価格で販売し、企業の粗利益に大幅な急増をもたらしました。例えば、全米最大の卵生産者であるカルメイン・フーズは、2024.の初めから終わりにかけて四半期粗利益が310%増加したと報告しました。これらの利益率の拡大は議会の調査を引き起こし、[米国司法省反トラスト局](wiki:United_States_Department_of_Justice_Antitrust_Division)が2025年3月に、アルゴリズムによる、あるいは協調的な価格操作の可能性についての調査を開始するきっかけとなりました。これは、2004から2008.の間の業界の供給調整に関する以前の連邦陪審の評決を反映したものです。\n\n---\n\n## 証拠\n\n### 群れの生物学と再個体数化のロジスティクス\n感染した採卵鶏施設が殺処分された場合、感染前の生産量に戻るには、厳格な生物学的および規制上の関門に左右されます。\n- **根絶と検疫：** 殺処分（通常は二酸化炭素、水ベースの泡、または換気停止による）の後、施設では死骸の処理（堆肥化または埋却）が行われ、続いて集中的な洗浄と化学消毒（C&D）が行われます。州および連邦の群れ計画では、USDA APHISが施設を検疫から解放する前に、施設が環境スワブ検査を受け、公式の休止期間（通常、消毒後少なくとも21日間、または消毒なしの休止によるウイルス除去が選択された場合は最大150日間）鳥がいない状態を維持することが求められます。\n- **若雌鶏の成熟曲線：** 成鶏を購入することで、採卵鶏の生産を一晩で再開することはできません。孵化場は日齢1日の雌のヒナ（若雌鶏）を供給し、それらは専用の鶏舎で16週間から17週間かけて飼育されます。およそ18週齢から20週齢で、若雌鶏は性成熟に達し、採卵鶏舎に移されます。最初の産卵は20週から22週頃に起こり、産卵のピーク（90%以上の産卵率）は25週から30週頃に達成されます。\n- **段階的な多齢構成コンプレックス：** 現代の商業用卵コンプレックスは、複数の鶏舎にわたって数十万から数百万羽の鳥を収容しています。商業農場は、毎日の卵のサイズと量を一定に保つために、意図的に群れの年齢を（20週から80週以上まで）段階的にずらしています。施設全体が殺処分された場合、若雌鶏の孵化場の能力制限や下流の市場へのコミットメントのため、サイト全体を同時に再補充することは商業的に不可能です。完全な多齢構成コンプレックスの再個体数化には、12ヶ月から18ヶ月（最大80週間）を要します。\n\n### 流行のダイナミクスと再発する発生\nHPAIは、2022年春の流行後に消失するのではなく、太平洋、中央、ミシシッピ、大西洋の各渡りルート沿いの北米の渡り性水鳥の中に常在的なリザーバーを形成しました。\n- 2022,年後半、冬の渡りによって中西部の採卵鶏コンプレックスに大規模な再感染がもたらされ、2023.年1月には全国の小売価格が1ダースあたり$4.82でピークに達しました。\n- 温暖な気候により2023,年中盤は小康状態となりましたが、2023年後半から2024,年初頭にかけて再び症例が急増し、カリフォルニア州のセントラルバレーとソノマ郡の主要な商業コンプレックスを直撃しました。\n- 発生の激しさは2024年後半に劇的に高まりました。2024年の11月と12月だけで発生した商業用雌鶏の損失は、暦年全体の国内の雌鶏の損失の43%を占めました。2025,年の最初の6週間で、さらにおよそ28万羽の採卵鶏が殺処分され、全国の小売平均価格は2025.年3月に史上最高の1ダースあたり$6.23まで上昇しました。\n- 構造的なバイオセキュリティの脆弱性を示すものとして、APHISは、67の固有の商業用養鶏施設が少なくとも2回の繰り返し感染を経験し、19の施設が2022年から2024.年後半の間に3回以上感染したことを記録しました。\n\n```json\n{\"type\": \"code\", \"embed_id\": \"e06705c3-35ae-4972-8be1-f01219e9ec08\"}\n```\n\n### 一次資料からの引用\n\n> [したがって、採卵鶏の群れがHPAIに感染し、病気の蔓延を抑えるために殺処分された場合、新しい雌鶏が性成熟に達して再び卵を産み始めるまでに最大20週間かかる可能性があります。](embed:congress.gov-Eg7)\n\n---\n\n### 番号付き主張と証拠台帳\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"37e3bde4-90d3-4491-9cf1-65d5dbd80779\"}\n```\n\n---\n\n## 反論\n\n### 1. 企業の「グリードフレーション」や共謀が急騰を説明するか？\n議員たちは、Cal-Maine Foodsの310%の利益急増や、過去の価格操作の判決（2004年から2008年の行為に対する卵生産者への2023年の評決など）を指摘しましたが、発生中の高いスポット利益は、能動的な共謀を証明するものではありません。殻付き卵は、透明性の高い日次/週次のスポット指数で販売される、ほぼ差別化されていないコモディティです。価格弾力性の低い需要があるオークション市場では、わずか3%から5%の総供給不足が、限界的な買い手が淘汰されるまで、機械的に価格を指数関数的に押し上げます。HPAIを鶏舎から遠ざけることに成功した生産者は、共謀する必要なく、その時の市場清算価格で販売を成立させました。\n\n### 2. ケージフリーの義務化だけが地域格差の原因か？\n動物福祉法案の批判者たちは、カリフォルニア州の提案12号とマサチューセッツ州の質問3号が全国的な食品流通システムを破壊したと主張しました。しかし、農業経済学者は、従来の卵も野生の水鳥の渡りを介して同一のHPAI感染経路にさらされていると指摘しています。ケージフリーの規則により、州外の従来の卵がカリフォルニアの食料品店の棚を補うことは妨げられましたが、カリフォルニアの不足の根本的な要因は、カリフォルニア州内およびその専用の西部ケージフリー供給圏内での数百万羽の雌鶏の物理的な感染と淘汰でした。\n\n### 3. 飼料と輸送のコストが価格を高止まりさせたのか？\nロシア・ウクライナ戦争の勃発を受けて2022年に飼料、運賃、エネルギーのコストが急騰しましたが、この説明は2023年から2024年の回復期には当てはまりません。USDA [経済調査局](wiki:Economic_Research_Service) (ERS) および卵産業センターのデータによると、トウモロコシは2023,年後半までに前年比で28%下落し、養鶏飼料の総コストは2025.年までに2023年のピークから44%下落しました。生産コストの指標が下落する一方で消費者の小売価格は上昇しており、投入コストが2023年後半から2024年にかけての価格急騰の原因ではないことを証明しています。\n\n---\n\n## 結論\n\n- **確定事項:** 米国のHPAI（高病原性鳥インフルエンザ）発生による被害は、テーブルエッグ（食用卵）の採卵鶏に圧倒的に集中しており、家禽全体の4%未満であるにもかかわらず、国内の家禽殺処分数の75%を占めています。生物学的な回復は、20〜22週間の若雌鶏（パレット）の成長サイクルと数ヶ月にわたる休止・消毒プロトコルによって厳しく制約されており、多段階齢のコンプレックス（大規模農場施設）の再導入には12〜18ヶ月を要します。消費者の卵需要は極めて非弾力的であり、わずか約2.6%〜5%の群れの損失が100%以上の小売価格の急騰につながりました。飼料コストは2023年と2024,年を通じて劇的に下落しており、期間後半の価格上昇の原因が投入コストプッシュ型のインフレではなかったことが確認されています。\n- **可能性が高い事項:** 州レベルのケージフリー（平飼い）義務化は、カリフォルニア州、マサチューセッツ州、およびその他の遵守州において、局所的な不足と価格プレミアムを悪化させました。これは、特にケージフリー経営が2024年後半のHPAI採卵鶏損失の50%以上を被った後、従来の卵が殺処分されたケージフリーの群れの代わりになることを防いだためです。\n- **妥当だが未証明の事項:** 商業用卵生産者がHPAIの発生を利用してスポット指数を人為的に操作したり、自然な発生による不足を超えて供給制限を調整したりしたという主張は、依然として証明されていません。司法省（DOJ）の2025年3月の反トラスト調査は、活発な精査が行われていることを裏付けていますが、2022年以降の価格操作に関する判決や正式な認定は下されていません。\n- **不確実な事項:** 家禽ワクチンの長期的な商業的有効性は、国際貿易障壁（具体的には、$5億ドルの米国産ブロイラー輸出市場に対する輸出禁止のリスク）や、標準的な監視下でワクチン接種済みの鳥と感染した鳥を区別することの難しさから、未解決のままです。\n\n---\n\n### 推奨されるフォローアップアクション\n\n- [USDA APHISの家禽補償金支払い構造を調査する](/#message=Can%20you%20analyze%20the%20USDA%20APHIS%20indemnity%20and%20compensation%20reimbursement%20formula%20for%20depopulated%20poultry%20flocks%3F)\n- [卵の価格操作に関する司法省の反トラスト調査を確認する](/#message=What%20is%20the%20current%20status%20of%20the%20DOJ%20Antitrust%20Division%20investigation%20into%20egg%20companies%20for%20price-fixing%3F)"
-      },
-      "sub_chat_2_message_1": {
-        "text": "鳥インフルエンザの発生（特に2022後半から2024までを調査）後の米国の卵価格の背後にある供給側、生物学的、および規制上の要因を調査してください。 \n\n\n以下に焦点を当ててください：\n\n1. 群れの再構築の生物学と運用のタイムライン：殺処分から消毒、若雌鶏の育成、そして産卵のピーク（例：産卵まで20-22週間、完全な再構築サイクル）まで、どのくらいの時間がかかりますか？\n\n2. HPAI（高病原性鳥インフルエンザ）の波の動態：鳥インフルエンザは本当に「沈静化」したのでしょうか、それとも局地的な発生が繰り返されたのでしょうか（例：2023後半/2024前半のカリフォルニア州や中西部での急増）？採卵鶏の殺処分とテーブルエッグの群れサイズに関する主要なUSDA NASS / APHISのデータ。\n\n3. 州レベルの規制：ケージフリーの義務化（カリフォルニア州提案12,、マサチューセッツ州質問3,など）が、地域の供給の細分化、コンプライアンスコスト、および局地的な価格急騰に与えた影響。\n\n4. 投入コストの変化：回復期間中の飼料価格（トウモロコシ、大豆粕）、包装、エネルギー、および輸送コスト。\n\n\n要件：\n\n- ウェブ検索とウェブ閲覧を使用して、主要な政府機関（USDA ERS、USDA NASS、USDA APHIS）および学術資料を調査してください。\n\n- 正確な日付、数値、および抜粋を提示してください。\n\n- 確認された事実と推論を区別してください。\n\n- 証拠ステータス（支持、限定的、矛盾、未解決）、正確なURL、期間、指標、および主要な抜粋を含む、番号付きの証拠台帳（主張1からNまで）を出力してください。"
-      },
-      "sub_chat_2_message_2": {
-        "text": "[!](embed:ead55cba-0322-416e-94b7-0009e5747984)\n\n[!](embed:1caeaeb7-9c1c-47e0-ba0f-c679fdce64f4)\n\n[!](embed:64ba61aa-17a9-423d-a812-f153ca20e41a)\n\n[!](embed:8fd2a5b5-c11f-46b5-b726-cbd46f11ab82)\n\n[!](embed:9fa35ea0-4598-4269-b920-d588a902d8a5)\n\n## 要約\n\n2022後半から2024にかけての米国における卵価格の高騰は、主に高病原性鳥インフルエンザ（HPAI）による殺処分という生物学的な現実によって引き起こされました。これにより数千万羽の採卵鶏が失われ、それに消費者の卵需要の極端な価格非弾力性が組み合わさりました。採卵鶏は国内の家禽飼養羽数の4%未満であるにもかかわらず、国内の家禽損失全体の75%を占めました。また、生産を回復させるための生物学的なタイムラグとして、若雌鶏が成熟するまでに少なくとも20〜22週間を要し、多段齢の商業施設を完全に再構築するには最大80週間かかります。HPAIは完全に収束することなく、深刻な季節的な波として再発しました。2022,後半にピークを迎え、2023,後半に急激に再燃し、2024後半にはカリフォルニア州や中西部全域でさらに激化しました。[カリフォルニア州](wiki:California)の提案12のような州レベルのケージフリー飼育法は地域市場を分断し、HPAIがケージフリー施設を不釣り合いに襲った際に、ケージフリーの供給プールを極めて脆弱な状態にしました。一方で、主要な飼料コストは2022のピークから20%から40%にかけて実際には低下しており、卵価格のインフレは投入コストの押し上げ現象ではなく、構造的かつ疾病主導のものであったことが裏付けられています。\n\n---\n\n## 表面的な説明\n\n農業当局や業界団体が提示している主な説明は、卵価格の急騰は前例のない動物衛生危機の避けられない経済的帰結であるというものです。[米国農務省](wiki:United_States_Department_of_Agriculture)（USDA）の[動植物検疫局](wiki:Animal_and_Plant_Health_Inspection_Service)（APHIS）が執行する連邦政府の「スタンピングアウト（根絶）」命令の下では、1羽でも陽性が確認されれば、病気の蔓延を抑えるために施設全体の迅速な殺処分が義務付けられています。\n\n採卵鶏は肉用鶏よりも寿命が長く、大規模な商業鶏舎に集中しているため、商業的な採卵事業は壊滅的な群れの減少に見舞われました。数百万羽の生産性の高い鶏が排除されると、商業用の卵の供給は突然収縮します。殻付き卵に対する消費者の需要は価格弾力性が非常に低いため（消費者が卵を、すぐに代用できる調理食材が少ない不可欠な主食と見なしていることを意味します）、国内生産量がわずかな割合（テーブルエッグ生産量の2%から5%の減少など）で減少しただけでも、卸売価格や小売価格は劇的な割合で急騰します。農場が義務付けられた死骸の処分、清掃、消毒、および環境的な休止期間を完了した後、新しい卵が小売店の棚に戻るまでには、補充用の若雌鶏が孵化し、成長し、性成熟に達するまで数ヶ月待たなければなりません。\n\n---\n\n## 他に何が起きている可能性があるか\n\n疾病による供給の収縮が根本的な触媒である一方で、いくつかの相互に関連する構造的、規制的、および市場の力学が、価格急騰の深刻さと地理的な分布を増幅させました。\n\n1. **州の動物飼育義務化による市場の断片化:** \n 州レベルのケージフリー法の全面施行（最も顕著なのは、卵に対して施行され、2023年5月に[合衆国最高裁判所](wiki:Supreme_Court_of_the_United_States)によって支持されたカリフォルニア州提案12、およびマサチューセッツ州質問3,であり、これに続いてコロラド州、ワシントン州、オレゴン州などの州でも法律が制定されました）により、全米の卵市場は法的に分割されました。これらの管轄区域の小売業者は、従来のケージ施設から調達された卵を合法的に販売することができません。2023後半から2024,にかけて渡り鳥がケージフリーの採卵鶏群に感染させた際、州外の供給業者は地域の不足分を従来の卵の余剰分で補うことができませんでした。この規制上の摩擦が局地的な不足を悪化させ、2024後半から2025.初めにかけて、カリフォルニア州の卸売価格は1ダースあたり$10.00を超え、小売価格は$8.90を突破しました。\n\n2. **卵価格と飼料・投入コストの切り離し:** \n 初期の2022のインフレの波の間、農業生産者は家禽飼料、天然ガス、包装、ディーゼルの変動コストの上昇に直面しました。しかし、2023後半から2024,を通じて、トウモロコシと大豆粕（採卵鶏の飼料成分の80%から90%を占める）の指標価格は大幅に下落しました。農場レベルの生産コストデータは、1ダースあたりの飼料コストが大幅に低下した一方で卵の市場価格が上昇したことを示しており、2023–2024の価格急騰が一般的な投入コストのインフレによって引き起こされたという仮説を否定しています。\n\n3. **非対称なスポット価格設定と企業の利益率:** \n 卵は日次および週次の卸売スポット価格やフォーミュラ指標（アーナー・バリー指数の相場など）に基づいて取引されるため、局地的な供給パニックが発生すると価格は即座に上方修正されます。影響を受けなかった事業を持つ商業生産者は、標準的な生産量をスポット市場のプレミアム価格で販売し、企業の粗利益に大幅な急増をもたらしました。例えば、全米最大の卵生産者であるカルメイン・フーズは、2024.の初めから終わりにかけて四半期粗利益が310%増加したと報告しました。これらの利益率の拡大は議会の調査を引き起こし、[米国司法省反トラスト局](wiki:United_States_Department_of_Justice_Antitrust_Division)が2025年3月に、アルゴリズムによる、あるいは協調的な価格操作の可能性についての調査を開始するきっかけとなりました。これは、2004から2008.の間の業界の供給調整に関する以前の連邦陪審の評決を反映したものです。\n\n---\n\n## 証拠\n\n### 群れの生物学と再個体数化のロジスティクス\n感染した採卵鶏施設が殺処分された場合、感染前の生産量に戻るには、厳格な生物学的および規制上の関門に左右されます。\n- **根絶と検疫：** 殺処分（通常は二酸化炭素、水ベースの泡、または換気停止による）の後、施設では死骸の処理（堆肥化または埋却）が行われ、続いて集中的な洗浄と化学消毒（C&D）が行われます。州および連邦の群れ計画では、USDA APHISが施設を検疫から解放する前に、施設が環境スワブ検査を受け、公式の休止期間（通常、消毒後少なくとも21日間、または消毒なしの休止によるウイルス除去が選択された場合は最大150日間）鳥がいない状態を維持することが求められます。\n- **若雌鶏の成熟曲線：** 成鶏を購入することで、採卵鶏の生産を一晩で再開することはできません。孵化場は日齢1日の雌のヒナ（若雌鶏）を供給し、それらは専用の鶏舎で16週間から17週間かけて飼育されます。およそ18週齢から20週齢で、若雌鶏は性成熟に達し、採卵鶏舎に移されます。最初の産卵は20週から22週頃に起こり、産卵のピーク（90%以上の産卵率）は25週から30週頃に達成されます。\n- **段階的な多齢構成コンプレックス：** 現代の商業用卵コンプレックスは、複数の鶏舎にわたって数十万から数百万羽の鳥を収容しています。商業農場は、毎日の卵のサイズと量を一定に保つために、意図的に群れの年齢を（20週から80週以上まで）段階的にずらしています。施設全体が殺処分された場合、若雌鶏の孵化場の能力制限や下流の市場へのコミットメントのため、サイト全体を同時に再補充することは商業的に不可能です。完全な多齢構成コンプレックスの再個体数化には、12ヶ月から18ヶ月（最大80週間）を要します。\n\n### 流行のダイナミクスと再発する発生\nHPAIは、2022年春の流行後に消失するのではなく、太平洋、中央、ミシシッピ、大西洋の各渡りルート沿いの北米の渡り性水鳥の中に常在的なリザーバーを形成しました。\n- 2022,年後半、冬の渡りによって中西部の採卵鶏コンプレックスに大規模な再感染がもたらされ、2023.年1月には全国の小売価格が1ダースあたり$4.82でピークに達しました。\n- 温暖な気候により2023,年中盤は小康状態となりましたが、2023年後半から2024,年初頭にかけて再び症例が急増し、カリフォルニア州のセントラルバレーとソノマ郡の主要な商業コンプレックスを直撃しました。\n- 発生の激しさは2024年後半に劇的に高まりました。2024年の11月と12月だけで発生した商業用雌鶏の損失は、暦年全体の国内の雌鶏の損失の43%を占めました。2025,年の最初の6週間で、さらにおよそ28万羽の採卵鶏が殺処分され、全国の小売平均価格は2025.年3月に史上最高の1ダースあたり$6.23まで上昇しました。\n- 構造的なバイオセキュリティの脆弱性を示すものとして、APHISは、67の固有の商業用養鶏施設が少なくとも2回の繰り返し感染を経験し、19の施設が2022年から2024.年後半の間に3回以上感染したことを記録しました。\n\n```json\n{\"type\": \"code\", \"embed_id\": \"e06705c3-35ae-4972-8be1-f01219e9ec08\"}\n```\n\n### 一次資料からの引用\n\n> [したがって、採卵鶏の群れがHPAIに感染し、病気の蔓延を抑えるために殺処分された場合、新しい雌鶏が性成熟に達して再び卵を産み始めるまでに最大20週間かかる可能性があります。](embed:congress.gov-Eg7)\n\n---\n\n### 番号付き主張と証拠台帳\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"37e3bde4-90d3-4491-9cf1-65d5dbd80779\"}\n```\n\n---\n\n## 反論\n\n### 1. 企業の「グリードフレーション」や共謀が急騰を説明するか？\n議員たちは、Cal-Maine Foodsの310%の利益急増や、過去の価格操作の判決（2004年から2008年の行為に対する卵生産者への2023年の評決など）を指摘しましたが、発生中の高いスポット利益は、能動的な共謀を証明するものではありません。殻付き卵は、透明性の高い日次/週次のスポット指数で販売される、ほぼ差別化されていないコモディティです。価格弾力性の低い需要があるオークション市場では、わずか3%から5%の総供給不足が、限界的な買い手が淘汰されるまで、機械的に価格を指数関数的に押し上げます。HPAIを鶏舎から遠ざけることに成功した生産者は、共謀する必要なく、その時の市場清算価格で販売を成立させました。\n\n### 2. ケージフリーの義務化だけが地域格差の原因か？\n動物福祉法案の批判者たちは、カリフォルニア州の提案12号とマサチューセッツ州の質問3号が全国的な食品流通システムを破壊したと主張しました。しかし、農業経済学者は、従来の卵も野生の水鳥の渡りを介して同一のHPAI感染経路にさらされていると指摘しています。ケージフリーの規則により、州外の従来の卵がカリフォルニアの食料品店の棚を補うことは妨げられましたが、カリフォルニアの不足の根本的な要因は、カリフォルニア州内およびその専用の西部ケージフリー供給圏内での数百万羽の雌鶏の物理的な感染と淘汰でした。\n\n### 3. 飼料と輸送のコストが価格を高止まりさせたのか？\nロシア・ウクライナ戦争の勃発を受けて2022年に飼料、運賃、エネルギーのコストが急騰しましたが、この説明は2023年から2024年の回復期には当てはまりません。USDA [経済調査局](wiki:Economic_Research_Service) (ERS) および卵産業センターのデータによると、トウモロコシは2023,年後半までに前年比で28%下落し、養鶏飼料の総コストは2025.年までに2023年のピークから44%下落しました。生産コストの指標が下落する一方で消費者の小売価格は上昇しており、投入コストが2023年後半から2024年にかけての価格急騰の原因ではないことを証明しています。\n\n---\n\n## 結論\n\n- **確定事項:** 米国のHPAI（高病原性鳥インフルエンザ）発生による被害は、テーブルエッグ（食用卵）の採卵鶏に圧倒的に集中しており、家禽全体の4%未満であるにもかかわらず、国内の家禽殺処分数の75%を占めています。生物学的な回復は、20〜22週間の若雌鶏（パレット）の成長サイクルと数ヶ月にわたる休止・消毒プロトコルによって厳しく制約されており、多段階齢のコンプレックス（大規模農場施設）の再導入には12〜18ヶ月を要します。消費者の卵需要は極めて非弾力的であり、わずか約2.6%〜5%の群れの損失が100%以上の小売価格の急騰につながりました。飼料コストは2023年と2024,年を通じて劇的に下落しており、期間後半の価格上昇の原因が投入コストプッシュ型のインフレではなかったことが確認されています。\n- **可能性が高い事項:** 州レベルのケージフリー（平飼い）義務化は、カリフォルニア州、マサチューセッツ州、およびその他の遵守州において、局所的な不足と価格プレミアムを悪化させました。これは、特にケージフリー経営が2024年後半のHPAI採卵鶏損失の50%以上を被った後、従来の卵が殺処分されたケージフリーの群れの代わりになることを防いだためです。\n- **妥当だが未証明の事項:** 商業用卵生産者がHPAIの発生を利用してスポット指数を人為的に操作したり、自然な発生による不足を超えて供給制限を調整したりしたという主張は、依然として証明されていません。司法省（DOJ）の2025年3月の反トラスト調査は、活発な精査が行われていることを裏付けていますが、2022年以降の価格操作に関する判決や正式な認定は下されていません。\n- **不確実な事項:** 家禽ワクチンの長期的な商業的有効性は、国際貿易障壁（具体的には、$5億ドルの米国産ブロイラー輸出市場に対する輸出禁止のリスク）や、標準的な監視下でワクチン接種済みの鳥と感染した鳥を区別することの難しさから、未解決のままです。\n\n---\n\n### 推奨されるフォローアップアクション\n\n- [USDA APHISの家禽補償金支払い構造を調査する](/#message=Can%20you%20analyze%20the%20USDA%20APHIS%20indemnity%20and%20compensation%20reimbursement%20formula%20for%20depopulated%20poultry%20flocks%3F)\n- [卵の価格操作に関する司法省の反トラスト調査を確認する](/#message=What%20is%20the%20current%20status%20of%20the%20DOJ%20Antitrust%20Division%20investigation%20into%20egg%20companies%20for%20price-fixing%3F)"
-      },
-      "sub_chat_2_message_2_thinking": {
-        "text": "**卵の価格調査**\n\n現在、私は米国の卵価格に影響を与えている供給側の要因、特に 2022. 後半以降の状況に焦点を当てています。鳥インフルエンザの発生といった生物学的な影響を詳しく調査しています。規制当局の対応とそれが市場のダイナミクスに与える影響についても調査中です。卵価格の変動を説明するための包括的なレポートを作成することを目指しています。\n\n\n**再飼育タイムラインの分析**\n\n現在、群れの再飼育に関する生物学的および運用上の側面を掘り下げています。殺処分から消毒、若雌鶏の育成、そして産卵のピークに至るまでのタイムラインに焦点を当てています。これを HPAI（高病原性鳥インフルエンザ）の発生に関する USDA（米国農務省）のデータや地域の規制、具体的にはカリフォルニア州の提案第 12 号やマサチューセッツ州の質問第 3. 号などの義務化事項と照らし合わせています。また、回復に影響を与える投入コストの変化の分析も始めています。\n\n\n**初期指示の再確認**\n\n初期の調査ワークフローの指示を再度見直しています。質問に深い調査が必要か、それとも短い回答で済むかを判断するプロセスを確認しています。構造化された多面的な調査アプローチを必要とする複雑な質問を特定するための基準と、そのプロセスおよびサブチャットの使用をどのように定義するかについて重点的に取り組んでいます。\n\n\n**ツール利用可能性の確認**\n\nシステムの関数呼び出しインターフェース内で利用可能なツールについて、細心の注意を払って確認を終えました。すべての宣言を照らし合わせた結果、`default_api:web-search` ツール*のみ*が提供されていることを確認できます。システムプロンプトのルールを再検討し、利用可能なツール*のみ*を使用するという重要な指令を確認しました。今後の計画において、`start_sub_chats` や `web-read` のような存在しないツールの使用を排除しました。\n\n\n**ウェブ調査ルールの明確化**\n\n現在、利用可能なツールである `web-search` と調査ワークフローの指示との相互作用を慎重に再検討しています。`start_sub_chats` はツール内で宣言されていないため、それを呼び出すとエラーが発生すること、したがって `start_sub_chats` は存在しないことを明確にしました。しかし、「Active Focus: web-research」が有効であるため、複数の検索を実行できます。最終的な出力の構造も明確です。\n\n\n**クエリ戦略の洗練**\n\n`web-search` ツールを効率的に使用するためのアプローチを洗練させています。1 回の呼び出しで複数の並列クエリを送信できることを確認しました。これは、この問題の各側面について証拠を収集するための鍵となります。利用可能なツールを使用することを優先し、利用不可能なツールを使用しようとはしません。各側面を検討しています。\n\n\n**調査の切り口の定義**\n\nウェブ検索の初期ステップを構築しました。時期尚早なテキスト出力を避けるため、仮説と切り口を内部思考の中にリストアップします。現在の焦点は、APHIS（動物植物検疫局）の要件や孵化場から若雌鶏までのタイムラインに沿って、殺処分、清掃・消毒、休止期間などの要因を考慮し、群れの再飼育に関する調査の切り口を提示することです。ツールを使用する前に、これらの切り口を定義します。\n\n\n**発生タイムラインの概説**\n\nHPAI の影響に焦点を当てたタイムラインを作成しています。18〜22 週間の若雌鶏育成期間と、発生前の生産量に回復するまでの 6〜9 か月の期間に注目しています。2022 後半のピークや 2023〜2024 の再燃といった HPAI の波と、卵価格との相関関係を分析します。これを USDA のデータと相関させるために使用する計画です。\n\n\n**ウェブ検索クエリの策定**\n\n初期のウェブ検索クエリをドラフトしています。カリフォルニア州の提案第 12 号の影響と、2023〜2024 の鳥インフルエンザ発生が卵の供給に与えた影響、およびその結果としての価格変動に焦点を当てます。また、飼料価格などの投入コスト要因も組み込み、それらが価格高騰とどのように比較されるかに焦点を当てます。最大 4 つの具体的で焦点を絞ったクエリを送信します。\n\n\n**データ要求の分析**\n\n現在、必要とされる正確な一次データを特定することに集中しています。より精密な検索が必要であると判断したため、特定の USDA APHIS の採卵鶏殺処分数を要求しています。2022, 後半、2023, 全体、および 2024, 初頭を月単位で対象としています。\n\n\n**発生詳細の収集**\n\n最近の発生の詳細を掘り下げており、カリフォルニア州ソノマ郡に焦点を当て、テキサス州や中西部での発生と比較しています。ソノマについては 2023 年 12 月から 2024 年 1 月、他の地域については 2023 後半から 2024 年 4 月といった具体的なタイムラインを記録しています。また、波の回数データも考慮しています。\n\n\n\n**鳥インフルエンザ報告書の分析**\n\nHPAI 発生に関する CRS（議会調査局）の報告書の検討を開始しました。包括的な内容のようです。Whitt の分析と問題の範囲に焦点を当てています。詳述されている経済的影響と政策対応をさらに深く掘り下げる必要があります。既存のモデルとの比較を始めるのが楽しみです。\n\n\n**卵産業データのレビュー**\n\n卵産業に関する最近のデータを調査しています。国内の家禽損失の 75% を占める採卵鶏への重大な影響に注目しました。生産量の減少に焦点を当てています。2021 以降、卵の生産量は 2.6% 減少し、鶏の平均羽数は 5% 減少しました。これはモデルにとって極めて重要であると思われます。\n\n\n**鶏のライフサイクルの検討**\n\n現在、ライフサイクルデータを統合しています。卵生産の回復タイムラインは鶏の成熟度に左右されます。殺処分の影響はより深刻で、生産損失にとどまりません。2022 年 2 月から 2025 年 2 月までの APHIS の支出データ（HPAI 対応に $1.811 億ドル）を考慮に入れています。これには補償金支払いのための $1.195 億ドルが含まれます。バイオセキュリティの考慮事項を要素に含める必要があります。\n\n\n**補償額の調査**\n\n現在、補償金の支払いについて深く掘り下げています。再感染に対する $296 万ドルは、緩衝地帯の敷地に対する $128 万ドルと並んで特に際立っています。67 の商業施設が複数回感染したという事実は、その規模をより明確に示しています。これは重要な要因となるはずです。Prop 12 の影響も考慮に入れています。最近の価格急騰も注目に値します。最近の価格はモデルに影響を与えるはずであり、価格上昇がどのように維持されるかを考えています。\n\n\n**卵価の変動要因の分析**\n\n現在、米国の卵価を押し上げている要因、特に 2022 年後半から現在までの鳥インフルエンザ発生後の状況に焦点を当てており、2026. 年にかけてのデータを予測しています。私の研究は、供給側の制約、家禽への生物学的影響、および市場の変動に影響を与える規制上の対応を網羅します。\n\n\n**最終回答形式の確認**\n\n研究の限界を考慮し、最終的な回答が指定された6つの見出し構造と内容の制約を遵守しているか、慎重に指示を確認しています。予算内に収めるため、利用可能な証拠の統合に集中し、不要なツール呼び出しや外部データの統合を避けています。既存の知識ベースの範囲内で回答を提供することになりそうですが、これは良い練習になります。直接的で簡潔な回答を優先しています。\n\n\n**回答の最終形式の確定**\n\n最終回答に必要な6つの見出し構造を遵守できることを確認しました。これにより、優れた回答を提供できるでしょう。構造を固定したまま、開始できるようです。予算内に収め、既存の知識ベースに集中するため、ツール呼び出しや外部データの統合を避けています。これからはデータの統合と直接的な回答の作成に専念します。\n\n\n**証拠検証の構造化**\n\n現在、特に定量的、因果的、および法的な主張についての検証プロセスの構造化に注力しています。各主張に、URLと証拠のステータスにリンクされた、一次資料の短い抜粋または正確な表の項目が含まれるようにしています。私の優先事項は、主張と範囲への直接的な裏付けに基づいて、「supported（支持されている）」、「inference（推論）」、または「unresolved（未解決）」と明確にラベル付けすることです。台帳を簡潔に保ち、重複する引用を避けるために、証拠IDを慎重に再利用しています。\n\n\n**供給制約の調査**\n\n現在、詳細な調査に入っています。採卵鶏の再飼育サイクルとHPAI（高病原性鳥インフルエンザ）の波のダイナミクス、特に 2023 年後半から 2024. 年初頭にかけての再発の可能性がある局地的な発生に焦点を当てています。州レベルの規制、特にケージフリー義務化が地域の供給と価格設定に与える影響を調査しており、回復期間中の投入コストの変化も評価しています。CRSレポート R48518, に基づき、採卵鶏に関する最初の数値を入手しました。\n\n\n**鳥の入れ替えサイクルの評価**\n\n現在、鶏の再飼育期間と発生の影響に関する情報を統合しています。鳥が成熟するまでに 16 〜 17 週間かかり、生産可能になるまでにさらに 20 週間かかります。2025 年 4 月の発生では、168.62 万羽が影響を受けました。記録的な価格は 2025 年 3 月に 1 ダースあたり $6.23 ドルで発生し、2025 年 2 月下旬の卸売価格は全国で 1 ダースあたり $8.39 ドル、カリフォルニアのケージフリーでは $10.07 ドルでした。需要は非弾力的であり、供給ショックを悪化させています。\n\n\n**再飼育期間の評価**\n\n再飼育のタイムラインに関するデータを統合しており、多段齢鶏舎での段階的なアプローチにより、それが 12 〜 18 か月に及ぶ可能性があることに留意しています。繰り返される発生、特に過去2か月で 43% の損失があった 2024 年後半や、2025, 年初頭に 28 万羽の採卵鶏が殺処分されたことは極めて重要です。カリフォルニア州の Prop 12. などの規制を考慮し、ケージフリーの鶏（2024 年後半の損失の 60%）への影響も評価しています。\n\n\n**コストダイナミクスの評価**\n\n現在、コストダイナミクスを分析しており、飼料コストが 2024 年と 2025, 年に大幅に低下したことを観察しました。これは、卵価高騰における飼料コストの役割と矛盾しています。Cal-Maine社の売上総利益が急増し、精査の対象となっています。また、過去の生産者による共謀に関する連邦陪審の評決を評価しています。カリフォルニアの卸売価格が 1 ダースあたり $10.07 ドルに達したこと、およびネバダ州がケージフリー義務化を一時的に停止したことを把握しました。\n\n\n**共謀の精査の調査**\n\n現在、卵の価格操作の可能性に関する 2025 年 3 月の司法省（DOJ）による反トラスト調査を調査しています。私の焦点は、価格上昇、供給制約、およびコスト変動に関する既存のデータを含む、利用可能なすべての証拠を統合して、その妥当性を判断することにあります。回答については、簡潔な回答を優先し、6つのセクション形式を厳守するようにしています。\n\n\n**共謀分析の統合**\n\n現在、生産者の慣行と最近の訴訟に関する情報を統合しています。価格操作の可能性に関する調査結果を統合しており、新しいデータを取り入れています。焦点は、今後の回答のために証拠を6つのセクション形式に合わせることであり、これが役に立ちました。既存の情報の中で直接的かつ簡潔な主張を優先し、6つの見出し構造を固定したままにしています。\n\n以下の主張台帳を含めます。\n\n1.  **主張:** 2024 年 11 月のカリフォルニア州の卵価は 1 ダースあたり $9 ドルであった。\n    **証拠ステータス:** Supported（支持されている）\n    **一次資料の抜粋 / 正確なデータポイント:** 「カリフォルニアの卵価はすでに $9 ドルの大台を突破しており……」\n    **正確な裏付けURL:** [lamag.com/food/egg-prices-crack-9-mark-across-california/](lamag.com/food/egg-prices-crack-9-mark-across-california/)\n    **範囲:** 2024, 年 11 月 カリフォルニア州、卵価、1ダースあたりの価格。\n\n\n**Wikipediaリンクの洗練**\n\n現在、特定の構文規則に焦点を当てて、Wikipediaリンクの統合を洗練させています。表示テキストと正規の記事名の正確な一致基準を検証し、フルネームを使用し、より広範なリンクを避けるようにしています。制約に従い、最初の出現箇所に焦点を当て、フルネームを使用するようにしています。現在、これらの規則をテストしており、最初の例と照らし合わせて検証し、予算内に収まっていることを確認しています。\n\n\n\n**Wikiリンクテストの最終化**\n\nWikipediaへのリンク作業の仕上げとして、構文の再確認を行っています。リンクの準備は整ったようです。表示テキスト、正式な記事名、およびテストの制約事項が正確に一致しているかの検証に重点を置いてきました。広範すぎるリンクは避けるようにしました。回答の予算内に収まるように配慮しました。\n\n\n**反対意見の評価**\n\n現在は、反対意見を取り入れることで分析を強化することに注力しています。コモディティ卵市場のダイナミクスや非弾力的な需要など、説明を弱める可能性のある要因を評価しています。個体数減少や生物学的なタイムラグがあるにもかかわらず、飼料コストが低下している状況を評価しました。カルメイン社（Cal-Maine）は依然として鳥インフルエンザのリスクに直面しており、需要の弾力性から、協調がなくとも価格が高騰することが予測されると理解しています。これから、各主張を「確認済み」、「可能性が高い」、「妥当だが未証明」、「不確実」のいずれかに分類します。\n\n\n**再飼養期間の分析**\n\n2週間から産卵ピーク（約25〜30週）に至るまでの、採卵鶏の生産サイクルに関する情報を統合しています。生産寿命は、1サイクルの場合は78〜80週、換羽を行う場合は最大140〜150週です。現在は、12〜18ヶ月に及ぶこともある、多段齢コンプレックスの再飼養についての理解を深めることに重点を置いています。また、異なる時期における高病原性鳥インフルエンザ（HPAI）の流行の波のダイナミクスも調査しています。2023.年末に大きな打撃を与えた第2波の影響についても把握しました。\n\n\n**供給側の規制の評価**\n\n地域的なサプライチェーンの断片化を明らかにするため、カリフォルニア州の提案（Prop）12,などの州規制に関する情報を統合しています。ケージフリー（平飼い）の群れにおける鳥インフルエンザ被害の影響に焦点を当て、それらが群れ全体の過半数ではないにもかかわらず、被害の大きな割合を占めたことに注目しています。また、慣行飼育とケージフリーの卵のサプライチェーン、およびそれぞれの州の供給への影響を比較しています。供給が崩壊する際に、どのようにサプライチェーンの断片化が起こり得るかについてメモを取っています。\n\n\n**コスト・ダイナミクスの分析**\n\n現在は、コストと卵の価格に関する新しいデータの統合に注力しています。具体的には、飼料価格に関するデータを組み込み、2024〜2025の期間にコストが大幅に低下したことを指摘し、これを価格の高騰と対比させました。投入コストの分析により、生産コストが下がる一方で卵の価格が上昇したため、2024〜2025の価格急騰は飼料コストとは無関係であったことが裏付けられました。ネバダ州がケージフリー規則を一時的に停止した経緯についても調査しています。\n\n\n**主張台帳の検証**\n\n各項目にステータス、正確なデータ、URL、および範囲が含まれていることを確認するため、主張台帳の監査を行っています。以下の主張を裏付けるURLで台帳を更新しました：採卵鶏が全被害の75%を占めた（裏付けあり、CRS R48518）、テーブルエッグ（食用卵）の群れの減少（裏付けあり、CRS R48518）、および生物学的タイムライン（裏付けあり、CRS R48518）。コンプレックス全体の再飼養と休止期間に関する主張のURLを追加しました。現在、修飾語の微調整を行っています。\n\n\n**証拠コンピレーションの更新**\n\nHPAIの流行の波のダイナミクス、再感染の頻度、消費者物価指数の急騰、および非弾力的な需要に焦点を当て、新しい主張を台帳に統合しています。飼料投入コストに関する既存の主張にデータを追加しました。URLを追跡し、証拠を検証しています。卵の価格に関する調査結果をまとめ、ケージフリーのコストとカリフォルニア州の提案12.の法的地位に関する新しいデータを組み込んでいます。\n\n\n**価格操作分析の精査**\n\n企業の利益と独占禁止法の調査に関する主張を統合しています。カルメイン社の粗利益は大幅に増加しており、これに条件を付けた上でデータにリンクさせました。裏付けとしてCRS R48518と*Supermarket News*のデータの両方を使用しています。司法省（DOJ）による2025年3月の独占禁止法調査に焦点を当てています。現在の優先事項は、価格の上昇、供給の制約、およびコストの変動を踏まえ、事実と推論を区別するための証拠を検証することです。"
-      },
-      "sub_chat_3_title": {
-        "text": "サブチャット"
-      },
-      "sub_chat_3_summary": {
-        "text": "## 簡潔な回答\n2022年から2024,年にかけて、米国の卵市場は顕著な[非対称的価格転嫁](wiki:Asymmetric_price_transmission)（農業経済学では一般に「ロケットと羽根」として知られる現象）を示しました。これは、川下の小売食料品価格が卸売価格の急騰には迅速に追従する一方で、卸売商品価格が暴落した際には大幅な慣性を持って緩やかにしか下落しない現象を指します。卸売価格が2022年後半にピークに達し、50%年初頭に2023,％以上暴落した際、小売食料品価格が下方修正されるまでには数ヶ月を要し、一時的に卸売と小売の価格差（スプレッド）が拡大しました。この動向は、裁定された不当な共謀行為によるものではなく、主にフォーミュラベースの調達契約のタイムラグ、初期のコスト上昇時に経験した深刻なマージン圧縮を小売業者が回収しようとしたこと、および店舗レベルの間接費のインフレによって引き起こされました。\n\n## 表層的な説明\n消費者に提示された従来の説明は、2022.年初頭から米国全土の採卵鶏群に壊滅的な打撃を与えた高病原性鳥インフルエンザ（HPAI）による供給の混乱を中心としています。この説明によれば、深刻な供給不足により卸売スポット価格が急騰し、小売業者は農場出荷時の高い仕入れコストを買い物客に直接転嫁せざるを得なくなりました。その後、鶏群の再構築が進み、2023年春に卸売価格がようやく下落した際、スーパーマーケットの店頭価格の下落が遅れたのは、標準的なサプライチェーンの輸送ラグ、在庫回転サイクル、および小売賃金、輸送、店舗冷蔵にかかる継続的なコストの上昇に起因するとされました。\n\n## 他に何が起きている可能性があるか\n単純な需要と供給という表層的な説明の裏では、いくつかの構造的およびミクロ経済的なメカニズムが卸売から小売への価格転嫁に影響を及ぼしていました。\n\n- **非対称的価格転嫁（「ロケットと羽根」）：** 食料品小売において、価格の上昇は値下げよりも速く川上から川下へと伝わります。川上の補充コストが急騰した場合、小売業者は店頭価格を上げなければ、即座にキャッシュフローと売上総利益の損失に直面します。一方、卸売価格が急落しても、消費者の価格期待値の調整は遅いため、スーパーマーケットは一時的に高い店頭価格を維持し、一時的なマージンの棚ぼた利益を得ることができます。\n- **契約構造 vs. スポット価格の変動：** 大手スーパーマーケットチェーンが卵の供給量の100%を日々のスポット市場で調達することは稀です。小売業者は通常、30日、60日、または前月の商品平均（アーナー・バリーやUSDAの指標など）に連動したフォーミュラベースの供給契約に依存しています。その結果、小売業者の会計上の売上原価（COGS）は、スポット市場の暴落に対して1〜2ヶ月の遅れを伴って減少しました。\n- **マージンの回収と[ロスリーダー](wiki:Loss_leader)の転換：** 鶏卵は伝統的に、客足を伸ばすための高頻度なバスケットビルダー、あるいは「ロスリーダー」として扱われ、スーパーマーケットは極めて薄い、あるいはマイナスの売上総利益で運営しています。2022,年後半の前例のない卸売価格の急騰時、多くの小売業者は価格に敏感な買い物客を遠ざけないよう、マージンを圧縮したり、店頭価格を上回るスポットコストを吸収したりしました。2023,年に卸売コストが暴落した際、小売業者は拡大したスプレッドを利用して、乳製品および冷蔵部門全体の収益性を再構築しました。\n- **非弾力的な需要と探索摩擦：** 鶏卵には直接的な料理の代用品がほとんどありません。買い物客は卵の購入を簡単に先延ばしにしたり、安い卵だけを求めて複数の店舗を回ったりすることが難しいため、卸売価格が急落しても、小売業者が急速に価格を下げるという即座の競争圧力は最小限でした。\n\n## 証拠\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"2c281220-8676-4dbc-80e0-5701aae31755\"}\n```\n\n\n## 反論\nいくつかの運営上および財務上の現実は、拡大した小売スプレッドが略奪的な行為や過剰なマージン抽出を意味するという主張を複雑にしています。\n\n- **調達のタイムラグと指数フォーミュラ：** 日々のスポット商品相場を毎週の食料品店頭価格と直接比較することは、小売業者のマージンを過大評価することになります。前月平均契約を通じて供給を確保していたスーパーマーケットは、スポット価格が下落した後も30日から60日間は高騰した仕入れコストを支払い続けており、納入在庫コストは公開されている卸売チャートと同時には下落しなかったことを意味します。\n- **川上のショック吸収のためのマージン回収：** 卸売価格が2022年後半に1ダースあたり$5.00ドル〜$7.00ドルへと急騰した際、多くのスーパーマーケットはブランドへのダメージを避け、客数を維持するために、補充スポット価格に対して大幅な割引価格で卵を販売しました。その後のスプレッドが拡大した期間により、小売業者はショックの間に被った多額の帳簿上の損失を相殺することができました。\n- **小売店舗の間接費の増大：** 2022年から2024,年の間に、店舗レベルの時給、継続的なコールドチェーン冷蔵のための電気料金、ディーゼル燃料サーチャージ、梱包材など、食料品店全般の運営コストが大幅に増加しました。これらの固定および変動の店舗間接費が、冷蔵生鮮品の構造的な価格の下限を引き上げました。\n- **腐敗性、シュリンク（ロス）、および在庫リスク：** 殻付き卵の賞味期限は約30日から45日です。供給環境が不安定な時期に急速な値下げを行うと、在庫の買い占めや品切れを引き起こすリスクがあり、特に局地的なHPAIの再発が継続的な供給分断リスクをもたらしていた状況ではなおさらでした。\n\n## 要点\n- **確定事項:** [労働統計局](wiki:Bureau_of_Labor_Statistics)および業界データによると、米国の卵の小売価格と卸売価格は 2022 から 2024, の間に前例のない変動を経験し、小売価格は 2022 後半に $4.00/ダースを超え、卸売価格は一時的に $7.27/ダースに達しました。2023 における小売価格の下落は、卸売スポット市場の暴落から数ヶ月遅れ、農場から消費者、および卸売から小売への価格差が一時的に拡大しました。\n- **可能性が高い:** この遅れは、主に小売調達の構造的特徴によって説明されます。具体的には、過去の平均コストに基づくフォーミュラ価格契約、ピーク時にマイナスの収益を吸収した後に圧縮されたマージンを積極的に回収しようとする食料品店、および店舗運営コストのベースラインの上昇です。\n- **妥当だが未証明:** 小売業者は、広範な食品インフレに対する消費者の受容を利用して、暗黙の価格決定権と状況依存の価格設定の自由を行使し、高い店頭価格を長引かせた可能性があります。\n- **不確実:** 個々の小売チェーンにおける、固定価格契約とスポット指標フォーミュラ契約による殻付き卵の調達の正確な比率は依然として機密事項であり、小売レベルでの違法な共謀の証拠や司法判断は存在しません。"
-      },
-      "sub_chat_3_message_1": {
-        "text": "米国の卵に関する川下の小売マージン、卸売から小売への価格転嫁、および消費者価格の動態（2022-2024）を調査してください。\n\n\n以下に焦点を当ててください：\n\n1. 卸売から小売への価格スプレッド：USDA ERSデータとBLS CPI卵データを調査してください。卸売価格が2022後半/2023前半のピークから急落した際、小売食料品価格はどの程度の速さと度合いで追随しましたか？\n\n2. 「ロケットと羽（Rockets and feathers）」価格現象：小売卵において非対称な価格転嫁（卸売価格が上がると価格は急速に上昇するが、卸売価格が暴落しても羽のようにゆっくりとしか下がらない）の実証的な証拠はありますか？\n\n3. スーパーマーケットの価格戦略と契約構造：食料品店は固定期間契約で購入していますか、それともスポット指数で購入していますか？食料品店は卵の小売売上総利益率を拡大しましたか、それとも変動を吸収しましたか？卵は「ロスリーダー（目玉商品）」から利益貢献商品へと変化しましたか？\n\n4. 反論：在庫リスク、腐敗、収縮（ロス）、長期的な調達の遅れ、および小売の間接費インフレ（店舗労働力、冷蔵、物流）。\n\n\n要件：\n\n- ウェブ検索とウェブ閲覧を使用して、USDA ERSの価格スプレッドデータ、BLSの統計、および農業経済学の研究を見つけてください。\n\n- 正確な数値、日付、および一次資料の抜粋を引用してください。\n\n- 確認された経済データと理論的な推論を区別してください。\n\n- ステータス（支持、限定的、矛盾、未解決）、正確なURL、指標、および抜粋を含む、番号付きの証拠台帳を出力してください。"
-      },
-      "sub_chat_3_message_2": {
-        "text": "[!](embed:b1a2a445-2ff5-4659-bfc1-a19ad7a03b58)\n\n[!](embed:822f05f6-594e-4e61-90ef-9c211907cca4)\n\n[!](embed:6c4c38f8-edfb-4389-b186-ea8c9ae7568e)\n\n[!](embed:98375996-98f0-4b53-9551-054bf5a3a3f5)\n\n[!](embed:b0f2e62e-9aef-4cd0-a664-f80b942288e6)\n\n## 簡潔な回答\n2022年から2024,年にかけて、米国の卵市場は顕著な[非対称的価格転嫁](wiki:Asymmetric_price_transmission)（農業経済学では一般に「ロケットと羽根」として知られる現象）を示しました。これは、川下の小売食料品価格が卸売価格の急騰には迅速に追従する一方で、卸売商品価格が暴落した際には大幅な慣性を持って緩やかにしか下落しない現象を指します。卸売価格が2022年後半にピークに達し、50%年初頭に2023,％以上暴落した際、小売食料品価格が下方修正されるまでには数ヶ月を要し、一時的に卸売と小売の価格差（スプレッド）が拡大しました。この動向は、裁定された不当な共謀行為によるものではなく、主にフォーミュラベースの調達契約のタイムラグ、初期のコスト上昇時に経験した深刻なマージン圧縮を小売業者が回収しようとしたこと、および店舗レベルの間接費のインフレによって引き起こされました。\n\n## 表層的な説明\n消費者に提示された従来の説明は、2022.年初頭から米国全土の採卵鶏群に壊滅的な打撃を与えた高病原性鳥インフルエンザ（HPAI）による供給の混乱を中心としています。この説明によれば、深刻な供給不足により卸売スポット価格が急騰し、小売業者は農場出荷時の高い仕入れコストを買い物客に直接転嫁せざるを得なくなりました。その後、鶏群の再構築が進み、2023年春に卸売価格がようやく下落した際、スーパーマーケットの店頭価格の下落が遅れたのは、標準的なサプライチェーンの輸送ラグ、在庫回転サイクル、および小売賃金、輸送、店舗冷蔵にかかる継続的なコストの上昇に起因するとされました。\n\n## 他に何が起きている可能性があるか\n単純な需要と供給という表層的な説明の裏では、いくつかの構造的およびミクロ経済的なメカニズムが卸売から小売への価格転嫁に影響を及ぼしていました。\n\n- **非対称的価格転嫁（「ロケットと羽根」）：** 食料品小売において、価格の上昇は値下げよりも速く川上から川下へと伝わります。川上の補充コストが急騰した場合、小売業者は店頭価格を上げなければ、即座にキャッシュフローと売上総利益の損失に直面します。一方、卸売価格が急落しても、消費者の価格期待値の調整は遅いため、スーパーマーケットは一時的に高い店頭価格を維持し、一時的なマージンの棚ぼた利益を得ることができます。\n- **契約構造 vs. スポット価格の変動：** 大手スーパーマーケットチェーンが卵の供給量の100%を日々のスポット市場で調達することは稀です。小売業者は通常、30日、60日、または前月の商品平均（アーナー・バリーやUSDAの指標など）に連動したフォーミュラベースの供給契約に依存しています。その結果、小売業者の会計上の売上原価（COGS）は、スポット市場の暴落に対して1〜2ヶ月の遅れを伴って減少しました。\n- **マージンの回収と[ロスリーダー](wiki:Loss_leader)の転換：** 鶏卵は伝統的に、客足を伸ばすための高頻度なバスケットビルダー、あるいは「ロスリーダー」として扱われ、スーパーマーケットは極めて薄い、あるいはマイナスの売上総利益で運営しています。2022,年後半の前例のない卸売価格の急騰時、多くの小売業者は価格に敏感な買い物客を遠ざけないよう、マージンを圧縮したり、店頭価格を上回るスポットコストを吸収したりしました。2023,年に卸売コストが暴落した際、小売業者は拡大したスプレッドを利用して、乳製品および冷蔵部門全体の収益性を再構築しました。\n- **非弾力的な需要と探索摩擦：** 鶏卵には直接的な料理の代用品がほとんどありません。買い物客は卵の購入を簡単に先延ばしにしたり、安い卵だけを求めて複数の店舗を回ったりすることが難しいため、卸売価格が急落しても、小売業者が急速に価格を下げるという即座の競争圧力は最小限でした。\n\n## 証拠\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"2c281220-8676-4dbc-80e0-5701aae31755\"}\n```\n\n## 反論\nいくつかの運営上および財務上の現実は、拡大した小売スプレッドが略奪的な行為や過剰なマージン抽出を意味するという主張を複雑にしています。\n\n- **調達のタイムラグと指数フォーミュラ：** 日々のスポット商品相場を毎週の食料品店頭価格と直接比較することは、小売業者のマージンを過大評価することになります。前月平均契約を通じて供給を確保していたスーパーマーケットは、スポット価格が下落した後も30日から60日間は高騰した仕入れコストを支払い続けており、納入在庫コストは公開されている卸売チャートと同時には下落しなかったことを意味します。\n- **川上のショック吸収のためのマージン回収：** 卸売価格が2022年後半に1ダースあたり$5.00ドル〜$7.00ドルへと急騰した際、多くのスーパーマーケットはブランドへのダメージを避け、客数を維持するために、補充スポット価格に対して大幅な割引価格で卵を販売しました。その後のスプレッドが拡大した期間により、小売業者はショックの間に被った多額の帳簿上の損失を相殺することができました。\n- **小売店舗の間接費の増大：** 2022年から2024,年の間に、店舗レベルの時給、継続的なコールドチェーン冷蔵のための電気料金、ディーゼル燃料サーチャージ、梱包材など、食料品店全般の運営コストが大幅に増加しました。これらの固定および変動の店舗間接費が、冷蔵生鮮品の構造的な価格の下限を引き上げました。\n- **腐敗性、シュリンク（ロス）、および在庫リスク：** 殻付き卵の賞味期限は約30日から45日です。供給環境が不安定な時期に急速な値下げを行うと、在庫の買い占めや品切れを引き起こすリスクがあり、特に局地的なHPAIの再発が継続的な供給分断リスクをもたらしていた状況ではなおさらでした。\n\n## 要点\n- **確定事項:** [労働統計局](wiki:Bureau_of_Labor_Statistics)および業界データによると、米国の卵の小売価格と卸売価格は 2022 から 2024, の間に前例のない変動を経験し、小売価格は 2022 後半に $4.00/ダースを超え、卸売価格は一時的に $7.27/ダースに達しました。2023 における小売価格の下落は、卸売スポット市場の暴落から数ヶ月遅れ、農場から消費者、および卸売から小売への価格差が一時的に拡大しました。\n- **可能性が高い:** この遅れは、主に小売調達の構造的特徴によって説明されます。具体的には、過去の平均コストに基づくフォーミュラ価格契約、ピーク時にマイナスの収益を吸収した後に圧縮されたマージンを積極的に回収しようとする食料品店、および店舗運営コストのベースラインの上昇です。\n- **妥当だが未証明:** 小売業者は、広範な食品インフレに対する消費者の受容を利用して、暗黙の価格決定権と状況依存の価格設定の自由を行使し、高い店頭価格を長引かせた可能性があります。\n- **不確実:** 個々の小売チェーンにおける、固定価格契約とスポット指標フォーミュラ契約による殻付き卵の調達の正確な比率は依然として機密事項であり、小売レベルでの違法な共謀の証拠や司法判断は存在しません。"
-      },
-      "sub_chat_3_message_2_thinking": {
-        "text": "**卵の価格転嫁の分析**\n\n現在、2022から2024.までの米国の卵の卸売・小売価格差を分析するため、USDA ERSおよびBLSのCPIデータに焦点を当てています。特に、2023.後半に始まった卸売価格の急落に対して、小売価格がどのように反応したかに関心があります。業界のこのセグメントを通じた価格変動の転嫁に関する研究を掘り下げる予定です。\n\n\n**価格の非対称性の調査**\n\n現在、「ロケットと羽（rockets and feathers）」現象をさらに深く掘り下げ、小売卵市場における非対称な価格転嫁の実証的証拠を収集しています。また、スーパーマーケットの価格設定戦略を調査し、固定期間契約とスポット指標価格設定を対比させ、小売業者がボラティリティをどのように処理しているか、またマージン貢献へのシフトについても調べています。価格データ、ソース、結論を記録するための証拠台帳を作成する予定です。\n\n\n**研究範囲の定義**\n\n複雑で詳細な調査のための出力構造を確立しました。フレームワークは、「簡潔な回答（Short Answer）」、「表面的な説明（Surface Explanation）」、「他に何が起きている可能性があるか（What Else May Be Going On）」、「証拠（Evidence）」、「反論（Counterarguments）」、「結論（Bottom Line）」の6つの明確な見出しに基づいています。これらの正確な見出しを修正せずに使用することが不可欠です。この環境では、ウェブ検索のみの使用に制限されていることを確認しました。\n\n\n**データ取得の精緻化**\n\n現在、ウェブ検索を使用して2022から2024.までの卵の価格に関するデータを収集することに集中しています。小売および卸売の両方のレベルにおけるグレードA（大）の卵の月平均価格を含む、USDA ERSおよびBLSのCPI情報を求めています。また、私の作業を裏付けるために、卵市場における非対称な価格転嫁（ロケットと羽）に関する学術論文も検索対象にします。ウェブ検索のみを使用することを決定しました。\n\n\n**卵の価格転嫁の分析**\n\n現在、2022から2024.までの米国の卵の卸売・小売価格差に焦点を当てています。包括的な見解を得るために、特に最近の動向についてUSDA ERSおよびBLSのCPI卵データを掘り下げています。卸売価格が小売価格にどのように影響するか、またその影響が消費者にどれほど速く及ぶかを理解する必要があります。\n\n\n**価格の非対称性の探索**\n\n現在、「ロケットと羽」のダイナミクスに焦点を絞り、2022年から2024年の期間における小売卵価格設定の非対称な価格転嫁の実証的裏付けを探しています。また、スーパーマーケットの価格設定戦略、固定期間契約とスポット指標契約の対比、および小売業者がコストの吸収に対して売上総利益の拡大をどのようにバランスさせているかを調査しています。価格設定の遅れを説明できる可能性のある、在庫リスクや腐敗などの反論も検討しています。\n\n\n**非対称性の証拠の検討**\n\n現在、2022から2024.までの卵の価格設定における非対称な価格転嫁に関する調査結果を相互参照しています。契約タイプの影響に焦点を当てており、具体的な条件を知る必要があります。これを完全に評価するには、入手できなかった在庫管理と保管コストに関する情報も必要です。これらの重要な事実がなければ、私の分析は不完全なままです。\n\n\n**情報の主張の検証**\n\n現在、2022から2024.までの卵の価格転嫁に関する主張を記録するための厳格な構造を設定しています。URLや期間を含め、ソースの強度を評価する必要があります。各主張には、支持（supported）、限定的（qualified）、矛盾（contradicted）、または未解決（unresolved）という1つの簡潔な結果が割り当てられます。検証のために、ソースリンクと抜粋データを含む直接的な証拠を含めます。次のステップでは、詳細な証拠台帳を整理します。\n\n\n**データソースの妥当性確認**\n\n現在、2022から2024.までの卵の価格転嫁に関連するデータソースの信頼性を評価しています。USDA ERSの価格差データ（[https://primary.ers.usda.gov/data-products/price-spreads-from-farm-to-consumer](https://primary.ers.usda.gov/data-products/price-spreads-from-farm-to-consumer)）およびBLSのCPI卵データ（例：[https://fred.stlouisfed.org/series/apu0000708111](https://fred.stlouisfed.org/series/apu0000708111)）に焦点を当てています。また、データの妥当性を確保するために、`https://www.in2013dollars.com/Eggs/price-inflation`にあるリソースなどのインフレデータも評価しています。期間を一致させるために、正確なBLSシリーズとERSデータを確認する必要があります。\n\n\n**外部データの収集**\n\n現在、卵の価格転嫁の調査を強化するために外部リソースを統合しており、支持する証拠または対照的な証拠を提供するものに焦点を当てています。CEIC Data、セントルイス連邦準備銀行（FRED）、Wikipediaなどのウェブサイトに加え、ScienceDirect、ResearchGate、SSRNなどのソースから非対称な価格転嫁を論じている研究論文や記事の評価を開始しました。2022から2024.までの卵の価格設定のダイナミクスについての理解を深める洞察を求めています。\n\n\n**外部の視点の取り入れ**\n\n現在、2022から2024.までの卵の価格転嫁の分析を強化するために、最近の外部ソースを取り入れています。食料品価格の挙動に関する視点を理解するために、『Fortune』や『RetailWire』の記事を詳しく調べています。また、文脈と引用を追加するために、[価格転嫁の非対称性](wiki:Asymmetric_price_transmission)、[労働統計局](wiki:Bureau_of_Labor_Statistics)、[経済調査局](wiki:Economic_Research_Service)、[セントルイス連邦準備銀行](wiki:Federal_Reserve_Bank_of_St._Louis)などの関連するWikipediaのリンクを含める予定です。\n\n\n**価格測定の明確化**\n\n現在、2022から2024.までの卵価格分析の方法論的な精緻化に焦点を当てています。平均価格は価格変化を追跡するのに理想的ではないことに気づきました。代わりにCPI指数値に切り替える必要があります。2024年8月の価格データを組み込んで、2023年初頭の過去最高値に関するRetailWireの主張や、卸売市場における急騰と暴落の影響を調整・評価する予定です。小売の反応に関する「ロケットと羽」の側面が次に来ます。\n\n\n**価格ダイナミクスの調査**\n\n私は現在、学術文献や業界分析からの洞察を統合し、2022から2024.にかけての卵の価格動向の調査を洗練させています。市場支配力と暗黙の共謀に関するBorenstein、Cameron、Gilbertの研究、および非対称な価格調整に関するPeltzmanの研究は、鳥インフルエンザ発生の影響に関する私の分析に情報を提供します。私は、急速な卸売価格の上昇と、より緩やかな小売価格の下落を対比させることに焦点を当てています。特定のUrner Barryの急騰と小売CPIデータの関連性を精査する予定です。\n\n\n**小売行動の調査**\n\n私は現在、2022から2024.の間の卵の価格変動時における小売行動を調査しています。食料品店がスポット市場を利用したのか、それともコストプラス契約を利用したのか、そしてそれが小売価格設定にどのように影響したのかを理解する必要があります。小売業者が卵を目玉商品（ロスリーダー）としてどのように扱い、卸売価格の急騰や暴落時にマージンをどのように管理しているかを考慮する必要があります。目標は、マージンの調整を含む、関与している価格戦略を明らかにすることです。\n\n\n**非対称ダイナミクスの記録**\n\n私は現在、2022から2024.の間の米国卵市場を特徴づけた非対称な価格転嫁（「ロケットと羽」）を記録しています。HPAI（高病原性鳥インフルエンザ）により卸売価格が急激に上昇した際、小売価格は迅速に追随したことがわかりました。しかし、卸売価格が暴落した際、小売価格の下落は数ヶ月の遅れを伴って発生しており、これは小売マージンの増加に反映されています。私は、コストプラスの調達契約と、過去のマージン圧縮を回復しようとする試みが主要な寄与要因であると結論付けました。\n\n\n**説明の評価**\n\n私は現在、2022から2024.の間に観察された卵の価格動向に対する代替的な説明を深く掘り下げています。卸売価格の下落に続く小売価格の下落の遅れを正当化するために、食料品店がサプライチェーンの遅延や販売代理店との契約をどのように引用したか、また、消費者擁護団体や政治家による「グリードフレーション（強欲インフレ）」や価格吊り上げの主張の影響を詳しく見ています。私の焦点は現在「ロケットと羽」のダイナミクスにあり、非対称な価格設定のインセンティブ、調達慣行、および暗黙の共謀を分析しています。\n\n\n**価格動向の集計**\n\n私は現在、2022から2024.の間の卵の価格動向の主要なダイナミクスを要約した、簡潔で番号付きの主張/証拠台帳を作成しています。特に、90日間の契約や、卵を目玉商品として使用することが小売価格設定にどのように影響したかを確立することに関心があります。また、食料品店がこれをマージンを回復する機会としてどの程度利用した可能性があるか、そしてこれが共謀や意図の証拠となるかどうかを評価する予定です。\n\n\n**証拠収集の構造化**\n\n私は現在、2022から2024.までの卵の価格のダイナミクスに関する証拠照合のための厳格な枠組みを構築しています。定量的側面、因果関係、意図、および法的地位に関する主張を、関連するURLと簡潔な結果とともに記録し、検証します。各主張には、ソースURLと証拠の範囲とともに、1つの簡潔な結果（支持、限定的、矛盾、または未解決）が付与されます。私は台帳に焦点を当て、最終的な結論を出す前にすべての主張が完全に記録されていることを確認しています。\n\n\n**主張と証拠の策定**\n\n私は現在、価格動向台帳の最初の主張をまとめており、「支持」ステータスを目指しています。2022年後半から2023,年初頭にかけて、米国の都市平均のA級Lサイズ卵の小売価格が記録的な水準に達し、1ダースあたり平均$4.00を超えたというデータがあります。これは[https://retailwire.com/discussion/should-grocers-be-pricing-eggs-at-a-loss/](https://retailwire.com/discussion/should-grocers-be-pricing-eggs-at-a-loss/)および[https://fred.stlouisfed.org/series/apu0000708111](https://fred.stlouisfed.org/series/apu0000708111)に基づいています。ソースからの裏付けとなる抜粋を確認する準備ができています。\n\n\n**主張とデータの検証**\n\n私は現在、卸売ベンチマーク価格が1ダースあたり$7.27に急騰したという2番目の主張と、2024年8月の小売価格に関する3番目の主張を相互参照しています。データを徹底的にチェックした結果、これらが正確であると確信しています。私はこれらの価格の極値を検証し、各ソースからのデータを確認し、証拠の一貫性を評価することに焦点を当てています。\n\n\n**市場データの確認**\n\n私は現在、4番目の主張をまとめています。2022から2024.の間の卵市場を含む様々な市場における、非対称な価格転嫁理論、すなわち「ロケットと羽」のダイナミクスの検証に焦点を当てています。ソースを提示する準備をしており、Wikipediaの情報が非対称な価格転嫁の支持された定義を提供していることを確認しています。\n\n\n**価格転嫁の確認**\n\n私は現在、消費財および生産財における非対称な価格調整に関連する主張5,を組み込んでいます。また、2022から2024.の間の卵市場の包括的な要約のために、ERSの価格スプレッドを追跡する主張6,を確認する準備をしています。次に、すべての主張からの調査結果の組み込みを開始します。\n\n\n\n**需要弾力性の分析**\n\n私は現在、2022から2024.の間の卵の価格変動時の小売行動を説明するために、短期的な需要弾力性に関する洞察を統合しています。私の分析は、非弾力的な需要により小売業者が増加したコストを迅速に転嫁でき、卸売価格が下落した際の価格への下方圧力が軽減されるという主張を支持しています。これは状態依存の価格設定閾値モデルと一致しており、主張7.に関連しています。現在、主張8.に進んでいます。\n\n\n**共謀の主張の評価**\n\n私は現在、2022から2024,までの小売業者間における違法な価格操作の証拠の可能性を調査しており、価格操作の事実は見つからなかったという主張9,に焦点を当てています。市場支配力、共謀、および暗黙の共謀に注目しています。固定契約は価格下落時の即時のマージン圧縮を防ぐため、現実世界の契約慣行を考慮に入れなければなりません。私の現在の評価では、この主張は未解決であるとみなしています。\n\n\n**価格戦略の確認**\n\n私は現在、2022から2024の間の卵の価格設定を形成した3つの主要な影響、すなわちロスリーダー（目玉商品）販売後のマージン回収、店舗の間接費インフレ、および在庫管理を分析しています。小売業者が卸売価格の急騰時にマージンの圧縮を吸収し、暴落時にマージンを拡大させ、間接費の上昇を経験したことが分かりました。卵の傷みやすい性質が、価格調整の遅れに影響を与えていると考えています。主張10は現在裏付けられていると断言できます。\n\n\n**市場の確実性の明確化**\n\n2022から2024.の間の卵の価格転嫁に関する現在の調査結果の確実性レベルを明確にしています。BLSとUSDAのデータ、ペルツマンのAPT（非対称的価格転嫁）に関する知見、および卸売価格の暴落に対する小売価格の遅れが事実であることを確認しました。フォーミュラ契約（算定式契約）の遅れ、マージンの吸収、およびコストの上昇は可能性が高いと考えています。消費者の混乱の利用や黙示的談合については確信が持てず、スポット契約と固定契約の比率については分かっていません。"
-      }
-    },
     "usb_c_3v3_ldo_pcb_schematic": {
       "title": {
         "text": "USB-C 3.3V LDO PCB回路図"
@@ -10907,6 +10652,38 @@
       },
       "follow_up_6": {
         "text": "デカップリングコンデンサの選定理由を説明して"
+      }
+    },
+    "vegetarian_recipes_from_fridge_vegetables": {
+      "title": {
+        "text": "冷蔵庫の常備野菜で作るベジタリアンレシピ"
+      },
+      "summary": {
+        "text": "ほうれん草、人参、ピーマン、ひよこ豆を使ったベジタリアンレシピのアイデアをユーザーが求め、アシスタントが3つの選択肢を提案しました。"
+      },
+      "message_1": {
+        "text": "ベジタリアンレシピのおすすめはありますか？冷蔵庫にほうれん草、人参、ピーマン、ひよこ豆が残っています。"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\n**ほうれん草、人参、パプリカ、ひよこ豆**があれば、食物繊維たっぷりの美味しいベジタリアン料理を作るための素晴らしいベースが揃っています。\n\n気分に合わせて選べる、3つの異なる料理のアイデアをご紹介します：\n\n---\n\n### 1. フレッシュ＆シャキシャキ：タイ風チョップドサラダ\n手早く、軽くてシャキシャキしたものが食べたいときは、細かく刻んだ生のパプリカ、人参、ほうれん草をひよこ豆と合わせ、酸味の効いた[ピーナッツ](wiki:Peanut)ライムドレッシングで和えましょう。\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. 香ばしいパテ：ひよこ豆と野菜のカリカリフリッター\n温かくて一口サイズの料理（ラップサンドやピタパン、ヨーグルトディップとの相性も抜群です）がお好みの場合は、ひよこ豆を潰し、みじん切りにした人参、パプリカ、さっと火を通したほうれん草を混ぜて焼き上げます。\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. 平日の時短メニュー：ひよこ豆と野菜の温かいフライパンカレー\n常備菜やストック食材（ココナッツミルク缶やカットトマト缶など）を使ってフライパン一つで作りたい場合：\n1. **香味野菜を炒める：** フライパンにオリーブオイルを熱し、みじん切りにした玉ねぎ、にんにく、生姜を香りが出るまで炒めます。\n2. **硬い野菜を加える：** 人参とパプリカを一口大に切ります。クミンパウダー、[ターメリック](wiki:Turmeric)、チリパウダーまたはカレー粉を少々加え、野菜と一緒に炒め合わせます。\n3. **煮込む：** 水気を切ったひよこ豆と、野菜だしまたはココナッツミルクを1カップ加えます。蓋をして、人参が柔らかくなるまで10〜12分ほど煮込みます。\n4. **ほうれん草を加える：** 最後に生のほうれん草を加え、鮮やかな緑色になり、しんなりするまで1〜2分ほど火を通します。仕上げにレモン汁を絞って完成です。\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"今日はどのスタイルの料理を作りたいですか？\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"フレッシュ＆シャキシャキのチョップドサラダ\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"カリッと香ばしいフリッターまたはパテ\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"温かいフライパンカレーまたは煮込み料理\" }\n  ]\n}\n```"
+      },
+      "follow_up_1": {
+        "text": "スキレットカレーのより詳細な作り方と正確な分量を検索する"
+      },
+      "follow_up_2": {
+        "text": "作り置き用に、余ったひよこ豆のフリッターの下準備と保存方法を教えて"
+      },
+      "follow_up_3": {
+        "text": "ひよこ豆のフリッターに合うヴィーガンヨーグルトディップのレシピを検索する"
+      },
+      "follow_up_4": {
+        "text": "スキレット料理でカレー粉がない場合の、簡単なスパイスの代用法をリストアップして"
+      },
+      "follow_up_5": {
+        "text": "タイ風チョップドサラダに使える、タヒニを使った別のドレッシングのレシピを検索する"
+      },
+      "follow_up_6": {
+        "text": "これら3つのベジタリアンレシピのタンパク質と食物繊維の含有量を比較して"
       }
     },
     "vital_farms_sec_financials": {
@@ -10971,70 +10748,6 @@
       },
       "follow_up_6": {
         "text": "話したアイデアを整理されたタスクに変換するさまざまな方法を比較する"
-      }
-    },
-    "vegetarian_recipes_from_fridge_vegetables": {
-      "title": {
-        "text": "冷蔵庫の常備野菜で作るベジタリアンレシピ"
-      },
-      "summary": {
-        "text": "ほうれん草、人参、ピーマン、ひよこ豆を使ったベジタリアンレシピのアイデアをユーザーが求め、アシスタントが3つの選択肢を提案しました。"
-      },
-      "message_1": {
-        "text": "ベジタリアンレシピのおすすめはありますか？冷蔵庫にほうれん草、人参、ピーマン、ひよこ豆が残っています。"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\n**ほうれん草、人参、パプリカ、ひよこ豆**があれば、食物繊維たっぷりの美味しいベジタリアン料理を作るための素晴らしいベースが揃っています。\n\n気分に合わせて選べる、3つの異なる料理のアイデアをご紹介します：\n\n---\n\n### 1. フレッシュ＆シャキシャキ：タイ風チョップドサラダ\n手早く、軽くてシャキシャキしたものが食べたいときは、細かく刻んだ生のパプリカ、人参、ほうれん草をひよこ豆と合わせ、酸味の効いた[ピーナッツ](wiki:Peanut)ライムドレッシングで和えましょう。\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. 香ばしいパテ：ひよこ豆と野菜のカリカリフリッター\n温かくて一口サイズの料理（ラップサンドやピタパン、ヨーグルトディップとの相性も抜群です）がお好みの場合は、ひよこ豆を潰し、みじん切りにした人参、パプリカ、さっと火を通したほうれん草を混ぜて焼き上げます。\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. 平日の時短メニュー：ひよこ豆と野菜の温かいフライパンカレー\n常備菜やストック食材（ココナッツミルク缶やカットトマト缶など）を使ってフライパン一つで作りたい場合：\n1. **香味野菜を炒める：** フライパンにオリーブオイルを熱し、みじん切りにした玉ねぎ、にんにく、生姜を香りが出るまで炒めます。\n2. **硬い野菜を加える：** 人参とパプリカを一口大に切ります。クミンパウダー、[ターメリック](wiki:Turmeric)、チリパウダーまたはカレー粉を少々加え、野菜と一緒に炒め合わせます。\n3. **煮込む：** 水気を切ったひよこ豆と、野菜だしまたはココナッツミルクを1カップ加えます。蓋をして、人参が柔らかくなるまで10〜12分ほど煮込みます。\n4. **ほうれん草を加える：** 最後に生のほうれん草を加え、鮮やかな緑色になり、しんなりするまで1〜2分ほど火を通します。仕上げにレモン汁を絞って完成です。\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"今日はどのスタイルの料理を作りたいですか？\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"フレッシュ＆シャキシャキのチョップドサラダ\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"カリッと香ばしいフリッターまたはパテ\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"温かいフライパンカレーまたは煮込み料理\" }\n  ]\n}\n```"
-      },
-      "follow_up_1": {
-        "text": "スキレットカレーのより詳細な作り方と正確な分量を検索する"
-      },
-      "follow_up_2": {
-        "text": "作り置き用に、余ったひよこ豆のフリッターの下準備と保存方法を教えて"
-      },
-      "follow_up_3": {
-        "text": "ひよこ豆のフリッターに合うヴィーガンヨーグルトディップのレシピを検索する"
-      },
-      "follow_up_4": {
-        "text": "スキレット料理でカレー粉がない場合の、簡単なスパイスの代用法をリストアップして"
-      },
-      "follow_up_5": {
-        "text": "タイ風チョップドサラダに使える、タヒニを使った別のドレッシングのレシピを検索する"
-      },
-      "follow_up_6": {
-        "text": "これら3つのベジタリアンレシピのタンパク質と食物繊維の含有量を比較して"
-      }
-    },
-    "air_fryers_amazon_germany": {
-      "title": {
-        "text": "ドイツで買えるエアフライヤーの比較"
-      },
-      "summary": {
-        "text": "Amazonドイツの人気エアフライヤーを価格、容量、評価で比較し、2人暮らしにはPhilips Airfryer 2000シリーズをおすすめしました。"
-      },
-      "message_1": {
-        "text": "ドイツでオンライン購入できるエアフライヤーを、Amazonの出品を含めて探して。現在の価格、容量、レビュー評価を比較し、出典リンクを付けて2人暮らし向けの1台をおすすめして。"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\n現在ドイツのAmazonで販売されている高評価のエアフライヤーについて、価格、容量、購入者の評価を比較します。\n\n---\n\n### ドイツで人気のモデルを比較\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### 2人暮らしに最もおすすめのモデル\n\n#### **第一候補：[Philips Airfryer 2000 Series 6.2L](embed:philips-airfryer-2000-fay)**\n\n* **2人に最適な理由：**\n  * **適切な容量（6.2 L）：** 4.5–5 L未満のバスケットでは、2人分でも何回かに分けて調理する必要があります。6.2 Lならサーモンの切り身2枚と野菜やフライドポテトを一層に広げて、むらなく加熱できます。\n  * **キッチンでの設置面積：** NinjaやRussell Hobbsのような2ゾーン型は調理台をかなり占有します。6 Lのシングルバスケットなら、一般的なドイツのキッチンでも比較的省スペースで、十分な調理容量を確保できます。\n  * **透明窓：** 引き出しを開けて熱を逃がさずに焼き色を確認できます。\n  * **価格と性能のバランス：** €99.99で、[Philips](wiki:Philips)の安定した温度管理が得られる、手頃な価格のモデルです。\n\n#### **別の候補（異なる温度で2品を同時に作ることが多い場合）：[Philips Dual Basket 3000 Series (9.0L)](embed:philips-airfryer-dual-pjD)**\n肉や魚と付け合わせの野菜を異なる温度と時間で同時に調理したい場合（例：鶏むね肉を180 °C、カリカリのポテトを200 °C）、このモデルは現在€119.99に値下げされており、2つのバスケットの調理完了時刻をそろえられます。\n\n---\n\n### 購入前に確認したいポイント\n1. **バスケットの形：** 四角いバスケット（CosoriやPhilipsなど）は、同じ容量の丸いバスケットより、ステーキや焼き型、串など平らな食品を入れやすくなります。\n2. **食洗機に入るか：** 6 Lのシングルバスケットを入れられる高さがあるか確認しましょう。フッ素樹脂などの焦げ付き防止コーティングを長持ちさせたいなら、手洗いも検討してください。"
-      },
-      "follow_up_1": {
-        "text": "エアフライヤー専用のレシピを探す"
-      },
-      "follow_up_2": {
-        "text": "シングルバスケットとデュアルバスケットのエアフライヤーの主な違いを説明して"
-      },
-      "follow_up_3": {
-        "text": "このエアフライヤーに対応した調理用アクセサリーを探す"
-      },
-      "follow_up_4": {
-        "text": "エアフライヤーで作れる初心者向けの夕食レシピを挙げて"
-      },
-      "follow_up_5": {
-        "text": "これらのモデルの現在の消費電力を確認して"
-      },
-      "follow_up_6": {
-        "text": "セラミックコーティングとテフロンコーティングの洗浄・手入れ方法を比較して"
       }
     }
   },
@@ -16379,6 +16092,16 @@
       }
     },
     "app_store_examples": {
+      "jobs": {
+        "search": {
+          "1": {
+            "text": "ストックホルムのソフトウェア開発職"
+          },
+          "2": {
+            "text": "マルメのソフトウェア開発職"
+          }
+        }
+      },
       "hosting": {
         "search_domains": {
           "1": {
@@ -21149,7 +20872,7 @@
       "text": "無料で試す"
     },
     "version_title": {
-      "text": "v0.27"
+      "text": "v0.28"
     },
     "domain_not_allowed": {
       "text": "メールドメインが許可されていません。"
@@ -21960,6 +21683,7 @@
     }
   },
   "videocall": {},
+  "voice_call_events": {},
   "voicecall": {},
   "waiting_list": {
     "discord_members": {
@@ -21973,6 +21697,11 @@
     }
   },
   "workflows": {
+    "home": {
+      "guest_subtitle": {
+        "text": "ワークフローの自動化を見てみましょう："
+      }
+    },
     "template_share": {
       "title": {
         "text": "テンプレートとして共有"

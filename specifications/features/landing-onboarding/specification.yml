@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.landing-onboarding
-version: 6
+version: 7
 status: draft
 title: Signed-out Web Welcome
 summary: Signed-out web and Apple main-app visitors use the ordinary new-chat welcome with normal Daily Inspirations
@@ -20,11 +20,12 @@ scope:
 assertions:
 - id: landing-onboarding.uses-real-chat-shell
   type: behavior
-  must: The signed-out web root renders the ordinary new-chat welcome inside the existing chat shell. It retains
+  must: >-
+    The signed-out web root renders the ordinary new-chat welcome inside the existing chat shell. It retains
     the composer, normal Daily Inspiration banner, interest selection and all-example-chat discovery. Expanded landing
     header, timed marketing slides and slide-filtered examples are absent. The localized guest Hey there greeting
-    is visible just as in the guest Workflows workspace, even if a cached authenticated profile remains. The ordinary
-    unpersonalized section is titled Continue where you left off.
+    is visible just as in the guest Workflows workspace, even if a cached authenticated profile remains. The guest example section uses the localized label “Explore some example chats:”.
+    “Continue where you left off:” is reserved for authenticated chat continuation.
   depends_on:
   - examples.web_welcome
 - id: landing-onboarding.guest-examples
@@ -145,8 +146,11 @@ examples:
   - apple_parity
   - historical_native_references
 approval_source:
-  instruction: User directly requested implementation and relevant specification updates on 2026-10-09 in this Codex
-    thread and said not to ask for further confirmation today; no new exact-fingerprint approval is claimed.
+  instruction: >-
+    User directly instructed implementation of these October 16 corrections under the existing landing
+    implementation authorization and explicitly said not to repeat landing Specification confirmation. This
+    records the directed scope; no new exact-fingerprint or PDF review is claimed.
+
 models:
   AppleLandingParity:
     host_surface:

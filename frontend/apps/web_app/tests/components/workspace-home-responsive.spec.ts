@@ -40,10 +40,16 @@ test.describe('Responsive workspace homes', () => {
 			expect(links && composer && banner).toBeTruthy();
 			expect(links!.y).toBeGreaterThanOrEqual(banner!.y + banner!.height);
 			expect(links!.y + links!.height).toBeLessThanOrEqual(composer!.y + 1);
+			await expect(page.locator('.workspace-subtitle')).toHaveText('What do you want to automate next?');
+			await expect(page.locator('.workspace-continue-label')).toHaveCount(0);
 			const firstCard = page.getByTestId('workflow-landing-card').first();
 			const cardBox = await firstCard.boundingBox();
 			expect(cardBox).not.toBeNull();
 			expect(cardBox!.height).toBeLessThan(size.height < 800 ? 120 : 220);
+			const welcomeBox = await page.locator('.welcome-text').boundingBox();
+			expect(welcomeBox).not.toBeNull();
+			const expectedGap = cardBox!.height > 120 ? 17.5 : 6;
+			expect(Math.abs(cardBox!.y - welcomeBox!.y - welcomeBox!.height - expectedGap)).toBeLessThanOrEqual(1);
 			await page.getByTestId('workflows-show-all').click();
 			await expect(page.getByTestId('all-workflows-view')).toBeVisible();
 			await expect(page.getByTestId('workflow-landing-card')).toHaveCount(4);
@@ -131,11 +137,17 @@ test.describe('Responsive workspace homes', () => {
 			await expect(page.getByTestId('workflows-start-screen')).toBeVisible();
 			await expect(page.getByTestId('workflows-daily-inspiration-area').getByTestId('daily-inspiration-phrase')).toBeVisible();
 			const continuation = page.getByTestId('workflows-workspace-continue');
-			await expect(continuation).toContainText('Continue where you left off');
+			await expect(page.locator('.workspace-subtitle')).toHaveText('Explore the workflow automations:');
+			await expect(page.locator('.workspace-continue-label')).toHaveCount(0);
 			await expect(continuation.getByTestId('workflow-landing-card')).toHaveCount(5);
 			await expect(page.getByTestId('all-workflows-view')).toHaveCount(0);
 			await expect(page.getByTestId('workflows-show-all')).toHaveCount(0);
-			await expect(page.getByTestId('workflow-input-composer')).toHaveCount(0);
+			await expect(page.getByTestId('workflow-input-composer')).toBeVisible();
+			const signupInput = page.getByTestId('workflow-guest-signup');
+			await signupInput.focus();
+			await signupInput.press('Enter');
+			await expect(page.getByTestId('workflow-signup-dialog')).toBeVisible();
+			await page.getByTestId('workflow-signup-dialog').getByRole('button', { name: 'Close' }).click();
 			await expect(page.getByTestId('workflows-sort')).toHaveCount(0);
 			for (const template of guestTemplates) {
 				const card = continuation.getByTestId('workflow-landing-card').filter({ hasText: template.title });

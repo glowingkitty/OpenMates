@@ -2,12 +2,12 @@ landing:
   enabled: true
   order: 9
   capability:
-    type: focus
-    id: research
+    type: skill
+    id: search
   caption:
-    en: Deep research the web
-    de: Recherchiere gründlich im Web
-  example_chat_id: example-us-egg-prices-deep
+    en: Search the web
+    de: Im Web suchen
+  example_chat_id: example-find-brand-name-and
 
 name_translation_key: web
 description_translation_key: web.description

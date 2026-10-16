@@ -3,6 +3,7 @@
  * This makes it easier to maintain and update links in one place
  */
 import { parse } from "yaml";
+import { env } from "$env/dynamic/public";
 
 // Load shared URL configuration
 interface SharedUrls {
@@ -143,7 +144,7 @@ export const routes = {
 // app.yml, add its privacy-policy link here AND update:
 //   - shared/docs/privacy_policy.yml
 //   - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
-//   - frontend/packages/ui/src/legal/buildLegalContent.ts
+//   - frontend/packages/public-site/src/legal/buildLegalContent.ts
 export { privacyPolicyLinks } from '@repo/public-site/legal/privacyPolicyLinks';
 
 // Update routes to include full URLs when needed
@@ -151,15 +152,18 @@ export function getWebsiteUrl(path: string): string {
   return `${getBaseUrl("website")}${path}`;
 }
 
-/** Legal links stay on this origin until the separate public website is configured. */
+/** Legal documents live on the standalone public website in every app flow. */
 export function getPublicLegalUrl(path: string): string {
-  const configured = import.meta.env.PUBLIC_LANDING_WEBSITE_URL;
+  const configured = env.PUBLIC_LANDING_WEBSITE_URL;
   if (typeof configured === 'string' && /^https?:\/\//i.test(configured)) {
     try {
       return new URL(path, new URL(configured).origin).href;
     } catch {
-      // Keep legal pages reachable on the current app origin if configuration is malformed.
+      // Fall back to the deployed website for this app environment.
     }
   }
-  return path;
+  const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+  const development = import.meta.env.DEV || hostname === 'localhost' || hostname === '127.0.0.1'
+    || hostname.includes('.dev.') || hostname.startsWith('dev.') || hostname.endsWith('.vercel.app');
+  return new URL(path, development ? 'https://landing.dev.openmates.org' : 'https://openmates.org').href;
 }

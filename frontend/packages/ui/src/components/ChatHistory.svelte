@@ -38,7 +38,7 @@ import { storageArchiveFetch } from "../config/api";
   import { editMessageStore } from '../stores/editMessageStore';
   import { locale } from 'svelte-i18n';
   import { contentCache } from '../utils/contentCache';
-  import { getDemoMessages, isPublicChat, DEMO_CHATS, LEGAL_CHATS } from '../demo_chats'; // Import demo chat utilities for re-fetching on locale change
+  import { getDemoMessages, isPublicChat, DEMO_CHATS } from '../demo_chats'; // Import demo chat utilities for re-fetching on locale change
   import { messageHighlightStore } from '../stores/messageHighlightStore';
   import type { 
     AppSettingsMemoriesResponseContent,
@@ -2786,7 +2786,7 @@ import { storageArchiveFetch } from "../config/api";
         if (isPublicChat(chatId)) {
           try {
             // Re-fetch messages with new translations
-            const newMessages = getDemoMessages(chatId, DEMO_CHATS, LEGAL_CHATS);
+            const newMessages = getDemoMessages(chatId, DEMO_CHATS);
             if (newMessages.length > 0) {
               // Call updateMessages to process the new messages
               // This will detect locale change and force re-processing

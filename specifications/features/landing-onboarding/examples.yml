@@ -1,12 +1,20 @@
 schema_version: 1
-specification: feature.landing-onboarding@6
+specification: feature.landing-onboarding@7
 web_welcome:
 - id: ordinary-guest-welcome
-  given: Sam opens the web app signed out.
-  when: The new-chat welcome finishes loading.
-  then: The normal Daily Inspiration banner, composer, Select interests and Show all example chats are available
-    in the existing chat shell, with no expanded intro or timed promotional slides. The localized Hey there greeting
-    and Continue where you left off are visible; cached account details never replace the guest greeting.
+  given: "Sam opens the web app signed out with a cached authenticated profile."
+  when: "The new-chat welcome finishes loading."
+  then: >-
+    The normal Daily Inspiration banner, composer, Select interests and Show all example chats are available
+    inside the existing chat shell. The localized Hey there greeting and Explore some example chats: label
+    appear; Continue where you left off: and cached account details do not replace guest copy. No expanded
+    intro or timed promotional slides appear.
+- id: authenticated-chat-continuation-label
+  assertion_ids: [landing-onboarding.uses-real-chat-shell]
+  given: Alice is signed in and has recent chats.
+  when: Alice opens the ordinary new-chat welcome.
+  then: >-
+    Her recent chats appear beneath the localized Continue where you left off: label.
 examples_discovery:
 - id: all-real-examples
   given: Sam is signed out and has selected an interest.

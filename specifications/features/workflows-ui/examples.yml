@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.workflows-ui@10
+specification: feature.workflows-ui@11
 workflow_file_export:
 - id: more-exports-current-saved-workflow
   assertion_ids:
@@ -89,10 +89,13 @@ visual_language:
     expandable_debug_dump_available: false
 route_motion_contract:
 - id: workflow-route-matches-fullscreen-embed-motion
-  given: Alice opens a Workflow and then returns to the Workflows workspace.
-  when: Her system allows motion.
-  then: Opening moves the Workflow upward from the bottom with a fade and closing reverses it, using the fullscreen
-    embed timing of 320ms cubic-bezier(0.32, 0, 0.2, 1); reduced-motion mode removes the nonessential movement.
+  assertion_ids: [workflows-ui.detail.fullscreen-route-motion]
+  given: "Alice opens a Workflow and a chat detail, then returns from each to its workspace."
+  when: "Her system allows motion, then she repeats with reduced motion."
+  then: >-
+    Both details slide upward from the bottom with a fade and close by reversing that motion, using 320ms
+    cubic-bezier(0.32, 0, 0.2, 1) without scaling. Reduced motion removes nonessential movement; settled and
+    closed details release temporary animation transforms and compositor hints.
 workflow_identity:
 - id: generated-software-workflow-identity
   given:
@@ -130,13 +133,14 @@ workflow_identity:
     resolved_icon: calendar
 workspace_start_layout:
 - id: desktop-recommendation-led-layout
-  assertion_ids:
-  - workflows-ui.workspace.recommendation-led-composition
-  given: Alice opens Workflows on a desktop screen with two owned Workflows and a Daily Inspiration banner.
-  when: The start view renders its continuation area.
-  then: The banner stays above the centered Workflow identity and owned continuation cards. Show my workflows, Show
-    templates and Search sit above the floating composer. Large cards use the Workflow category gradient and useful
-    schedule detail when enough content space is available.
+  assertion_ids: [workflows-ui.workspace.recommendation-led-composition]
+  given: "Alice opens Workflows on desktop with two owned Workflows and a Daily Inspiration banner."
+  when: "The start view renders its cards."
+  then: >-
+    What do you want to automate next? appears above the cards without a redundant Continue where you left
+    off label. Banner, identity, cards and composer use the Chats start geometry and the same compact-card
+    fit threshold; Show my workflows, Show templates and Search stay above the composer. Large cards retain
+    category gradients and schedule detail when they fit.
 - id: mobile-retains-start-hierarchy
   assertion_ids:
   - workflows-ui.workspace.recommendation-led-composition
@@ -644,7 +648,7 @@ workflow_continue_priority:
     edited three hours ago, one last edited last week running tomorrow morning within 24 hours, and an older paused
     Workflow.
   when: She opens Workflows.
-  then: Continue where you left off shows those five Workflows in that order. Workflows in the same edit group show
+  then: The owned cards below What do you want to automate next? show those five Workflows in that order. Workflows in the same edit group show
     newest first, and Workflows in the same scheduled group show the soonest future run first.
 - id: elapsed-and-paused-runs-are-not-upcoming
   assertion_ids:
@@ -669,18 +673,20 @@ workflow_library_templates:
   given: Bob is signed in on the Workflows start screen with no Workflows of his own.
   when: He opens Show templates and selects a built-in planning template.
   then: A new disabled Workflow opens in Template for his review. Browsing alone creates nothing; selection performs
-    no run or schedule activation, and the new Workflow is reachable through Show my workflows and Continue where
-    you left off.
+    no run or schedule activation, and the new Workflow is reachable through Show my workflows and the owned start cards.
 guest_template_preview:
 - id: signed-out-browsing-is-read-only
-  assertion_ids:
-  - workflows-ui.workspace.guest-template-preview
-  given: Sam is signed out and Workflows are enabled on this server.
-  when: Sam opens Workflows from the header, chooses Show templates, and selects a built-in reminder template.
-  then: Sam can read the template's steps and sees a sign-in/create action, while no owned Workflow is fetched or
-    created and no save, import, enable, run, or schedule action is available. Opening a node shows the actual editor
-    header and schema/request fields, with a working close button. Signup to customize workflow and the orange Signup
-    button replace Save while editing, tests and execution remain unavailable.
+  assertion_ids: [workflows-ui.workspace.guest-template-preview]
+  given: "Sam is signed out and Workflows are enabled on this server."
+  when: >-
+    Sam opens Workflows from the header, activates the bottom composer, returns and inspects a built-in
+    template.
+  then: >-
+    The localized heading reads Explore the workflow automations: with no redundant continuation label.
+    Settings and the composer remain visible; composer activation opens signup without creating a Workflow.
+    The template graph and actual read-only node editor remain inspectable with a working close button and
+    Signup to customize workflow replacing Save. No owned data is fetched and no save, import, enable, run
+    or schedule action is available.
 - id: signed-out-template-cannot-run
   assertion_ids:
   - workflows-ui.workspace.guest-template-preview

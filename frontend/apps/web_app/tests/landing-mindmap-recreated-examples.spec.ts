@@ -3,13 +3,11 @@
 import type { Page, APIRequestContext, TestInfo } from '@playwright/test';
 import { admitLandingExample, type LandingViewport } from './landing-app-example-admission';
 const { test } = require('./helpers/cookie-audit');
-import { usEggPricesDeepResearchChat } from '../../../packages/ui/src/demo_chats/data/example_chats/us-egg-prices-deep-research';
 import { dashboardSidebarSvgIconsChat } from '../../../packages/ui/src/demo_chats/data/example_chats/dashboard-sidebar-svg-icons';
 import { communityGardenWelcomeMelodyChat } from '../../../packages/ui/src/demo_chats/data/example_chats/community-garden-welcome-melody';
 import { housingPolicyDinnerDiscussionChat } from '../../../packages/ui/src/demo_chats/data/example_chats/housing-policy-dinner-discussion';
 
 const reviewed = [
-  { appId: 'web', chat: usEggPricesDeepResearchChat },
   { appId: 'design', chat: dashboardSidebarSvgIconsChat },
   { appId: 'music', chat: communityGardenWelcomeMelodyChat },
   { appId: 'politics', chat: housingPolicyDinnerDiscussionChat }

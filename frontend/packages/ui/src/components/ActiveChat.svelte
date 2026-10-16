@@ -29,6 +29,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import Login from './Login.svelte';
     import { text } from '@repo/ui';
     import { fade, fly } from 'svelte/transition';
+    import { animateWorkspacePane } from '../utils/workspacePaneMotion';
     import { createEventDispatcher, tick, onMount, onDestroy, untrack, setContext } from 'svelte'; // Added onDestroy
     import { authStore, logout } from '../stores/authStore'; // Import logout action
     import { demoMode } from '../stores/demoModeStore';
@@ -133,7 +134,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import { updateHashParams } from '../utils/settingsHashUtils';
     import { isDraftOnlyChatSurface, isPersistedDraftOnlyChat, classifyFirstTurnComposerContext } from '../utils/chatDraftState';
     import { formatDraftPreview } from '../utils/draftPreview';
-    import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, isNewsletterChat, isLegalChat, isDemoChat, translateDemoChat, getAllExampleChats, isExampleChat, getExampleChat, getExampleChatCompressionCheckpoints, getExampleChatEmbed } from '../demo_chats';
+    import { DEMO_CHATS, getDemoMessages, isPublicChat, isNewsletterChat, isDemoChat, translateDemoChat, getAllExampleChats, isExampleChat, getExampleChat, getExampleChatCompressionCheckpoints, getExampleChatEmbed } from '../demo_chats';
     import { getVideoForLocale } from '../demo_chats/data/videos';
     import { ALL_NEWSLETTER_CHATS } from '../demo_chats/newsletterChatStore';
     import ChatContextMenu from './chats/ChatContextMenu.svelte'; // Context menu for resume chat cards
@@ -436,7 +437,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
     function shouldAutoStartCreatedApplicationPreview(chat: Chat | null): boolean {
         if (!$authStore.isAuthenticated || !chat?.chat_id || chat.is_incognito || chat.is_anonymous) return false;
-        if (isPublicChat(chat.chat_id) || isDemoChat(chat.chat_id) || isExampleChat(chat.chat_id) || isLegalChat(chat.chat_id) || isNewsletterChat(chat.chat_id)) return false;
+        if (isPublicChat(chat.chat_id) || isDemoChat(chat.chat_id) || isExampleChat(chat.chat_id) || isNewsletterChat(chat.chat_id)) return false;
         return true;
     }
 
@@ -2706,9 +2707,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         const demoChat = DEMO_CHATS.find((chat) => chat.chat_id === chatId);
         if (demoChat) return convertDemoChatToChat(translateDemoChat(demoChat));
 
-        const legalChat = LEGAL_CHATS.find((chat) => chat.chat_id === chatId);
-        if (legalChat) return convertDemoChatToChat(translateDemoChat(legalChat));
-
         return getExampleChat(chatId) ?? getAllExampleChats().find((chat) => chat.chat_id === chatId) ?? null;
     }
 
@@ -3041,7 +3039,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         ? createAnonymousHashShellChat(initialAnonymousChatId)
         : null;
     const initialPublicMessages = initialPublicChat
-        ? getDemoMessages(initialPublicChat.chat_id, DEMO_CHATS, LEGAL_CHATS)
+        ? getDemoMessages(initialPublicChat.chat_id, DEMO_CHATS)
         : [];
     const initialPublicCompressionCheckpoints = initialPublicChat && isExampleChat(initialPublicChat.chat_id)
         ? getExampleChatCompressionCheckpoints(initialPublicChat.chat_id)
@@ -3153,9 +3151,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             case 'download': {
                 resumeCardContextMenuDownloading = true;
                 try {
-                    // Public chats (demo/legal) use static bundle; regular chats use IndexedDB
+                    // Public chats (demo/example) use static bundle; regular chats use IndexedDB
                     const messages = isPublicChat(chat.chat_id)
-                        ? getDemoMessages(chat.chat_id, DEMO_CHATS, LEGAL_CHATS)
+                        ? getDemoMessages(chat.chat_id, DEMO_CHATS)
                         : await chatDB.getMessagesForChat(chat.chat_id);
                     await downloadChatAsZip(chat, messages);
                     notificationStore.success('Chat downloaded successfully');
@@ -3171,7 +3169,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             case 'copy': {
                 try {
                     const messages = isPublicChat(chat.chat_id)
-                        ? getDemoMessages(chat.chat_id, DEMO_CHATS, LEGAL_CHATS)
+                        ? getDemoMessages(chat.chat_id, DEMO_CHATS)
                         : await chatDB.getMessagesForChat(chat.chat_id);
                     await copyChatToClipboard(chat, messages);
                     notificationStore.success('Chat copied to clipboard');
@@ -3183,7 +3181,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 break;
             }
             case 'delete': {
-                // Demo/legal chats: hide via userProfile; regular chats: delete from DB
+                // Demo/example chats: hide via userProfile; regular chats: delete from DB
                 if (isPublicChat(chat.chat_id)) {
                     if (!$authStore.isAuthenticated) {
                         notificationStore.error('Please sign up to customize your experience');
@@ -4150,7 +4148,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
         // Only show resume card when on welcome screen, authenticated, and last_opened is a real chat ID
         // (not empty, not '/chat/new' which means the user was already on the new chat screen,
-        //  not a demo/legal chat which are client-side static content)
+        //  not a demo/example chat which are client-side static content)
         if (!isWelcome || !isAuth || !lastOpened || lastOpened === '/chat/new' || isPublicChat(lastOpened)) {
             clearResumeChatCard();
             return;
@@ -4250,8 +4248,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
     // ─── End Phase 1 Sync Bridge ──────────────────────────────────────────
 
-    // Add state variable for scaling animation on the container using $state
-    let activeScaling = $state(false);
 
     // Reactive trigger for AI task state changes - incremented when AI tasks start/end
     // Note: Prefixed with underscore as linter reports unused, but it's used as a reactivity trigger
@@ -5783,7 +5779,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     }
 
     let startNewChatPlaceholderMode = $derived(
-        !!currentChat?.chat_id && (isDemoChat(currentChat.chat_id) || isLegalChat(currentChat.chat_id) || isNewsletterChat(currentChat.chat_id))
+        !!currentChat?.chat_id && (isDemoChat(currentChat.chat_id) || isNewsletterChat(currentChat.chat_id))
     );
     let showNewChatButtonBesideInput = $derived(
         createButtonVisible &&
@@ -5807,7 +5803,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     let activePublicChatMetadata = $derived.by(() => {
         const currentChatId = currentChat?.chat_id;
         if (!currentChatId) return null;
-        const allChats = [...DEMO_CHATS, ...LEGAL_CHATS, ...ALL_NEWSLETTER_CHATS];
+        const allChats = [...DEMO_CHATS, ...ALL_NEWSLETTER_CHATS];
         return allChats.find((chat) => chat.chat_id === currentChatId)?.metadata ?? null;
     });
 
@@ -6214,8 +6210,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         followUpSuggestionsEnabled &&
         !showWelcome &&
         followUpSuggestions.length > 0 &&
-        followUpSuggestionsKey !== dismissedFollowUpSuggestionsKey &&
-        !(currentChat && isLegalChat(currentChat.chat_id))
+        followUpSuggestionsKey !== dismissedFollowUpSuggestionsKey
     );
 
     async function refreshProjectFocusPresentation(chatId: string, focusId: string): Promise<void> {
@@ -7606,7 +7601,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             // For cloned-from-example chats, include the original example messages
             // so that embed references render in the cloned chat immediately
             if (currentChat?.source_demo_id && isExampleChat(currentChat.source_demo_id)) {
-                const exampleMsgs = getDemoMessages(currentChat.source_demo_id, DEMO_CHATS, LEGAL_CHATS);
+                const exampleMsgs = getDemoMessages(currentChat.source_demo_id, DEMO_CHATS);
                 if (exampleMsgs.length > 0) {
                     const updatedMsgs = exampleMsgs.map(msg => ({
                         ...msg,
@@ -7987,6 +7982,17 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
     // Closing returns to the parent or workspace without starting a new input session.
     let closingChat = $state(false);
+    let chatNavigationPane = $state<HTMLDivElement | null>(null);
+    let previousNavigationChatId: string | null = null;
+    $effect(() => {
+        const chatId = !showWelcome ? (currentChat?.chat_id ?? 'new-chat') : null;
+        // A replacement selected during close still needs its entrance once close releases.
+        if (closingChat) return;
+        if (chatId && chatId !== previousNavigationChatId) {
+            void animateWorkspacePane(chatNavigationPane, true);
+        }
+        previousNavigationChatId = chatId;
+    });
 
     const showChatSettingsAction = $derived(!!(hasActiveChatDetailsSurface && currentChat?.chat_id && (isExampleChat(currentChat.chat_id) || $authStore.isAuthenticated || currentChat.is_shared_by_others)));
     const showChatRemindersAction = $derived(!!(hasActivePrivateChatSurface && $authStore.isAuthenticated && currentChat?.chat_id && !currentChat.is_shared_by_others));
@@ -8061,16 +8067,25 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             return;
         }
         if (closingChat) return;
+        const chatId = currentChat?.chat_id;
+        const target = currentChat?.parent_id;
         closingChat = true;
+        let releaseOutgoingMotion = () => {};
         try {
-            const chatId = currentChat?.chat_id;
-            const target = currentChat?.parent_id;
+            // Preserve messages, header and composer until the outgoing pane has left.
+            releaseOutgoingMotion = await animateWorkspacePane(chatNavigationPane, false);
+            // A later selection owns the pane; this close must never clear or navigate it.
+            if (currentChat?.chat_id !== chatId) return;
             if (target && target !== chatId) {
                 await handleChatNavigate(target);
+                await animateWorkspacePane(chatNavigationPane, true);
             } else {
                 await handleNewChatClick();
             }
         } finally {
+            // Let Svelte commit the destination before removing the invisible outgoing frame.
+            await tick();
+            releaseOutgoingMotion();
             closingChat = false;
         }
     }
@@ -8159,11 +8174,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         // Opening a chat never starts a typing session. The composer remains
         // available for an explicit click, tap or keyboard focus action.
 
-        // Trigger container scale down
-        activeScaling = true;
-        setTimeout(() => {
-            activeScaling = false;
-        }, 200); // Scale effect duration in ms (adjust if needed)
 
         // Dispatch an event to notify that a new chat is initiated and current selection should be cleared
         dispatch('chatDeselected'); // This can be listened to by Chats.svelte if it's a parent
@@ -10083,7 +10093,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         
         if (!currentChat?.chat_id) return;
         
-        // Skip read status updates for public chats (demo + legal) or non-authenticated users
+        // Skip read status updates for public chats (demo + example) or non-authenticated users
         if (isPublicChat(currentChat.chat_id) || !$authStore.isAuthenticated) {
             console.debug(`[ActiveChat] Skipping read status update for ${isPublicChat(currentChat.chat_id) ? 'public chat' : 'non-authenticated user'}: ${currentChat.chat_id}`);
             return;
@@ -10397,7 +10407,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         // This preserves the pending request so users can return to the original chat
         // and still approve/reject the request.
         
-        // For public chats (demo/legal) and incognito chats, skip database access - use the chat object directly
+        // For public chats (demo/example) and incognito chats, skip database access - use the chat object directly
         // This is critical during logout when database is being deleted
         let freshChat: Chat | null = null;
         const isProvidedDraftOnlyChat = isPersistedDraftOnlyChat(chat);
@@ -10543,7 +10553,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
               if (isCurrentDraftOnlyChat) {
                    await applyPersistedDraftHeader(chatForHeader, 'loadChat', isCurrentLoadTarget);
               } else if (isPublicChat(chatForHeader.chat_id)) {
-                  // Public chats (demo/legal/community): all metadata is cleartext
+                  // Public chats (demo/example/community): all metadata is cleartext
                   const t = typeof chatForHeader.title === 'string' ? chatForHeader.title : '';
                   const c = chatForHeader.category || null;
                   // icon is stored as a comma-separated string — use the first icon name only
@@ -10725,21 +10735,21 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         let messageLoadFailed = false;
         let backgroundMessageWindowRepair: Promise<Awaited<ReturnType<typeof fetchAuthenticatedMessageWindow>> | null> | null = null;
         if (currentChat?.chat_id) {
-            // Check if this is a public chat (demo or legal) - load messages from static bundle instead of IndexedDB
+            // Check if this is a public chat (demo or example) - load messages from static bundle instead of IndexedDB
             if (isPublicChat(currentChat.chat_id)) {
                 console.debug(`[ActiveChat] Loading public chat messages for: ${currentChat.chat_id}`);
                 currentCompressionCheckpoints = isExampleChat(currentChat.chat_id)
                     ? getExampleChatCompressionCheckpoints(currentChat.chat_id)
                     : [];
-                // Pass both DEMO_CHATS and LEGAL_CHATS to getDemoMessages
-                newMessages = getDemoMessages(currentChat.chat_id, DEMO_CHATS, LEGAL_CHATS);
+                // Load messages from the public demo bundle.
+                newMessages = getDemoMessages(currentChat.chat_id, DEMO_CHATS);
                 currentMessageWindowHasMoreBefore = false;
                 console.debug(`[ActiveChat] Loaded ${newMessages.length} messages for ${currentChat.chat_id}`);
                 
                 // CRITICAL: For public chats, ensure we always have messages loaded
                 // If getDemoMessages returns empty, log a warning
                 if (newMessages.length === 0) {
-                    console.warn(`[ActiveChat] WARNING: No messages found for ${currentChat.chat_id}. Available public chats:`, [...DEMO_CHATS, ...LEGAL_CHATS].map(c => c.chat_id));
+                    console.warn(`[ActiveChat] WARNING: No messages found for ${currentChat.chat_id}. Available public chats:`, DEMO_CHATS.map(c => c.chat_id));
                 }
             } else if (currentChat.is_incognito) {
                 // Incognito chats - load messages from incognitoChatService (sessionStorage)
@@ -11230,12 +11240,11 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         isAtBottom = false;
 
         // Load follow-up suggestions from chat metadata
-        // CRITICAL: For public chats (demo + legal), always use original suggestions from static bundle
+        // CRITICAL: For public chats (demo + example), always use original suggestions from static bundle
         // Never load user-modified suggestions from database (even if stored) to prevent showing user responses
         if (isPublicChat(currentChat.chat_id)) {
             // For public chats, get original suggestions from static bundle, not from database
-            const publicChatSource = DEMO_CHATS.find(c => c.chat_id === currentChat.chat_id) || 
-                                     LEGAL_CHATS.find(c => c.chat_id === currentChat.chat_id);
+            const publicChatSource = DEMO_CHATS.find(c => c.chat_id === currentChat.chat_id);
             if (publicChatSource && publicChatSource.follow_up_suggestions) {
                 // Translate suggestions if needed (demo chats use translation keys)
                 const translatedChat = translateDemoChat(publicChatSource);
@@ -11348,7 +11357,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                         isAtBottom = false;
                         console.debug('[ActiveChat] Set isAtBottom=false after scrolling to latest assistant message');
                     }, 200);
-                // For public chats (demo + legal), always scroll to top (user hasn't read them yet)
+                // For public chats (demo + example), always scroll to top (user hasn't read them yet)
                 // Also scroll to top for shared chats on non-authenticated devices (they can't reuse scroll position)
                 } else if (isPublicChat(currentChat.chat_id) || !$authStore.isAuthenticated) {
                     chatHistoryRef.scrollToTop();
@@ -12594,7 +12603,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             
             const chatId = currentChat.chat_id;
             
-            // Skip for public chats (demo/legal) and incognito chats - they can't be hidden
+            // Skip for public chats (demo/example) and incognito chats - they can't be hidden
             if (isPublicChat(chatId) || currentChat.is_incognito) {
                 console.debug('[ActiveChat] Hidden chats locked but current chat is public/incognito - no action needed');
                 return;
@@ -12740,21 +12749,18 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                     return;
                 }
                 
-                // Find the static public chat (check both DEMO_CHATS and LEGAL_CHATS) and translate it
+                // Find the static public chat (check DEMO_CHATS) and translate it
                 // Use snapshotChat to ensure we have the current value
-                let publicChat = DEMO_CHATS.find(chat => chat.chat_id === snapshotChat.chat_id);
-                if (!publicChat) {
-                    publicChat = LEGAL_CHATS.find(chat => chat.chat_id === snapshotChat.chat_id);
-                }
+                const publicChat = DEMO_CHATS.find(chat => chat.chat_id === snapshotChat.chat_id);
                 if (publicChat) {
                     // CRITICAL: Re-translate the chat with the new locale
                     // translateDemoChat uses get(text) which reads from the locale store
                     // By waiting for waitLocale() and tick() above, we ensure translations are loaded and store is updated
                     const translatedChat = translateDemoChat(publicChat);
                     
-                    // Reload the public chat messages with new translations (check both DEMO_CHATS and LEGAL_CHATS)
+                    // Reload the public chat messages with new translations (check DEMO_CHATS)
                     // getDemoMessages internally calls translateDemoChat again, which will use the updated locale
-                    const newMessages = getDemoMessages(snapshotChat.chat_id, DEMO_CHATS, LEGAL_CHATS);
+                    const newMessages = getDemoMessages(snapshotChat.chat_id, DEMO_CHATS);
                     
                     // CRITICAL: Force new array reference to ensure reactivity
                     // This ensures ChatHistory detects the change even if message IDs are the same
@@ -12777,7 +12783,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                         console.warn('[ActiveChat] chatHistoryRef is null - cannot update messages');
                     }
                 } else {
-                    console.warn('[ActiveChat] Public chat not found in DEMO_CHATS or LEGAL_CHATS:', snapshotChat.chat_id);
+                    console.warn('[ActiveChat] Public chat not found in DEMO_CHATS:', snapshotChat.chat_id);
                 }
             } catch (error) {
                 console.error('[ActiveChat] Error in language change handler:', error);
@@ -14038,7 +14044,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     data-chat-load-state={chatLoadState}
     class:dimmed={isDimmed}
     class:login-mode={!showChat}
-    class:scaled={activeScaling}
     class:narrow={isEffectivelyNarrow}
     class:medium={isMedium && !showSideBySideLayout}
     class:wide={isWide && !showSideBySideLayout}
@@ -14076,7 +14081,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             <!-- When side-by-side mode is active, chat takes left portion with smooth transition -->
             <!-- Chat stays mounted at its split width while sliding out/in. -->
             <div 
-                class="chat-wrapper" 
+                class="chat-wrapper"
+                bind:this={chatNavigationPane}
+                data-navigation-closing={closingChat}
                 class:fullscreen={isFullscreen} 
                 class:side-by-side-chat={showSideBySideLayout}
                 class:chat-pane-hidden={hasSplitChatContext && forceOverlayMode}
@@ -14403,7 +14410,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                                     {#if !$authStore.isAuthenticated}
                                         <p class="guest-interest-prompt" data-testid="guest-interest-prompt" transition:fade={fadeParams}>
                                             {#if !guestInterestSelectorVisible}
-                                                {$text('chats.resume_last_chat.title')}
+                                                {$text('chats.resume_last_chat.guest_title')}
                                             {:else}
                                                 {#each guestInterestHeadingParts as part, index}
                                                     <span>{part}</span>{#if index < guestInterestHeadingParts.length - 1}<br>{/if}
@@ -15270,9 +15277,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
                         <!-- Pass currentChat?.id or temporaryChatId to MessageInput -->
                         <!-- Public read-only chats use the start-new-chat placeholder instead of MessageInput. -->
-                        {#if (!(currentChat && (isLegalChat(currentChat.chat_id) || isNewsletterChat(currentChat.chat_id))) || startNewChatPlaceholderMode) && (chatOwnershipResolved || warmComposerBlockedForCurrentChat || !$authStore.isAuthenticated)}
+                        {#if (!(currentChat && isNewsletterChat(currentChat.chat_id)) || startNewChatPlaceholderMode) && (chatOwnershipResolved || warmComposerBlockedForCurrentChat || !$authStore.isAuthenticated)}
                             {#if startNewChatPlaceholderMode}
-                                <!-- Intro/legal/newsletter demo chats: full-width orange CTA button instead of MessageInput -->
+                                <!-- Intro/newsletter demo chats: full-width orange CTA button instead of MessageInput -->
                                 <div class="message-input-action-row">
                                     <button
                                         class="new-chat-cta-button new-chat-cta-fullwidth"
@@ -17844,7 +17851,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     }
 
     /* Mobile layout when chat-side container is narrower than 550px (container query, not viewport).
-       Scoped to .input-new-chat-wrapper so the fullwidth CTA for intro/legal chats is unaffected. */
+       Scoped to .input-new-chat-wrapper so the fullwidth CTA for intro/newsletter chats is unaffected. */
     @container chat-side (max-width: 550px) {
         .input-new-chat-wrapper .new-chat-cta-label {
             display: none !important;
@@ -17912,14 +17919,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     }
 
 
-    /* Add scaling transition for the active-chat-container when a new chat is created */
-    .active-chat-container {
-        transition: transform var(--duration-normal) var(--easing-in-out), opacity var(--duration-slow) var(--easing-default); /* added transform transition */
-    }
-
-    .active-chat-container.scaled {
-        transform: scale(0.95);
-    }
     
     /* ===========================================
        Video Picture-in-Picture (PiP) Styles - CSS-based transitions

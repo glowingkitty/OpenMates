@@ -3848,24 +3848,19 @@ describe("apps metadata commands", () => {
   });
 
   it("renders public example chats linked to an app skill in human output", () => {
-    const output = runCliWithoutSession(["apps", "examples", "weather", "rain_radar"]);
-
-    assert.match(output, /Example chats for weather\/rain_radar/);
-    assert.match(output, /example-rostock-heavy-rain-radar/);
-    assert.match(output, /Show: openmates chats show example-rostock-heavy-rain-radar/);
-    assert.match(output, /Open: openmates chats open rostock-heavy-rain-radar/);
+    const output = runCliWithoutSession(["apps", "examples", "travel", "search_connections"]);
+    assert.match(output, /Example chats for travel\/search_connections/);
+    assert.match(output, /example-deutschlandticket-train-fare-breakdown/);
+    assert.match(output, /Show: openmates chats show example-deutschlandticket-train-fare-breakdown/);
+    assert.match(output, /Open: openmates chats open deutschlandticket-train-fare-breakdown/);
   });
 
-  it("surfaces linked example chats in skill-info output", async () => {
+  it("does not advertise retired rain-radar examples in skill-info output", async () => {
     await withFlatWeatherSkillMockApi(async ({ apiUrl }) => {
       const output = await runCliAsync([
-        "--api-url", apiUrl,
-        "apps", "skill-info", "weather", "rain_radar",
+        "--api-url", apiUrl, "apps", "skill-info", "weather", "rain_radar",
       ]);
-
-      assert.match(output, /Example chats/);
-      assert.match(output, /openmates apps examples weather rain_radar/);
-      assert.match(output, /example-rostock-heavy-rain-radar/);
+      assert.doesNotMatch(output, /example-rostock-heavy-rain-radar/);
     });
   });
 
@@ -5040,7 +5035,7 @@ describe("unauthenticated example chats", () => {
     const output = runCliWithoutSession([
       "chats",
       "files",
-      "example-audio-speak-friendly-welcome-message",
+      "example-community-garden-volunteer-chime",
       "--json",
     ]);
     const parsed = JSON.parse(output) as {
@@ -5051,17 +5046,17 @@ describe("unauthenticated example chats", () => {
 
     assert.equal(parsed.source, "example");
     assert.equal(parsed.count, 1);
-    assert.equal(parsed.files?.[0]?.title, "audio-speak-friendly-welcome-message.mp3");
+    assert.equal(parsed.files?.[0]?.title, "community-garden-volunteer-chime.mp3");
     assert.equal(parsed.files?.[0]?.type, "audio");
-    assert.equal(parsed.files?.[0]?.url, "/store-examples/audio-speak-friendly-welcome-message.mp3");
+    assert.equal(parsed.files?.[0]?.url, "/store-examples/community-garden-volunteer-chime.mp3");
     assert.match(parsed.files?.[0]?.metadata ?? "", /Audio/);
   });
 
   it("lists code files for public example chats without a session", () => {
-    const output = runCliWithoutSession(["chats", "files", "example-python-squares-code-run", "--json"]);
+    const output = runCliWithoutSession(["chats", "files", "example-screenshot-to-html-pricing", "--json"]);
     const parsed = JSON.parse(output) as { files?: Array<{ title?: string; type?: string; node_type?: string }> };
 
-    assert.ok(parsed.files?.some((file) => file.title === "square_parity.py" && file.type === "code"));
+    assert.ok(parsed.files?.some((file) => file.title === "index.html" && file.type === "code"));
     assert.ok(parsed.files?.every((file) => file.node_type));
   });
 

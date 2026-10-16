@@ -21,7 +21,7 @@ export interface LandingPublication {
 /** Real example destinations shared by the screenshots and section action links. */
 export const landingSectionExamples = {
   actionable: landingAppExamples.events,
-  privacy: 'example-plumber-message-email-phone',
+  privacy: undefined,
   'model-choice': landingAppExamples.events,
   workflows: undefined,
   devices: landingAppExamples.travel,

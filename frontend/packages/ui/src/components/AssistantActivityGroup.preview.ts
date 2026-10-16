@@ -13,8 +13,16 @@ import { locale, waitLocale } from 'svelte-i18n';
 
 // The generic preview route has no language control; keep this local to its
 // explicit German fixture so translated summary width can be measured.
-export const ready = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('language') === 'de'
-  ? (locale.set('de'), document.documentElement.setAttribute('lang', 'de'), waitLocale()) : undefined;
+export const ready = typeof window !== 'undefined' ? Promise.all([
+  new URLSearchParams(window.location.search).get('language') === 'de'
+    ? (locale.set('de'), document.documentElement.setAttribute('lang', 'de'), waitLocale()) : undefined,
+  ['focusSubChats', 'longMixed'].includes(new URLSearchParams(window.location.search).get('variant') ?? '')
+    ? Promise.all([1, 2].map((index) => chatDB.addChat({
+      chat_id: `demo-activity-child-${index}`, title: `Local source ${index}`, encrypted_title: null,
+      parent_id: 'demo-activity-completed-parent', is_sub_chat: true, category: 'research', icon: 'search',
+      messages_v: 1, title_v: 1, last_edited_overall_timestamp: 1, unread_count: 0, created_at: 1, updated_at: 1,
+    }))) : undefined,
+]) : undefined;
 
 const embed = (attrs: Record<string, unknown>) => ({ type: 'paragraph', content: [{ type: 'embed', attrs }] });
 const doc = (...attrs: Record<string, unknown>[]): AssistantDocument => ({ type: 'doc', content: attrs.map(embed) });
@@ -25,8 +33,8 @@ const skill = (app: string) => {
   return { type: 'app-skill-use', id, app_id: app, skill_id: app === 'code' ? 'get_docs' : app === 'ai' ? 'ask' : 'search', contentRef: `embed:${id}`, status: 'finished' };
 };
 const focus = { type: 'focus-mode-activation', id: 'preview-completed-focus', app_id: 'web', focus_id: 'web-research', focus_mode_name: 'Deep research', status: 'finished' };
-const batch = { type: 'sub-chat-batch', id: 'preview-completed-batch', parentChatId: 'example-us-egg-prices-deep', status: 'finished',
-  subChatIds: [1, 2, 3].map((n) => `example-us-egg-prices-deep-sub-chat-${n}`) };
+const batch = { type: 'sub-chat-batch', id: 'preview-completed-batch', parentChatId: 'demo-activity-completed-parent', status: 'finished',
+  subChatIds: ['demo-activity-child-1', 'demo-activity-child-2'] };
 const liveChatId = 'preview-live-activity-parent';
 const liveFocus = { ...focus, id: 'preview-live-focus' };
 const projectFocus = { ...focus, id: 'preview-project-focus-activation', focus_id: 'project-preview-activity',
@@ -137,9 +145,9 @@ export const variants = {
     thinkingContent: 'Fictional reasoning preview.' },
   loadedMemorySkills: { document: doc(skill('diagrams')), appIds: ['diagrams'], loadedMemories: [flowchartMemory] },
   longMixed: { document: doc(...manyApps.map(skill), focus, batch), appIds: manyApps,
-    chatId: 'example-us-egg-prices-deep', loadedMemories: [{ ...flowchartMemory,
+    chatId: 'demo-activity-completed-parent', loadedMemories: [{ ...flowchartMemory,
       title: 'Diagram Design: Flowchart for a large cross-team research program' }] },
-  focusSubChats: { document: doc(focus, batch), appIds: [], chatId: 'example-us-egg-prices-deep' },
+  focusSubChats: { document: doc(focus, batch), appIds: [], chatId: 'demo-activity-completed-parent' },
   liveFocus: { document: doc(liveFocus), appIds: [], chatId: liveChatId, active: true },
   liveProjectFocus: { document: doc(projectFocus), appIds: [], chatId: liveChatId, active: true },
   liveSubChats: { document: doc(liveBatch), appIds: [], chatId: liveChatId, active: true },

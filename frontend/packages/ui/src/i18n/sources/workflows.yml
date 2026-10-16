@@ -67,6 +67,31 @@ home.subtitle:
   en: What do you want to automate next?
   de: Was möchtest du als Nächstes automatisieren?
   verified_by_human: []
+home.guest_subtitle:
+  context: Workflow home prompt for signed-out visitors browsing automation examples
+  en: "Explore the workflow automations:"
+  de: "Entdecke die Workflow-Automatisierungen:"
+  zh: "探索工作流自动化："
+  es: "Explora las automatizaciones de flujos de trabajo:"
+  fr: "Découvrez les automatisations de workflows :"
+  pt: "Explore as automações de fluxos de trabalho:"
+  ru: "Изучите автоматизацию рабочих процессов:"
+  ja: "ワークフローの自動化を見てみましょう："
+  ko: "워크플로 자동화를 살펴보세요:"
+  it: "Esplora le automazioni dei flussi di lavoro:"
+  tr: "İş akışı otomasyonlarını keşfedin:"
+  vi: "Khám phá các quy trình tự động hóa:"
+  id: "Jelajahi otomatisasi alur kerja:"
+  pl: "Odkryj automatyzacje przepływów pracy:"
+  nl: "Ontdek de workflowautomatiseringen:"
+  ar: "استكشف أتمتة سير العمل:"
+  hi: "वर्कफ़्लो ऑटोमेशन देखें:"
+  th: "สำรวจระบบอัตโนมัติของเวิร์กโฟลว์:"
+  cs: "Prozkoumejte automatizace pracovních postupů:"
+  sv: "Utforska arbetsflödesautomatiseringarna:"
+  he: "גלו את האוטומציות של תהליכי העבודה:"
+  verified_by_human: []
+
 home.show_all:
   context: Show the owner's workflow browse section from workspace home
   en: Show my workflows

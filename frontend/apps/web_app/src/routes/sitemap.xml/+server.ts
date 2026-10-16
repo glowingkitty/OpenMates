@@ -22,7 +22,7 @@
 //   The robots.txt at /robots.txt already points to this sitemap.
 
 import type { RequestHandler } from './$types';
-import { getAllExampleChatData, getAllActiveNewsletterChats, newsletterKindFromChatId, LEGAL_CHATS, getAllOpenMatesEvents } from '@repo/ui';
+import { getAllExampleChatData, getAllActiveNewsletterChats, newsletterKindFromChatId, getAllOpenMatesEvents } from '@repo/ui';
 import { getPublicationSitemapEntries } from '$lib/server/publications';
 import { isOfficialOpenMatesPublicationHost } from '$lib/server/publicationHosting';
 
@@ -89,13 +89,6 @@ export const GET: RequestHandler = async ({ url }) => {
   </url>`
 	];
 
-	// Legal document pages — now have SSR SEO pages at /legal/{slug}
-	const legalUrls = LEGAL_CHATS.map((chat) => `  <url>
-    <loc>${siteOrigin}/legal/${chat.slug}</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>`);
-
 	// Example chat pages (hardcoded static data — no backend fetch needed)
 	const exampleChats = getAllExampleChatData();
 	const exampleUrls = exampleChats.map((chat) => {
@@ -143,7 +136,6 @@ export const GET: RequestHandler = async ({ url }) => {
 	const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
 ${staticUrls.join('\n')}
-${legalUrls.join('\n')}
 ${exampleUrls.join('\n')}
 ${newsletterUrls.join('\n')}
 ${publicationUrls.join('\n')}

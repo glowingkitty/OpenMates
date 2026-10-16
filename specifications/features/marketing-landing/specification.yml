@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.marketing-landing
-version: 11
+version: 12
 status: draft
 title: Lightweight Public Website and Scrollable Landing Page
 summary: A lightweight standalone website owns the scrollable landing page, news, blog and legal content, and
@@ -41,7 +41,8 @@ assertions:
     lock in model choice, workflow automation, cross-device experience, open source and resilience, newsletter
     signup, then events, news and blog. Its six feature sections have distinct suitable icons, occupy at least
     one viewport each, and show large device-framed screenshots beside copy on desktop and stacked readable content
-    on narrow screens. Every section first presents its icon and heading with Skip animation, then reveals body
+    on narrow screens. The complete desktop story group, including icon, heading, animation and Skip control, fits clear of the fixed header,
+    section-navigation controls and bottom composer. Every section first presents its icon and heading with Skip animation, then reveals body
     copy, links and media on completion or Skip as defined by marketing-landing.section-stories. These transitions
     never control scrolling; reduced-motion visitors receive final readable content immediately. The composer
     affordance remains fixed at the viewport bottom.'
@@ -59,6 +60,9 @@ assertions:
     footer links open the existing official destinations in new tabs. App and website origins are independently
     configurable and require HTTP(S); landing.dev.openmates.org targets app.dev.openmates.org by default. The
     website browser-tab title and social-preview titles use OpenMates — Your privacy first AI team mates.
+    Web-app Settings entries for Privacy, Terms and Imprint open their legal pages on the configured public
+    website. Retired privacy, terms and imprint chats and the chat sidebar legal section are removed; legal
+    documents are not exposed as chats.
   depends_on:
   - examples.destinations
 - id: marketing-landing.composer-focus
@@ -81,12 +85,16 @@ assertions:
 - id: marketing-landing.real-screenshots
   type: behavior
   must: Product screenshots use real rendered development-app views with private identity and unrelated content
-    excluded. Desktop captures show the latest deployed app with a visible browser bar branded openmates.org,
+    excluded. Desktop captures show the latest deployed app with its settings control visible and a visible browser bar branded openmates.org,
     and example chats at their top. Capture manifests retain actual development origin, deployed revision and
     asset hashes. Phone and laptop images are clipped, including rounded corners, to their lightweight device-frame
-    screen apertures with neutral phone bezels. Clicking the composite opens its related real example chat in
-    a new tab; the workflow capture opens the existing Workflows workspace until a working real workflow example
-    is admitted. Mobile-web captures remain accurately described until genuine native captures replace them. A
+    screen apertures with neutral phone bezels. Clicking a composite with an admitted example opens that real
+    example chat in a new tab; the privacy section may retain a real unsent-draft screenshot without a chat link
+    when its former example is removed; the workflow capture opens the existing Workflows workspace until a working real workflow example
+    is admitted. Interim phone images composite actual mobile-web captures with the user-supplied native status/header
+    and correct top and bottom safe areas; provenance and descriptions identify this composition as mobile web, not
+    a genuine native screenshot. Task and Project navigation controls are omitted only from marketing captures;
+    this does not change their global release visibility. A
     real Apple Watch capture, once supplied, overlays the bottom-left of the phone in the cross-device section;
     no fabricated Watch capture is shown. The open-source section uses a large clickable GitHub icon linked to
     the repository instead of screenshots. Images have meaningful alternative text.
@@ -180,11 +188,16 @@ assertions:
   must: The unpersonalized default web-app welcome carousel offers exactly the metadata-selected landing app-wheel
     example IDs, in the same order, without truncating to the beginning of the wider example catalog. Existing
     visitor-owned or imported chats keep their place before examples; authenticated personal history, selected-interest
-    ranking and Show all remain available. The public example catalog retains every landing-linked example, including
-    feature-section links, and only enough additional examples to preserve one successful example for each otherwise-unrepresented
-    app skill or focus mode. Redundant non-landing examples are removed from public discovery, direct example
-    routes and interest mappings without deleting subchats of retained examples or internal test fixtures. The
-    shared default selection is compiled from app metadata without a runtime app-catalog request.
+    ranking and Show all remain available. Public examples must meet the admitted quality standard. User-identified
+    low-quality examples are removed from public discovery, direct example routes and interest mappings even when
+    they were landing-linked or are the only remaining example for an app skill or focus mode; no example is better
+    than a poor example. Their landing links and defaults are removed rather than replaced by fabricated destinations.
+    Rejected examples are deleted completely, including their definitions, message and embed data, translations and assets
+    used only by those examples are removed, with no archived copies retained as internal fixtures. Regression
+    tests may retain their IDs only. Shared assets required by valid remaining examples are preserved. Among
+    quality-approved examples, redundant non-landing examples may be removed while retaining useful capability
+    coverage and preserving subchats of retained examples. The shared default selection is compiled from app
+    metadata without a runtime app-catalog request.
   depends_on:
   - examples.catalog_alignment
 - id: marketing-landing.hero-entrance
@@ -247,9 +260,8 @@ examples:
   - hero_entrance
   - preferences
 approval_source:
-  instruction: 'The user directly instructed these Oct 15 refinements: remove the yellow title highlight; add
-    Replay and screenshot links; extend title-only intros to the remaining sections; refresh real desktop captures
-    with openmates.org browser chrome; clip laptop screens; use GitHub instead of open-source screenshots; prepare
-    genuine native iPhone/Watch captures for a separate Mac chat; and match the latest deployed embed preview
-    top info bar. Standing explicit authorization covers further landing Specification updates and scoped dev
-    deployment without repeated approval. No new fingerprint or PDF review is claimed.'
+  instruction: >-
+    User directly instructed implementation of these October 16 corrections under the existing landing
+    implementation authorization and explicitly said not to repeat landing Specification confirmation.
+    This also includes the subsequently directed quality-first example removals and website legal destinations.
+    This records the directed scope; no new exact-fingerprint or PDF review is claimed.

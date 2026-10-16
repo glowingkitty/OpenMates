@@ -181,6 +181,10 @@ for (const { width, height } of [{ width: 390, height: 844 }, { width: 1440, hei
         await expect(section.locator('.feature-copy .text-link').first()).toHaveCSS('opacity', '1');
         await expect(section.locator('.feature-example')).toHaveCSS('opacity', '1');
         await expect(section.locator('.feature-example')).toHaveCSS('transform', 'none');
+        const privacyMedia = section.getByTestId('landing-feature-media-privacy');
+        await expect(privacyMedia.getByTestId('device-screenshots')).toBeVisible();
+        await expect(privacyMedia.locator('a, [href]')).toHaveCount(0);
+        await expect(section.getByTestId('landing-open-example-privacy')).toHaveCount(0);
       }
       expect((await section.boundingBox())!.height).toBeGreaterThanOrEqual(geometry.scroller.height - 1);
       const media = section.getByTestId(`landing-feature-media-${id}`);

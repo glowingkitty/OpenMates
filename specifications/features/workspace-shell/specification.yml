@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.workspace-shell
-version: 3
+version: 4
 status: draft
 title: Workspace Shell
 summary: >
@@ -18,7 +18,7 @@ scope:
     - Tasks Kanban board containment, including vertical shell scrolling under a fixed bottom composer and horizontal board scrolling on narrow viewports.
     - Plan previews and detail navigation within the Tasks workspace and Project Tasks tab.
   excludes:
-    - Hardcoded copies of current pixel values, gradients, animation timing, copy punctuation, and unrelated Figma-only visual variants.
+    - Hardcoded copies of current pixel values, gradients, copy punctuation, and unrelated Figma-only visual variants.
     - Task, Plan, Project, Workflow, Daily Inspiration, and chat CRUD/privacy semantics already covered by their feature Specifications.
     - Apple-native workspace presentation unless a native workspace shell is explicitly implemented and mapped later.
 
@@ -105,11 +105,11 @@ assertions:
     depends_on: [models.WorkspaceStartShell, examples.start_shells]
   - id: workspace-shell.start.chat-visual-parity
     type: behavior
-    must: Apps, Projects, Workflows, and Tasks match the rendered Chats start screen for workspace container surface treatment and viewport positioning, Daily Inspiration geometry, Report Issue control size, and bottom composer geometry on desktop and mobile while preserving surface-specific content.
+    must: Apps, Projects, Workflows, and Tasks match the rendered Chats start screen for workspace container surface treatment and viewport positioning, Daily Inspiration geometry, Report Issue control size, and bottom composer geometry on desktop and mobile while preserving surface-specific content. Apps keep equal inline gutters on both sides of the workspace. Chat detail and Workflow detail share reversible bottom-up slide and fade motion, using 320ms cubic-bezier(0.32, 0, 0.2, 1) without scaling; reduced motion removes nonessential movement.
     depends_on: [models.WorkspaceStartShell, examples.visual_parity]
   - id: workspace-shell.start.available-space-cards
     type: behavior
-    must: Chats, Projects, and Workflows use the same available-space rule for continuation previews. Large cards appear only when the actual content area beneath Daily Inspiration can fit the greeting, cards, browse controls, and bottom composer; otherwise previews use compact single-line cards. Container resizing, inspiration height changes, and narrow or short viewports update the decision. Browse controls remain visible above the composer, and continuation content does not overlap inspiration or cause page overflow.
+    must: Chats, Projects, and Workflows use the same available-space rule and compact-card fit threshold for continuation previews relative to the shared Chats geometry. Large cards appear only when the actual content area beneath Daily Inspiration can fit the greeting, cards, browse controls, and bottom composer; otherwise previews use compact single-line cards. Container resizing, inspiration height changes, and narrow or short viewports update the decision. Browse controls remain visible above the composer, and continuation content does not overlap inspiration or cause page overflow.
     depends_on: [models.WorkspaceStartShell, examples.available_space_cards]
   - id: workspace-shell.kanban.figma-controls
     type: behavior
@@ -151,3 +151,9 @@ applies_to:
 examples:
   file: examples.yml
   required_groups: [released_navigation, start_shells, visual_parity, available_space_cards, figma_board_controls, kanban_scroll]
+
+approval_source:
+  instruction: >-
+    User directly instructed implementation of these October 16 corrections under the existing landing
+    implementation authorization and explicitly said not to repeat landing Specification confirmation. This
+    records the directed scope; no new exact-fingerprint or PDF review is claimed.

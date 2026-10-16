@@ -3,8 +3,8 @@
 
   interface Props {
     baseKey: string;
-    href: string;
-    linkLabel: string;
+    href?: string;
+    linkLabel?: string;
     desktopAlt: string;
     mobileAlt: string;
     desktopSrc?: string;
@@ -18,7 +18,7 @@
   let { baseKey, href, linkLabel, desktopAlt, mobileAlt, desktopSrc, mobileSrc, watchSrc, watchAlt = 'OpenMates on Apple Watch', eager = false, hero = false }: Props = $props();
 </script>
 
-<a class="device-screenshots" class:hero class:with-watch={Boolean(watchSrc)} {href} target="_blank" rel="noopener noreferrer" aria-label={linkLabel} data-testid="device-screenshots">
+<svelte:element this={href ? 'a' : 'div'} class="device-screenshots" class:hero class:with-watch={Boolean(watchSrc)} {href} target={href ? '_blank' : undefined} rel={href ? 'noopener noreferrer' : undefined} aria-label={href ? linkLabel : undefined} data-testid="device-screenshots">
   <div class="laptop-wrap">
     <DeviceFrame kind="laptop" src={desktopSrc ?? `/landing/screenshots/${baseKey}-desktop.webp`} alt={desktopAlt} loading={eager ? 'eager' : 'lazy'} />
   </div>
@@ -30,7 +30,7 @@
       <DeviceFrame kind="watch" src={watchSrc} alt={watchAlt} loading={eager ? 'eager' : 'lazy'} />
     </div>
   {/if}
-</a>
+</svelte:element>
 
 <style>
   .device-screenshots { display: block; color: inherit; text-decoration: none; position: relative; width: 100%; margin-inline: auto; padding: 1.5% 0 3.5% 12%; box-sizing: border-box; }

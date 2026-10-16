@@ -16,43 +16,22 @@ import { berlinWeatherBikeCommuteChat } from "./data/example_chats/berlin-weathe
 import { ragExplainedVideosChat } from "./data/example_chats/rag-explained-videos";
 import { rustVectorDatabaseReposChat } from "./data/example_chats/rust-vector-database-repos";
 import { svelteRunesDocsChat } from "./data/example_chats/svelte-runes-docs";
-import { familyStaysKyotoChat } from "./data/example_chats/family-stays-kyoto";
 import { tedTalkTranscriptSummaryChat } from "./data/example_chats/ted-talk-transcript-summary";
 import { balconyPlantReminderChat } from "./data/example_chats/balcony-plant-reminder";
 import { buckConverters24v5vChat } from "./data/example_chats/buck-converters-24v-5v";
 import { airFryersAmazonGermanyChat } from "./data/example_chats/air-fryers-amazon-germany";
 import { furnishedApartmentsBerlinChat } from "./data/example_chats/furnished-apartments-berlin";
-import { sqliteStrictTablesSummaryChat } from "./data/example_chats/sqlite-strict-tables-summary";
-import { pythonSquaresCodeRunChat } from "./data/example_chats/python-squares-code-run";
-import { habitTrackerOnboardingDraftChat } from "./data/example_chats/habit-tracker-onboarding-draft";
 import { vegetarianRecipesFromFridgeVegetablesChat } from "./data/example_chats/vegetarian-recipes-from-fridge-vegetables";
-import { nonprofitEventPlanningUseCaseChat } from "./data/example_chats/nonprofit-event-planning-use-case";
-import { lh400FlightStatusCheckChat } from "./data/example_chats/lh400-flight-status-check";
-import { referenceImage3DModelChat } from "./data/example_chats/reference-image-3d-model";
-import { upcomingRemindersListChat } from "./data/example_chats/upcoming-reminders-list";
-import { cancelTestReminderChat } from "./data/example_chats/cancel-test-reminder";
-import { fediverseActivitypubSocialSearchChat } from "./data/example_chats/fediverse-activitypub-social-search";
-import { pdfViewPageLayoutChat } from "./data/example_chats/pdf-view-page-layout";
-import { imageVectorizeOpenmatesHeaderChat } from "./data/example_chats/image-vectorize-openmates-header";
-import { audioTranscribeVoiceNoteChat } from "./data/example_chats/audio-transcribe-voice-note";
-import { usEggPricesDeepResearchChat } from "./data/example_chats/us-egg-prices-deep-research";
-import { frameworkStoreReputationCheckChat } from "./data/example_chats/framework-store-reputation-check";
-import { productTeaserRemotionVideoChat } from "./data/example_chats/product-teaser-remotion-video";
 import { searchParentPreviewStressTestChat } from "./data/example_chats/search-parent-preview-stress-test";
-import { rostockHeavyRainRadarChat } from "./data/example_chats/rostock-heavy-rain-radar";
 import { housingPolicyDinnerDiscussionChat } from "./data/example_chats/housing-policy-dinner-discussion";
 import { habitGardenWebApplicationChat } from "./data/example_chats/habit-garden-web-application";
 import { printableBenchyPhoneStandModelsChat } from "./data/example_chats/printable-benchy-phone-stand-models";
-import { exampleChatTaskPlanningChecklistChat } from "./data/example_chats/example-chat-task-planning-checklist";
-import { libraryBookReturnWorkflowChat } from "./data/example_chats/library-book-return-workflow";
 import { dashboardSidebarSvgIconsChat } from "./data/example_chats/dashboard-sidebar-svg-icons";
 import { vitalFarmsSecFinancialsChat } from "./data/example_chats/vital-farms-sec-financials";
 import { financeCashFlowOverviewChat } from "./data/example_chats/finance-cash-flow-overview";
 import { screenshotToHtmlPricingCardChat } from "./data/example_chats/screenshot-to-html-pricing-card";
 import { deutschlandticketTrainFareBreakdownChat } from "./data/example_chats/deutschlandticket-train-fare-breakdown";
 import { berlinMitteWorkFriendlyRestaurantsChat } from "./data/example_chats/berlin-mitte-work-friendly-restaurants";
-import { audioSpeakOpenmatesWelcomeMessageChat } from "./data/example_chats/audio-speak-openmates-welcome-message";
-import { plumberMessageEmailPhonePrivacyChat } from "./data/example_chats/plumber-message-email-phone-privacy";
 import { privatePlumberEmailChat } from "./data/example_chats/private-plumber-email";
 import { socialAppNameDomainSearchChat } from "./data/example_chats/social-app-name-domain-search";
 import { dampedSineDecayPlotChat } from "./data/example_chats/damped-sine-decay-plot";
@@ -81,42 +60,21 @@ export const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   ragExplainedVideosChat,
   rustVectorDatabaseReposChat,
   svelteRunesDocsChat,
-  familyStaysKyotoChat,
   tedTalkTranscriptSummaryChat,
   balconyPlantReminderChat,
   buckConverters24v5vChat,
   airFryersAmazonGermanyChat,
   furnishedApartmentsBerlinChat,
-  sqliteStrictTablesSummaryChat,
-  pythonSquaresCodeRunChat,
-  habitTrackerOnboardingDraftChat,
   vegetarianRecipesFromFridgeVegetablesChat,
-  nonprofitEventPlanningUseCaseChat,
-  lh400FlightStatusCheckChat,
-  referenceImage3DModelChat,
-  upcomingRemindersListChat,
-  cancelTestReminderChat,
-  fediverseActivitypubSocialSearchChat,
-  usEggPricesDeepResearchChat,
-  pdfViewPageLayoutChat,
-  imageVectorizeOpenmatesHeaderChat,
-  audioTranscribeVoiceNoteChat,
-  frameworkStoreReputationCheckChat,
-  productTeaserRemotionVideoChat,
-  rostockHeavyRainRadarChat,
   housingPolicyDinnerDiscussionChat,
   habitGardenWebApplicationChat,
   printableBenchyPhoneStandModelsChat,
-  exampleChatTaskPlanningChecklistChat,
-  libraryBookReturnWorkflowChat,
   dashboardSidebarSvgIconsChat,
   vitalFarmsSecFinancialsChat,
   financeCashFlowOverviewChat,
   screenshotToHtmlPricingCardChat,
   deutschlandticketTrainFareBreakdownChat,
   berlinMitteWorkFriendlyRestaurantsChat,
-  audioSpeakOpenmatesWelcomeMessageChat,
-  plumberMessageEmailPhonePrivacyChat,
   privatePlumberEmailChat,
   socialAppNameDomainSearchChat,
   dampedSineDecayPlotChat,

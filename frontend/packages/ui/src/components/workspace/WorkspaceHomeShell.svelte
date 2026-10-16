@@ -239,7 +239,7 @@
 
 <svelte:window onpointerdown={(event) => { if (composerFocused && shellElement?.contains(event.target as Node) && !composerElement?.contains(event.target as Node)) onComposerDismiss?.(); }} />
 
-<section class="workspace-home-shell" class:all-items-mode={showAllMode} class:content-slot-mode={contentSlotVisible} class:composer-focused={composerFocused} data-testid={testId} data-surface={surface} bind:clientWidth={containerWidth} bind:this={shellElement}>
+<section class="workspace-home-shell" class:all-items-mode={showAllMode} class:content-slot-mode={contentSlotVisible} class:composer-focused={composerFocused} class:large-continue-cards={isTallViewport} data-testid={testId} data-surface={surface} bind:clientWidth={containerWidth} bind:this={shellElement}>
   <div class="workspace-scroll-layer" inert={composerFocused} data-testid={contentSlotVisible ? `${surface}-workspace-scroll-layer` : undefined} style:--workspace-composer-height={`${composerHeight}px`}>
     {#if !showAllMode}
       <div class="daily-inspiration-area workspace-daily-inspiration-area" data-testid={`${surface}-daily-inspiration-area`} bind:this={inspirationElement}>
@@ -388,7 +388,7 @@
       </div>
     {:else if continueItems.length > 0}
       <div class="workspace-continue-section" data-testid={continueSectionTestId}>
-        <div class="workspace-continue-label">{continueLabel}</div>
+        {#if continueLabel}<div class="workspace-continue-label">{continueLabel}</div>{/if}
         <div class="recent-chats-scroll-container" data-testid="recent-chats-scroll-container">
         {#each continueItems as item (item.id)}
           {@const iconName = getValidIconName(item.icon ?? 'sparkles', item.category ?? 'productivity')}
@@ -441,7 +441,7 @@
 
     {#if actionItems.length > 0 && continueItems.length > 0}
       <div class="workspace-continue-section" data-testid={continueSectionTestId}>
-        <div class="workspace-continue-label">{continueLabel}</div>
+        {#if continueLabel}<div class="workspace-continue-label">{continueLabel}</div>{/if}
         <div class="recent-chats-scroll-container secondary" data-testid="recent-chats-scroll-container">
         {#each continueItems as item (item.id)}
           {@const iconName = getValidIconName(item.icon ?? 'sparkles', item.category ?? 'productivity')}
@@ -806,6 +806,8 @@
   }
 
   .workspace-center-content .welcome-text h2 {
+    position: relative;
+    z-index: 1;
     margin: 0;
     max-width: 920px;
     color: var(--color-grey-80);
@@ -819,6 +821,8 @@
   }
 
   .workspace-center-content .workspace-subtitle {
+    position: relative;
+    z-index: 1;
     margin: 8px 0 0;
     color: var(--color-grey-60);
     font-size: var(--font-size-p);
@@ -928,11 +932,11 @@
     overflow-x: auto;
     overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
-    scroll-behavior: smooth;
+    scroll-behavior: auto;
     scrollbar-width: none;
     -ms-overflow-style: none;
     visibility: visible;
-    padding: 12px 48px 12px calc(50% - 150px);
+    padding: 6px 48px 6px calc(50% - 150px);
     box-sizing: border-box;
     pointer-events: auto;
     width: 100%;
@@ -1139,10 +1143,8 @@
     background: linear-gradient(to bottom, transparent 0%, color-mix(in srgb, var(--color-grey-0) 92%, transparent) 40%, var(--color-grey-0) 100%);
   }
 
-  @media (min-height: 800px) {
-    .recent-chats-scroll-container {
-      padding: 35px 48px 12px calc(50% - 150px);
-    }
+  .large-continue-cards .recent-chats-scroll-container {
+    padding: 17.5px 48px 17px calc(50% - 150px);
   }
 
   @media (max-width: 730px) {

@@ -1902,13 +1902,12 @@ export async function handleSend(
       // Duplication Flow: If this chat is from a demo, copy history messages
       if (sourceDemoId) {
         try {
-          const { DEMO_CHATS, LEGAL_CHATS, getDemoMessages } =
+          const { DEMO_CHATS, getDemoMessages } =
             await import("../../../demo_chats");
           const demoMessages = getDemoMessages(
             sourceDemoId,
             DEMO_CHATS,
-            LEGAL_CHATS,
-          );
+                    );
 
           if (demoMessages && demoMessages.length > 0) {
             console.info(

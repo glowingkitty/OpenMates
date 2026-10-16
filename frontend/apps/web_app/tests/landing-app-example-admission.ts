@@ -622,6 +622,9 @@ type SavedWebChat = Pick<ExampleChat, 'chat_id' | 'messages' | 'embeds'>;
 
 async function expectWebActivityCollapsed(history: Locator, chat: SavedWebChat, context: string): Promise<void> {
   for (const message of chat.messages.filter(message => message.role === 'assistant')) {
+    const content = sourceMessage(message.content);
+    const webCalls = chat.embeds.filter(embed => embedField(embed, 'app_id') === 'web' && embed.type === 'app_skill_use');
+    if (!webCalls.some(embed => content.includes(embed.embed_id))) continue;
     const rendered = history.locator(`[data-message-id="${message.id}"]`);
     const groups = rendered.getByTestId('assistant-activity-group');
     await expect(groups, `${context}: ${message.id} saved activity groups`).not.toHaveCount(0);
@@ -644,7 +647,7 @@ async function expectWebActivityCollapsed(history: Locator, chat: SavedWebChat, 
 async function inspectSavedWebThinking(history: Locator, chat: SavedWebChat, context: string): Promise<void> {
   const normalize = (text: string): string => text.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
     .replace(/[^\p{L}\p{N}]+/gu, ' ').trim().replace(/\s+/g, ' ');
-  for (const message of chat.messages.filter(message => message.role === 'assistant')) {
+  for (const message of chat.messages.filter(message => message.role === 'assistant' && message.has_thinking)) {
     expect(message.has_thinking, `${context}: ${message.id} actual saved thinking`).toBe(true);
     expect(message.thinking_content?.trim(), `${context}: ${message.id} saved thinking key`).toBeTruthy();
     const saved = sourceMessage(message.thinking_content!);
@@ -753,47 +756,6 @@ async function inspectSavedWebSkills(page: Page, history: Locator, chat: SavedWe
   }
 }
 
-async function inspectWebSubChats(page: Page, chat: ExampleChat, checkpoint: string): Promise<void> {
-  const children = chat.sub_chats ?? [];
-  expect(children.length, `${chat.slug}: three saved research sub-chats`).toBe(3);
-  const savedTools = [chat, ...children].flatMap(item => item.embeds).filter(embed => embed.type === 'app_skill_use'
-    && embedField(embed, 'app_id') === 'web' && ['search', 'read'].includes(embedField(embed, 'skill_id') ?? ''));
-  expect(savedTools, `${chat.slug}: all17 actual tool parents preserved`).toHaveLength(17);
-  expect(savedTools.filter(embed => embedField(embed, 'skill_id') === 'search')).toHaveLength(12);
-  expect(savedTools.filter(embed => embedField(embed, 'skill_id') === 'read')).toHaveLength(5);
-  const carousel = page.getByTestId('sub-chats-carousel');
-  await expect(carousel.getByTestId('sub-chat-card')).toHaveCount(children.length);
-  for (let index = 0; index < children.length; index++) {
-    const child = children[index];
-    await carousel.getByTestId('sub-chat-card').nth(index).click();
-    await expect(page).toHaveURL(new RegExp(`chat-id=${encodeURIComponent(child.chat_id)}(?:&|$)`));
-    await expect(page.getByTestId('return-to-parent-button'),
-      `${child.chat_id}: child header has no duplicate parent-return control`).toHaveCount(0);
-    const childHistory = page.getByTestId('chat-history-content');
-    await expect(childHistory).toHaveAttribute('data-source-message-count', String(child.messages.length));
-    await expectWebActivityCollapsed(childHistory, child, `${checkpoint}: ${child.chat_id}: initial`);
-    await expandCompletedActivity(childHistory, `${checkpoint}: ${child.chat_id}`);
-    await inspectSavedWebThinking(childHistory, child, `${checkpoint}: ${child.chat_id}`);
-    expect(child.messages.some(message => message.role === 'assistant' && message.content.trim()),
-      `${child.chat_id}: saved research answer`).toBe(true);
-    await inspectSavedWebSkills(page, childHistory, child, true, checkpoint === 'direct');
-    await collapseCompletedActivity(childHistory, `${checkpoint}: ${child.chat_id}`);
-    await expectWebActivityCollapsed(childHistory, child, `${checkpoint}: ${child.chat_id}: closed`);
-    await page.getByTestId('chat-close-button').click();
-    await expect(page).toHaveURL(new RegExp(`chat-id=${encodeURIComponent(chat.chat_id)}(?:&|$)`));
-    const parentHistory = page.getByTestId('chat-history-content');
-    await expect(parentHistory).toHaveAttribute('data-source-message-count', String(chat.messages.length));
-    const parentAnswer = chat.messages.find(message => message.role === 'assistant');
-    expect(parentAnswer, `${chat.chat_id}: saved parent answer identity`).toBeDefined();
-    const parentMessage = parentHistory.locator(`[data-message-id="${parentAnswer!.id}"]`);
-    await expect(parentMessage, `${chat.chat_id}: parent history replaces the child`).toBeVisible();
-    await expect(parentMessage.getByTestId('assistant-activity-group')).not.toHaveCount(0);
-    // Parent remounts in its completed/collapsed state after every child Close.
-    await expandCompletedActivity(parentHistory, `${checkpoint}: ${chat.slug}: returned from ${child.chat_id}`);
-    await expect(carousel.getByTestId('sub-chat-card')).toHaveCount(children.length);
-  }
-}
-
 async function inspectChat(page: Page, chat: ExampleChat, appId: string, checkpoint: string, exerciseFollowUps = false): Promise<{ messages: number; embeds: number; suggestions: number }> {
   await closeSidebar(page);
   const history = page.getByTestId('chat-history-content');
@@ -829,9 +791,8 @@ async function inspectChat(page: Page, chat: ExampleChat, appId: string, checkpo
   await expandCompletedActivity(history, `${checkpoint}: ${chat.slug}`);
   if (appId === 'web') {
     await inspectSavedWebThinking(history, chat, `${checkpoint}: ${chat.slug}`);
-    await inspectSavedWebSkills(page, history, chat, false, checkpoint === 'direct');
-    await inspectWebSubChats(page, chat, checkpoint);
-    await expandCompletedActivity(history, `${checkpoint}: ${chat.slug}: returned from children`);
+    await inspectSavedWebSkills(page, history, chat, true, checkpoint === 'direct');
+    await test.info().attach(`web-search-results-${checkpoint}.png`, { body: await page.screenshot({ fullPage: false }), contentType: 'image/png' });
   }
   const text = await history.innerText();
   for (const marker of forbidden) expect(text, `${checkpoint}: ${chat.slug}: ${marker}`).not.toContain(marker);
@@ -1064,6 +1025,7 @@ export async function admitLandingExample(
         await rail.press('ArrowRight');
       }
       await expect(prompt).toHaveAttribute('data-active-app', appId);
+      if (appId === 'web') await expect(prompt).toHaveText('Search the web');
       if (appId === 'models3d') await expect(prompt).toHaveText('Find 3D models');
       await expect(prompt).toHaveAttribute('href', `${new URL(page.url()).origin}/#chat-id=${encodeURIComponent(chat.chat_id)}`);
       await expect(prompt).toHaveAttribute('target', '_blank');

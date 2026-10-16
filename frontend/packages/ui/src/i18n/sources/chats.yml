@@ -2127,28 +2127,54 @@ latest_news:
 
 resume_last_chat.title:
   context: Title shown above the resume chat card prompting user to continue their last chat
-  en: Continue where you left off
-  de: Dort fortfahren, wo du aufgehört hast
-  zh: 继续上次的对话
-  es: Continúa donde lo dejaste
-  fr: Reprendre là où vous vous êtes arrêté
-  pt: Continue de onde parou
-  ru: Продолжить с того места, где остановились
-  ja: 前回の続きから
-  ko: 마지막 대화 이어가기
-  it: Riprendi da dove avevi lasciato
-  tr: Kaldığınız yerden devam edin
-  vi: Tiếp tục cuộc trò chuyện
-  id: Lanjutkan dari yang terakhir
-  pl: Kontynuuj od miejsca, w którym skończyłeś
-  nl: Ga verder waar je gebleven was
-  ar: تابع من حيث توقفت
-  hi: जहाँ छोड़ा था वहाँ से जारी रखें
-  th: ดำเนินการต่อจากจุดที่คุณค้างไว้
-  cs: Pokračujte tam, kde jste skončili
-  sv: Fortsätt där du slutade
-  he: להמשיך מהמקום שבו הפסקת
+  en: "Continue where you left off:"
+  de: "Dort fortfahren, wo du aufgehört hast:"
+  zh: "继续上次的对话："
+  es: "Continúa donde lo dejaste:"
+  fr: "Reprendre là où vous vous êtes arrêté:"
+  pt: "Continue de onde parou:"
+  ru: "Продолжить с того места, где остановились:"
+  ja: "前回の続きから："
+  ko: "마지막 대화 이어가기:"
+  it: "Riprendi da dove avevi lasciato:"
+  tr: "Kaldığınız yerden devam edin:"
+  vi: "Tiếp tục cuộc trò chuyện:"
+  id: "Lanjutkan dari yang terakhir:"
+  pl: "Kontynuuj od miejsca, w którym skończyłeś:"
+  nl: "Ga verder waar je gebleven was:"
+  ar: "تابع من حيث توقفت:"
+  hi: "जहाँ छोड़ा था वहाँ से जारी रखें:"
+  th: "ดำเนินการต่อจากจุดที่คุณค้างไว้:"
+  cs: "Pokračujte tam, kde jste skončili:"
+  sv: "Fortsätt där du slutade:"
+  he: "להמשיך מהמקום שבו הפסקת:"
   verified_by_human: []
+
+resume_last_chat.guest_title:
+  context: Label above example chats for signed-out visitors
+  en: "Explore some example chats:"
+  de: "Entdecke einige Beispiel-Chats:"
+  zh: "探索一些示例对话："
+  es: "Explora algunos chats de ejemplo:"
+  fr: "Découvrez quelques exemples de conversations :"
+  pt: "Explore algumas conversas de exemplo:"
+  ru: "Посмотрите примеры чатов:"
+  ja: "チャットの例を見てみましょう："
+  ko: "예시 대화를 살펴보세요:"
+  it: "Esplora alcune chat di esempio:"
+  tr: "Bazı örnek sohbetleri keşfedin:"
+  vi: "Khám phá một số cuộc trò chuyện mẫu:"
+  id: "Jelajahi beberapa contoh percakapan:"
+  pl: "Odkryj przykładowe czaty:"
+  nl: "Ontdek enkele voorbeeldchats:"
+  ar: "استكشف بعض أمثلة المحادثات:"
+  hi: "कुछ उदाहरण चैट देखें:"
+  th: "สำรวจตัวอย่างแชต:"
+  cs: "Prozkoumejte ukázkové chaty:"
+  sv: "Utforska några exempelchattar:"
+  he: "גלו כמה שיחות לדוגמה:"
+  verified_by_human: []
+
 
 resume_last_chat.decrypting:
   context: Animated loading text shown while encrypted recent chats are syncing and decrypting after login

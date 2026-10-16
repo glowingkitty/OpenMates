@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.workspace-shell@3
+specification: feature.workspace-shell@4
 
 released_navigation:
   - id: released-desktop-tabs-visible
@@ -23,14 +23,20 @@ start_shells:
 
 visual_parity:
   - id: desktop-workspaces-match-chats
-    given: A signed-in user views Chats, Apps, Projects, Workflows, and Tasks on desktop.
-    when: The user switches between their start screens.
-    then: Container, inspiration, Report Issue, and composer regions keep the Chats start screen geometry while each workspace shows its own content.
+    assertion_ids: [workspace-shell.start.chat-visual-parity]
+    given: "Alice views Chats, Apps, Projects, Workflows and Tasks on desktop."
+    when: "She switches their start screens, then opens and closes a chat detail and a Workflow."
+    then: >-
+      Container, inspiration, Report Issue and composer match the Chats start geometry; Apps has equal
+      inline gutters. Chat and Workflow details open with the same bottom-up slide and fade, close in
+      reverse, and use 320ms cubic-bezier(0.32, 0, 0.2, 1) without scale.
   - id: mobile-workspaces-match-chats
-    given: A signed-in user views the same five workspaces on a narrow screen.
-    when: The user switches between their start screens.
-    then: The same regions remain aligned to the mobile Chats shell without hiding each workspace's own content.
-
+    assertion_ids: [workspace-shell.start.chat-visual-parity]
+    given: "Bob views the same workspaces on a narrow screen with reduced motion enabled."
+    when: "He switches start screens and opens and closes chat and Workflow details."
+    then: >-
+      The regions remain aligned to the mobile Chats shell with equal Apps inline gutters and each workspace
+      content preserved. Chat and Workflow detail omit nonessential movement.
 figma_board_controls:
   - id: tasks-desktop-controls
     given: A user opens the Tasks board on desktop.
@@ -66,7 +72,7 @@ available_space_cards:
     assertion_ids: [workspace-shell.start.available-space-cards]
     given: Alice opens Chats, Projects, and Workflows on a laptop where a tall Daily Inspiration banner leaves only a short area above the composer.
     when: Each continuation section appears.
-    then: All three use compact cards and keep their browsing controls visible between the cards and composer, without overlap or page overflow.
+    then: All three use the same Chats-relative geometry and compact-card fit threshold, render compact cards, and keep their browsing controls visible between the cards and composer, without overlap or page overflow.
   - id: container-change-updates-card-size
     assertion_ids: [workspace-shell.start.available-space-cards]
     given: Bob views a workspace with enough content space for large cards, then narrows its container or increases the inspiration banner height.

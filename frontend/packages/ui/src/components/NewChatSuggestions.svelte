@@ -39,7 +39,7 @@
   import { chatMetadataCache } from '../services/chatMetadataCache';
   import { getLucideIcon, getValidIconName, getFallbackIconForCategory, getCategoryGradientColors } from '../utils/categoryUtils';
   import { getAppGradientBackground } from './activeChatUtils';
-  import { INTRO_CHATS, LEGAL_CHATS, getAllExampleChats, translateDemoChats, convertDemoChatToChat } from '../demo_chats';
+  import { INTRO_CHATS, getAllExampleChats, translateDemoChats, convertDemoChatToChat } from '../demo_chats';
   import { embedStore, type UploadedFileSearchResult } from '../services/embedStore';
 
   /** Number of suggestion cards to show in the scrollable row */
@@ -188,7 +188,7 @@
   let recentEmbedResults = $state<EmbedSearchResult[]>([]);
 
   function getPublicSearchChats(): Chat[] {
-    const translatedPublicChats = translateDemoChats([...INTRO_CHATS, ...LEGAL_CHATS]).map(convertDemoChatToChat);
+    const translatedPublicChats = translateDemoChats([...INTRO_CHATS]).map(convertDemoChatToChat);
     return [...translatedPublicChats, ...getAllExampleChats()];
   }
 

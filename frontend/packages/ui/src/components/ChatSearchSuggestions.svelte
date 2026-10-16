@@ -31,7 +31,7 @@
   import { text } from '@repo/ui';
   import { get } from 'svelte/store';
   import {
-    INTRO_CHATS, LEGAL_CHATS, translateDemoChats, getAllExampleChats,
+    INTRO_CHATS, translateDemoChats, getAllExampleChats,
     convertDemoChatToChat,
   } from '../demo_chats';
   import type { Chat } from '../types/chat';
@@ -72,7 +72,7 @@
   let activeSearchController: AbortController | null = null;
 
   function getPublicSearchChats(): Chat[] {
-    const translatedPublicChats = translateDemoChats([...INTRO_CHATS, ...LEGAL_CHATS]).map(convertDemoChatToChat);
+    const translatedPublicChats = translateDemoChats([...INTRO_CHATS]).map(convertDemoChatToChat);
     return [...translatedPublicChats, ...getAllExampleChats()];
   }
 

@@ -1,38 +1,9 @@
-import { env } from '$env/dynamic/public';
-import { error } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
+import { publicWebsiteOrigin } from '$lib/server/publicWebsite';
 import type { PageServerLoad } from './$types';
-import { buildPrivacyPolicyContent, buildTermsOfUseContent, buildImprintContent } from '@repo/public-site/legal/buildLegalContent';
-import { legalTranslate } from '@repo/public-site/legal/legalLocale';
-import { privacyPolicyChat } from '@repo/public-site/legal/documents/privacy-policy';
-import { termsOfUseChat } from '@repo/public-site/legal/documents/terms-of-use';
-import { imprintChat } from '@repo/public-site/legal/documents/imprint';
-import MarkdownIt from 'markdown-it';
-import { getLandingOrigins } from '$lib/landingOrigins';
 
-const markdown = new MarkdownIt({ html: false, linkify: true });
-const definitions = {
-  privacy: { chat: privacyPolicyChat, build: buildPrivacyPolicyContent },
-  terms: { chat: termsOfUseChat, build: buildTermsOfUseContent },
-  imprint: { chat: imprintChat, build: (t: (key: string) => string) => buildImprintContent(t) }
-} as const;
-
-export const load: PageServerLoad = ({ params, setHeaders, url, request }) => {
-  if (!(params.slug in definitions)) error(404, 'Legal document not found');
-  const slug = params.slug as keyof typeof definitions;
-  const definition = definitions[slug];
-  const locale = url.searchParams.get('lang') === 'de' || (!url.searchParams.has('lang') && request.headers.get('accept-language')?.toLowerCase().startsWith('de')) ? 'de' : 'en';
-  const t = (key: string) => legalTranslate(locale, key);
-  const title = t(definition.chat.title);
-  const description = t(definition.chat.description);
-  const body = definition.build(t, { lastUpdated: definition.chat.metadata.lastUpdated, locale });
-  const origins = getLandingOrigins(url, {
-    webapp: env.PUBLIC_LANDING_WEBAPP_URL,
-    website: env.PUBLIC_LANDING_WEBSITE_URL
-  });
-  const websiteOrigin = origins.websiteBaseUrl;
-  const canonicalUrl = `${websiteOrigin}/legal/${slug}`;
-  const isDevHost = websiteOrigin !== url.origin || url.hostname.includes('.dev.') || url.hostname.startsWith('dev.') || url.hostname.endsWith('.vercel.app') || url.hostname === 'localhost' || url.hostname === '127.0.0.1';
-  const jsonLd = JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebPage', name: title, description, url: canonicalUrl, inLanguage: locale, publisher: { '@type': 'Organization', name: 'OpenMates', url: websiteOrigin } });
-  setHeaders({ 'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=604800' });
-  return { ...origins, slug, locale, title, description, keywords: definition.chat.keywords, bodyHtml: markdown.render(body), canonicalUrl, websiteOrigin, jsonLd, isDevHost };
+/** Old app document URLs now open the real public website without a chat shell. */
+export const load: PageServerLoad = ({ params, url }) => {
+  if (!['privacy', 'terms', 'imprint'].includes(params.slug)) error(404, 'Legal document not found');
+  redirect(302, `${publicWebsiteOrigin(url)}/legal/${params.slug}${url.search}`);
 };

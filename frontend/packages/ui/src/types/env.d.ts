@@ -20,3 +20,8 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+/** SvelteKit supplies public runtime configuration to applications consuming the UI package. */
+declare module '$env/dynamic/public' {
+  export const env: { [key: `PUBLIC_${string}`]: string | undefined };
+}

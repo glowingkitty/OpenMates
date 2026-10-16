@@ -83,8 +83,7 @@ export type {
   NewsroomView,
   SocialPostLink,
 } from "./src/components/newsroom/types";
-// Removed Imprint, Privacy, Terms Svelte components - legal documents are now handled via chat system
-// See frontend/packages/ui/src/legal/ for legal chat document definitions
+// Legal documents are served exclusively by the standalone public website.
 // Removed export * from Settings.svelte as default export on line 6 is sufficient
 // Types
 export * from "./src/types/chat";

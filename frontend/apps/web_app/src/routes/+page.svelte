@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { getPublicLegalUrl } from '@repo/ui';
 	import { composerFocusRequested } from '@repo/ui/stores/composerFocusStore';
 	import { beginAuthBootstrapReadiness, settleAuthBootstrapReadiness, failAuthBootstrapReadiness,
 		observeAuthBootstrapFailure } from '@repo/ui/stores/authBootstrapReadiness';
@@ -844,6 +845,12 @@
 		autoplayVideo?: boolean,
 		teamId?: string | null
 	) {
+		const legalSlug = /^legal-(privacy|terms|imprint)$/.exec(chatId)?.[1];
+		if (browser && legalSlug) {
+			const language = new URLSearchParams(window.location.search).get('lang');
+			window.location.replace(getPublicLegalUrl(`/legal/${legalSlug}${language ? `?lang=${encodeURIComponent(language)}` : ''}`));
+			return;
+		}
 		if (teamId && !(await prepareTeamChatDeepLink(chatId, teamId))) return;
 		pendingAuthenticatedDeepLinkCleanup?.();
 		pendingAuthenticatedDeepLinkCleanup = null;

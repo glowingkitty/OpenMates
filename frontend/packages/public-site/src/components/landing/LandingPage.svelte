@@ -538,8 +538,8 @@
                 <div class="feature-example" in:fade={{ duration: reducedMotion ? 0 : 400, delay: reducedMotion ? 0 : 180 }} data-testid={`landing-feature-media-${feature.id}`}>
                   {#if feature.id === 'open-source'}
                     <a class="source-github" href="https://github.com/glowingkitty/OpenMates" target="_blank" rel="noopener noreferrer" aria-label="OpenMates on GitHub" data-testid="landing-source-github"><svg aria-hidden="true" viewBox="0 0 48 48"><path d="M24 0c-3.152 0-6.273.623-9.184 1.833a23.995 23.995 0 00-7.787 5.22A24.126 24.126 0 000 24.084c0 10.645 6.888 19.677 16.416 22.88 1.2.192 1.584-.554 1.584-1.205v-4.07c-6.648 1.445-8.064-3.227-8.064-3.227-1.104-2.793-2.664-3.54-2.664-3.54-2.184-1.493.168-1.445.168-1.445 2.4.169 3.672 2.48 3.672 2.48 2.088 3.661 5.616 2.577 6.984 2 .216-1.566.84-2.626 1.512-3.228-5.328-.602-10.92-2.673-10.92-11.849 0-2.673.912-4.816 2.472-6.526-.24-.602-1.08-3.107.24-6.358 0 0 2.016-.65 6.6 2.456 1.896-.53 3.96-.795 6-.795s4.104.265 6 .795c4.584-3.107 6.6-2.456 6.6-2.456 1.32 3.25.48 5.756.24 6.358 1.56 1.71 2.472 3.853 2.472 6.526 0 9.2-5.616 11.223-10.968 11.825.864.747 1.656 2.216 1.656 4.456v6.599c0 .65.384 1.42 1.608 1.204C41.136 43.736 48 34.728 48 24.083c0-3.162-.62-6.294-1.827-9.216a24.09 24.09 0 00-5.202-7.813 23.995 23.995 0 00-7.787-5.22A23.928 23.928 0 0024 0z" fill="currentColor" /></svg></a>
-                  {:else if feature.baseKey && (feature.exampleChatId || feature.mediaPath)}
-                    <DeviceScreenshots baseKey={feature.baseKey} desktopAlt={feature.desktopAlt ?? ''} mobileAlt={feature.mobileAlt ?? ''} href={feature.mediaPath ? appUrl(feature.mediaPath) : appUrl(`/#chat-id=${encodeURIComponent(feature.exampleChatId ?? '')}`)} linkLabel={`${feature.exampleChatId ? copy.openExample : copy.exploreWorkflows}: ${feature.title1} ${feature.title2}`} watchSrc={feature.id === 'devices' ? landingDeviceMedia.devicesWatch : undefined} watchAlt="The OpenMates train connections example on Apple Watch" />
+                  {:else if feature.baseKey}
+                    <DeviceScreenshots baseKey={feature.baseKey} desktopAlt={feature.desktopAlt ?? ''} mobileAlt={feature.mobileAlt ?? ''} href={feature.mediaPath ? appUrl(feature.mediaPath) : feature.exampleChatId ? appUrl(`/#chat-id=${encodeURIComponent(feature.exampleChatId)}`) : undefined} linkLabel={`${feature.exampleChatId ? copy.openExample : copy.exploreWorkflows}: ${feature.title1} ${feature.title2}`} watchSrc={feature.id === 'devices' ? landingDeviceMedia.devicesWatch : undefined} watchAlt="The OpenMates train connections example on Apple Watch" />
                   {/if}
                   <div class="feature-actions">
                     {#if !reducedMotion}<button class="replay-animation" type="button" onclick={() => replayStory(feature.id)} data-testid={`landing-replay-${feature.id}`}>{copy.replayAnimation}</button>{/if}
@@ -698,6 +698,24 @@
   .social-links a { display: inline-grid; place-items: center; width: 38px; height: 38px; border-radius: var(--radius-full); background: var(--color-grey-20); }.social-links a:hover { background: var(--color-grey-blue); }.social-icon { display: block; width: 22px; height: 22px; background: var(--color-grey-80); mask: var(--social-icon-url) center / contain no-repeat; -webkit-mask: var(--social-icon-url) center / contain no-repeat; }
   @media (max-width: 900px) { .feature-media { grid-template-columns: 1fr; }.feature-copy, .feature-later .feature-copy { max-width: 680px; }.feature-example, .feature-later .feature-example { width: 100%; margin: 0 auto; } }
   @media (max-width: 760px) { .viewport-container { margin: 0 var(--spacing-4) var(--spacing-4); }.feature { min-height: 100%; padding: max(72px, var(--spacing-20)) var(--spacing-8) max(156px, env(safe-area-inset-bottom)); gap: var(--spacing-16); }.feature h2 { margin-bottom: var(--spacing-12); }.publication-row { grid-template-columns: 1fr; gap: var(--spacing-12); padding: var(--spacing-16) var(--spacing-8); }.site-footer { flex-direction: column; align-items: flex-start; padding: var(--spacing-16) var(--spacing-8); }.site-footer nav { justify-content: flex-start; } }
+  /* Keep the intro and scene together inside the space between fixed controls.
+     A bounded canvas avoids a large empty gap on desktop; flex shrink lets short
+     laptops use the same content fitting as phones without extending the section. */
+  @container (min-width: 761px) {
+    .feature.story-playing.story-demonstration {
+      height: 100cqh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: clamp(8px, 2cqh, 20px);
+      padding-top: calc(41px + var(--spacing-6) * 2);
+      padding-bottom: calc(max(var(--spacing-8), env(safe-area-inset-bottom)) + 64px + 41px + var(--spacing-6) * 2);
+    }
+    .story-playing.story-demonstration .feature-copy { flex: 0 0 auto; width: 100%; }
+    .story-playing.story-demonstration .story-surface { flex: 0 1 clamp(12rem, 36cqh, 18rem); min-height: 0; }
+    .story-playing.story-demonstration .story-stage { height: 100%; min-height: 0; --story-animation-height: 100%; }
+  }
   /* Fit custom stories between the fixed arrows and composer when browser chrome
      leaves a short phone panel. Final reading layouts keep their natural height. */
   @container (max-width: 760px) {

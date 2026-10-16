@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs';
 import { parse } from 'yaml';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 vi.mock('../../data/modelsMetadata', () => ({ modelsMetadata: [] }));
@@ -10,9 +9,12 @@ import { parse_message } from '../parse_message';
 import { splitAssistantActivityRuns } from '../assistantActivityRuns';
 import { registerEmbedRefIndex, clearEmbedRefIndexEntries, resolveEmbedRefIndexEntry } from '../../services/embedRefIndex';
 import { deutschlandticketTrainFareBreakdownChat as train } from '../../demo_chats/data/example_chats/deutschlandticket-train-fare-breakdown';
+import { communityGardenWelcomeMelodyChat as music } from '../../demo_chats/data/example_chats/community-garden-welcome-melody';
+import { communityGardenVolunteerChimeChat as audio } from '../../demo_chats/data/example_chats/community-garden-volunteer-chime';
 import { communityGardenSunflowerIllustrationChat as image } from '../../demo_chats/data/example_chats/community-garden-sunflower-illustration';
 
-const transcript = (name: string) => parse(readFileSync(`src/i18n/sources/example_chats/${name}.yml`, 'utf8')).message_2.en;
+const sources = import.meta.glob('../../i18n/sources/example_chats/*.yml', { query: '?raw', import: 'default', eager: true });
+const transcript = (name: string) => parse(sources[`../../i18n/sources/example_chats/${name}.yml`] as string).message_2.en;
 const compile = (markdown: string, chatId: string) => parse_message(markdown, 'read', { unifiedParsingEnabled: true, role: 'assistant', chatId });
 afterEach(clearEmbedRefIndexEntries);
 
@@ -34,7 +36,7 @@ describe('public example invocation activity', () => {
     const child = image.embeds.find(embed => embed.parent_embed_id)!;
     const results = runs.filter(run => run.kind === 'content').flatMap(run => run.document.content);
     expect(results).toContainEqual(expect.objectContaining({ type: 'embedPreviewLarge', attrs: expect.objectContaining({ embedId: child.embed_id, appId: 'images' }) }));
-    expect(runs.filter(run => run.kind === 'skills').flatMap(run => run.skillIds)).toEqual(['generate', 'generate']);
+    expect(runs.filter(run => run.kind === 'skills').flatMap(run => run.skillIds)).toEqual(['generate']);
     const previousType = child.type;
     try {
       child.type = 'app_skill_use';
@@ -42,6 +44,23 @@ describe('public example invocation activity', () => {
       expect(legacy[0].kind).toBe('content');
       expect(legacy[0].document.content[0].type).toBe('embedPreviewLarge');
     } finally { child.type = previousType; }
+  });
+
+  // contract-test: supporting surface=gui.web assertions=app-skills.media.visible-assistant-results,chat-processing-feedback.completed-processing-summary
+  it.each([
+    ['community_garden_welcome_melody', music], ['community_garden_volunteer_chime', audio],
+    ['community_garden_sunflower_illustration', image],
+  ])('deduplicates echoed parent references for %s in live and saved documents', (name, fixture) => {
+    const invocation = fixture.embeds.find(embed => !embed.parent_embed_id)!;
+    const child = fixture.embeds.find(embed => embed.parent_embed_id)!;
+    const markdown = transcript(name as string);
+    const echoed = `${markdown}\n\n[!](embed:${invocation.embed_id})`;
+    for (const source of [markdown, echoed]) {
+      const runs = splitAssistantActivityRuns(compile(source, fixture.chat_id))!;
+      expect(runs.filter(run => run.kind === 'skills')).toHaveLength(1);
+      expect(runs.flatMap(run => run.skillIds)).toEqual(['generate']);
+      expect(JSON.stringify(runs.filter(run => run.kind === 'content'))).toContain(child.embed_id);
+    }
   });
 
   // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering

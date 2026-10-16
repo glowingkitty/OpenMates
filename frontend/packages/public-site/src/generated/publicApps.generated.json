@@ -69,7 +69,7 @@
     },
     "exampleChatId": "example-mastodon-public-post-themes",
     "promptEn": "Summarize public posts",
-    "promptDe": "Fasse öffentliche Beiträge zusammen"
+    "promptDe": "Fasse \u00f6ffentliche Beitr\u00e4ge zusammen"
   },
   {
     "id": "mail",
@@ -100,12 +100,12 @@
     "iconUrl": "/icons/web.svg",
     "gradient": "var(--color-app-web)",
     "capability": {
-      "type": "focus",
-      "id": "research"
+      "type": "skill",
+      "id": "search"
     },
-    "exampleChatId": "example-us-egg-prices-deep",
-    "promptEn": "Deep research the web",
-    "promptDe": "Recherchiere gründlich im Web"
+    "exampleChatId": "example-find-brand-name-and",
+    "promptEn": "Search the web",
+    "promptDe": "Im Web suchen"
   },
   {
     "id": "weather",
@@ -117,7 +117,7 @@
     },
     "exampleChatId": "example-berlin-weather-bike-commute",
     "promptEn": "Check the weather",
-    "promptDe": "Prüfe das Wetter"
+    "promptDe": "Pr\u00fcfe das Wetter"
   },
   {
     "id": "shopping",
@@ -285,7 +285,7 @@
     },
     "exampleChatId": "example-social-app-name-domain",
     "promptEn": "Find available domains",
-    "promptDe": "Finde verfügbare Domains"
+    "promptDe": "Finde verf\u00fcgbare Domains"
   },
   {
     "id": "models3d",

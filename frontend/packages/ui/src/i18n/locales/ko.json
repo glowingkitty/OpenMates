@@ -4252,7 +4252,10 @@
     },
     "resume_last_chat": {
       "title": {
-        "text": "마지막 대화 이어가기"
+        "text": "마지막 대화 이어가기:"
+      },
+      "guest_title": {
+        "text": "예시 대화를 살펴보세요:"
       },
       "decrypting": {
         "text": "채팅 복호화 중..."
@@ -7892,6 +7895,48 @@
           "text": "이 프로젝트의 파일"
         }
       }
+    },
+    "jobs": {
+      "search": {
+        "result_count": {
+          "text": "채용 공고 {count}건"
+        },
+        "partial_results": {
+          "text": "일부 출처를 사용할 수 없었습니다"
+        },
+        "result": {
+          "title": {
+            "text": "채용 공고"
+          },
+          "remote": {
+            "text": "원격 근무"
+          },
+          "published": {
+            "text": "게시일"
+          },
+          "source": {
+            "text": "{provider}에서 보기"
+          },
+          "listing": {
+            "text": "공고 출처"
+          },
+          "apply": {
+            "text": "지원 페이지 열기"
+          },
+          "company": {
+            "text": "회사"
+          },
+          "employment_type": {
+            "text": "고용 형태"
+          },
+          "salary": {
+            "text": "급여"
+          },
+          "description": {
+            "text": "설명"
+          }
+        }
+      }
     }
   },
   "enter_message": {
@@ -8457,6 +8502,38 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"e7002718-62f4-43b0-9078-1ab77993edc0\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI workshop\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b110fb02-f635-45b1-8ba7-aaf75b3f7de7\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI meetup\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b2b2b2a7-6b9c-464d-a86e-86ceafcd3bcc\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"build with AI\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"0e453b88-1f20-43fc-9aa1-aad8aab6ae8a\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"top AI developer meetups Berlin 2026 for beginners\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"c7b51044-a947-4471-a287-496459454ad6\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Berlin AI builder communities and recurring workshops\", \"provider\": \"Brave\"}\n```\n\nBerlin has one of Europe's most active [AI](wiki:Artificial_intelligence) builder scenes, transitioning from general theory to practical \"hands-on\" engineering. For someone learning to build with AI tools, the focus in June 2026 is heavily on [AI agents](wiki:Software_agent), [RAG (Retrieval-Augmented Generation)](wiki:Retrieval-augmented_generation), and production-ready architectures.\n\nHere are the top upcoming workshops and meetups in Berlin where you can build, demo, and learn from other practitioners.\n\n### Featured Hands-On Workshops\nThese sessions are specifically designed for those who want to write code and build prototypes.\n\n*   **BLISS x QuantCo: Build Your Own AI Agent**\n    *   **Date:** June 10, 2026 | 17:30\n    *   **Location:** Berlin-Mitte (Altonaer Str. 26)\n    *   **Focus:** An interactive session transitioning from [LLM APIs](wiki:Large_language_model) to building a custom agent that automates complex document workflows. **Bring your laptop.**\n    *   [Event Details & RSVP](embed:bliss-x-quantco-dWg)\n*   **Open Source Europe Tour: AI in Practice**\n    *   **Date:** June 8, 2026 | 17:30\n    *   **Location:** Netlight Consulting (Invalidenstraße 117)\n    *   **Focus:** A \"hype-free\" walkthrough of modern AI, explaining Agentic AI, fine-tuning vs. RAG, and connecting AI to data architectures.\n    *   [Event Details & RSVP](embed:open-source-europe-S4k)\n*   **AI Future-Club Kickoff (Hackers / Founders)**\n    *   **Date:** June 11, 2026 | 18:00\n    *   **Location:** TBD (Berlin)\n    *   **Focus:** A session for developers to \"get their hands dirty,\" discussing what to build and ship together, featuring live demos of recent projects.\n    *   [Event Details & RSVP](embed:ai-future-club-XOk)\n\n### Community Meetups for Builders\nThese events are excellent for networking and seeing what other local developers are currently building.\n\n*   **OpenClaw Anonymous Berlin #9**\n    *   **Date:** June 9, 2026 | 19:00\n    *   **Location:** w3.hub (Möckernstraße 120)\n    *   **Focus:** Informal \"laptop-out\" meetup where people showcase OpenClaw and AI agent setups. Perfect for sharing what works and what doesn't.\n    *   [Event Details & RSVP](embed:openclaw-anonymous-berlin-JA8)\n*   **AI Tinkerers Berlin**\n    *   **Date:** June 17, 2026\n    *   **Focus:** A screened, demo-first, \"no-pitch\" community. Expect live code, architecture lessons, and technical Q&A from local founders and engineers.\n    *   Berlin AI Tinkerers Portal\n*   **Spec-Driven Development: AI for Full-Stack Java**\n    *   **Date:** June 9, 2026 | 18:30\n    *   **Location:** Capgemini (Potsdamer Platz 5)\n    *   **Focus:** Learning how AI can generate code, diagrams, and tests from structured specifications.\n    *   [Event Details & RSVP](embed:spec-driven-development-rxI)\n\n### Key Hubs to Follow\nIf you want to stay in the loop, these organizations host the majority of builder-centric AI events in Berlin:\n\n*   **Merantix AI Campus**: Located in Nord-Mitte, this 6,000m² campus is the heart of the Berlin AI ecosystem, hosting weekly reading groups and tech talks.\n    *   Campus Events Calendar\n*   **BLISS (Berlin AI Community)**: A student and professional community that organizes high-quality workshops and speaker series.\n    *   BLISS Official Site\n*   **[CODE University](wiki:CODE_University_of_Applied_Sciences)**: Often hosts \"Global AI Bootcamps\" and hands-on sessions for students and the public at their Delta Campus in Neukölln.\n\n### Practical Tips for Joining\n1.  **RSVP Early:** Many of these events (especially the BLISS and Tinkerers sessions) have limited spots and require screening or early registration.\n2.  **Bring a Laptop:** Most \"workshops\" expect you to follow along with code. Ensure you have a local environment or a [GitHub](wiki:GitHub) account ready.\n3.  **Join the Slacks:** Groups like AI Tinkerers and [Hackers/Founders](/#settings/apps/web) have local Slack/Discord channels where most \"last-minute\" build sessions are organized.\n\nWould you like me to help you find more specific resources for a particular AI tool you're learning, such as [PyTorch](wiki:PyTorch) or [LangChain](wiki:LangChain)?\n\n**Next Steps:**\n- [Browse more AI events in Berlin](/#settings/apps/events)\n- [Search for AI tutorials on YouTube](/#settings/apps/videos)"
       }
     },
+    "air_fryers_amazon_germany": {
+      "title": {
+        "text": "독일에서 판매되는 에어프라이어 비교"
+      },
+      "summary": {
+        "text": "독일 아마존의 인기 에어프라이어를 가격, 용량, 평점으로 비교하고 2인 가구에 Philips Airfryer 2000 시리즈를 추천했습니다."
+      },
+      "message_1": {
+        "text": "아마존 판매 상품을 포함해 독일에서 온라인으로 살 수 있는 에어프라이어를 찾아줘. 현재 가격, 용량, 구매자 평점을 비교하고 출처 링크와 함께 2인 가구에 적합한 제품 하나를 추천해 줘."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\n현재 독일 아마존에서 판매되는 평점이 높은 에어프라이어의 가격, 용량, 구매자 평가를 비교했습니다.\n\n---\n\n### 독일에서 인기 있는 모델 비교\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### 2인 가구를 위한 가장 좋은 선택\n\n#### **추천 제품: [Philips Airfryer 2000 Series 6.2L](embed:philips-airfryer-2000-fay)**\n\n* **두 사람에게 적합한 이유:**\n  * **적절한 용량(6.2 L):** 바스켓이 4.5–5 L보다 작으면 두 사람 분량도 여러 번 나눠 조리해야 할 수 있습니다. 6.2 L 바스켓에는 연어 필레 두 조각과 채소 또는 감자튀김을 한 겹으로 펼쳐 고르게 익힐 수 있습니다.\n  * **주방 공간:** Ninja나 Russell Hobbs 같은 듀얼 존 제품은 조리대 공간을 많이 차지합니다. 6 L 단일 바스켓은 독일의 일반적인 주방에도 비교적 잘 맞으면서 충분한 조리 공간을 제공합니다.\n  * **투명 창:** 서랍을 열어 열을 잃지 않고 익은 정도를 확인할 수 있습니다.\n  * **가격 대비 가치:** €99.99에 [Philips](wiki:Philips)의 안정적인 온도 제어 기능을 제공하는 합리적인 가격의 제품입니다.\n\n#### **대안(서로 다른 온도로 두 요리를 자주 조리한다면): [Philips Dual Basket 3000 Series (9.0L)](embed:philips-airfryer-dual-pjD)**\n단백질 요리와 채소 곁들임을 서로 다른 온도와 시간에 동시에 만들고 싶다면(예: 닭가슴살은 180 °C, 바삭한 감자는 200 °C), 현재 €119.99로 할인 중인 이 모델은 두 바스켓의 조리 완료 시간을 맞출 수 있습니다.\n\n---\n\n### 구매 전에 확인할 점\n1. **바스켓 모양:** Cosori와 Philips 같은 사각 바스켓은 같은 용량의 둥근 바스켓보다 스테이크, 베이킹 틀, 꼬치처럼 넓게 펼쳐야 하는 음식을 넣기 좋습니다.\n2. **식기세척기 공간:** 6 L 단일 서랍이 들어갈 만큼 높이가 충분한지 확인하세요. 논스틱 코팅을 더 오래 쓰고 싶다면 손세척도 고려해 보세요."
+      },
+      "follow_up_1": {
+        "text": "에어프라이어 전용 레시피 찾아보기"
+      },
+      "follow_up_2": {
+        "text": "싱글 바스켓과 듀얼 바스켓 에어프라이어의 주요 차이점 설명하기"
+      },
+      "follow_up_3": {
+        "text": "이 에어프라이어와 호환되는 베이킹 액세서리 찾기"
+      },
+      "follow_up_4": {
+        "text": "에어프라이어로 만드는 초보자용 저녁 요리법 살펴보기"
+      },
+      "follow_up_5": {
+        "text": "이 모델들의 현재 에너지 소비 정보 확인하기"
+      },
+      "follow_up_6": {
+        "text": "세라믹 코팅과 테플론 코팅의 세척 및 유지 관리 요구 사항 비교하기"
+      }
+    },
     "artemis_ii_mission": {
       "title": {
         "text": "Artemis II 임무 하이라이트 및 탐사"
@@ -8495,34 +8572,6 @@
       },
       "message_2": {
         "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"8d96310e-a05a-41e8-a687-08ce2ce1ce9a\",\"app_id\":\"audio\",\"skill_id\":\"generate\"}\n```\n\nI created a short, friendly product success chime you can use as a subtle workflow-complete notification."
-      }
-    },
-    "audio_speak_friendly_welcome_message": {
-      "title": {
-        "text": "Audio Speak Friendly Welcome Message"
-      },
-      "summary": {
-        "text": "Turn a short welcome line into a friendly spoken message with the Audio Speak app skill."
-      },
-      "message_1": {
-        "text": "Say this as a warm, natural welcome message: Welcome back to OpenMates. Your workspace is ready whenever you are."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"463ace0f-02f9-43c2-94ee-cf385162bb75\",\"app_id\":\"audio\",\"skill_id\":\"speak\"}\n```\n\nI generated the welcome line as a friendly spoken audio message."
-      }
-    },
-    "audio_transcribe_voice_note": {
-      "title": {
-        "text": "Transcribe a voice note"
-      },
-      "summary": {
-        "text": "See how OpenMates turns an uploaded voice note into an exact transcript, including corrected transcript metadata."
-      },
-      "message_1": {
-        "text": "Please transcribe this audio file. Do not search the web and do not include any markdown links. Just quote the exact transcript:\n```json\n{\n  \"type\": \"audio-recording\",\n  \"embed_id\": \"4e7bca90-2a2a-4cf2-b773-ac5b3a4dc40b\"\n}\n```"
-      },
-      "message_2": {
-        "text": "OpenMates can transcribe short voice notes from the command line."
       }
     },
     "autumn_basil_balcony_care": {
@@ -8913,20 +8962,6 @@
         "text": "내 답변에 의도치 않게 방어적인 표현이나 어조가 있는지 검토해 줘"
       }
     },
-    "cancel_test_reminder": {
-      "title": {
-        "text": "Cancel a Scheduled Reminder"
-      },
-      "summary": {
-        "text": "A reminder management example that cancels a scheduled reminder by ID and confirms it will not fire."
-      },
-      "message_1": {
-        "text": "@skill:reminder:cancel-reminder Cancel reminder 6bfe1188-e21c-49f4-97b4-6f8b41f851c9 and confirm that it will no longer fire."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"2654ed6e-e439-4c21-98c7-95269083da71\", \"app_id\": \"reminder\", \"skill_id\": \"cancel-reminder\"}\n```\n\nOK. I've cancelled the reminder with ID `6bfe1188-e21c-49f4-97b4-6f8b41f851c9`. It will no longer fire.\n\nWould you like me to [set a new reminder](/#settings/apps/reminder) for something else, or should I [check your remaining active reminders](/#settings/apps/reminder)?"
-      }
-    },
     "classic_car_reverse_image_search": {
       "title": {
         "text": "사진으로 클래식 카 식별하기"
@@ -9048,7 +9083,7 @@
         "text": "커뮤니티 정원 안내문에 사용할 따뜻한 느낌의 해바라기 보태니컬 일러스트를 그려주세요. 텍스트 없이 깨끗하고 밝은 배경으로 부탁합니다."
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"83e98b9b-8bcb-4774-9223-be000504a84a\",\"app_id\":\"images\",\"skill_id\":\"generate\"}\n```\n\n커뮤니티 정원 유인물에 사용할 따뜻한 느낌의 해바라기 보태니컬 일러스트입니다:\n\n[!](embed:generated-images-ff26d807eb07)\n\n### 디자인 및 워크플로 제안\n\n- **손으로 그린 요소와 결합하기:** 커뮤니티 자료의 경우, 디지털 또는 AI 생성 아트워크를 실제적인 개인의 손길과 혼합하면 멋진 결과물을 얻을 수 있습니다. 예를 들어, 이 일러스트를 배경이나 시각적 중심점으로 인쇄한 다음, 커뮤니티 구성원들이 그 옆에 식재 도표를 그리거나, 관리 팁을 손글씨로 적거나, 말린 잎이나 씨앗을 붙이도록 할 수 있습니다.\n- **유인물 레이아웃 및 계층 구조:**\n  - **여백:** 해바라기 주변에 넉넉한 여백을 두어 유인물에 여유롭고 환영하는 분위기를 더하세요.\n  - **타이포그래피:** 제목에는 유기적이거나 휴머니스트 세리프체([Garamond](wiki:Garamond) 또는 [Georgia](wiki:Georgia_(typeface)) 등)를 사용하고, 식재 지침, 토양 준비 세부 사항, 행사 날짜 등에는 가독성이 좋은 산세리프체를 조합해 보세요.\n  - **색상 팔레트:** 꽃잎에서 호박색과 황금색 톤을 추출하여 강조선이나 소제목에 사용하고, 짙은 숲의 초록색을 주요 하이라이트 색상으로 활용해 보세요.\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"garden_handout_next_step\",\n  \"multiple\": false,\n  \"question\": \"What would you like to work on next for the handout?\",\n  \"options\": [\n    {\n      \"id\": \"layout_tips\",\n      \"text\": \"Get advice on typography and grid layout for the printed flyer\"\n    },\n    {\n      \"id\": \"variations\",\n      \"text\": \"Generate a complementary plant illustration (e.g., tomato, bee, or garden herb)\"\n    },\n    {\n      \"id\": \"custom\",\n      \"text\": \"Something else\"\n    }\n  ],\n  \"custom_option_id\": \"custom\",\n  \"custom_placeholder\": \"Describe what you need...\"\n}\n```\n\n[!](embed:generated-media-images-83e98b9b8bcb)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"83e98b9b-8bcb-4774-9223-be000504a84a\",\"app_id\":\"images\",\"skill_id\":\"generate\"}\n```\n\n커뮤니티 정원 유인물에 사용할 따뜻한 느낌의 해바라기 보태니컬 일러스트입니다:\n\n[!](embed:generated-images-ff26d807eb07)\n\n### 디자인 및 워크플로 제안\n\n- **손으로 그린 요소와 결합하기:** 커뮤니티 자료의 경우, 디지털 또는 AI 생성 아트워크를 실제적인 개인의 손길과 혼합하면 멋진 결과물을 얻을 수 있습니다. 예를 들어, 이 일러스트를 배경이나 시각적 중심점으로 인쇄한 다음, 커뮤니티 구성원들이 그 옆에 식재 도표를 그리거나, 관리 팁을 손글씨로 적거나, 말린 잎이나 씨앗을 붙이도록 할 수 있습니다.\n- **유인물 레이아웃 및 계층 구조:**\n  - **여백:** 해바라기 주변에 넉넉한 여백을 두어 유인물에 여유롭고 환영하는 분위기를 더하세요.\n  - **타이포그래피:** 제목에는 유기적이거나 휴머니스트 세리프체([Garamond](wiki:Garamond) 또는 [Georgia](wiki:Georgia_(typeface)) 등)를 사용하고, 식재 지침, 토양 준비 세부 사항, 행사 날짜 등에는 가독성이 좋은 산세리프체를 조합해 보세요.\n  - **색상 팔레트:** 꽃잎에서 호박색과 황금색 톤을 추출하여 강조선이나 소제목에 사용하고, 짙은 숲의 초록색을 주요 하이라이트 색상으로 활용해 보세요.\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"garden_handout_next_step\",\n  \"multiple\": false,\n  \"question\": \"What would you like to work on next for the handout?\",\n  \"options\": [\n    {\n      \"id\": \"layout_tips\",\n      \"text\": \"Get advice on typography and grid layout for the printed flyer\"\n    },\n    {\n      \"id\": \"variations\",\n      \"text\": \"Generate a complementary plant illustration (e.g., tomato, bee, or garden herb)\"\n    },\n    {\n      \"id\": \"custom\",\n      \"text\": \"Something else\"\n    }\n  ],\n  \"custom_option_id\": \"custom\",\n  \"custom_placeholder\": \"Describe what you need...\"\n}\n```"
       },
       "follow_up_1": {
         "text": "라벤더 위에 있는 바쁜 꿀벌 일러스트를 하나 더 생성해 줘"
@@ -9080,7 +9115,7 @@
         "text": "커뮤니티 정원 앱에서 자원봉사자가 등록할 때 사용할 짧고 따뜻한 알림음을 만들어줘. 부드러운 두 음절의 차임벨이어야 하고, 음성은 없어야 하며, 3초 이내로 해줘."
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fdda9f85-fa01-48ca-acf7-7746de6dc0f3\",\"app_id\":\"audio\",\"skill_id\":\"generate\"}\n```\n\n커뮤니티 정원 자원봉사 신청 알림을 위해 제작된 부드럽고 따뜻한 두 음절의 차임벨이야:\n\n[!](embed:generated-audio-17f56f2e73be)\n\n### 사운드 프로필\n- **톤:** 자연과 성장을 연상시키도록 설계된 유기적이고 공명이 있는 나무 차임/마림바 톤.\n- **속도:** 누군가 도움을 주러 왔을 때 고무적이고 환영하는 느낌을 주는 상승하는 두 음절 시퀀스.\n- **길이:** 2초로, 앱 사용자에게 방해가 되지 않도록 짧게 유지함.\n\n이 톤이 앱의 나머지 UI 팔레트와 잘 어울리니? 필요하다면 음색을 조정할 수 있어 (예: 더 부드러운 어쿠스틱 기타 탄주음, 싱잉볼, 또는 더 밝은 유리종 소리 등).\n\n[!](embed:generated-media-audio-fdda9f85fa01)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fdda9f85-fa01-48ca-acf7-7746de6dc0f3\",\"app_id\":\"audio\",\"skill_id\":\"generate\"}\n```\n\n커뮤니티 정원 자원봉사 신청 알림을 위해 제작된 부드럽고 따뜻한 두 음절의 차임벨이야:\n\n[!](embed:generated-audio-17f56f2e73be)\n\n### 사운드 프로필\n- **톤:** 자연과 성장을 연상시키도록 설계된 유기적이고 공명이 있는 나무 차임/마림바 톤.\n- **속도:** 누군가 도움을 주러 왔을 때 고무적이고 환영하는 느낌을 주는 상승하는 두 음절 시퀀스.\n- **길이:** 2초로, 앱 사용자에게 방해가 되지 않도록 짧게 유지함.\n\n이 톤이 앱의 나머지 UI 팔레트와 잘 어울리니? 필요하다면 음색을 조정할 수 있어 (예: 더 부드러운 어쿠스틱 기타 탄주음, 싱잉볼, 또는 더 밝은 유리종 소리 등)."
       },
       "follow_up_1": {
         "text": "더 부드러운 어쿠스틱 기타 탄주 버전 생성하기"
@@ -9144,7 +9179,7 @@
         "text": "커뮤니티 정원 환영 영상에 사용할 짧고 부드러운 연주곡을 보컬 없이 만들어 줄 수 있어?"
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"3e5014d0-2082-4604-b968-1553d6cc43e4\",\"app_id\":\"music\",\"skill_id\":\"generate\"}\n```\n\n커뮤니티 정원 환영 영상을 위해 작곡된 부드러운 어쿠스틱 연주곡이야:\n\n[!](embed:generated-media-music-3e5014d02082)\n[!](embed:generated-music-c89ee4a5f418)\n\n### 트랙 상세 정보\n- **분위기 및 톤:** 따뜻하고 친근하며 평화로운 느낌\n- **악기 구성:** 부드러운 피아노 화음과 가벼운 멜로디 포인트가 어우러진 어쿠스틱 기타 핑거피킹\n- **길이:** 30초\n- **형식:** 순수 연주곡(보컬 없음)으로, 나레이션이나 텍스트 소개의 배경 음악으로 사용하기에 이상적이야.\n\n### 추천 다음 단계\n영상을 제작하거나 새로운 회원들에게 정원을 소개하는 대본을 쓸 계획이라면:\n\n- [짧은 환영 대본 초안 작성하기](/#message=Help%20me%20write%20a%20warm%2030-second%20welcome%20video%20script%20for%20our%20community%20garden.)\n- [경쾌한 어쿠스틱 대안곡 생성하기](/#message=Create%20a%20slightly%20more%20upbeat%20acoustic%20track%20for%20our%20community%20garden%20video.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"3e5014d0-2082-4604-b968-1553d6cc43e4\",\"app_id\":\"music\",\"skill_id\":\"generate\"}\n```\n\n커뮤니티 정원 환영 영상을 위해 작곡된 부드러운 어쿠스틱 연주곡이야:\n\n[!](embed:generated-music-c89ee4a5f418)\n\n### 트랙 상세 정보\n- **분위기 및 톤:** 따뜻하고 친근하며 평화로운 느낌\n- **악기 구성:** 부드러운 피아노 화음과 가벼운 멜로디 포인트가 어우러진 어쿠스틱 기타 핑거피킹\n- **길이:** 30초\n- **형식:** 순수 연주곡(보컬 없음)으로, 나레이션이나 텍스트 소개의 배경 음악으로 사용하기에 이상적이야.\n\n### 추천 다음 단계\n영상을 제작하거나 새로운 회원들에게 정원을 소개하는 대본을 쓸 계획이라면:\n\n- [짧은 환영 대본 초안 작성하기](/#message=Help%20me%20write%20a%20warm%2030-second%20welcome%20video%20script%20for%20our%20community%20garden.)\n- [경쾌한 어쿠스틱 대안곡 생성하기](/#message=Create%20a%20slightly%20more%20upbeat%20acoustic%20track%20for%20our%20community%20garden%20video.)"
       },
       "follow_up_1": {
         "text": "우리 커뮤니티 정원 영상을 위해 조금 더 경쾌한 어쿠스틱 트랙을 만들어줘"
@@ -9357,48 +9392,6 @@
         "text": "[ai] 암호화 및 개인정보 보호에 미치는 잠재적 영향 분석"
       }
     },
-    "example_chat_task_planning_checklist": {
-      "title": {
-        "text": "Task Planning Checklist"
-      },
-      "summary": {
-        "text": "A real CLI-created Tasks app-skill chat that turns a public demo release checklist into three structured tasks."
-      },
-      "message_1": {
-        "text": "@skill:tasks:create Do not ask follow-up questions. Create exactly these three tasks for a public OpenMates demo release checklist. Task 1 title: Review transcript for private data. Description: Confirm the source chat does not contain secrets, personal data, or private account details before publishing. Assign to me. Task 2 title: Verify Tasks and Workflows embeds. Description: Open the public example pages and confirm both parent embeds and child previews render and open fullscreen. Assign to me. Task 3 title: Write public release note. Description: Draft a short release note for developers explaining that the examples come from real CLI-created app-skill chats. Assign to OpenMates."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"7996e3b5-8d25-46bd-b527-8da6f9c65ecf\", \"app_id\": \"tasks\", \"skill_id\": \"create\"}\n```\n\nI've created the three tasks for the OpenMates demo release checklist:\n\n1.  **Review transcript for private data** (Assigned to you)\n2.  **Verify Tasks and Workflows embeds** (Assigned to you)\n3.  **Write public release note** (Assigned to OpenMates)"
-      }
-    },
-    "family_stays_kyoto": {
-      "title": {
-        "text": "Family Stays In Kyoto"
-      },
-      "summary": {
-        "text": "Find family-friendly Kyoto stays near public transit and compare location, price, and ratings."
-      },
-      "message_1": {
-        "text": "Find family-friendly stays in Kyoto for two adults and one child for five nights in October, preferably near public transit, and compare price, location, and guest rating."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"c5e222f6-b05e-4c6f-8874-7b595604d7ce\", \"app_id\": \"travel\", \"skill_id\": \"search_stays\", \"query\": \"Family friendly hotels near public transit in Kyoto\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"ab6a375c-d92a-42fb-a6f0-b1c2456f1199\", \"app_id\": \"travel\", \"skill_id\": \"search_stays\", \"query\": \"Hotels in Kyoto\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"c90ccab0-0788-4e41-a49f-bc359016aa2e\", \"app_id\": \"travel\", \"skill_id\": \"search_stays\", \"query\": \"Hotels near Kyoto Station\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"48320665-f5ea-4c75-9b79-8e01f1b602ae\", \"app_id\": \"travel\", \"skill_id\": \"search_stays\", \"query\": \"Kyoto\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"7a6cfd2a-6000-4686-ae1e-c0360b46c752\", \"app_id\": \"travel\", \"skill_id\": \"search_stays\", \"query\": \"Kyoto\"}\n```\n\nWhile I am unable to pull live, real-time pricing for your exact dates right this second, I can provide a highly reliable comparison of the absolute best family-friendly hotels in Kyoto based on historical October pricing, locations, and consistent guest ratings.\n\nOctober is a peak travel month in Kyoto as the weather cools down and autumn foliage begins, so family rooms at these transit-friendly properties book up quickly!\n\nHere is a comparison of four fantastic options for 2 adults and 1 child:\n\n### 1. Mimaru Kyoto Station (The \"Home Away From Home\")\nMimaru is a beloved apartment-style hotel chain in Japan designed specifically with families in mind.\n*   **Location:** Outstanding. It's just a 3 to 5-minute walk from Kyoto Station. This is perfect for quick access to the Shinkansen (bullet train), local subways, and the main bus terminal.\n*   **Family Friendliness:** Excellent. They offer spacious rooms with small kitchenettes, dining tables, and even fun bunk-bed layouts which kids love.\n*   **Typical October Price:** **$$$** (Usually between $250 - $400 USD / night)\n*   **Guest Rating:** ⭐️⭐️⭐️⭐️⭐️ **(4.8 / 5)** – Families consistently rate this as the best due to the sheer size of the rooms (a rarity in Japan).\n\n### 2. Hotel Granvia Kyoto (The \"Maximum Convenience\")\nIf you want to completely eliminate transit stress, this is the place.\n*   **Location:** Unbeatable. The hotel is literally integrated *inside* the massive Kyoto Station complex. You can step off your train and be in the lobby in minutes without ever stepping outside—ideal when traveling with a child and luggage.\n*   **Family Friendliness:** Great. It's a large, traditional full-service luxury hotel. They offer larger family rooms and have plenty of dining options right downstairs in the station complex.\n*   **Typical October Price:** **$$$$** (Usually between $350 - $600+ USD / night)\n*   **Guest Rating:** ⭐️⭐️⭐️⭐️½ **(4.5 / 5)** – Rated very highly for its world-class service and unmatched convenience.\n\n### 3. Cross Hotel Kyoto (The \"Downtown Explorer\")\nIf you prefer being near the lively cultural heart of the city rather than the main train station, this is a stylish option.\n*   **Location:** Fantastic. Located near Sanjo Station and Kawaramachi. You have easy access to the subway and Keihan rail line, but you are also within walking distance of the famous Gion district, Pontocho Alley, and the Kamo River.\n*   **Family Friendliness:** Very good. They offer spacious family rooms, and the location means you can easily take a family stroll for dinner without needing to hop on a train at the end of the day.\n*   **Typical October Price:** **$$$** (Usually between $200 - $350 USD / night)\n*   **Guest Rating:** ⭐️⭐️⭐️⭐️⭐️ **(4.7 / 5)** – Highly praised for its beautiful modern design, superb breakfast, and quiet rooms despite the central location.\n\n### 4. Karaksa Hotel Kyoto I (The \"Budget-Friendly Connector\")\nDesigned to be a modern, highly functional base camp for groups and families.\n*   **Location:** Great. Located near Karasuma and Shijo subway stations (right in the middle of the city), giving you easy access to both the Kyoto Station area and the cultural sights in the north and east.\n*   **Family Friendliness:** Excellent. They specialize in \"connecting rooms,\" meaning you can book two adjoining rooms for extra space and privacy at a reasonable price, which is perfect for parents and an older child.\n*   **Typical October Price:** **$$** (Usually between $150 - $250 USD / night)\n*   **Guest Rating:** ⭐️⭐️⭐️⭐️½ **(4.5 / 5)** – Loved for its value, cleanliness, and thoughtful family-oriented layouts.\n\n***\n\n### Summary Comparison\n\n*   **Best for Budget:** Karaksa Hotel\n*   **Best for Transit & Day Trips:** Hotel Granvia & Mimaru Kyoto Station\n*   **Best for Space & Amenities (Kitchen):** Mimaru Kyoto Station\n*   **Best for Evening Strolls & Dining:** Cross Hotel Kyoto\n\nSince I cannot browse the live October rates for you right now, I'd highly recommend plugging your exact 5 nights into a search engine soon, as October is high-season.\n\nTo help narrow it down: **Do you prefer having a kitchenette to prepare quick meals for your child (like Mimaru), or would you rather have the traditional full-service hotel experience (like Granvia/Cross Hotel)?**"
-      }
-    },
-    "fediverse_activitypub_social_search": {
-      "title": {
-        "text": "Fediverse ActivityPub Social Search"
-      },
-      "summary": {
-        "text": "A social media search example summarizing recent posts about the Fediverse and ActivityPub."
-      },
-      "message_1": {
-        "text": "@skill:social_media:search Search social posts about the Fediverse and ActivityPub from the last week, then summarize recurring themes and notable links."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b991a34b-9bac-42e0-a39f-00b346c10efe\", \"app_id\": \"social_media\", \"skill_id\": \"search\", \"query\": \"Fediverse ActivityPub\", \"provider\": \"Bluesky\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"f9048332-7b70-4e59-974d-3cdc6fa5f39e\", \"app_id\": \"social_media\", \"skill_id\": \"search\", \"query\": \"Fediverse ActivityPub\", \"provider\": \"Bluesky\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"20103241-65c5-4867-83ec-8b557d55b730\", \"app_id\": \"social_media\", \"skill_id\": \"search\", \"query\": \"Fediverse ActivityPub\", \"provider\": \"Bluesky\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"9f253e36-f4a4-42c1-a61b-81e2717b7514\", \"app_id\": \"social_media\", \"skill_id\": \"search\", \"query\": \"Fediverse ActivityPub\", \"provider\": \"Bluesky\"}\n```\n\nDiscussions about the [Fediverse](wiki:Fediverse) and [ActivityPub](wiki:ActivityPub) over the past week (June 1–8, 2026) have focused heavily on infrastructure growth beyond [Mastodon](wiki:Mastodon_(social_network)), the technical nuances of cross-protocol bridging, and server management.\n\n### Recurring Themes\n\n*   **The Rise of Non-Microblogging Platforms:** Data from trackers like [VM Crawl](embed:thefulcrum-eurosky-social-DrV) suggests a shift in the landscape. While Mastodon remains the face of the Fediverse, [Ghost](wiki:Ghost_(blogging_platform)) and [WordPress](wiki:WordPress) instances are rapidly increasing, indicating that \"long-form\" federated content is becoming a primary driver of network growth.\n*   **Protocol Bridging (ActivityPub ↔ ATproto):** With Bluesky gaining traction, there is a significant push for interoperability. Users are actively sharing guides on using bridges like `brid.gy` to interact across [ActivityPub](wiki:ActivityPub) and [AT Protocol](wiki:AT_Protocol), specifically focusing on maintaining a consistent identity using custom domain handles.\n*   **Technical Optimization & AI Defense:** Developers are discussing better ways to handle [federation](wiki:Federation_(information_technology)) flow, such as prioritizing HTTP \"Accept\" headers over User-Agent sniffing. There is also a notable focus on writing [WAF](wiki:Web_application_firewall) rules that allow Fediverse traffic while blocking [AI crawlers](wiki:Web_crawler) from [OpenAI](wiki:OpenAI).\n*   **Decentralized Activism:** There is ongoing interest in how these technological models can scale grassroots activist organizing, moving beyond corporate-owned platforms to resilient, community-run infrastructure.\n\n### Notable Links and Resources\n\n*   **[Bridge Fediverse Accounts to Bluesky](embed:momtchil-momtchev-com-el3):** A detailed blog post by Chris McLeod on setting up custom domain handles for bridged accounts.\n*   **VM Crawl Dashboard:** An analytics tool showing a heat map of detected ActivityPub platforms and instance comparisons.\n*   **[GoToSocial Installation Guide](embed:fediverse-activitypub-awakari-PrM):** A \"10-minute launch guide\" for setting up the lightweight GoToSocial server on a Linux VPS.\n*   **[Linked Data in HTTP Headers](embed:reiver-mastodon-social-y8F):** A technical breakdown of content negotiation for Fediverse servers.\n*   **[Decentralized Networks Explained](embed:izby-bsky-social-Qqo):** A Russian-language primer (compatible with browser translators) on how Mastodon and the Fediverse differ from traditional social media.\n\nBased on the current date of June 8, 2026, the Fediverse appears to be evolving from a \"Mastodon-centric\" network into a more diverse ecosystem of blogs and specialized tools, with a high priority on protecting these spaces from automated data scraping.\n\n**Next Steps:**\n*   Would you like a more technical breakdown of how to set up a bridge between [Mastodon](wiki:Mastodon_(social_network)) and Bluesky?\n*   Should I look for specific discussions regarding [WordPress](wiki:WordPress) and [Ghost](wiki:Ghost_(blogging_platform)) federation settings?"
-      }
-    },
     "finance_cash_flow_overview": {
       "title": {
         "text": "Summarize recent business finances"
@@ -9505,20 +9498,6 @@
       },
       "follow_up_6": {
         "text": "[travel-search_stays] 방콕의 저렴한 숙소 추천"
-      }
-    },
-    "framework_store_reputation_check": {
-      "title": {
-        "text": "Framework 스토어는 안전한가요?"
-      },
-      "summary": {
-        "text": "Framework 공식 스토어에 대한 웹 평판 확인으로, 사기 징후, 독립적인 검색 결과, 고객 서비스 주의 사항 및 안전한 구매 단계를 비교합니다."
-      },
-      "message_1": {
-        "text": "```json\n{\n  \"type\": \"website\",\n  \"embed_id\": \"d36f6802-aad0-4fbe-90b4-5f80b3c6f2da\",\n  \"url\": \"https://frame.work\"\n}\n```에서 구매해도 안전한가요? 판정, 구체적인 위험 신호, 구체적인 긍정 신호, 부족한 증거, 안전한 다음 단계가 포함된 사기 및 평판 확인만 필요합니다."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"efbcb86b-b030-4edc-babf-97578474a5c5\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Framework Computer Inc reputation reviews 2025 2026 scam check\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"53132fec-cc2f-4341-82bf-ea1042516afe\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"is frame.work website safe to buy from reddit reviews\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"3ce962e6-07f3-4c83-8393-5443e09a18cd\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Framework Computer customer service issues news 2026\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"2b69bc24-2882-49af-b90e-357c015d65ea\", \"app_id\": \"images\", \"skill_id\": \"search\", \"query\": \"Framework Laptop 13 and 16 modular laptop images\", \"provider\": \"Brave Search\"}\n```\n\n네, **frame.work**는 믿고 구매할 수 있는 **안전하고 합법적인** 웹사이트예요. 이곳은 [San_Francisco](wiki:San_Francisco)에 본사를 둔 미국의 저명한 기술 기업인 [Framework Computer Inc.](wiki:Framework_Computer)의 공식 스토어예요. 이들은 [모듈형](wiki:Modularity) 및 수리 용이성이 뛰어난 노트북으로 유명하며, 기술 커뮤니티와 [수리할 권리](wiki:Right_to_repair) 운동 내에서 강력한 평판을 얻고 있어요.\n\n### **결론: 안전함 (합법적인 기업)**\n사기 사이트가 아닌 실제 제조업체를 상대하는 것이니 안심하세요. 하지만 [Dell](wiki:Dell)이나 [Apple](wiki:Apple_Inc.) 같은 거대 기업에 비해 규모가 작은 '스케일업' 기업이기 때문에, 고객 경험 측면에서 몇 가지 구체적인 장단점이 있어요.\n\n[!](embed:bikmantech.com-cQQ)\n[!](embed:theregister.com-zAx)\n[!](embed:theguardian.com-pKV)\n[!](embed:frame.work-d7D)\n\n---\n\n### **확실한 긍정적 신호**\n*   **광범위한 업계 인지도:** [PCMag](embed:pcmag.com-rux), [The Guardian](embed:theguardian.com-pKV), [The Register](embed:theregister.com-zAx)와 같은 주요 기술 매체에서 정기적으로 제품을 리뷰하고 다루고 있어요. 여기에는 2026년 초에 출시된 최신 **Framework Laptop 13 Pro**도 포함돼요.\n*   **활발한 공식 커뮤니티:** 사용자들이 문제, 해결 방법, 커스터마이징에 대해 공개적으로 토론하는 [Framework Community](embed:community.frame.work-25f) 포럼을 운영하고 있어요. 사기 사이트라면 사람들이 불만을 게시할 수 있는 공개 포럼을 운영하지 않겠죠.\n*   **투명한 업데이트:** [공식 블로그](embed:frame.work-OMn)가 정기적으로 업데이트되며, 2026년 5월의 최근 게시물에서는 기업 주문 및 재고 관리에 대해 다루고 있어요.\n*   **기업의 책임성:** CEO인 [Nirav Patel](wiki:Framework_Computer)은 인터뷰에 자주 참여하고 Computex와 같은 업계 행사에서 연설하는 공인이에요.\n\n### **확실한 주의 사항 (고객 서비스 및 품질 관리)**\n*   **지원 응답 시간:** [Trustpilot](embed:trustpilot.com-xf0) 및 [Reddit](embed:reddit.com-w2T)에서 흔히 볼 수 있는 불만 사항은 고객 지원이 느리거나 일관되지 않을 수 있다는 점이에요. 일부 사용자는 복잡한 보증 청구를 처리할 때 '떠넘기기'를 경험했다고 보고했어요.\n*   **품질 관리(QC) 편차:** 새로운 하드웨어(Framework 16 등)를 반복 제작하면서, 초기 배치 제품에서 커뮤니티 주도의 해결이 필요한 사소한 기계적 또는 소프트웨어 버그가 가끔 발생했어요.\n*   **배송 및 물류:** 일부 고객은 주문 후 배송 데이터 확인이 어려워 배송 날짜가 불확실하다고 보고했어요.\n\n### **부족한 증거**\n*   **직접 전화 지원:** 주로 이메일과 티켓을 통해 지원을 처리해요. 연중무휴 24시간 전화 지원 라인이 탄탄하다는 증거는 부족하며, 이는 일부 사용자에게 결정적인 단점이 될 수 있어요.\n*   **현지 오프라인 매장 부재:** 특정 파트너십을 제외하면, 일반적으로 매장에 방문하여 Framework 노트북을 수리받을 수 없어요. 부품을 배송받거나 기기를 다시 보내는 방식에 의존해야 해요.\n\n### **안전한 다음 단계**\n1.  **특정 배치 확인:** 새로 출시된 모델을 구매하는 경우, r/framework 레딧에서 '배치별(batch-specific)' 이슈를 검색하여 예상되는 상황을 파악하세요.\n2.  **보호되는 결제 수단 사용:** 고가의 전자제품을 구매할 때는 항상 [신용카드](wiki:Credit_card)나 [PayPal](wiki:PayPal)을 사용하세요. 배송에 문제가 생길 경우 [차지백(결제 취소)](wiki:Chargeback) 보호를 한 층 더 받을 수 있어요.\n3.  **보증 정책 검토:** 구매 전 보증 정책을 숙지하세요. 모듈형 특성상 보증 조건이 기존 노트북보다 더 구체적일 수 있어요.\n\n어떤 모델이 본인에게 맞는지 결정하는 데 도움이 되도록 **Framework 13** 대 **Framework 16**의 구체적인 리뷰를 찾아드릴까요?\n\n**다음 단계:**\n*   [최신 Framework Laptop 13 리뷰 확인하기](/#settings/apps/web)\n*   [Framework 가격을 다른 모듈형 노트북과 비교하기](/#settings/apps/shopping)"
       }
     },
     "furnished_apartments_berlin": {
@@ -9637,20 +9616,6 @@
         "text": "대화형 Svelte 컴포넌트 자동화 테스트 작성 방법 설명"
       }
     },
-    "habit_tracker_onboarding_draft": {
-      "title": {
-        "text": "Habit Tracker Onboarding Draft"
-      },
-      "summary": {
-        "text": "A quick draft image-generation example for a mobile habit tracker onboarding screen."
-      },
-      "message_1": {
-        "text": "@skill:images:generate_draft Make a quick rough draft image concept for a mobile habit tracker onboarding screen: friendly abstract shapes, progress rings, calm green palette, placeholder UI blocks, no readable text."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"79e332e8-5d75-4fd0-9e75-2fe0cb8e209b\", \"app_id\": \"images\", \"skill_id\": \"generate_draft\"}\n```\n\nI'm generating that image for you now. It'll feature the calm green palette and abstract shapes you described to give you a solid starting point for the onboarding flow.\n\nWhile that's processing, here are a few design principles I'd recommend for a habit tracker's onboarding:\n\n*   **Progressive Disclosure:** Instead of showing all the features at once, use the onboarding to walk them through setting up their first habit.\n*   **Visual Gratification:** The progress rings you mentioned are great. In [UX design](wiki:User_experience_design), providing immediate visual feedback when a task is completed (even a placeholder one in onboarding) helps build [dopamine](wiki:Dopamine) loops that encourage habit formation.\n*   **Color Psychology:** Green is an excellent choice. In [color theory](wiki:Color_theory), it's associated with growth, health, and tranquility—perfect for a \"calm\" habit-building experience.\n\nWould you like to explore a specific layout for the habit-setting screen next, or perhaps look at some icon styles that would match this aesthetic?"
-      }
-    },
     "housing_policy_dinner_discussion": {
       "title": {
         "text": "주택 정책 관련 저녁 토론 준비하기"
@@ -9683,18 +9648,36 @@
         "text": "주택 시장 공급이 가격 통제에 어떻게 반응하는지 설명하기"
       }
     },
-    "image_vectorize_openmates_header": {
+    "jobs_in_sweden": {
       "title": {
-        "text": "Vectorize an image to SVG"
+        "text": "스웨덴의 개발자 채용 정보"
       },
       "summary": {
-        "text": "Convert an uploaded raster image into a scalable SVG vector graphic."
+        "text": "스톡홀름과 말뫼의 최신 개발자 채용 공고를 원본 리스팅 및 출처 기반의 근무지 상세 정보와 함께 비교해 보세요."
       },
       "message_1": {
-        "text": "Use images.vectorize once on the uploaded image named openmates_header.png. Convert it to SVG. After starting the conversion, briefly say the SVG vectorization is processing:\n```json\n{\n  \"type\": \"image\",\n  \"embed_id\": \"d25f5a45-1247-4eaf-bd27-c0a194a18371\"\n}\n```"
+        "text": "스웨덴 공공 고용 서비스에서 스톡홀름의 최신 소프트웨어 개발자 일자리 2개와 말뫼의 일자리 2개를 찾아줘. 각 공고에 대해 직함, 고용주, 근무 도시, 원본 공고 링크를 포함한 짧은 불렛 포인트를 보여줘. 급여 수치나 재택근무 여부는 해당 공고에 명시된 경우에만 포함하고, 그렇지 않으면 '명시되지 않음'이라고 표시해줘. 답변은 200단어 이내로 작성해줘."
       },
       "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"3a8114d9-0472-4627-9a73-8d331bef481f\", \"app_id\": \"images\", \"skill_id\": \"vectorize\"}\n```\n\nI'll convert that image to SVG for you now.Your SVG vectorization is processing! The conversion is underway and I'll update you once it's complete. This typically takes a moment as the system traces the raster image and converts it into scalable vector paths."
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"ea23f42b-6a8d-4faf-912d-988d2ba20cf4\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"a9fafbeb-7f05-42d5-9dcd-cbc752f42ffd\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\nArbetsförmedlingen(Platsbanken)의 현재 소프트웨어 개발자 채용 공고입니다:\n\n### 스톡홀름\n\n* **직함:** Senior Systemutvecklare  \n  **고용주:** NXT Interim Stockholm AB  \n  **근무지:** 스톡홀름  \n  **원문 공고 링크:** [Platsbanken annons 31589252](embed:senior-systemutvecklare-2ps)  \n  **급여:** 기재되지 않음  \n  **재택근무 형태:** 원격 근무지 제공 (*remote-arbetsplatser*)\n\n* **직함:** Javautvecklare  \n  **고용주:** AFRY AB  \n  **근무지:** 스톡홀름  \n  **원문 공고 링크:** [Platsbanken annons 31588186](embed:javautvecklare-y47)  \n  **급여:** 기재되지 않음  \n  **재택근무 형태:** 하이브리드 근무 가능 (*möjlighet till hybridarbete*)\n\n---\n\n### 말뫼\n\n* **직함:** Senior AI Engineer  \n  **고용주:** Iver Accelerate AB  \n  **근무지:** 말뫼  \n  **원문 공고 링크:** [Platsbanken annons 31588387](embed:senior-ai-engineer-Duw)  \n  **급여:** 기재되지 않음  \n  **재택근무 형태:** 하이브리드 근무 가능 (*möjlighet till hybridarbete*)\n\n* **직함:** Malmö: Systemutvecklare Affärssystem Hybrid  \n  **고용주:** Jobbakuten Väst AB  \n  **근무지:** 말뫼  \n  **원문 공고 링크:** [Platsbanken annons 31574628](embed:malm-systemutvecklare-aff-umf)  \n  **급여:** 기재되지 않음 (공고에 구체적인 액수 없이 시장가 급여라고 언급됨)  \n  **재택근무 형태:** 하이브리드 근무 (*Hybridarbete*)"
+      },
+      "follow_up_1": {
+        "text": "예테보리의 원격 소프트웨어 개발자 채용 정보 검색"
+      },
+      "follow_up_2": {
+        "text": "이 시니어 개발자 직무의 자격 요건 비교"
+      },
+      "follow_up_3": {
+        "text": "스톡홀름의 프론트엔드 개발자 포지션 검색"
+      },
+      "follow_up_4": {
+        "text": "이 공고들에 언급된 주요 기술 스택 목록화"
+      },
+      "follow_up_5": {
+        "text": "스웨덴의 주니어 개발자 채용 공고 검색"
+      },
+      "follow_up_6": {
+        "text": "스웨덴 IT 직군의 원격 근무 트렌드 요약"
       }
     },
     "launch_readiness_checklist_doc": {
@@ -9709,34 +9692,6 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"document\", \"embed_id\": \"a0f880c3-d136-41e5-8c37-bfe0f8d36c2e\"}\n```\n\n\n\nThis document provides a concise five-step framework to ensure all technical, marketing, and operational bases are covered before a small product goes live.\n\n**Next steps:**\n* Would you like me to expand any of these tasks into a more detailed [project plan](/#settings/apps/docs)?\n* I can also help you [generate an image](/#settings/apps/images) for your launch announcement if you have a theme in mind."
-      }
-    },
-    "lh400_flight_status_check": {
-      "title": {
-        "text": "LH400 Flight Status Check"
-      },
-      "summary": {
-        "text": "A flight-tracking example showing what live status details travelers should check before leaving."
-      },
-      "message_1": {
-        "text": "@skill:travel:get_flight Track Lufthansa flight LH400 and summarize the kind of live status details a traveler should check before leaving for the airport."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"198325d7-550c-48ad-b7ff-a3f277ec7f28\", \"app_id\": \"travel\", \"skill_id\": \"get_flight\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"8f9aeb1f-d6d5-4159-89f3-9599aa4ef637\", \"app_id\": \"travel\", \"skill_id\": \"get_flight\"}\n```\n\nI found relevant information, but I could not complete every requested action automatically. Here is the best answer I can provide from the available results."
-      }
-    },
-    "library_book_return_workflow": {
-      "title": {
-        "text": "Library Book Return Workflow"
-      },
-      "summary": {
-        "text": "A real CLI-created Workflows app-skill chat that turns a simple library-return routine into a manual workflow."
-      },
-      "message_1": {
-        "text": "@skill:workflows:create-or-modify Do not ask follow-up questions. Create a simple manual workflow titled Library Book Return Checklist. It should have a manual trigger and three manual steps: gather borrowed books from the shelf, check due dates in the library account, and pack books in a tote bag before leaving home. Keep it concise and suitable for a public demo."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"cda4695f-7f68-42d7-9cfe-d719aa08dc3e\", \"app_id\": \"workflows\", \"skill_id\": \"create-or-modify\"}\n```\n\nI have created the **Library Book Return Checklist** workflow. This manual automation includes the following steps:\n\n1.  **Gather books**: Gather borrowed books from the shelf.\n2.  **Check due dates**: Check due dates in the library account.\n3.  **Pack tote bag**: Pack books in a tote bag before leaving home.\n\nYou can view and manage this checklist in the [Workflows app](/#settings/apps/workflows)."
       }
     },
     "mastodon_account_recent_posts": {
@@ -10223,20 +10178,6 @@
         "text": "내 저축액 €4,200가 적절한 비상금인지 평가하는 것 도와주기"
       }
     },
-    "nonprofit_event_planning_use_case": {
-      "title": {
-        "text": "Nonprofit Event Planning Use Case"
-      },
-      "summary": {
-        "text": "An OpenMates use-case example for nonprofit event planning with research, reminders, and shared summaries."
-      },
-      "message_1": {
-        "text": "@skill:openmates:share-usecase Draft a concise use case for OpenMates: a small nonprofit coordinates event planning with web research, reminders, and shared source-backed summaries. Make it suitable for the public use-case gallery."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"bbd60a9e-95f4-491e-8cfc-70888ca110a6\", \"app_id\": \"openmates\", \"skill_id\": \"share-usecase\"}\n```\n\nThat is a fantastic use case! It highlights exactly how OpenMates can help teams collaborate more effectively by handling the information-heavy side of planning.\n\nHere is the drafted summary for the public use-case gallery:\n\n**Nonprofit Event Coordination**\n> \"Small nonprofit organizations use OpenMates to streamline event planning and coordination. By leveraging [web research](/#settings/apps/web) for venues and vendors, setting automated [reminders](/#settings/apps/reminder) for team deadlines, and generating shared summaries backed by verified sources, teams can stay aligned and efficient. This collaborative approach ensures all members have access to the same source-backed information, allowing the organization to focus more on its community mission.\"\n\nI've shared this anonymously with the OpenMates team to help showcase how the platform is being used in the real world.\n\nWould you like to explore how to set up [automated reminders](/#settings/apps/reminder) for your team, or should we look into how to [share summaries](/#settings/apps/docs) effectively?"
-      }
-    },
     "northstar_metrics_svg_logo": {
       "title": {
         "text": "Climate Dashboard SVG App Icon"
@@ -10327,52 +10268,6 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b1cc44d0-1a21-4666-9e69-6d0429965b9f\", \"app_id\": \"pdf\", \"skill_id\": \"read\"}\n```\n\nThe secret word on page 1 of sample.pdf is **ALPHA**.\n\nThis document is a test file designed to verify that the [OpenMates](/#settings/apps/openmates) PDF upload and AI reading features are functioning correctly.\n\nWould you like me to read page 2 or search for anything else within the document?"
-      }
-    },
-    "pdf_view_page_layout": {
-      "title": {
-        "text": "View a PDF page"
-      },
-      "summary": {
-        "text": "Inspect a rendered PDF page and ask OpenMates to describe the visual structure."
-      },
-      "message_1": {
-        "text": "Use pdf.view on the uploaded file named sample.pdf. View page 1 and describe the visual layout, including the title and bullet list structure:  --timeout-ms 240000\n```json\n{\n  \"type\": \"pdf\",\n  \"embed_id\": \"9d2331ef-af7e-4855-8890-c23a371e1e42\"\n}\n```"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"54a8d949-0a13-463f-bc6a-958e1f746f79\", \"app_id\": \"pdf\", \"skill_id\": \"view\", \"query\": \"Please describe the visual layout of this page, including the title and the structure of any bulleted lists.\"}\n```\n\n_\nThe first page of sample.pdf features a clean, professional layout with the following structure:\n\n### **Visual Layout Overview**\n*   **Title:** The document begins with a prominent, bold heading: **\"OpenMates PDF Test Document\"**.\n*   **Subheading:** Immediately below the title is a line indicating the page and section: \"Page 1 of 2 — Introduction\".\n*   **Introductory Paragraph:** A brief paragraph explains that the document is intended for testing PDF upload and AI reading features.\n*   **Bullet List Structure:** \n    *   The list is introduced by the phrase \"Key facts on this page:\".\n    *   It consists of **three bullet points**, each marked with a standard black circular bullet (•).\n    *   The bullets highlight the document title, a \"secret word\" (ALPHA), and the nature of the text on the page.\n*   **Closing Text:** A final sentence notes that an AI assistant should be able to read the content and identify the secret word.\n\nWould you like me to [read the text](/#settings/apps/pdf) from page 2 or [search for specific keywords](/#settings/apps/pdf) within the document?"
-      }
-    },
-    "plumber_message_email_phone_privacy": {
-      "title": {
-        "text": "Write a plumber message with protected contact details"
-      },
-      "summary": {
-        "text": "Draft a kitchen sink repair request while protecting a fictional email and phone number."
-      },
-      "message_1": {
-        "text": "Help me write a message to a plumber. My kitchen sink has been leaking since yesterday, and I’m available tomorrow afternoon. Ask them to contact me at [EMAIL_1_com] or [PHONE_1_147] to arrange a visit."
-      },
-      "message_2": {
-        "text": "Here is a polite and direct message you can send to your plumber:\n\n```json\n{\"type\": \"mail\", \"embed_id\": \"aa8bee97-be75-43c8-b96c-779c4c36624f\"}\n```\n\nWould you like me to help you find local plumbing services in your area, or is there anything else you need assistance with?"
-      },
-      "follow_up_1": {
-        "text": "Find local emergency plumbers near me"
-      },
-      "follow_up_2": {
-        "text": "Explain how to prepare for a plumber’s visit"
-      },
-      "follow_up_3": {
-        "text": "Search for plumbers with same-day availability"
-      },
-      "follow_up_4": {
-        "text": "List questions to ask a plumber before hiring"
-      },
-      "follow_up_5": {
-        "text": "Compare reviews for top-rated plumbers in my area"
-      },
-      "follow_up_6": {
-        "text": "Describe signs of water damage to check before the visit"
       }
     },
     "printable_benchy_phone_stand_models": {
@@ -10529,20 +10424,6 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"65404c52-39dc-4793-9fc7-05c369b2a0af\", \"app_id\": \"music\", \"skill_id\": \"generate\"}\n```\n\nI'm creating that track for you now! It will feature a warm synth bass and light percussion to capture that optimistic mood for your product teaser.\n\nWhile that's generating, are there any specific visual elements or themes in your teaser that I should keep in mind for future variations?\n\n**Next steps you might consider:**\n*   Once it's ready, you can let me know if you'd like to adjust the tempo or intensity.\n*   I can also help draft a short [script](wiki:Screenplay) or catchy tagline to go along with your product launch."
       }
     },
-    "python_squares_code_run": {
-      "title": {
-        "text": "Run a Python Squares Snippet"
-      },
-      "summary": {
-        "text": "A code execution example that runs a tiny Python loop and explains its output."
-      },
-      "message_1": {
-        "text": "@skill:code:run Run this small Python snippet and explain the output: for n in range(1, 8): print(n, n*n, 'even' if n % 2 == 0 else 'odd')"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"5fc00e79-43bc-4343-b965-4452d79e8fb8\", \"app_id\": \"code\", \"skill_id\": \"run\"}\n```\n\nHere is the execution and explanation of the [Python](wiki:Python_(programming_language)) snippet you provided.\n\n```json\n{\"type\": \"code\", \"embed_id\": \"df9131ca-18fb-4f9b-9063-23e6abead1ff\"}\n```\n\n\n\n### Output\n```json\n{\"type\": \"code\", \"embed_id\": \"a6cf69a2-a9cc-41d5-9317-826b02fbfa16\"}\n```\n\n\n\n### Explanation\nThe code uses a `for` loop to iterate through a sequence of numbers and prints three values for each iteration:\n\n1.  **`range(1, 8)`**: This generates a sequence starting at **1** and ending at **7** (the stop value, 8, is exclusive).\n2.  **`n`**: The first column prints the current number in the loop.\n3.  **`n*n`**: The second column calculates and prints the **square** of the number.\n4.  **`'even' if n % 2 == 0 else 'odd'`**: This is a conditional expression (ternary operator).\n    *   It checks if `n` is divisible by 2 using the modulo operator (`%`).\n    *   If the remainder is `0`, it prints \"even\".\n    *   Otherwise, it prints \"odd\".\n\nThis snippet is a concise way to demonstrate basic iteration, arithmetic, and inline conditional logic in Python.\n\n**What would you like to do next?**\n- Would you like to see how to rewrite this using a **List Comprehension**?\n- Should we modify the code to handle a larger range or different mathematical operations?\n\nLearn more about Python Control Flow"
-      }
-    },
     "quiet_cafes_tempelhofer_feld": {
       "title": {
         "text": "Quiet Cafés Near Tempelhofer Feld"
@@ -10571,20 +10452,6 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"11ff377e-a0a2-40ed-81c3-9556b68142f3\", \"app_id\": \"videos\", \"skill_id\": \"search\", \"query\": \"retrieval augmented generation explained for beginners\", \"provider\": \"Brave\"}\n```\n\nI've found some excellent beginner-friendly videos that explain Retrieval-Augmented Generation (RAG). Here is a curated selection to get you started:\n\n[!](embed:youtube.com-OCK)\n[!](embed:youtube.com-20R)\n[!](embed:youtube.com-8SW)\n[!](embed:youtube.com-Fn4)\n[!](embed:youtube.com-rgp)\n\n### Which one should you watch first?\n\nI highly recommend starting with **[What is Retrieval-Augmented Generation (RAG)?](embed:youtube.com-OCK)** by **IBM Technology**.\n\n**Why this one first?**\n*   **Conciseness:** At just 6 and a half minutes, it provides the most efficient \"conceptual hook\" without getting bogged down in implementation details.\n*   **High-Level Clarity:** IBM’s explanations are famous for being professional and easy to follow. They focus on the *why* (fixing LLM hallucinations and outdated data) before diving into the *what*.\n*   **Authoritative:** It establishes a solid foundation from a reputable industry leader, which helps you better understand the more technical or \"hands-on\" videos later.\n\n### What to watch next?\n\nOnce you have the concept down, here are two paths depending on your interest:\n\n1.  **For a better intuitive understanding:** Watch **[RAG Explained in 12 Minutes](embed:youtube.com-20R)** by **Aishwarya Srinivasan**. She uses a brilliant \"Open-Book Exam\" analogy that makes the whole process click instantly for most beginners.\n2.  **For a technical overview:** If you want to see the \"moving parts\" (like vector databases and embeddings), check out **[RAG Explained For Beginners](embed:youtube.com-8SW)** by **KodeKloud**. It breaks the process down into a simple 3-step framework: Retrieval, Augmentation, and Generation.\n\nIf you're interested in building a RAG system yourself, I can help you find documentation for popular tools like [LangChain](wiki:LangChain) or LlamaIndex. Would you like to see how a simple RAG implementation looks in code?\n\n**Further exploration:**\n*   [Check out more AI tutorials](/#settings/apps/videos)\n*   [Search for RAG documentation](/#settings/apps/code)"
       }
     },
-    "reference_image_3d_model": {
-      "title": {
-        "text": "Reference Image to 3D Model"
-      },
-      "summary": {
-        "text": "A 3D generation example that turns a reference image into a textured GLB model preview."
-      },
-      "message_1": {
-        "text": "@skill:models3d:generate Turn this reference image into a textured 3D GLB model suitable for a product mockup."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"85716124-48d5-4c4c-9919-3126b733b41e\",\"app_id\":\"models3d\",\"skill_id\":\"generate\"}\n```\n\nI generated a textured GLB model from the reference image and attached the 3D model preview above."
-      }
-    },
     "right_to_repair_laws_eu_us": {
       "title": {
         "text": "EU와 미국의 수리할 권리 법안"
@@ -10597,20 +10464,6 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"3031e3c2-e832-40fa-99e0-126fe7a5077f\", \"app_id\": \"news\", \"skill_id\": \"search\", \"query\": \"right-to-repair laws EU recent news June 2026\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"e7366974-55a3-4025-8a0b-6d40f600fa6a\", \"app_id\": \"news\", \"skill_id\": \"search\", \"query\": \"right-to-repair laws US recent news June 2026\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"af660c08-2d9e-4684-ad3c-deceafd8ab0c\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"expert analysis right-to-repair laws 2026 EU US\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"e4146998-76de-4683-a010-ceffcdb53005\", \"app_id\": \"images\", \"skill_id\": \"search\", \"query\": \"right to repair electronics repairability label EU\", \"provider\": \"Brave Search\"}\n```\n\n2026년 6월 현재, \"수리할 권리(Right to Repair)\" 운동은 [유럽 연합](wiki:European_Union)과 [미국](wiki:United_States) 모두에서 중요한 실행 단계에 도달했습니다. EU가 대륙 전체의 통합된 의무화 방향으로 나아가고 있는 반면, 미국은 주 단위의 승리와 치열한 로비전이 엇갈리는 양상을 보이고 있습니다.\n\n### 유럽 연합(EU)의 최근 동향\n\n가장 중요한 최근 사건은 2026년 6월 3일에 발표된 EU의 **\"기술 주권(Tech Sovereignty) 패키지\"**입니다. 이 이니셔티브는 자체적인 대안을 육성하고 소비자 권리를 강화함으로써 미국 빅테크 기업에 대한 의존도를 낮추는 것을 목표로 합니다.\n\n*   **구현 카운트다운:** 획기적인 [EU 수리할 권리 지침](wiki:Right_to_repair)(지침 (EU) 2024/1799)이 **2026년 7월 31일**까지 모든 회원국에서 전면 시행될 예정입니다.\n*   **디지털 제품 여권:** 2026년 7월 19일부터 EU는 **디지털 제품 여권(DPP)** 등록을 시작합니다. 이에 따라 배터리와 섬유를 시작으로 제품에 내구성과 수리 가능성에 대한 데이터를 제공하는 QR 코드를 부착해야 합니다.\n*   **법적 경고:** 2026년 6월 4일, 유럽 집행위원회는 \"녹색 전환(Green Transition)\" 지침을 국가 법률로 전환해야 하는 2026년 3월 마감 기한을 지키지 못한 **20개 회원국**에 공식 경고를 발령했습니다. 이 지침은 [그린워싱](wiki:Greenwashing)과 \"조기 [노후화](wiki:Obsolescence)\"를 방지하는 데 매우 중요합니다.\n\n[!](embed:euronewsweek.co.uk-aq1)\n[!](embed:termopasty.com-0tB)\n[!](embed:ecomondo.com-9xC)\n\n### 미국의 최근 동향\n\n미국에서는 연방 입법이 [의회](wiki:United_States_Congress)에서 정체됨에 따라 운동의 초점이 주 단위에 머물러 있습니다.\n\n*   **주 단위의 확대:** 2026년 중반 현재, **미국인의 4분의 1 이상**이 수리할 권리 법이 시행되는 주에 거주하고 있습니다. **텍사스**와 **커네티컷**의 새로운 법안이 전면 시행됨에 따라 이 수치는 **2026년 가을까지 35%**로 급증할 것으로 예상됩니다.\n*   **기업 로비:** [공익연구그룹(PIRG)](wiki:Public_Interest_Research_Group)과 같은 옹호 단체들은 소프트웨어를 통해 교체 부품을 특정 기기에 고정하는 관행인 \"부품 페어링(parts pairing)\" 제한에 반대하는 [구글](wiki:Google) 및 [애플](wiki:Apple_Inc.)과 같은 기업들의 지속적인 로비 활동을 보고했습니다.\n\n### 전문가 의견\n\n법률 및 기술 전문가들은 이러한 새로운 법안에 대해 낙관론과 신중론이 섞인 의견을 내놓고 있습니다.\n\n1.  **\"기술 해방\" 논쟁:** EU 관리들은 2026년 6월 3일을 \"기술 해방의 날\"로 칭송했지만, *컴퓨터 및 통신 산업 협회(CCIA)* 전문가들은 유럽에 여전히 [엔비디아](wiki:Nvidia)나 [TSMC](wiki:TSMC)에 필적할 만한 경쟁자가 없다는 점을 지적하며 [빅테크](wiki:Big_Tech)로부터의 진정한 독립에는 수십 년이 걸릴 것이라고 주장합니다.\n2.  **허점 및 부품 페어링:** *Cybernews* 및 *Earth911*의 전문가들은 법이 수리할 *권리*를 의무화하고 있지만, 제조업체들이 여전히 순정 부품의 높은 가격과 [소프트웨어 잠금](wiki:Digital_rights_management)(부품 페어링)을 통해 \"주도권을 쥐고 있다\"고 경고합니다. 이들은 예비 부품에 대한 엄격한 가격 통제가 없다면 수리 비용이 교체 비용보다 여전히 더 비쌀 수 있다고 주장합니다.\n3.  **보증 혜택:** *Fieldfisher*의 법률 분석가들은 EU 법의 \"숨겨진 보석\"을 강조합니다. 소비자가 보증 기간 동안 교체 대신 수리를 선택하면 **보증 기간이 12개월 연장**됩니다. 이는 소비자의 행동을 \"일회용 문화\"에서 벗어나게 하는 주요 유인책으로 간주됩니다.\n\n> [제조업체는 소비자가 2026년 7월 31일 이전에 구매한 제품이라 하더라도 해당 범위 내의 제품을 수리할 의무가 있습니다.](embed:fieldfisher.com-e9q)\n\n### 요약 표: 2026년 주요 이정표\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"e4d7b998-1c4c-4680-9ef6-2a0f34ce0249\"}\n```\n\n\n어떻게 진행하시겠습니까? 미국의 특정 주법을 살펴보거나 디지털 제품 여권 요구 사항에 대한 자세한 정보를 제공해 드릴 수 있습니다.\n\n*   [미국 주별 현황 확인](/#settings/apps/web)\n*   [현지 수리점 찾기](/#settings/apps/maps)\n---\n*⚠️ 이 정보는 교육용으로만 제공되며 법적 조언이 아닙니다. 법적 조언이 필요한 경우 변호사와 상담하십시오.*"
-      }
-    },
-    "rostock_heavy_rain_radar": {
-      "title": {
-        "text": "로스토크 폭우 레이더"
-      },
-      "summary": {
-        "text": "로스토크의 DWD 강수 레이더를 확인하고 레이더 타임라인에 폭우 상황을 표시해 주는 실시간 날씨 채팅이야."
-      },
-      "message_1": {
-        "text": "지금 로스토크에 비가 오고 있니? 강수 레이더를 보여줘."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"deb8e4c2-e07c-49c3-ae5c-300a21859563\", \"app_id\": \"weather\", \"skill_id\": \"rain_radar\", \"query\": \"Rostock rain radar\", \"provider\": \"Deutscher Wetterdienst (DWD) via Bright Sky\", \"location\": \"Rostock\"}\n```\n\n응, 현재 [로스토크](wiki:Rostock)에 폭우가 내리고 있어. [독일 기상청](wiki:Deutscher_Wetterdienst)의 최신 데이터에 따르면, 도시에 상당한 강수량이 기록되고 있으며 이는 적어도 향후 2시간 동안 지속될 것으로 예상돼.\n\n레이더를 보면 네 주변 지역의 강수 구역 범위가 100%이며, 강도는 최고 수준에 도달했어. 당분간은 실내에 머무는 게 좋겠어!\n\n남은 밤 시간 동안의 [상세한 시간별 예보](/#settings/apps/weather)를 확인해 볼래?"
       }
     },
     "rust_vector_database_repos": {
@@ -10691,20 +10544,6 @@
         "text": "이 소셜 연결 앱을 위한 세 가지 추가 브랜딩 관점 제안하기"
       }
     },
-    "sqlite_strict_tables_summary": {
-      "title": {
-        "text": "SQLite STRICT Tables for App Developers"
-      },
-      "summary": {
-        "text": "A website-reading example that summarizes SQLite STRICT tables and when app developers should use them."
-      },
-      "message_1": {
-        "text": "@skill:web:read Read ```json\n{\n  \"type\": \"website\",\n  \"embed_id\": \"ba10b9f4-6d3e-495e-a5d6-7658434e52b1\",\n  \"url\": \"https://www.sqlite.org/stricttables.html\"\n}\n``` and summarize what STRICT tables change for application developers. Include when they are useful and one migration caveat."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"c5d97a24-2211-4169-9ac3-39353e923e24\", \"app_id\": \"web\", \"skill_id\": \"read\"}\n```\n\nIntroduced in version 3.37.0, STRICT tables allow [SQLite](wiki:SQLite) to move away from its traditional \"flexible\" typing system toward a rigid system similar to [PostgreSQL](wiki:PostgreSQL) or [Oracle Database](wiki:Oracle_Database).\n\n### Changes for Application Developers\nThe `STRICT` keyword, added to the end of a `CREATE TABLE` statement, enforces several new rules:\n*   **Mandatory Datatypes:** Every column definition must include a datatype; datatypeless columns are no longer permitted.\n*   **Restricted Type Names:** You can only use six specific types: `INT`, `INTEGER`, `REAL`, `TEXT`, `BLOB`, and `ANY`.\n*   **Lossless Coercion:** SQLite still attempts to coerce data (e.g., converting the string `'123'` to an integer `123`), but if the conversion cannot be done losslessly (like inserting `'abc'` into an `INT` column), it now throws an `SQLITE_CONSTRAINT_DATATYPE` error instead of silently storing the original string.\n*   **The `ANY` Datatype:** A new `ANY` type is introduced for columns that truly need to store mixed data. Unlike flexible tables, `ANY` in a `STRICT` table preserves the exact input without any numeric conversion (e.g., the string `'000123'` remains a string rather than becoming the integer `123`).\n*   **Implicit Constraints:** `PRIMARY KEY` columns in `STRICT` tables are implicitly `NOT NULL`.\n\n### When They Are Useful\nSTRICT tables are particularly beneficial in the following scenarios:\n*   **Data Integrity:** When you want to ensure that a \"dirty\" input (like an empty string or a non-numeric identifier) doesn't pollute an integer column.\n*   **Matching Other Systems:** If your application is designed to be database-agnostic, using `STRICT` makes SQLite's behavior more predictable and consistent with other enterprise SQL engines.\n*   **Debugging:** It catches type-mismatch bugs at the insertion layer rather than letting them persist as silent data corruption that causes issues during later calculations.\n\n### Migration Caveat: Restricted Type Names\nOne significant caveat when migrating existing schemas is that **standard SQL type names like `VARCHAR`, `NUMERIC`, or `DATETIME` are not allowed.** \n\nIf you are converting an existing table that uses `VARCHAR(255)`, you must change it to `TEXT`. Similarly, `BOOLEAN` or `DATETIME` columns must be converted to `INT`, `REAL`, or `TEXT` depending on how you store those values.\n\n**Next Steps:**\n* Would you like to see a code example of a `CREATE TABLE` statement using `STRICT`?\n* Are you interested in learning about the `WITHOUT ROWID` optimization which can be combined with `STRICT`?"
-      }
-    },
     "svelte_runes_docs": {
       "title": {
         "text": "Svelte Runes Docs"
@@ -10751,20 +10590,6 @@
         "text": "대중 연설 중 무대 공포증을 극복하기 위한 팁 목록 작성하기"
       }
     },
-    "upcoming_reminders_list": {
-      "title": {
-        "text": "Upcoming Reminders List"
-      },
-      "summary": {
-        "text": "A reminder listing example that groups upcoming reminders by due date."
-      },
-      "message_1": {
-        "text": "@skill:reminder:list-reminders List my upcoming reminders and group them by when they are due."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"3640d177-a970-4f2e-bf5f-16eed4c34db5\", \"app_id\": \"reminder\", \"skill_id\": \"list-reminders\"}\n```\n\nIt looks like your schedule is completely clear—you don't have any upcoming [reminders](/#settings/apps/reminder) set at the moment.\n\nSince we're starting with a blank slate, is there anything you'd like to get off your mind and onto a list? I can help you [set a reminder](/#settings/apps/reminder) for a specific task, a daily habit you're building, or even a random nudge later this week.\n\n**What would you like to do next?**\n*   **Set a new reminder?** Just let me know what it's for and when.\n*   **Explore habit tracking?** We could set up a recurring reminder for something you're working on.\n---\n*⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*"
-      }
-    },
     "urban_heat_island_at_night": {
       "title": {
         "text": "밤에도 도시가 뜨거운 이유"
@@ -10797,86 +10622,6 @@
         "text": "도시 협곡 지형이 밤에 복사열을 가두는 방식 설명하기"
       }
     },
-    "us_egg_prices_deep_research": {
-      "title": {
-        "text": "미국 계란 가격이 높게 유지된 이유"
-      },
-      "summary": {
-        "text": "조류 인플루엔자가 완화된 후에도 미국 계란 가격이 높게 유지된 이유를 분석하고, 공급 회복, 시장 집중도, 마진 및 규제를 비교했습니다."
-      },
-      "message_1": {
-        "text": "조류 인플루엔자가 완화된 후에도 왜 미국 계란 가격이 높게 유지되었나요? 공급 회복, 시장 집중도, 소매업체 마진, 규제 및 반론을 비교해 주세요. 확인된 증거와 추론된 증거를 구분하여 기술해 주세요."
-      },
-      "message_2": {
-        "text": "[!](embed:5654e466-f25a-4da2-befb-7369fabd64b3)\n\n[!](embed:324b04a0-1134-448f-b651-3d6ff198f89c)\n\n## 요약\n미국의 계란 가격은 초기 [고병원성 조류 인플루엔자](wiki:Avian_influenza) (HPAI) 급증 이후에도 생물학적 생산 지연, 반복되는 계절적 질병 파동, 시장 구조적 특성, 그리고 하류 가격 책정 마찰이 복합적으로 작용하여 높은 수준과 변동성을 유지했습니다. 대중 담론에서는 흔히 단일 발병이 깔끔하게 해결된 것으로 가정했지만, HPAI는 2023년과 2024,년 말까지 심각한 파동으로 재발했으며, 이는 대체 중병아리를 성숙기까지 키우는 데 필요한 피할 수 없는 20~22주의 생물학적 지연(그리고 다연령 상업 단지를 완전히 재입식하는 데 걸리는 12~18개월)과 맞물렸습니다. 동시에, 주 단위의 케이지 프리(cage-free) 사육 규제([캘리포니아](wiki:California) 발의안 제12호 등)가 공급 풀을 분할하여, 케이지 프리 시설이 도태 피해를 입었을 때 타 주의 일반 계란이 지역적 부족분을 완충하는 것을 막았습니다. 하류 단계에서는 소매 슈퍼마켓 가격 책정에서 비대칭적 가격 전이(\"로켓과 깃털\") 현상이 나타났는데, 식료품점들이 이전의 마진 압박을 회복하고 후행 계약 지수 공식을 조정하기 위해 도매 가격 하락보다 30~60일 늦게 가격을 내렸기 때문입니다.\n\n## 표면적 설명\n업계 단체, 농업 경제학자 및 주류 언론이 제시하는 전통적인 설명은 지속적인 고계란 가격의 원인을 경쟁적인 원자재 시장 내에서 발생한 전례 없는 가축 건강 재앙의 탓으로 돌립니다. [미국 농무부](wiki:United_States_Department_of_Agriculture) (USDA) 산하 [동식물검역소](wiki:Animal_and_Plant_Health_Inspection_Service) (APHIS)가 집행하는 연방 살처분 프로토콜에 따라, 단 한 마리의 새라도 HPAI 감염이 확인되면 전염을 억제하기 위해 해당 시설 전체를 의무적으로 살처분해야 합니다. 식용란 산란계는 수명이 더 길고 밀집된 고용량 축사에 수용되기 때문에, 상업용 산란계 농장이 가금류 살처분의 절대다수를 차지했습니다.\n\n식용란에 대한 소비자 수요는 가격 탄력성이 매우 낮기 때문에(역사적으로 -0.1에서 -0.2 사이로 추정), 계란은 직접적인 요리 대체재가 거의 없는 필수 식품으로 취급됩니다. 결과적으로, 국가 전체 계란 공급량이 3%%에서 6%%만 소폭 감소하더라도 수요를 조절하고 시장 수급을 맞추기 위해 도매 가격이 가파르고 비선형적으로 상승하게 됩니다. 감염된 시설이 살처분, 사체 처리 및 화학적 소독을 완료하더라도 즉시 성계(성숙한 암탉)를 구입할 수 없으며, 부화한 지 하루 된 암컷 병아리(중병아리)가 산란 연령까지 자랄 때까지 기다려야 합니다. 이러한 관점에서 볼 때, 높은 가격은 단순히 농업 질병 회복의 자연스러운 일정과 기초 투입 비용 압박을 반영한 것이었습니다.\n\n## 그 외에 어떤 일이 일어나고 있을 수 있는가\n질병 충격이 위기를 촉발했지만, 여러 구조적, 규제적, 계약적 메커니즘이 고물가를 연장시키거나 국지적인 가격 충격을 만들어냈습니다.\n\n1. **단일 사건이 아닌 반복적인 발병 파동:** \n   조류 독감이 2022년 말 이후 영구적으로 \"완화\"되었다는 전제는 사실 관계가 불완전합니다. 2023,년 중반에 사례가 감소하긴 했지만, 바이러스는 북미 철새 경로를 따라 야생 조류에게 토착화되어 2023년 말에 심각한 계절적 재발을 일으켰고, 2024년 말과 2025.년 초에 대규모 살처분으로 정점에 달했습니다. 산란계 군은 재입식이 시작될 때마다 반복적으로 타격을 입었습니다.\n\n2. **주별 가축 사육 규정에 따른 시장 분절:** \n   가장 눈에 띄는 캘리포니아의 발의안 제12호(2023년 5월 [미국 연방 대법원](wiki:Supreme_Court_of_the_United_States)에서 확정)와 매사추세츠의 질문 제3호와 같은 주별 케이지 프리 의무화 시행은 케이지에 갇힌 닭에서 생산된 계란의 판매를 금지합니다. 이는 전국 도매 시장을 고립된 규제 풀로 세분화했습니다. 철새가 서부의 케이지 프리 시설을 감염시켰을 때, 주간 유통업체들은 중서부나 남부의 잉여 일반 계란으로 식료품점 선반을 법적으로 채울 수 없었고, 이로 인해 캘리포니아 소매 가격은 판당 $8.00~$9.00달러를 넘어섰습니다.\n\n3. **취약한 현물 시장 벤치마크 및 업계 집중도:** \n   미국의 껍질 계란 부문은 중간 정도로 집중되어 있습니다. 최대 생산자인 칼메인 푸즈(Cal-Maine Foods)가 국내 생산량의 약 20%%를 점유하고 있으며, 상위 20개 생산자가 전국 산란계 군의 70%%에서 75%%를 차지합니다. 더 중요한 점은, 업계 전반의 도매 가격이 실제 거래의 5%%~10%%만을 나타내는 협상된 \"현물\" 시장에 의해 결정되는 공표된 민간 벤치마크(예: 어너 배리(Urner Barry))에 연동되어 있다는 것입니다. 국지적 부족으로 인해 절박한 구매자들이 소량의 한계 현물 물량에 대해 공격적으로 입찰하면, 그 결과로 발생하는 현물 가격 급등은 나머지 90%% 이상의 계약 물량에 대한 조달 공식을 자동으로 부풀립니다. 가축이 감염되지 않은 생산자들은 정점의 현물 연동 가격으로 표준 물량을 판매하여 막대한 이익 마진 확대를 창출했습니다(예: 칼메인의 매출 총이익은 2022년 말 전년 대비 10배 증가했습니다).\n\n4. **소매업체의 \"로켓과 깃털\" 및 마진 회수:** \n   슈퍼마켓 가격 책정은 비대칭적 가격 전이가 특징입니다. 도매 산지 가격이 급등할 때 소매 매장 가격은 빠르게 조정됩니다(\"로켓\"). 반면 도매 가격이 급락할 때 소매 가격표는 천천히 내려갑니다(\"깃털\"). 슈퍼마켓 조달 계약은 종종 30~60일 후행 평균에 묶여 있어, 식료품점의 납품 재고 비용은 현물 시장이 붕괴된 지 몇 주 후에야 하락합니다. 더욱이 많은 식료품점은 계란을 고객 유인용 [미끼 상품](wiki:Loss_leader)(loss leader)으로 취급합니다. 충격의 정점 동안 마이너스 또는 압축된 매출 총이익을 감수했던 식료품점들은 냉장 및 유제품 부문의 수익성을 재건하기 위해 도매 가격이 폭락하는 동안에도 높은 매장 가격을 유지했습니다.\n\n5. **사료 비용과의 탈동조화:** \n 주요 사료 성분(옥수수 및 대두박)은 우크라이나 전쟁 발발과 일반적인 공급망 인플레이션에 따라 2022에 정점을 찍었으나, 20% 및 40%에 걸쳐 2023에서 2024.로 하락했습니다. 따라서 2022 이후의 가격 급등은 농업 투입 비용 인상에 따른 인플레이션으로 설명될 수 없습니다.\n\n## 증거\n\n아래의 장부는 2022–2025 계란 가격 역학에 관한 실질적인 정량적, 인과적 및 법적 지위 주장을 감사한 결과입니다.\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"94a028ba-3773-4c97-8c03-a8952cd3be30\"}\n```\n\n## 반론\n몇 가지 강력한 경제적 및 운영적 요인들은 높은 계란 가격이 오로지 기업 간의 담합, 억제되지 않은 탐욕 인플레이션(greedflation) 또는 규제 실패의 결과라는 가설에 의문을 제기합니다.\n\n- **경쟁적 원자재 시장 메커니즘:** \n 신선란은 유통기한이 30일에서 45일에 불과하여 매우 부패하기 쉽습니다. 상하지 않고는 시장에서 보관하거나 매점매석할 수 없습니다. 소비자 수요가 극도로 비탄력적인 시장에서 4%%에서 5%%의 물리적 부족은 시장 수급을 맞추기 위해 가파르고 비선형적인 가격 상승을 필요로 합니다. 공급이 급격히 위축될 때 높은 현물 가격은 교과서적인 경쟁 시장의 수급 균형 결과입니다.\n- **기업 이익의 대칭적 붕괴:** \n 2023, 중반에 조류 독감 사례가 줄어들고 공급이 일시적으로 회복되자 도매 및 소매 가격이 급격히 하락했습니다. 2024, 회계연도에 칼메인 푸즈(Cal-Maine Foods)의 순이익은 63.3%($758.0달러에서 $277.9달러로) 감소했습니다. 일방적인 독점 가격 결정력을 가진 공고한 카르텔이라면 도매 가격과 순이익이 12개월 이내에 60% 이상 폭락하도록 내버려 두지 않았을 것입니다.\n- **계약 공식의 시차 vs. 현물 가격의 착시:** \n 비판론자들은 종종 일일 현물 기준가의 급락을 주간 슈퍼마켓 매대 가격과 비교하며 그 격차를 소매업체의 가격 폭리로 해석합니다. 실제로는 대형 슈퍼마켓 체인은 30일에서 60일 이동 평균을 포함하는 공식 계약을 통해 계란을 구매합니다. 식료품점들은 현물 차트가 하락한 후에도 수주 동안 높은 납품 비용을 계속 지불했습니다. 또한, 식료품점들은 매장 방문객 수를 유지하기 위해 초기 가격 급등기에 종종 마이너스 매출 총이익을 감수했으며, 이후 도매 가격이 낮아진 시기를 이용해 운영 손실을 회복했습니다.\n- **물리적 손실 분포 vs. 사육 방식 의무화:** \n 캘리포니아주 주민발의안 제12호와 매사추세츠주 질문 제3호가 일반 계란의 해당 주 유입을 막았지만, 지역적 부족의 주요 원인은 고병원성 조류 인플루엔자(HPAI)가 서부의 대규모 케이지 프리(cage-free) 농장을 직접 타격했기 때문입니다. 케이지 프리 사육 방식이 조류 독감을 유발한 것이 아니라, 야생 철새의 이동이 케이지 프리 농장과 일반 농장 모두를 감염시킨 것입니다.\n\n## 요점\n- **확인됨 (기초 데이터에 의해 뒷받침됨):** \n - HPAI는 단 한 번의 회복으로 깔끔하게 진정되기보다 2022부터 2024, 말까지 반복적인 파동을 통해 수천만 마리의 상업용 산란계를 폐사시켰습니다.\n - 생물학적 교체에는 중병아리가 산란이 가능할 정도로 성숙하는 데 생리학적으로 최소 20주에서 22주가 소요되며, 다양한 연령대의 상업용 복합 농장을 완전히 재입식하는 데는 12개월에서 18개월이 걸립니다.\n - 식용란 수요는 가격에 매우 비탄력적이어서, 적은 비율의 사육두수 감소가 100%% 이상의 가격 급등으로 이어집니다.\n - 칼메인 푸즈는 2023 회계연도 동안 생산 시설이 감염되지 않은 상태에서 현물 지수 연동 시장 가격이 두 배로 뛰었기 때문에 기록적인 매출 총이익과 순이익을 기록했습니다.\n - 사료 투입 비용은 20% 및 40%에 걸쳐 2023에서 2024,로 하락했으며, 이는 투입 비용 인플레이션이 2022 이후 가격 상승의 원인이 아니었음을 증명합니다.\n - 이전의 별도 역사적 소송(*가공란 제품 반독점 소송*)에서 계란 생산자들은 2000s년대에 발생한 공급 제한 행위에 대해 책임이 있는 것으로 판결되었으나, 2022–2025. 기간에 대해서는 연방법원이나 규제 기관에서 불법 담합 판결을 내린 바가 없습니다.\n- **가능성 높음 (강력한 경제적 및 실증적 추론):** \n - 주 정부의 케이지 프리 사육 의무화(예: 캘리포니아주 주민발의안 제12호)는 케이지 프리 가금류가 살처분되었을 때 주 간 대체재 유입을 법적으로 제한함으로써 지역적 가격 충격을 악화시켰습니다.\n - 소매 단계에서의 비대칭적 가격 전이(\"로켓과 깃털\" 현상)는 주로 30일에서 60일의 후행 계약 조달 공식과 식료품점들이 이전에 계란을 미끼 상품(loss leader)으로 판매하며 발생한 마이너스 마진을 회수하는 과정에서 발생했습니다.\n - 얇은 현물 시장 가격 발견 구조(현물 거래량의 5%–10%가 공급 계약의 90%% 이상의 지수를 결정함)는 전국 도매 가격 변동성을 심각하게 증폭시켰습니다.\n- **그럴듯하지만 입증되지 않음 (조사 중인 혐의):** \n - 주요 계란 생산자들이 HPAI를 적극적으로 이용해 인위적으로 가금류 재입식을 늦추거나 가격을 조정했다는 시민 단체들의 주장은 입증된 법적 사실이 아니라 여전히 청원 및 조사 단계에 있습니다.\n- **불확실함:** \n - 개별 민간 식료품 소매업체 전반의 고정 마진 조달과 현물 지수 연동 조달 사이의 정확한 내역은 기밀 사항이므로, 기업별 소매업체 이익 추출에 대한 정확한 공적 측정은 불가능합니다.\n---\n*⚠️ 본 정보는 교육 목적으로만 제공되며 금융 자문이 아닙니다. 재무적 결정을 내리기 전에는 자격을 갖춘 금융 전문가 또는 세무 전문가와 상담하십시오.*"
-      },
-      "message_2_thinking": {
-        "text": "**가격 설명 종합**\n\n조류 인플루엔자 이후 미국 계란 가격 상승을 설명하기 위해 하위 채팅의 통찰력을 종합하고 있습니다. 공급망 회복, 시장 집중의 영향, 소매업체 이윤, 규제 제약 및 잠재적 대응책 간의 상호 작용에 초점을 맞추고 있습니다. 이제 이러한 요인들의 상대적 영향력을 비교하고 대조하고 있습니다. 가장 중요한 이유에 대한 간결한 설명을 목표로 하고 있습니다.\n\n\n**증거 및 구조 분석**\n\n이제 요구 사항을 자세히 살펴보고 구조화된 응답 형식을 개략적으로 설명하고 있습니다. 증거를 지정된 마크다운 섹션으로 정리하고 주장/증거 원장을 준비하는 데 집중하고 있습니다. 확인된 증거와 추론을 명시적으로 구분해야 합니다. 번호가 매겨진 주장/증거 원장이 모든 실질적인 주장을 다루도록 하고 있습니다.\n\n\n**데이터 무결성 검증**\n\n주요 출처를 성공적으로 확인하고 하위 채팅 데이터를 검색했습니다. 이제 최종 답변을 위해 지정된 제목과 필수 레이아웃을 검토하고 있습니다.\n\n\n## 요약 답변\n\n**회복 궤적 분석**\n\n이제 요약 답변에 집중하여 간결한 설명을 제시하고 있습니다. 또한 다른 잠재적 기여 요인들도 탐색하고 있습니다. 이 주장을 뒷받침하는 증거와 어떤 반론이 존재하는지 고려하기 시작했습니다. 마지막으로 요약 답변에 포함할 핵심 결론을 결정할 것입니다."
-      },
-      "follow_up_1": {
-        "text": "올해 현재 미국 계란 가격 및 생산 전망 검색"
-      },
-      "follow_up_2": {
-        "text": "Urner Barry 도매 계란 벤치마크 계산 방식 설명"
-      },
-      "follow_up_3": {
-        "text": "주요 계란 생산자에 대한 최근 법무부(DOJ) 반독점 업데이트 검색"
-      },
-      "follow_up_4": {
-        "text": "주별 케이지 프리(cage-free) 법안이 주간 식품 유통에 미치는 영향 분석"
-      },
-      "follow_up_5": {
-        "text": "식료품 시장의 비대칭적 가격 전이에 관한 학술 연구 검색"
-      },
-      "follow_up_6": {
-        "text": "일반 계란 생산자와 케이지 프리 계란 생산자의 이익률 비교"
-      },
-      "sub_chat_1_title": {
-        "text": "하위 채팅"
-      },
-      "sub_chat_1_summary": {
-        "text": "## 요약\n2022–2024 고병원성 조류 인플루엔자](wiki:Avian_influenza)(HPAI) 발생 이후, 미국의 계란 도소매 가격은 사상 최고치를 기록했으며, 이는 칼-메인 푸즈(Cal-Maine Foods)와 같은 주요 생산자들에게 기록적인 재무적 횡재를 안겨주었습니다. 칼-메인 푸즈의 회계연도 2023 순이익은 $758.0달러로 급증했다가 회계연도 2024.에는 $277.9달러로 감소했습니다. 업계 관계자들은 가격 급등의 원인을 심각한 가금류 살처분, 투입 비용 인플레이션, 표준 원자재 벤치마크 가격 책정을 통해 작동하는 비탄력적인 소비자 수요 때문이라고 주장하지만, 팜 액션(Farm Action)과 같은 옹호 단체들은 시장 담합과 가격 폭리 혐의로 [연방거래위원회](wiki:Federal_Trade_Commission)(FTC)에 청원을 제기했습니다. 완만한 생산자 집중도(칼-메인의 시장 점유율 약 20%, 상위 20개 생산자의 점유율 약 70–75%)와 희박한 현물 시장 도매 가격 발견(어너 배리(Urner Barry) 지수화 등)의 구조적 결합은 공급 충격 시 가격 변동성을 크게 확대합니다. 그러나 과거의 반독점 사례에서 2015년 이전의 공급 조작에 대해 배심원 평결이 내려진 적은 있지만, 2022–2024년의 가격 급등과 관련하여 불법 담합에 대한 공식적인 FTC 집행 조치나 사법적 판단이 확정된 바는 없습니다.\n\n---\n\n## 표면적 설명\n계란 생산자, 농업 경제학자 및 무역 단체가 제시하는 전통적인 설명은 계란 가격의 급격한 상승이 전례 없는 고병원성 조류 인플루엔자(HPAI) 발생과 매우 비탄력적인 소비자 수요가 충돌하면서 발생한 불가피한 시장 반응이라는 것입니다. \n\n이 설명에 따르면:\n1. **생물학적 공급 파괴**: 2022,년 초부터 시작된 HPAI 바이러스 확산을 막기 위해 미국 전역에서 수천만 마리의 상업용 산란계에 대한 의무적인 살처분이 필요했습니다. 가금류 생산 주기는 성숙한 산란계를 교체하는 데 수개월이 걸리기 때문에, 국내 식용란 총 공급량은 갑작스러운 지역적 및 전국적 수축을 겪었습니다.\n2. **극심한 가격 비탄력성**: 계란은 즉각적인 대체재가 거의 없는 필수 소비자 식품이자 산업용 제과제빵 원료입니다. 식용란에 대한 소비자 [수요의 가격 탄력성](wiki:Price_elasticity_of_demand)은 역사적으로 낮습니다(종종 -0.1에서 -0.2 사이로 추정됨). 수요가 비탄력적인 경쟁적 [원자재 시장](wiki:Commodity_market)에서는 총 물량이 4%에서 6%만 감소해도 시장 수급을 맞추기 위해 가파른 가격 상승이 불가피합니다.\n3. **투입 비용 인플레이션**: 팬데믹 이후의 공급망 혼란과 지정학적 갈등으로 인해 사료 곡물 가격(옥수수 및 대두박)과 에너지/포장 비용이 급격히 상승하여, 계란 1다스당 생산의 기준 한계 비용이 높아졌습니다.\n4. **공식적인 도매 벤치마킹**: 주요 생산자들은 투명한 제3자 공표 시장 벤치마크(어너 배리 또는 [미국 농무부](wiki:United_States_Department_of_Agriculture) 인용 가격 등)에 따라 가격을 자동으로 조정하는 장기 소매업체 계약 하에 생산량의 대부분을 판매합니다. 따라서 생산자들은 도매 가격의 움직임이 생산자의 일방적인 결정이 아니라 광범위한 시장 수급 현물 역학을 반영한다고 주장합니다.\n\n---\n\n## 그 외에 어떤 일이 일어나고 있을 수 있는가\n생물학적 공급 충격이 부인할 수 없는 사실이었지만, 경제 감시 단체, 농업 옹호 기구 및 입법자들은 생산자의 가격 결정력, 가격 형성 메커니즘 및 기회주의적인 마진 확대에 관한 대안적인 구조적 가설을 제기했습니다.\n\n1. **비용 증가와 분리된 횡재 마진**:\n   경쟁적인 원자재 시장에서 공급 충격 기간 동안의 가격 상승은 일반적으로 해당 부문 전체의 높은 한계 투입 비용과 물량 손실을 보상합니다. 그러나 (미국에서 유일하게 상장된 대형 생산자인) 칼-메인 푸즈의 재무 공시에 따르면, 2022,년 11월 26,일에 종료된 26주 동안 총 이익이 전년 대비 10배 증가했습니다($50.4달러에서 $535.3달러로). 생산 및 사료 비용은 약 22% 상승한 반면, 순 판매 가격은 100%에서 150% 이상 상승했습니다. 또한, 칼-메인은 주요 2022 급증 기간 동안 자사 시설에서 HPAI 확진 사례가 전혀 없었다고 보고했으며, 이를 통해 회사는 비상 희소 가격으로 평상시와 다름없는 물량을 판매할 수 있었습니다.\n\n2. **희박한 현물 시장 가격 발견의 메커니즘**:\n   식료품 및 외식 산업 전반의 도매 식용란 계약은 민간 원자재 가격 보고 기관인 어너 배리가 발표하는 인용 가격을 지표로 삼는 경우가 많습니다. 결정적으로, 전국 식용란 물량 중 공개 협상된 \\\"현물\\\" 시장에서 거래되는 비중은 극히 일부(일반적으로 5%에서 10%로 추정됨)에 불과합니다. 대형 구매자가 국지적인 부족 상황에 직면하여 희소한 한계 현물 물량을 확보하기 위해 공격적으로 입찰하면 현물 가격은 수직 상승합니다. 지수화된 공급 계약은 계약 가격을 이러한 현물 벤치마크에 직접 고정하기 때문에, 개별 시설의 가금류 손실 여부와 관계없이 90%% 이상의 전체 계약 시장에서 지불되는 가격이 즉시 상승하여 업계 전반에 막대한 횡재 현금 흐름을 창출합니다.\n\n3. **시장 집중도 및 자본 재투자**:\n   국내 계란 산업이 전형적인 독점은 아니지만, 지역 유통에서 상당한 과점적 집중도를 보입니다. 칼-메인은 국내 식용란 시장의 약 20%를 점유하고 있으며, 상위 20개 생산자가 전국 산란계 사육두수의 거의 4분의 3을 차지합니다. 옹호 단체들은 지배적인 생산자들이 횡재 이익으로 생산 능력을 신속하게 확장하는 대신, 2023.년 칼-메인의 파시오 에그 팜스(Fassio Egg Farms) 인수와 같이 잉여 자본을 업계 통합에 투입했다고 주장했습니다.\n\n4. **시장 구조와 불법 담합의 구분**:\n   팜 액션(Farm Action)의 1월 2023 및 2월 2025 청원서는 FTC에 \"명백한 가격 폭리, 가격 조정 및 기타 불공정하거나 기만적인 행위 또는 관행\"에 대해 주요 계란 생산자들을 조사할 것을 촉구했습니다. 그러나 현재 공개된 증거는 2022–2024. 기간 동안 생산자들 사이에 명시적인 불법 합의나 카르텔이 있었음을 입증하지 못합니다. 공개된 벤치마크 가격 책정과 비탄력적 수요가 있는 과점 시장에서, 생산자들은 불법적인 공조 없이도 개별적인 이윤 극대화 행동과 수동적인 지수 연동을 통해 우발적인 이익을 얻을 수 있습니다.\n\n---\n\n## 증거\n\n아래의 감사 장부는 2022–2024 계란 시장에 관한 실질적인 정량적, 인과적 및 법적 지위 주장을 평가합니다.\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"bf9d1bc6-5987-4a01-904d-7a5cdde084e4\"}\n```\n\n\n---\n\n## 반론\n몇 가지 강력한 경제적 및 운영적 논거는 높은 계란 가격이 오로지 가격 폭리, 담합된 시장 지배력 또는 인위적인 공급 제한의 결과였다는 서술을 복잡하게 만듭니다.\n\n1. **순수 원자재의 미시경제적 가격 형성**:\n   껍질 계란은 상하기 쉬운 상품화된 재화로, 상하지 않고 장기간 사재기하거나 시장에 내놓지 않을 수 없습니다. 질병 충격으로 수천만 마리의 암탉이 사라지면, 수요량과 공급량이 일치할 때까지 한계 가격이 상승해야 시장 청산이 이루어집니다. 소비자 수요가 매우 비탄력적인 것으로 잘 알려져 있기 때문에, 가파른 가격 상승은 교과서적인 경쟁 균형의 결과이지 반드시 담합이나 반경쟁적 행위의 증거는 아닙니다.\n\n2. **생산자별 비대칭적 질병 노출**:\n   칼메인(Cal-Maine)은 2022, 말에 가금류 감염을 피했지만, 다른 상업적 생산자들은 전체 살처분, 축사 소독 및 수익이 없는 가동 중단 시간을 필요로 하는 파괴적인 손실을 입었습니다. 회계연도 2023에 기록된 칼메인의 기록적인 이익은 주로 지역 경쟁업체들이 공급 부족에 직면한 동안 풀가동 상태를 유지한 데 따른 결과였습니다. 이후 질병이 칼메인 시설(2023 말과 2024 초의 텍사스 및 캔자스 단지 등)에 침투했을 때, 칼메인 역시 도태 처분을 겪었습니다.\n\n3. **원자재 사이클의 대칭적 하락**:\n   계란 생산자들은 본질적으로 변동성이 크고 주기적인 산업에서 운영됩니다. 2023, 말에 조류 독감 압력이 완화되면서 도매 및 소매 가격이 급격히 떨어졌습니다. 결과적으로 칼메인의 순이익은 회계연도 2024에 63.3% 감소하여($758.0백만 달러에서 $277.9백만 달러로), 원자재 사이클이 다시 하락세로 돌아섰음을 반영했습니다. 공고한 일방적 가격 결정력을 가진 진정한 카르텔이라면 도매 가격과 영업 이익률이 그렇게 빨리 붕괴되도록 내버려 두는 경우는 드뭅니다.\n\n4. **규제 당국의 기소 또는 내부 고발자 증거 부재**:\n   [리나 칸(Lina Khan)](wiki:Lina_Khan) 의장이 이끄는 FTC의 집중적인 조사와 상원의 주요 의원들의 공개 서한에도 불구하고, 어떤 연방 기관도 2022–2024 발병 기간 동안 가격 담합이나 불법적인 공조를 주장하는 반독점 소송을 제기하지 않았습니다. 옹호 단체(예: 팜 액션)의 주장은 정책적 논거와 집행 청원을 나타내는 것이지, 불법 행위에 대한 검증된 조사 결과가 아닙니다.\n\n---\n\n## 요점\n- **확인됨**: \n  1. 2022–2024 HPAI 발병으로 수천만 마리의 산란계가 폐사하여 국내 계란 공급이 심각하게 중단되었습니다.\n  2. 칼메인 푸드(Cal-Maine Foods)는 회계연도 2023에 역사적인 기록적 매출과 이익(순이익 $758.0백만 달러)을 달성했으며, 이는 자체 생산 비용이 약 22% 상승하는 동안 판매 가격이 두 배 이상 오른 데 기인했습니다.\n  3. 식용란 산업은 중간 정도로 집중되어 있으며, 칼메인이 약 20%의 시장 점유율을 보유하고 상위 20개 생산자가 전국 산란계 사육 수의 약 70–75%를 보유하고 있습니다.\n  4. 여러 옹호 단체와 국회의원들이 FTC의 반독점 및 가격 폭리 조사를 공식적으로 요청했습니다.\n  5. 이전의 관련 없는 과거 소송(*In re Processed Egg Products Antitrust Litigation*)에서 배심원단은 주요 계란 생산자들이 2000s 동안 발생한 공급 제한 공모에 대해 책임이 있다고 판결했습니다.\n\n- **가능성 높음**: \n  도매 가격 발견 메커니즘, 특히 대규모 선도 소매 계약을 거래량이 적은 현물 시장인 어너 배리(Urner Barry) 벤치마크에 연동하는 방식이 가격 변동을 크게 과장하여, 질병 발생 기간 동안 피해를 입지 않은 생산자들이 막대한 구조적 우발 이익을 취할 수 있게 했습니다.\n\n- **그럴듯하지만 입증되지 않음**: \n  주요 생산자들이 2022–2024 기간 동안 높은 가격을 유지하기 위해 의도적으로 가금류 재입식을 지연시키거나 암묵적인 공조를 사용했다는 가설은 옹호 단체들의 주장으로 남아 있습니다.\n\n- **불확실함 / 판결되지 않음**: \n  2022–2024 HPAI 발병 기간 동안 반경쟁적 합의, 기만적 관행 또는 반독점 위반이 발생했는지 여부는 연방 규제 기관에 의해 공식적인 집행 조치, 동의 의결 또는 사법적 판결이 내려진 바 없으므로 입증되지 않은 상태로 남아 있습니다.\n\n---\n\n### 제안된 후속 문의\n이 주제의 특정 측면을 더 자세히 살펴보고 싶다면 다음을 탐색할 수 있습니다.\n- `[Investigate Urner Barry's price reporting methodology](/#message=Explain%20how%20Urner%20Barry%20gathers%20data%20and%20calculates%20its%20wholesale%20egg%20market%20price%20benchmarks.)`\n- `[Review historical egg antitrust litigation verdicts](/#message=Summarize%20the%20jury%20verdict%20and%20findings%20in%20In%20re%20Processed%20Egg%20Products%20Antitrust%20Litigation.)`\n- `[Examine USDA layer flock depopulation and repopulation data](/#message=Show%20USDA%20data%20on%20commercial%20laying%20hen%20depopulations%20from%20avian%20influenza%20between%202022%20and%202024.)`"
-      },
-      "sub_chat_1_message_1": {
-        "text": "조류 인플루엔자 발생(2022-2024) 이후 미국 계란 가격과 관련하여 생산자 시장 집중도, 도매 가격 발견, 기업 수익성, 반독점/규제 조사를 연구하세요.\n\n다음에 집중하세요:\n1. 생산자 집중도 및 가격 결정력: Cal-Maine Foods, Rose Acre Farms 등 상위 생산자가 식용 계란 시장의 어느 정도 점유율을 차지하고 있나요?\n2. Cal-Maine Foods 재무 성과: 2023 및 2024. 회계연도의 주요 SEC 10-K / 10-Q 공시 자료. 분기별/연간 매출, 순이익, 다스(dozen)당 평균 판매가, 매출총이익률을 보고하세요. 생산량은 정체되거나 감소한 반면 이익은 급증했나요?\n3. 도매 가격 형성: Urner Barry는 도매 계란 시세를 어떻게 벤치마킹하나요? 얇은 현물 시장 거래가 가격 변동을 과장하나요?\n4. 반독점 혐의 및 규제 조치: Farm Action의 FTC 청원서는 무엇을 주장했나요? FTC, 주 검찰총장 또는 의회는 어떤 조치를 취했나요? 공식적인 혐의 및 서한을 사법적 판결이나 FTC 집행 조치와 구분하세요. 과거의 반독점 맥락(예: 이전 계란 반독점 소송)을 참고하세요.\n\n요구 사항:\n- 웹 검색 및 웹 읽기를 사용하여 SEC 공시, FTC 보도 자료 및 법적 소송 기록을 확인하세요.\n- 정확한 1차 자료 발췌문, URL 및 기간을 제공하세요.\n- 확정된 사법적/규제적 조사 결과를 판결이 나지 않은 혐의나 옹호 청원과 명확히 구분하세요.\n- 상태(지원됨, 조건부, 반박됨, 미해결), URL, 발췌문 및 범위를 포함한 번호가 매겨진 증거 대장을 출력하세요."
-      },
-      "sub_chat_1_message_2": {
-        "text": "[!](embed:b0d298ba-3ba3-4fac-b946-7a4721aaa083)\n\n[!](embed:022a1c4c-89a5-4568-ac80-bc21860576ca)\n\n[!](embed:29f1f94a-9215-4586-8db7-53597e682caf)\n\n[!](embed:ede14a82-4cb4-4c58-a12e-ea88df205b25)\n\n[!](embed:f72d4b54-3c63-4824-bab6-811c749cfa70)\n\n## 요약\n2022–2024 고병원성 조류 인플루엔자](wiki:Avian_influenza)(HPAI) 발생 이후, 미국의 계란 도소매 가격은 사상 최고치를 기록했으며, 이는 칼-메인 푸즈(Cal-Maine Foods)와 같은 주요 생산자들에게 기록적인 재무적 횡재를 안겨주었습니다. 칼-메인 푸즈의 회계연도 2023 순이익은 $758.0달러로 급증했다가 회계연도 2024.에는 $277.9달러로 감소했습니다. 업계 관계자들은 가격 급등의 원인을 심각한 가금류 살처분, 투입 비용 인플레이션, 표준 원자재 벤치마크 가격 책정을 통해 작동하는 비탄력적인 소비자 수요 때문이라고 주장하지만, 팜 액션(Farm Action)과 같은 옹호 단체들은 시장 담합과 가격 폭리 혐의로 [연방거래위원회](wiki:Federal_Trade_Commission)(FTC)에 청원을 제기했습니다. 완만한 생산자 집중도(칼-메인의 시장 점유율 약 20%, 상위 20개 생산자의 점유율 약 70–75%)와 희박한 현물 시장 도매 가격 발견(어너 배리(Urner Barry) 지수화 등)의 구조적 결합은 공급 충격 시 가격 변동성을 크게 확대합니다. 그러나 과거의 반독점 사례에서 2015년 이전의 공급 조작에 대해 배심원 평결이 내려진 적은 있지만, 2022–2024년의 가격 급등과 관련하여 불법 담합에 대한 공식적인 FTC 집행 조치나 사법적 판단이 확정된 바는 없습니다.\n\n---\n\n## 표면적 설명\n계란 생산자, 농업 경제학자 및 무역 단체가 제시하는 전통적인 설명은 계란 가격의 급격한 상승이 전례 없는 고병원성 조류 인플루엔자(HPAI) 발생과 매우 비탄력적인 소비자 수요가 충돌하면서 발생한 불가피한 시장 반응이라는 것입니다. \n\n이 설명에 따르면:\n1. **생물학적 공급 파괴**: 2022,년 초부터 시작된 HPAI 바이러스 확산을 막기 위해 미국 전역에서 수천만 마리의 상업용 산란계에 대한 의무적인 살처분이 필요했습니다. 가금류 생산 주기는 성숙한 산란계를 교체하는 데 수개월이 걸리기 때문에, 국내 식용란 총 공급량은 갑작스러운 지역적 및 전국적 수축을 겪었습니다.\n2. **극심한 가격 비탄력성**: 계란은 즉각적인 대체재가 거의 없는 필수 소비자 식품이자 산업용 제과제빵 원료입니다. 식용란에 대한 소비자 [수요의 가격 탄력성](wiki:Price_elasticity_of_demand)은 역사적으로 낮습니다(종종 -0.1에서 -0.2 사이로 추정됨). 수요가 비탄력적인 경쟁적 [원자재 시장](wiki:Commodity_market)에서는 총 물량이 4%에서 6%만 감소해도 시장 수급을 맞추기 위해 가파른 가격 상승이 불가피합니다.\n3. **투입 비용 인플레이션**: 팬데믹 이후의 공급망 혼란과 지정학적 갈등으로 인해 사료 곡물 가격(옥수수 및 대두박)과 에너지/포장 비용이 급격히 상승하여, 계란 1다스당 생산의 기준 한계 비용이 높아졌습니다.\n4. **공식적인 도매 벤치마킹**: 주요 생산자들은 투명한 제3자 공표 시장 벤치마크(어너 배리 또는 [미국 농무부](wiki:United_States_Department_of_Agriculture) 인용 가격 등)에 따라 가격을 자동으로 조정하는 장기 소매업체 계약 하에 생산량의 대부분을 판매합니다. 따라서 생산자들은 도매 가격의 움직임이 생산자의 일방적인 결정이 아니라 광범위한 시장 수급 현물 역학을 반영한다고 주장합니다.\n\n---\n\n## 그 외에 어떤 일이 일어나고 있을 수 있는가\n생물학적 공급 충격이 부인할 수 없는 사실이었지만, 경제 감시 단체, 농업 옹호 기구 및 입법자들은 생산자의 가격 결정력, 가격 형성 메커니즘 및 기회주의적인 마진 확대에 관한 대안적인 구조적 가설을 제기했습니다.\n\n1. **비용 증가와 분리된 횡재 마진**:\n   경쟁적인 원자재 시장에서 공급 충격 기간 동안의 가격 상승은 일반적으로 해당 부문 전체의 높은 한계 투입 비용과 물량 손실을 보상합니다. 그러나 (미국에서 유일하게 상장된 대형 생산자인) 칼-메인 푸즈의 재무 공시에 따르면, 2022,년 11월 26,일에 종료된 26주 동안 총 이익이 전년 대비 10배 증가했습니다($50.4달러에서 $535.3달러로). 생산 및 사료 비용은 약 22% 상승한 반면, 순 판매 가격은 100%에서 150% 이상 상승했습니다. 또한, 칼-메인은 주요 2022 급증 기간 동안 자사 시설에서 HPAI 확진 사례가 전혀 없었다고 보고했으며, 이를 통해 회사는 비상 희소 가격으로 평상시와 다름없는 물량을 판매할 수 있었습니다.\n\n2. **희박한 현물 시장 가격 발견의 메커니즘**:\n   식료품 및 외식 산업 전반의 도매 식용란 계약은 민간 원자재 가격 보고 기관인 어너 배리가 발표하는 인용 가격을 지표로 삼는 경우가 많습니다. 결정적으로, 전국 식용란 물량 중 공개 협상된 \\\"현물\\\" 시장에서 거래되는 비중은 극히 일부(일반적으로 5%에서 10%로 추정됨)에 불과합니다. 대형 구매자가 국지적인 부족 상황에 직면하여 희소한 한계 현물 물량을 확보하기 위해 공격적으로 입찰하면 현물 가격은 수직 상승합니다. 지수화된 공급 계약은 계약 가격을 이러한 현물 벤치마크에 직접 고정하기 때문에, 개별 시설의 가금류 손실 여부와 관계없이 90%% 이상의 전체 계약 시장에서 지불되는 가격이 즉시 상승하여 업계 전반에 막대한 횡재 현금 흐름을 창출합니다.\n\n3. **시장 집중도 및 자본 재투자**:\n   국내 계란 산업이 전형적인 독점은 아니지만, 지역 유통에서 상당한 과점적 집중도를 보입니다. 칼-메인은 국내 식용란 시장의 약 20%를 점유하고 있으며, 상위 20개 생산자가 전국 산란계 사육두수의 거의 4분의 3을 차지합니다. 옹호 단체들은 지배적인 생산자들이 횡재 이익으로 생산 능력을 신속하게 확장하는 대신, 2023.년 칼-메인의 파시오 에그 팜스(Fassio Egg Farms) 인수와 같이 잉여 자본을 업계 통합에 투입했다고 주장했습니다.\n\n4. **시장 구조와 불법 담합의 구분**:\n   팜 액션(Farm Action)의 1월 2023 및 2월 2025 청원서는 FTC에 \"명백한 가격 폭리, 가격 조정 및 기타 불공정하거나 기만적인 행위 또는 관행\"에 대해 주요 계란 생산자들을 조사할 것을 촉구했습니다. 그러나 현재 공개된 증거는 2022–2024. 기간 동안 생산자들 사이에 명시적인 불법 합의나 카르텔이 있었음을 입증하지 못합니다. 공개된 벤치마크 가격 책정과 비탄력적 수요가 있는 과점 시장에서, 생산자들은 불법적인 공조 없이도 개별적인 이윤 극대화 행동과 수동적인 지수 연동을 통해 우발적인 이익을 얻을 수 있습니다.\n\n---\n\n## 증거\n\n아래의 감사 장부는 2022–2024 계란 시장에 관한 실질적인 정량적, 인과적 및 법적 지위 주장을 평가합니다.\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"bf9d1bc6-5987-4a01-904d-7a5cdde084e4\"}\n```\n\n---\n\n## 반론\n몇 가지 강력한 경제적 및 운영적 논거는 높은 계란 가격이 오로지 가격 폭리, 담합된 시장 지배력 또는 인위적인 공급 제한의 결과였다는 서술을 복잡하게 만듭니다.\n\n1. **순수 원자재의 미시경제적 가격 형성**:\n   껍질 계란은 상하기 쉬운 상품화된 재화로, 상하지 않고 장기간 사재기하거나 시장에 내놓지 않을 수 없습니다. 질병 충격으로 수천만 마리의 암탉이 사라지면, 수요량과 공급량이 일치할 때까지 한계 가격이 상승해야 시장 청산이 이루어집니다. 소비자 수요가 매우 비탄력적인 것으로 잘 알려져 있기 때문에, 가파른 가격 상승은 교과서적인 경쟁 균형의 결과이지 반드시 담합이나 반경쟁적 행위의 증거는 아닙니다.\n\n2. **생산자별 비대칭적 질병 노출**:\n   칼메인(Cal-Maine)은 2022, 말에 가금류 감염을 피했지만, 다른 상업적 생산자들은 전체 살처분, 축사 소독 및 수익이 없는 가동 중단 시간을 필요로 하는 파괴적인 손실을 입었습니다. 회계연도 2023에 기록된 칼메인의 기록적인 이익은 주로 지역 경쟁업체들이 공급 부족에 직면한 동안 풀가동 상태를 유지한 데 따른 결과였습니다. 이후 질병이 칼메인 시설(2023 말과 2024 초의 텍사스 및 캔자스 단지 등)에 침투했을 때, 칼메인 역시 도태 처분을 겪었습니다.\n\n3. **원자재 사이클의 대칭적 하락**:\n   계란 생산자들은 본질적으로 변동성이 크고 주기적인 산업에서 운영됩니다. 2023, 말에 조류 독감 압력이 완화되면서 도매 및 소매 가격이 급격히 떨어졌습니다. 결과적으로 칼메인의 순이익은 회계연도 2024에 63.3% 감소하여($758.0백만 달러에서 $277.9백만 달러로), 원자재 사이클이 다시 하락세로 돌아섰음을 반영했습니다. 공고한 일방적 가격 결정력을 가진 진정한 카르텔이라면 도매 가격과 영업 이익률이 그렇게 빨리 붕괴되도록 내버려 두는 경우는 드뭅니다.\n\n4. **규제 당국의 기소 또는 내부 고발자 증거 부재**:\n   [리나 칸(Lina Khan)](wiki:Lina_Khan) 의장이 이끄는 FTC의 집중적인 조사와 상원의 주요 의원들의 공개 서한에도 불구하고, 어떤 연방 기관도 2022–2024 발병 기간 동안 가격 담합이나 불법적인 공조를 주장하는 반독점 소송을 제기하지 않았습니다. 옹호 단체(예: 팜 액션)의 주장은 정책적 논거와 집행 청원을 나타내는 것이지, 불법 행위에 대한 검증된 조사 결과가 아닙니다.\n\n---\n\n## 요점\n- **확인됨**: \n  1. 2022–2024 HPAI 발병으로 수천만 마리의 산란계가 폐사하여 국내 계란 공급이 심각하게 중단되었습니다.\n  2. 칼메인 푸드(Cal-Maine Foods)는 회계연도 2023에 역사적인 기록적 매출과 이익(순이익 $758.0백만 달러)을 달성했으며, 이는 자체 생산 비용이 약 22% 상승하는 동안 판매 가격이 두 배 이상 오른 데 기인했습니다.\n  3. 식용란 산업은 중간 정도로 집중되어 있으며, 칼메인이 약 20%의 시장 점유율을 보유하고 상위 20개 생산자가 전국 산란계 사육 수의 약 70–75%를 보유하고 있습니다.\n  4. 여러 옹호 단체와 국회의원들이 FTC의 반독점 및 가격 폭리 조사를 공식적으로 요청했습니다.\n  5. 이전의 관련 없는 과거 소송(*In re Processed Egg Products Antitrust Litigation*)에서 배심원단은 주요 계란 생산자들이 2000s 동안 발생한 공급 제한 공모에 대해 책임이 있다고 판결했습니다.\n\n- **가능성 높음**: \n  도매 가격 발견 메커니즘, 특히 대규모 선도 소매 계약을 거래량이 적은 현물 시장인 어너 배리(Urner Barry) 벤치마크에 연동하는 방식이 가격 변동을 크게 과장하여, 질병 발생 기간 동안 피해를 입지 않은 생산자들이 막대한 구조적 우발 이익을 취할 수 있게 했습니다.\n\n- **그럴듯하지만 입증되지 않음**: \n  주요 생산자들이 2022–2024 기간 동안 높은 가격을 유지하기 위해 의도적으로 가금류 재입식을 지연시키거나 암묵적인 공조를 사용했다는 가설은 옹호 단체들의 주장으로 남아 있습니다.\n\n- **불확실함 / 판결되지 않음**: \n  2022–2024 HPAI 발병 기간 동안 반경쟁적 합의, 기만적 관행 또는 반독점 위반이 발생했는지 여부는 연방 규제 기관에 의해 공식적인 집행 조치, 동의 의결 또는 사법적 판결이 내려진 바 없으므로 입증되지 않은 상태로 남아 있습니다.\n\n---\n\n### 제안된 후속 문의\n이 주제의 특정 측면을 더 자세히 살펴보고 싶다면 다음을 탐색할 수 있습니다.\n- `[Investigate Urner Barry's price reporting methodology](/#message=Explain%20how%20Urner%20Barry%20gathers%20data%20and%20calculates%20its%20wholesale%20egg%20market%20price%20benchmarks.)`\n- `[Review historical egg antitrust litigation verdicts](/#message=Summarize%20the%20jury%20verdict%20and%20findings%20in%20In%20re%20Processed%20Egg%20Products%20Antitrust%20Litigation.)`\n- `[Examine USDA layer flock depopulation and repopulation data](/#message=Show%20USDA%20data%20on%20commercial%20laying%20hen%20depopulations%20from%20avian%20influenza%20between%202022%20and%202024.)`"
-      },
-      "sub_chat_1_message_2_thinking": {
-        "text": "{\"text\": \"**계란 가격 역학 분석**\n\n저는 2022년부터 2024.년까지 조류 인플루엔자 발생 이후의 미국 계란 가격 분석에 집중하고 있습니다. 현재 생산자 시장 집중도를 파헤치고 있습니다. 식용란 시장 내 최대 기업들, 특히 Cal-Maine Foods의 가격 결정력을 수치화하고자 합니다. 이를 위해 이들의 시장 점유율을 파악하고, 그것이 발병 기간 및 그 이후의 가격 결정에 어떤 영향을 미치는지 이해해야 합니다.\n\n\n**가격 형성 조사**\n\n현재 도매 가격 형성 과정, 특히 Urner Barry가 어떻게 벤치마크를 설정하는지, 그리고 협소한 현물 시장 거래가 가격 변동을 과장하는지 살펴보고 있습니다. 또한 반독점 혐의와 규제 조치에 대해서도 조사를 시작하여, 공식적인 청원과 실제 집행을 구분하고 있습니다. 연구 구조는 마련되었으며, 분석을 안내하기 위해 \\\"짧은 답변, 표면적 설명, 그 외에 어떤 일이 일어나고 있을 수 있는가, 증거, 반론, 결론\\\" 형식을 채택할 것입니다.\n\n\n**도구 제한 사항 명확화**\n\n`start_sub_chats` 도구를 사용할 수 없다는 점을 깨달았습니다. 복잡한 연구에 대한 저의 초기 접근 방식은 이 도구가 있다고 가정했으므로 수정이 필요합니다. 이제 가용한 `web-search` 기능에만 의존하도록 전략을 조정하고 있습니다. 즉, 광범위한 질문을 더 작고 집중적인 검색으로 세분화하여 정보를 체계적으로 수집해야 함을 의미합니다. 특히 여러 소스의 정보를 종합하는 데 유의해야 합니다.\n\n\n**연구 접근 방식 개선**\n\n`web-search` 도구의 제한과 방금 정의된 새로운 구조화된 출력 형식에 따라 접근 방식을 완전히 재구성하고 있습니다. 요구되는 정확히 6개의 제목과 이 구조 내에서 제한된 웹 액세스를 사용하는 방법에 집중하고 있습니다. 구체적으로, 번호가 매겨진 증거 원장을 통합하고, 주장 유형을 구분하며, Cal-Maine Foods의 10-K 공시와 같은 소스를 식별하고 있습니다.\n\n\n**검색 전략 실행**\n\n데이터 수집을 위한 검색 전략을 수립했습니다. 2023 및 2024, 회계연도의 Cal-Maine 재무 상태, Farm Action의 FTC 청원, Urner Barry의 가격 발견 메커니즘, 주요 계란 생산자의 시장 점유율 데이터, 그리고 *In re Processed Egg Products Antitrust Litigation*의 결과에 초점을 맞춘 5개의 병렬 `web-search` 쿼리를 설계했습니다. 목표는 분석을 위한 1차 및 2차 데이터의 토대를 구축하는 것입니다.\n\n\n**Cal-Maine 데이터 분석**\n\n좋습니다, 이제 Cal-Maine Foods의 10-K 공시 자료를 파헤치고 있습니다. 핵심 데이터 포인트를 추출하는 데 집중하고 있습니다. 특히 순매출, 순이익, 다스당 평균 판매 가격, 총 판매 다스 수를 확인하기 위해 이들의 FY2023 및 FY2024 재무 제표에 관심을 두고 있습니다.\n\n\n**Cal-Maine 수치 찾기**\n\n직접적인 SEC URL에서 난관에 부딪혔습니다. Edgar가 자동화된 액세스를 차단하고 있는 것으로 보여 방향을 전환하고 있습니다. 이제 웹 검색을 사용하여 Cal-Maine의 정확한 10-K 수치를 찾고 있습니다. 데이터의 정확성을 보장하기 위해 실적 발표, SEC 공시 미러 사이트 또는 재무 데이터베이스와 같은 신뢰할 수 있는 소스에서 정보를 찾는 데 집중하고 있습니다.\n\n\n**계란 가격 역학 분석**\n\n현재 조류 인플루엔자 발생(2022-2024)이 미국 계란 가격에 미친 영향을 조사하고 있습니다. 생산자 집중도와 가격 결정력에 초점을 맞추고 있으며, 특히 Cal-Maine Foods와 Rose Acre Farms를 살펴보고 있습니다. 또한 SEC 공시(10-K/10-Q)를 검토하여 Cal-Maine의 재무 성과를 분석하고 있습니다. 목표는 이러한 요인들이 시장 역학에 영향을 미치기 위해 어떻게 상호 작용하는지 이해하는 것입니다.\n\n\n**반독점 시사점 검토**\n\n현재 반독점 측면을 조사하고 있으며, 특히 Farm Action의 FTC 청원과 의회의 정밀 조사에 초점을 맞추고 있습니다. 혐의와 공식적인 조치를 구분하고 있으며, *Processed Egg Products Antitrust Litigation* 판결을 살펴보고 있습니다. Urner Barry 시세를 사용하여 도매 가격 형성을 추적하고 있습니다. 또한 가격 행동을 더 잘 이해하기 위해 2023 및 2024 재무 데이터(매출, 수익, 마진)를 검토하고 있습니다.\n\n\n**제약 조건 준수 확인**\n\n예산 경고로 인해 특히 \\\"최종 답변 복구\\\" 프로토콜 및 추가 도구 사용 금지와 관련하여 모든 지침을 엄격히 준수하고 있는지 신중하게 검토하고 있습니다. 최종 답변 구성에 관한 가이드라인에 집중하고 있으며, 최종 답변이 과업의 요구 사항을 충족하도록 이 가이드라인을 준수할 것입니다. 기존의 모든 안전 요구 사항과 제약 조건을 유지하면서 대화 내의 완성된 증거를 바탕으로 답변을 작성해야 합니다. 답변 구조, 능동적 집중 가이드라인에 집중하고 도구 관련 모든 작업을 피하고 있습니다.\n\n\n**답변 구조 정의**\n\n현재 답변 형식 구성에 완전히 몰입해 있습니다. \\\"짧은 답변\\\", \\\"표면적 설명\\\", \\\"그 외에 어떤 일이 일어나고 있을 수 있는가\\\", \\\"증거\\\", \\\"반론\\\", \\\"결론\\\"이라는 지정된 6개의 제목을 사용해야 합니다. 환각을 방지하기 위해 특히 URL 사용과 관련하여 증거 소싱 가이드라인을 검토하고 있습니다. 대화 기록에 있는 소스에만 집중할 것입니다. 집중적이고 규정을 준수하는 최종 답변을 위해 규정된 구조를 준수하는 것을 최우선으로 하고 있습니다.\n\n\n**관련 URL 수집**\n\n대화 기록에서 URL을 신중하게 목록화했습니다. \\\"증거\\\" 섹션을 구성할 때 적절한 소싱을 보장하고 환각을 피하기 위해 이 링크들을 신중하게 사용해야 합니다. 최종 답변 내에서 제가 제기하는 주장을 뒷받침하기 위해서만 이 URL들을 사용할 것입니다.\n\n\n**관련 증거 수집**\n\n제공된 소스에서 추가적인 뒷받침 자료를 수집했습니다. 이제 이러한 참조 자료를 \\\"증거\\\" 섹션에 통합하는 데 집중하고 있으며, 주장과 공식적인 확인을 신중하게 구분하여 진실성을 준수하고 조작을 피하고 있습니다. 지침에 따라 해결되지 않은 주장을 기록해 두도록 하겠습니다.\n\n\n**최종 답변 구조화**\n\n\"}\n\n제공된 구조를 사용하여 \"요약 답변(Short Answer)\", \"표면적 설명(Surface Explanation)\", \"이면의 가능성(What Else May Be Going On)\", \"증거(Evidence)\", \"반론(Counterarguments)\", \"결론(Bottom Line)\"의 각 섹션을 추가하며 답변 형식을 구성하는 데 집중하고 있습니다. 최종 답변을 취합하기 위해 각 섹션의 지침을 검토 중입니다. 증거를 정확하게 제시하고 있는지 확인하고 있습니다.\n\n\n**대안적 설명 종합**\n\n이제 대안적 설명들을 답변에 통합하고 있습니다. 공식적인 고병원성 조류인플루엔자(HPAI) 서사와 시장 집중도 및 가격 결정 역학을 대조하는 데 초점을 맞추고 있습니다. 비탄력적 수요, 투입 비용, 투명한 원자재 가격 책정의 역할을 인정해야 합니다. 또한 도매 가격 발견에서 어너 배리(Urner Barry)의 역할을 조사하고 있습니다. 칼메인(Cal-Maine)의 인상적인 FY2023 순이익 데이터가 불로소득의 증거로 포함될 것입니다.\n\n\n**가격 폭리 주장 감사**\n\n이제 가격 폭리 주장, 특히 옹호 단체들의 주장을 면밀히 감사하며 혐의와 입증된 불법적 의도를 구분하는 데 집중하고 있습니다. 통합 과정에서의 인수합병(M&A) 활동의 역할과 불로소득을 이용한 경쟁사 인수를 조사하고 있습니다. 증거와 URL이 포함된 주장 장부를 유지할 것입니다. 예를 들어, 순이익과 매출을 포함하여 2023년 및 2024,년 칼메인의 재무 성과를 평가해야 합니다.\n\n\n**매출 성과 분석**\n\n이제 칼메인의 최근 매출 데이터에 집중하고 있습니다. 2024년 4분기 판매량은 2023,년에 비해 감소했지만, 순이익은 전년보다는 낮아졌음에도 여전히 상당한 수준을 유지하고 있습니다. 구체적으로 회계연도 2024,의 순이익은 $277.9백만 달러였습니다. 또한 포함할 증거로서 2022년 가격 급등기 동안 칼메인의 매출 총이익이 급격히 증가한 점을 검토하고 있습니다. 팜 액션(Farm Action) 청원 데이터가 매우 중요합니다.\n\n\n**시장 집중도 평가**\n\n이제 시장 집중도를 평가하고 있습니다. 와타넷(Wattagnet)에 따르면 미국 상위 21개 계란 생산 업체가 시장의 거의 4분의 3을 장악하고 있음을 확인했습니다. 2021-2024.년의 구체적인 판매량 수치를 포함하고 있습니다. 이제 2021-2024.년의 현저히 높은 도매 가격에 대한 주장을 평가하고 있습니다.\n\n\n**주장 검증 평가**\n\n이제 우리 논의 내의 주장들을 면밀히 검증하며 가용한 문서들과 교차 참조하고 있습니다. 팜 액션이 인용한 것처럼 비용 증가와 가격 증가를 대조할 때 정확성을 최우선으로 하고 있습니다. 또한 칼메인이 직면한 규제 조사를 확인하고자 합니다. 이전 검토의 매출 성과 지표를 통합하고 있습니다. 기존 데이터와 비교하여 해당 주장들을 검증하고 있습니다.\n\n\n\n**소송과 가격 책정의 연결**\n\n이제 팜 액션의 서한을 토대로 과거의 반독점 맥락, 구체적으로는 이전 소송 결과를 분석에 통합하고 있습니다. 과거의 담합과 현재의 HPAI 관련 가격 변동 사이의 차이점에 주목하고 있습니다. 또한 도매 가격 형성에서 어너 배리 시세의 역할을 조사하며, 협소한 현물 거래가 가파른 가격 변동성을 초래할 수 있음을 인식하고 있습니다.\n\n\n**소송과 가격 책정의 연결**\n\n이제 팜 액션의 서한을 토대로 과거의 반독점 맥락, 구체적으로는 이전 소송 결과를 분석에 통합하고 있습니다. 과거의 담합과 현재의 HPAI 관련 가격 변동 사이의 차이점에 주목하고 있습니다. 또한 도매 가격 형성에서 어너 배리 시세의 역할을 조사하며, 협소한 현물 거래가 가파른 가격 변동성을 초래할 수 있음을 인식하고 있습니다. 이제 답변에 반론을 통합하고 있으며, 2022-2024년의 정확한 거래 데이터 부족 문제가 해결되지 않았음을 인지하고 있지만 이를 주의 사항으로 명시할 것입니다.\n\n\n**주요 결과 요약**\n\n이제 순이익 변화에 초점을 맞추어 확실한 것, 개연성 있는 것, 그럴듯하지만 입증되지 않은 것을 판단하기 위해 모든 정보를 종합하고 있습니다. 이제 2023,년의 기록적인 이익과 같은 확인된 요소들과 시장의 협소함 및 비탄력적 수요로 인한 과장된 가격 변동성과 같은 개연성 있는 요인들을 식별했다고 믿습니다. 또한 언급해야 할 그럴듯한 시나리오들도 가지고 있습니다. 여전히 불확실한 부분이 무엇인지 인정해야 합니다.\n\n\n**준수 사항 이행 평가**\n\n이제 형식 지정 및 주장 검증에 중점을 두고 준수 사항 체크리스트를 엄격히 집행하고 있습니다. 제약 조건, 특히 지정된 6개의 제목, 번호가 매겨진 증거 및 URL 사용에 집중하고 있습니다. 지금까지 제기된 모든 주장을 면밀히 검토하여 각 주장이 지지, 유보, 반박 또는 미해결 상태인지 확인하고 대화 기록의 관련 지원 URL에 연결되도록 하고 있습니다. 기간, 지리적 범위, 대상, 지표 및 법적 지위를 식별하여 정확성을 보장하고 있습니다.\n\n\n**문서 제목 사용 확인**\n\n이제 정확성을 기하기 위해 *Cal-Maine Foods* 및 *Avian influenza*와 같이 처음 언급될 때 위키백과의 정식 명칭을 신중하게 적용하고 있습니다. 올바른 형식과 준수를 보장하기 위해 *Sherman Antitrust Act* 및 *Clayton Antitrust Act*와 같은 모든 제목을 확인하고 있습니다. 또한 URL 환각을 방지하기 위해 대화 기록에서 확인된 URL만 사용하고 있는지 점검하고 있습니다.\n\n\n**이익 역학 계산**\n\n이제 칼메인의 이익 역학을 이해하기 위해 최근 재무 데이터를 분석하고 있습니다. 상당한 매출에도 불구하고 FY2023에서 FY2024, 사이에 순이익이 크게 감소한 점에 집중하고 있습니다. 비용 절감액을 매출 수치, 특히 생산 및 사료 비용과 비교하고 있습니다. 또한 데이터 포인트로 추가하기 위해 2022년의 매출 총이익 변화를 계산하고 있습니다."
-      },
-      "sub_chat_2_title": {
-        "text": "하위 채팅"
-      },
-      "sub_chat_2_summary": {
-        "text": "## 요약\n\n2022 후반부터 2024까지의 미국 계란 가격은 수천만 마리의 산란계를 폐사시킨 고병원성 조류 인플루엔자(HPAI)로 인한 살처분이라는 생물학적 현실과 계란에 대한 소비자 수요의 극심한 가격 비탄력성이 결합되어 발생했습니다. 식용란 산란계는 국내 가금류 사육 두수의 4% 미만을 차지함에도 불구하고 전체 국내 가금류 손실의 75%를 차지했으며, 생산을 복구하기 위한 생물학적 지체 시간으로 인해 중병아리가 성숙하는 데 최소 20~22주가 소요되고, 다연령 상업용 단지를 완전히 재입식하는 데는 최대 80주가 걸립니다. HPAI는 완전히 가라앉지 않고 심각한 계절적 파동으로 재발했습니다. 2022, 후반에 정점을 찍었고, 2023, 후반에 급격히 재확산되었으며, 2024 후반에는 캘리포니아와 중서부 전역에서 더욱 심화되었습니다. [캘리포니아](wiki:California) 발의안 12과 같은 주 단위의 케이지 프리(cage-free) 사육법은 지역 시장을 분절시켰고, HPAI가 케이지 프리 시설을 집중적으로 타격했을 때 케이지 프리 공급망을 매우 취약하게 만들었습니다. 반면 주요 사료 비용은 2022 정점 대비 20%에서 40% 사이에 실제로 하락하여, 계란 가격 인플레이션이 투입 비용 상승 현상이 아니라 구조적이고 질병에 의한 것임을 확인시켜 주었습니다.\n\n---\n\n## 표면적 설명\n\n농업 당국과 업계 단체가 제시하는 주요 설명은 계란 가격 급등이 전례 없는 가축 건강 위기로 인한 필연적인 경제적 결과라는 것입니다. [미국 농무부](wiki:United_States_Department_of_Agriculture)(USDA) 산하 [동식물검역소](wiki:Animal_and_Plant_Health_Inspection_Service)(APHIS)가 집행하는 연방 살처분 명령에 따라, 단 한 마리의 양성 조류라도 발견되면 질병 전파를 억제하기 위해 시설 전체를 신속하게 살처분해야 합니다. \n\n산란계는 육계보다 수명이 길고 대규모 상업용 계사에 밀집되어 있기 때문에, 상업용 산란계 농장은 괴멸적인 군집 감소를 겪었습니다. 수백만 마리의 생산적인 암탉이 제거되면 상업용 계란 공급이 갑자기 줄어듭니다. 껍질 계란에 대한 소비자 수요는 가격 비탄력성이 매우 높기 때문에(소비자들이 계란을 요리 시 즉각적인 대체재가 거의 없는 필수 식품으로 간주함을 의미), 국가 생산량이 소폭(식용란 생산량 2%~5% 감소 등)만 떨어져도 도매 및 소매 가격은 급격한 비율로 치솟게 됩니다. 농가가 의무적인 사체 처리, 세척, 소독 및 환경 휴지기를 완료한 후에도, 신선한 계란이 소매점 선반으로 돌아오기까지는 교체용 중병아리가 부화하고 자라 성숙기에 도달할 때까지 수개월을 기다려야 합니다.\n\n---\n\n## 그 외에 어떤 일이 일어나고 있는가\n\n질병으로 인한 공급 감소가 근본적인 촉매제이긴 하지만, 여러 상호 작용하는 구조적, 규제적, 시장적 역학 관계가 가격 급등의 심각성과 지리적 분포를 증폭시켰습니다.\n\n1. **주별 가축 사육 규정에 따른 시장 분절:** \n   주 단위의 케이지 프리 법안의 전면 시행—가장 두드러진 것은 캘리포니아 발의안 12(계란에 대해 효력이 발생했으며 2023 5월 [미국 연방 대법원](wiki:Supreme_Court_of_the_United_States)에 의해 확정됨)과 매사추세츠 질문 3,이며, 콜로라도, 워싱턴, 오리건 등의 주 법률이 그 뒤를 이음—은 전국 계란 시장을 법적으로 분할했습니다. 이러한 관할 구역의 소매업체는 기존 케이지 시설에서 생산된 계란을 합법적으로 판매할 수 없습니다. 2023 후반과 2024,에 철새가 케이지 프리 산란계 군집을 감염시켰을 때, 타 주 공급업체는 남는 일반 계란으로 지역적 부족분을 보충할 수 없었습니다. 이러한 규제 마찰은 국지적 부족 현상을 악화시켜, 2024 후반과 2025. 초반에 캘리포니아 도매 가격을 1다스당 $10.00 이상으로, 소매 가격을 $8.90 이상으로 끌어올렸습니다.\n\n2. **계란 가격과 사료 및 투입 비용의 탈동조화:** \n   2022 초기 인플레이션 파동 동안 농업 생산자들은 가금류 사료, 천연가스, 포장재 및 디젤에 대한 가변 비용 상승에 직면했습니다. 그러나 2023 후반과 2024, 내내 옥수수와 대두박(산란계 사료 성분의 80%~90%를 차지함)의 기준 가격은 크게 하락했습니다. 농가 수준의 생산 비용 데이터에 따르면 1다스당 사료 비용은 실질적으로 하락한 반면 계란 시장 가격은 상승하여, 2023~2024 가격 급등이 일반적인 투입 비용 인플레이션에 의해 주도되었다는 가설이 틀렸음을 입증했습니다.\n\n3. **비대칭적 현물 가격 책정과 기업 이익:** \n   계란은 일일 및 주간 도매 현물 및 공식 기준(Urner Barry 지수 시세 등)에 따라 거래되기 때문에, 국지적인 공급 패닉 상황에서 가격이 즉시 상향 조정됩니다. 피해를 입지 않은 농장을 운영하는 상업용 생산자들은 표준 생산량을 현물 시장 프리미엄 가격으로 판매하여 기업 총이익을 대폭 늘렸습니다. 예를 들어, 미국 최대 계란 생산업체인 칼메인 푸즈(Cal-Maine Foods)는 2024. 초반부터 후반까지 분기별 총이익이 310% 증가했다고 보고했습니다. 이러한 마진 확대는 의회 조사를 촉발했으며, [미국 법무부 반독점국](wiki:United_States_Department_of_Justice_Antitrust_Division)이 2025 3월에 알고리즘 또는 공모를 통한 가격 담합 가능성에 대한 조사를 시작하도록 유도했습니다. 이는 2004과 2008. 사이의 업계 공급 조정과 관련된 이전 연방 배심원 평결을 연상시킵니다.\n\n---\n\n## 증거\n\n### 가금류 생물학 및 재입식 물류\n감염된 산란계 시설이 살처분되면, 감염 전 생산량으로 복구하는 과정은 엄격한 생물학적 및 규제적 관문에 의해 통제됩니다.\n- **근절 및 격리:** 살처분(일반적으로 이산화탄소, 수성 포말 또는 환기 차단 방식) 후, 시설은 사체 처리(퇴비화 또는 매립)를 거친 다음 집중적인 세척 및 화학적 소독(C&D)을 수행합니다. 주 및 연방 가금류 계획에 따라, USDA APHIS가 시설의 격리를 해제하기 전까지 해당 구역은 환경 스왑 테스트를 거쳐야 하며 공식적인 휴지 기간(일반적으로 소독 후 최소 21일, 또는 비소독 휴지 바이러스 제거 방식을 선택할 경우 최대 150일) 동안 조류가 없는 상태를 유지해야 합니다.\n- **중병아리 성숙 곡선:** 성계(다 자란 암탉)를 구입한다고 해서 산란계 생산을 하루아침에 재개할 수 있는 것은 아닙니다. 부화장은 생후 1일 된 암컷 병아리(중병아리)를 공급하며, 이들은 전용 사육장에서 16주에서 17주 동안 사육됩니다. 약 18주에서 20주령이 되면 중병아리는 성적으로 성숙하여 산란계사로 옮겨집니다. 첫 산란은 약 20주에서 22주 사이에 발생하며, 최고 산란 생산성(산란율 90% 이상)은 약 25주에서 30주 사이에 달성됩니다.\n- **시차를 둔 다연령 복합 단지:** 현대적인 상업용 계란 복합 단지는 여러 동의 계사에 수십만에서 수백만 마리의 조류를 수용합니다. 상업용 농장은 꾸준한 일일 계란 크기와 물량을 유지하기 위해 의도적으로 가금류의 연령(20주에서 80주 이상까지)에 시차를 둡니다. 전체 시설이 살처분될 경우, 중병아리 부화장 용량 제한과 하류 시장의 약속으로 인해 전체 부지를 동시에 재입식하는 것은 상업적으로 불가능합니다. 완전한 다연령 복합 단지 재입식에는 12개월에서 18개월(최대 80주)이 소요됩니다.\n\n### 파동 역학 및 재발하는 발병\nHPAI는 2022년 봄 파동 이후 사라지는 대신, 태평양, 중앙, 미시시피, 대서양 철새 이동 경로를 따라 북미 철새 수조류 내에 풍토병 저장소를 형성했습니다.\n- 2022,년 말 겨울 이동은 중서부 산란계 복합 단지에 대규모 재감염을 가져왔고, 이로 인해 전국 소매 가격은 2023.년 1월에 12개당 $4.82로 정점을 찍었습니다.\n- 따뜻한 날씨로 인해 2023,년 중반에는 소강상태를 보였으나, 2023년 말과 2024,년 초에 다시 사례가 급증하여 캘리포니아의 센트럴 밸리와 소노마 카운티의 주요 상업용 복합 단지를 강타했습니다.\n- 발병 강도는 2024년 말에 급격히 치솟았습니다. 2024년 11월과 12월 두 달 동안의 상업용 암탉 손실만으로도 해당 역년 전체 국내 암탉 손실의 43%를 차지했습니다. 2025,년 첫 6주 동안 약 28만 마리의 산란계가 추가로 살처분되었으며, 이로 인해 전국 소매 평균 가격은 2025.년 3월에 12개당 $6.23라는 사상 최고치를 기록했습니다.\n- 구조적인 생물 보안 취약성을 보여주듯, APHIS는 67개의 고유한 상업용 가금류 시설이 최소 2회 이상 반복 감염을 경험했으며, 19개 시설은 2022년에서 2024.년 말 사이에 3회 이상 감염되었다고 기록했습니다.\n\n```json\n{\"type\": \"code\", \"embed_id\": \"e06705c3-35ae-4972-8be1-f01219e9ec08\"}\n```\n\n### 주요 문서 인용\n\n> [따라서, 산란계 무리가 HPAI에 감염되어 질병 확산을 통제하기 위해 살처분되는 경우, 새로운 암탉이 성적으로 성숙하여 다시 계란을 생산하기 시작하기까지 최대 20주가 걸릴 수 있습니다.](embed:congress.gov-Eg7)\n\n---\n\n### 번호가 매겨진 주장 및 증거 대장\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"37e3bde4-90d3-4491-9cf1-65d5dbd80779\"}\n```\n\n---\n\n## 반론\n\n### 1. 기업의 \"탐욕 인플레이션\"이나 담합이 가격 급등을 설명하는가?\n의원들은 Cal-Maine Foods의 310% 수익 급증과 과거의 가격 담합 판결(예: 2004~2008년 행위에 대해 계란 생산자들에게 내려진 2023년 평결)을 지적했지만, 발병 기간 중 높은 현물 이익이 능동적인 담합을 증명하는 것은 아닙니다. 껍질 계란은 투명한 일일/주간 현물 지수에 따라 판매되는 대체로 차별화되지 않은 원자재입니다. 가격 비탄력적 수요를 가진 경매 시장에서, 단 3%~5%의 총 공급 부족만으로도 한계 구매자가 배제될 때까지 가격은 기하급수적으로 상승하게 됩니다. 자신의 계사에 HPAI 유입을 성공적으로 막아낸 생산자들은 공모할 필요 없이 지배적인 시장 청산 가격으로 판매를 완료했습니다.\n\n### 2. 케이지 프리 의무화만이 지역적 격차의 원인인가?\n동물 복지 입법을 비판하는 측은 캘리포니아 주민 발의안 제12호와 매사추세츠 질문 제3호가 전국 식품 유통 시스템을 망가뜨렸다고 주장했습니다. 그러나 농업 경제학자들은 일반 계란도 야생 수조류 이동을 통한 동일한 HPAI 감염 경로에 노출되어 있다고 지적합니다. 케이지 프리 규정으로 인해 타주의 일반 계란이 캘리포니아 식료품점 선반의 완충 역할을 하는 것이 차단되기는 했지만, 캘리포니아 부족 사태의 근본적인 원인은 캘리포니아 내부와 전용 서부 케이지 프리 공급망 내에서 발생한 수백만 마리 암탉의 물리적 감염과 도태였습니다.\n\n### 3. 사료 및 운송 비용이 가격을 높게 유지했는가?\n러시아-우크라이나 전쟁 발발 이후 2022년 동안 사료, 화물 및 에너지 비용이 급증했지만, 이 설명은 2023~2024년 회복 기간에는 맞지 않습니다. USDA [경제조사국](wiki:Economic_Research_Service)(ERS) 및 계란 산업 센터(Egg Industry Center) 데이터에 따르면 옥수수 가격은 2023,년 말까지 전년 대비 28% 하락했으며, 총 가금류 사료 비용은 2025.년까지 2023년 정점 대비 44% 하락했습니다. 생산 비용 지표는 하락한 반면 소비자 소매 가격은 상승했으며, 이는 투입 비용이 2023년 말부터 2024년까지의 가격 급등을 설명할 수 없음을 증명합니다.\n\n---\n\n## 결론\n\n- **확인됨:** 식용란 산란계는 전체 가금류의 4% 미만을 차지함에도 불구하고 국내 가금류 도태의 75%를 차지하며 미국 HPAI 발생의 압도적인 타격을 입었습니다. 생물학적 회복은 20~22주의 중병아리 성장 주기와 수개월에 걸친 휴지기 및 소독 프로토콜에 의해 엄격하게 제한되며, 다연령 복합 시설의 재입식에는 12~18개월이 소요됩니다. 소비자 계란 수요는 매우 비탄력적이어서, 약 2.6%~5%의 완만한 사육 수수 손실이 100% 이상의 소매 가격 급등으로 이어졌습니다. 사료 투입 비용은 2023 및 2024,에 걸쳐 급격히 하락하여, 후기 가격 상승의 원인이 투입 비용 상승에 따른 인플레이션이 아니었음을 확인해 줍니다.\n- **가능성 높음:** 주 단위의 케이지 프리(cage-free) 의무화는 특히 케이지 프리 농가가 2024년 하반기 HPAI 산란계 손실의 50% 이상을 입은 후, 일반 계란이 도태된 케이지 프리 계군을 대체하는 것을 막음으로써 캘리포니아, 매사추세츠 및 기타 준수 주에서 국지적인 부족 현상과 가격 프리미엄을 악화시켰습니다.\n- **그럴듯하지만 입증되지 않음:** 상업용 계란 생산자들이 HPAI 발생을 악용하여 현물 지수를 인위적으로 조작하거나 자연적인 발생으로 인한 부족분 이상으로 공급 제한을 공모했다는 혐의는 입증되지 않은 상태로 남아 있습니다. 법무부(DOJ)의 2025년 3월 반독점 조사는 활발한 감시가 이루어지고 있음을 확인해 주지만, 2022년 이후의 가격 조작에 대한 판결이나 공식적인 조사 결과는 발표된 바 없습니다.\n- **불확실함:** 가금류 백신 접종의 장기적인 상업적 효능은 국제 무역 장벽(특히 $5달러 규모의 미국 육계 수출 시장에 대한 수출 금지 위험)과 표준 감시 체계 하에서 백신 접종 개체와 감염 개체를 구별하는 것의 어려움으로 인해 여전히 해결되지 않은 상태입니다.\n\n---\n\n### 제안된 후속 조치\n\n- [USDA APHIS 가금류 살처분 보상금 지급 구조 검토](/#message=Can%20you%20analyze%20the%20USDA%20APHIS%20indemnity%20and%20compensation%20reimbursement%20formula%20for%20depopulated%20poultry%20flocks%3F)\n- [계란 가격 담합에 대한 법무부(DOJ) 반독점 조사 검토](/#message=What%20is%20the%20current%20status%20of%20the%20DOJ%20Antitrust%20Division%20investigation%20into%20egg%20companies%20for%20price-fixing%3F)"
-      },
-      "sub_chat_2_message_1": {
-        "text": "조류 인플루엔자 발생(특히 2022 후반부터 2024까지 조사) 이후 미국 계란 가격 이면의 공급측, 생물학적 및 규제적 요인을 연구하세요. \n\n다음에 집중하세요:\n1. 가금류 재입식 생물학 및 운영 일정: 살처분부터 소독, 중병아리 사육, 산란 피크까지 얼마나 걸리나요(예: 산란까지 20-22주, 전체 재입식 주기)?\n2. HPAI 파동 역학: 조류 인플루엔자가 정말로 '완화'되었나요, 아니면 국지적인 재발이 있었나요(예: 2023 후반 / 2024 초반 캘리포니아 및 중서부의 급증)? 산란계 살처분 및 식용 계란 가금류 규모에 대한 주요 USDA NASS / APHIS 데이터.\n3. 주 수준의 규제: 케이지 프리 의무화(캘리포니아 발의안 12,, 매사추세츠 질문 3, 등)가 지역 공급 세분화, 준수 비용 및 국지적 가격 급등에 미치는 영향.\n4. 투입 비용 변화: 회복 기간 동안의 사료 가격(옥수수, 대두박), 포장, 에너지 및 운송 비용.\n\n요구 사항:\n- 웹 검색 및 웹 읽기를 사용하여 주요 정부(USDA ERS, USDA NASS, USDA APHIS) 및 학술 자료를 조사하세요.\n- 정확한 날짜, 숫자 및 발췌문을 제공하세요.\n- 확인된 사실과 추론을 구분하세요.\n- 증거 상태(지원됨, 조건부, 반박됨, 미해결), 정확한 URL, 기간, 지표 및 주요 발췌문을 포함한 번호가 매겨진 증거 대장(주장 1부터 N까지)을 출력하세요."
-      },
-      "sub_chat_2_message_2": {
-        "text": "[!](embed:ead55cba-0322-416e-94b7-0009e5747984)\n\n[!](embed:1caeaeb7-9c1c-47e0-ba0f-c679fdce64f4)\n\n[!](embed:64ba61aa-17a9-423d-a812-f153ca20e41a)\n\n[!](embed:8fd2a5b5-c11f-46b5-b726-cbd46f11ab82)\n\n[!](embed:9fa35ea0-4598-4269-b920-d588a902d8a5)\n\n## 요약\n\n2022 후반부터 2024까지의 미국 계란 가격은 수천만 마리의 산란계를 폐사시킨 고병원성 조류 인플루엔자(HPAI)로 인한 살처분이라는 생물학적 현실과 계란에 대한 소비자 수요의 극심한 가격 비탄력성이 결합되어 발생했습니다. 식용란 산란계는 국내 가금류 사육 두수의 4% 미만을 차지함에도 불구하고 전체 국내 가금류 손실의 75%를 차지했으며, 생산을 복구하기 위한 생물학적 지체 시간으로 인해 중병아리가 성숙하는 데 최소 20~22주가 소요되고, 다연령 상업용 단지를 완전히 재입식하는 데는 최대 80주가 걸립니다. HPAI는 완전히 가라앉지 않고 심각한 계절적 파동으로 재발했습니다. 2022, 후반에 정점을 찍었고, 2023, 후반에 급격히 재확산되었으며, 2024 후반에는 캘리포니아와 중서부 전역에서 더욱 심화되었습니다. [캘리포니아](wiki:California) 발의안 12과 같은 주 단위의 케이지 프리(cage-free) 사육법은 지역 시장을 분절시켰고, HPAI가 케이지 프리 시설을 집중적으로 타격했을 때 케이지 프리 공급망을 매우 취약하게 만들었습니다. 반면 주요 사료 비용은 2022 정점 대비 20%에서 40% 사이에 실제로 하락하여, 계란 가격 인플레이션이 투입 비용 상승 현상이 아니라 구조적이고 질병에 의한 것임을 확인시켜 주었습니다.\n\n---\n\n## 표면적 설명\n\n농업 당국과 업계 단체가 제시하는 주요 설명은 계란 가격 급등이 전례 없는 가축 건강 위기로 인한 필연적인 경제적 결과라는 것입니다. [미국 농무부](wiki:United_States_Department_of_Agriculture)(USDA) 산하 [동식물검역소](wiki:Animal_and_Plant_Health_Inspection_Service)(APHIS)가 집행하는 연방 살처분 명령에 따라, 단 한 마리의 양성 조류라도 발견되면 질병 전파를 억제하기 위해 시설 전체를 신속하게 살처분해야 합니다. \n\n산란계는 육계보다 수명이 길고 대규모 상업용 계사에 밀집되어 있기 때문에, 상업용 산란계 농장은 괴멸적인 군집 감소를 겪었습니다. 수백만 마리의 생산적인 암탉이 제거되면 상업용 계란 공급이 갑자기 줄어듭니다. 껍질 계란에 대한 소비자 수요는 가격 비탄력성이 매우 높기 때문에(소비자들이 계란을 요리 시 즉각적인 대체재가 거의 없는 필수 식품으로 간주함을 의미), 국가 생산량이 소폭(식용란 생산량 2%~5% 감소 등)만 떨어져도 도매 및 소매 가격은 급격한 비율로 치솟게 됩니다. 농가가 의무적인 사체 처리, 세척, 소독 및 환경 휴지기를 완료한 후에도, 신선한 계란이 소매점 선반으로 돌아오기까지는 교체용 중병아리가 부화하고 자라 성숙기에 도달할 때까지 수개월을 기다려야 합니다.\n\n---\n\n## 그 외에 어떤 일이 일어나고 있는가\n\n질병으로 인한 공급 감소가 근본적인 촉매제이긴 하지만, 여러 상호 작용하는 구조적, 규제적, 시장적 역학 관계가 가격 급등의 심각성과 지리적 분포를 증폭시켰습니다.\n\n1. **주별 가축 사육 규정에 따른 시장 분절:** \n   주 단위의 케이지 프리 법안의 전면 시행—가장 두드러진 것은 캘리포니아 발의안 12(계란에 대해 효력이 발생했으며 2023 5월 [미국 연방 대법원](wiki:Supreme_Court_of_the_United_States)에 의해 확정됨)과 매사추세츠 질문 3,이며, 콜로라도, 워싱턴, 오리건 등의 주 법률이 그 뒤를 이음—은 전국 계란 시장을 법적으로 분할했습니다. 이러한 관할 구역의 소매업체는 기존 케이지 시설에서 생산된 계란을 합법적으로 판매할 수 없습니다. 2023 후반과 2024,에 철새가 케이지 프리 산란계 군집을 감염시켰을 때, 타 주 공급업체는 남는 일반 계란으로 지역적 부족분을 보충할 수 없었습니다. 이러한 규제 마찰은 국지적 부족 현상을 악화시켜, 2024 후반과 2025. 초반에 캘리포니아 도매 가격을 1다스당 $10.00 이상으로, 소매 가격을 $8.90 이상으로 끌어올렸습니다.\n\n2. **계란 가격과 사료 및 투입 비용의 탈동조화:** \n   2022 초기 인플레이션 파동 동안 농업 생산자들은 가금류 사료, 천연가스, 포장재 및 디젤에 대한 가변 비용 상승에 직면했습니다. 그러나 2023 후반과 2024, 내내 옥수수와 대두박(산란계 사료 성분의 80%~90%를 차지함)의 기준 가격은 크게 하락했습니다. 농가 수준의 생산 비용 데이터에 따르면 1다스당 사료 비용은 실질적으로 하락한 반면 계란 시장 가격은 상승하여, 2023~2024 가격 급등이 일반적인 투입 비용 인플레이션에 의해 주도되었다는 가설이 틀렸음을 입증했습니다.\n\n3. **비대칭적 현물 가격 책정과 기업 이익:** \n   계란은 일일 및 주간 도매 현물 및 공식 기준(Urner Barry 지수 시세 등)에 따라 거래되기 때문에, 국지적인 공급 패닉 상황에서 가격이 즉시 상향 조정됩니다. 피해를 입지 않은 농장을 운영하는 상업용 생산자들은 표준 생산량을 현물 시장 프리미엄 가격으로 판매하여 기업 총이익을 대폭 늘렸습니다. 예를 들어, 미국 최대 계란 생산업체인 칼메인 푸즈(Cal-Maine Foods)는 2024. 초반부터 후반까지 분기별 총이익이 310% 증가했다고 보고했습니다. 이러한 마진 확대는 의회 조사를 촉발했으며, [미국 법무부 반독점국](wiki:United_States_Department_of_Justice_Antitrust_Division)이 2025 3월에 알고리즘 또는 공모를 통한 가격 담합 가능성에 대한 조사를 시작하도록 유도했습니다. 이는 2004과 2008. 사이의 업계 공급 조정과 관련된 이전 연방 배심원 평결을 연상시킵니다.\n\n---\n\n## 증거\n\n### 가금류 생물학 및 재입식 물류\n감염된 산란계 시설이 살처분되면, 감염 전 생산량으로 복구하는 과정은 엄격한 생물학적 및 규제적 관문에 의해 통제됩니다.\n- **근절 및 격리:** 살처분(일반적으로 이산화탄소, 수성 포말 또는 환기 차단 방식) 후, 시설은 사체 처리(퇴비화 또는 매립)를 거친 다음 집중적인 세척 및 화학적 소독(C&D)을 수행합니다. 주 및 연방 가금류 계획에 따라, USDA APHIS가 시설의 격리를 해제하기 전까지 해당 구역은 환경 스왑 테스트를 거쳐야 하며 공식적인 휴지 기간(일반적으로 소독 후 최소 21일, 또는 비소독 휴지 바이러스 제거 방식을 선택할 경우 최대 150일) 동안 조류가 없는 상태를 유지해야 합니다.\n- **중병아리 성숙 곡선:** 성계(다 자란 암탉)를 구입한다고 해서 산란계 생산을 하루아침에 재개할 수 있는 것은 아닙니다. 부화장은 생후 1일 된 암컷 병아리(중병아리)를 공급하며, 이들은 전용 사육장에서 16주에서 17주 동안 사육됩니다. 약 18주에서 20주령이 되면 중병아리는 성적으로 성숙하여 산란계사로 옮겨집니다. 첫 산란은 약 20주에서 22주 사이에 발생하며, 최고 산란 생산성(산란율 90% 이상)은 약 25주에서 30주 사이에 달성됩니다.\n- **시차를 둔 다연령 복합 단지:** 현대적인 상업용 계란 복합 단지는 여러 동의 계사에 수십만에서 수백만 마리의 조류를 수용합니다. 상업용 농장은 꾸준한 일일 계란 크기와 물량을 유지하기 위해 의도적으로 가금류의 연령(20주에서 80주 이상까지)에 시차를 둡니다. 전체 시설이 살처분될 경우, 중병아리 부화장 용량 제한과 하류 시장의 약속으로 인해 전체 부지를 동시에 재입식하는 것은 상업적으로 불가능합니다. 완전한 다연령 복합 단지 재입식에는 12개월에서 18개월(최대 80주)이 소요됩니다.\n\n### 파동 역학 및 재발하는 발병\nHPAI는 2022년 봄 파동 이후 사라지는 대신, 태평양, 중앙, 미시시피, 대서양 철새 이동 경로를 따라 북미 철새 수조류 내에 풍토병 저장소를 형성했습니다.\n- 2022,년 말 겨울 이동은 중서부 산란계 복합 단지에 대규모 재감염을 가져왔고, 이로 인해 전국 소매 가격은 2023.년 1월에 12개당 $4.82로 정점을 찍었습니다.\n- 따뜻한 날씨로 인해 2023,년 중반에는 소강상태를 보였으나, 2023년 말과 2024,년 초에 다시 사례가 급증하여 캘리포니아의 센트럴 밸리와 소노마 카운티의 주요 상업용 복합 단지를 강타했습니다.\n- 발병 강도는 2024년 말에 급격히 치솟았습니다. 2024년 11월과 12월 두 달 동안의 상업용 암탉 손실만으로도 해당 역년 전체 국내 암탉 손실의 43%를 차지했습니다. 2025,년 첫 6주 동안 약 28만 마리의 산란계가 추가로 살처분되었으며, 이로 인해 전국 소매 평균 가격은 2025.년 3월에 12개당 $6.23라는 사상 최고치를 기록했습니다.\n- 구조적인 생물 보안 취약성을 보여주듯, APHIS는 67개의 고유한 상업용 가금류 시설이 최소 2회 이상 반복 감염을 경험했으며, 19개 시설은 2022년에서 2024.년 말 사이에 3회 이상 감염되었다고 기록했습니다.\n\n```json\n{\"type\": \"code\", \"embed_id\": \"e06705c3-35ae-4972-8be1-f01219e9ec08\"}\n```\n\n### 주요 문서 인용\n\n> [따라서, 산란계 무리가 HPAI에 감염되어 질병 확산을 통제하기 위해 살처분되는 경우, 새로운 암탉이 성적으로 성숙하여 다시 계란을 생산하기 시작하기까지 최대 20주가 걸릴 수 있습니다.](embed:congress.gov-Eg7)\n\n---\n\n### 번호가 매겨진 주장 및 증거 대장\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"37e3bde4-90d3-4491-9cf1-65d5dbd80779\"}\n```\n\n---\n\n## 반론\n\n### 1. 기업의 \"탐욕 인플레이션\"이나 담합이 가격 급등을 설명하는가?\n의원들은 Cal-Maine Foods의 310% 수익 급증과 과거의 가격 담합 판결(예: 2004~2008년 행위에 대해 계란 생산자들에게 내려진 2023년 평결)을 지적했지만, 발병 기간 중 높은 현물 이익이 능동적인 담합을 증명하는 것은 아닙니다. 껍질 계란은 투명한 일일/주간 현물 지수에 따라 판매되는 대체로 차별화되지 않은 원자재입니다. 가격 비탄력적 수요를 가진 경매 시장에서, 단 3%~5%의 총 공급 부족만으로도 한계 구매자가 배제될 때까지 가격은 기하급수적으로 상승하게 됩니다. 자신의 계사에 HPAI 유입을 성공적으로 막아낸 생산자들은 공모할 필요 없이 지배적인 시장 청산 가격으로 판매를 완료했습니다.\n\n### 2. 케이지 프리 의무화만이 지역적 격차의 원인인가?\n동물 복지 입법을 비판하는 측은 캘리포니아 주민 발의안 제12호와 매사추세츠 질문 제3호가 전국 식품 유통 시스템을 망가뜨렸다고 주장했습니다. 그러나 농업 경제학자들은 일반 계란도 야생 수조류 이동을 통한 동일한 HPAI 감염 경로에 노출되어 있다고 지적합니다. 케이지 프리 규정으로 인해 타주의 일반 계란이 캘리포니아 식료품점 선반의 완충 역할을 하는 것이 차단되기는 했지만, 캘리포니아 부족 사태의 근본적인 원인은 캘리포니아 내부와 전용 서부 케이지 프리 공급망 내에서 발생한 수백만 마리 암탉의 물리적 감염과 도태였습니다.\n\n### 3. 사료 및 운송 비용이 가격을 높게 유지했는가?\n러시아-우크라이나 전쟁 발발 이후 2022년 동안 사료, 화물 및 에너지 비용이 급증했지만, 이 설명은 2023~2024년 회복 기간에는 맞지 않습니다. USDA [경제조사국](wiki:Economic_Research_Service)(ERS) 및 계란 산업 센터(Egg Industry Center) 데이터에 따르면 옥수수 가격은 2023,년 말까지 전년 대비 28% 하락했으며, 총 가금류 사료 비용은 2025.년까지 2023년 정점 대비 44% 하락했습니다. 생산 비용 지표는 하락한 반면 소비자 소매 가격은 상승했으며, 이는 투입 비용이 2023년 말부터 2024년까지의 가격 급등을 설명할 수 없음을 증명합니다.\n\n---\n\n## 결론\n\n- **확인됨:** 식용란 산란계는 전체 가금류의 4% 미만을 차지함에도 불구하고 국내 가금류 도태의 75%를 차지하며 미국 HPAI 발생의 압도적인 타격을 입었습니다. 생물학적 회복은 20~22주의 중병아리 성장 주기와 수개월에 걸친 휴지기 및 소독 프로토콜에 의해 엄격하게 제한되며, 다연령 복합 시설의 재입식에는 12~18개월이 소요됩니다. 소비자 계란 수요는 매우 비탄력적이어서, 약 2.6%~5%의 완만한 사육 수수 손실이 100% 이상의 소매 가격 급등으로 이어졌습니다. 사료 투입 비용은 2023 및 2024,에 걸쳐 급격히 하락하여, 후기 가격 상승의 원인이 투입 비용 상승에 따른 인플레이션이 아니었음을 확인해 줍니다.\n- **가능성 높음:** 주 단위의 케이지 프리(cage-free) 의무화는 특히 케이지 프리 농가가 2024년 하반기 HPAI 산란계 손실의 50% 이상을 입은 후, 일반 계란이 도태된 케이지 프리 계군을 대체하는 것을 막음으로써 캘리포니아, 매사추세츠 및 기타 준수 주에서 국지적인 부족 현상과 가격 프리미엄을 악화시켰습니다.\n- **그럴듯하지만 입증되지 않음:** 상업용 계란 생산자들이 HPAI 발생을 악용하여 현물 지수를 인위적으로 조작하거나 자연적인 발생으로 인한 부족분 이상으로 공급 제한을 공모했다는 혐의는 입증되지 않은 상태로 남아 있습니다. 법무부(DOJ)의 2025년 3월 반독점 조사는 활발한 감시가 이루어지고 있음을 확인해 주지만, 2022년 이후의 가격 조작에 대한 판결이나 공식적인 조사 결과는 발표된 바 없습니다.\n- **불확실함:** 가금류 백신 접종의 장기적인 상업적 효능은 국제 무역 장벽(특히 $5달러 규모의 미국 육계 수출 시장에 대한 수출 금지 위험)과 표준 감시 체계 하에서 백신 접종 개체와 감염 개체를 구별하는 것의 어려움으로 인해 여전히 해결되지 않은 상태입니다.\n\n---\n\n### 제안된 후속 조치\n\n- [USDA APHIS 가금류 살처분 보상금 지급 구조 검토](/#message=Can%20you%20analyze%20the%20USDA%20APHIS%20indemnity%20and%20compensation%20reimbursement%20formula%20for%20depopulated%20poultry%20flocks%3F)\n- [계란 가격 담합에 대한 법무부(DOJ) 반독점 조사 검토](/#message=What%20is%20the%20current%20status%20of%20the%20DOJ%20Antitrust%20Division%20investigation%20into%20egg%20companies%20for%20price-fixing%3F)"
-      },
-      "sub_chat_2_message_2_thinking": {
-        "text": "**계란 가격 조사**\n\n저는 현재 미국 계란 가격에 영향을 미치는 공급측 요인, 특히 2022. 후반 이후의 상황에 집중하고 있습니다. 조류 독감 발생과 같은 생물학적 영향이 면밀히 검토되고 있습니다. 규제 대응과 그것이 시장 역학에 미치는 영향 또한 조사 중입니다. 계란 가격의 변동을 설명하기 위한 종합적인 보고서를 작성하는 것이 목표입니다.\n\n\n**개체수 재충원 일정 분석**\n\n저는 현재 가금류 개체수 재충원의 생물학적 및 운영적 측면을 파헤치고 있습니다. 살처분부터 소독, 중병아리 사육, 산란 피크에 이르기까지 관련된 일정에 초점을 맞추고 있습니다. 이를 고병원성 조류인플루엔자(HPAI) 발생에 관한 USDA 데이터 및 지역 규제, 특히 캘리포니아의 발의안 12 및 매사추세츠의 질문 3.와 같은 명령과 교차 참조하고 있습니다. 또한 회복에 영향을 미치는 투입 비용 변화를 분석하기 시작했습니다.\n\n\n**초기 지침 검토**\n\n초기 연구 워크플로 지침을 다시 검토하고 있습니다. 질문에 심층 연구가 필요한지 아니면 짧은 답변이 필요한지 결정하는 프로세스를 검토 중입니다. 구조화되고 다각적인 연구 접근 방식이 필요한 복잡한 질문을 식별하는 데 사용되는 기준과, 해당 프로세스 및 서브 채팅의 사용을 정의하는 방법에 집중하고 있습니다.\n\n\n**도구 가용성 확인**\n\n시스템의 함수 호출 인터페이스 내에서 사용 가능한 도구들을 꼼꼼하게 검토했습니다. 모든 선언을 교차 참조한 결과, `default_api:web-search` 도구*만* 제공됨을 확인할 수 있습니다. 시스템 프롬프트 규칙을 재검토하여 사용 가능한 도구*만* 사용하라는 중요한 지침을 확인했습니다. 향후 계획에서 `start_sub_chats` 또는 `web-read`와 같이 존재하지 않는 도구의 사용을 배제했습니다.\n\n\n**웹 검색 규칙 명확화**\n\n사용 가능한 도구인 `web-search`와 연구 워크플로 지침 간의 상호 작용을 신중하게 재검토하고 있습니다. `start_sub_chats`는 도구에 선언되지 않았으므로 이를 호출하면 오류가 발생하며, 따라서 `start_sub_chats`는 없음을 명확히 했습니다. 하지만 \"Active Focus: web-research\"가 활성화되어 있으므로 여러 번 검색을 수행할 수 있습니다. 최종 출력의 구조 또한 명확합니다.\n\n\n**쿼리 전략 개선**\n\n`web-search` 도구를 효율적으로 사용하기 위해 접근 방식을 개선하고 있습니다. 단일 호출 내에서 여러 개의 병렬 쿼리를 제출할 수 있음을 확인했습니다. 이는 이 문제의 각 측면에 대한 증거를 수집하는 데 핵심적입니다. 사용 가능한 도구를 사용하는 것을 우선시하고, 사용할 수 없는 도구는 사용하려고 시도하지 않을 것입니다. 각 측면을 고려하고 있습니다.\n\n\n**연구 관점 정의**\n\n웹 검색을 위한 초기 단계를 구조화했습니다. 성급한 텍스트 출력을 피하기 위해 내부 생각 내에 가설과 관점을 나열할 것입니다. 현재 저의 초점은 APHIS 요구 사항 및 부화장에서 중병아리까지의 일정에 맞춰 살처분, 세척/소독, 휴지기 등의 요소를 고려하여 가금류 재충원을 위한 연구 관점을 설정하는 것입니다. 도구를 사용하기 전에 이러한 관점들을 정의할 것입니다.\n\n\n**발생 일정 개요 작성**\n\nHPAI의 영향에 초점을 맞추어 타임라인을 개발하고 있습니다. 18-22주의 중병아리 사육 기간과 발생 전 생산량으로 회복하기까지의 6-9개월의 기간을 기록하고 있습니다. 2022 후반의 피크와 2023-2024의 재확산과 같은 HPAI 파동과 계란 가격 간의 상관관계를 분석할 것입니다. 이를 USDA 데이터와 연관시키는 데 사용할 계획입니다.\n\n\n**웹 검색 쿼리 작성**\n\n초기 웹 검색 쿼리를 작성 중입니다. 캘리포니아 발의안 12와 2023-2024 조류 독감 발생이 계란 공급에 미친 영향, 그리고 그 결과로 나타난 가격 변동에 집중할 것입니다. 또한 사료 가격과 같은 투입 비용 요인을 포함하여 가격 급등과 어떻게 비교되는지 중점적으로 다룰 것입니다. 최대 4개의 구체적이고 집중적인 쿼리를 제출할 것입니다.\n\n\n**데이터 요청 분석**\n\n필요한 정확한 기본 데이터를 핀포인트로 짚어내는 데 집중하고 있습니다. 더 정밀한 검색이 필요하다는 것을 깨달았으므로, 구체적인 USDA APHIS 산란계 살처분 수치를 요청하고 있습니다. 2022, 후반, 2023, 전체, 2024, 초반을 월별 기준으로 타겟팅하고 있습니다.\n\n\n**발생 세부 정보 수집**\n\n최근 발생 사례의 세부 사항을 파헤치고 있으며, 캘리포니아 소노마 카운티에 집중하여 텍사스 및 중서부 지역과 비교하고 있습니다. 소노마의 경우 2023 12월부터 2024 1월까지, 다른 지역의 경우 2023 후반부터 2024 4월까지와 같은 구체적인 일정을 기록하고 있습니다. 또한 파동 횟수 데이터도 고려하고 있습니다.\n\n\n\n**조류 독감 보고서 분석**\n\nHPAI 발생에 관한 CRS 보고서 검토를 시작했습니다. 내용이 포괄적인 것 같습니다. Whitt의 분석과 문제의 범위에 집중하고 있습니다. 상세히 기술된 경제적 영향과 정책 대응을 더 깊이 파고들 필요가 있습니다. 기존 모델과 비교하기를 고대하고 있습니다.\n\n\n**계란 산업 데이터 검토**\n\n계란 산업에 관한 최근 데이터를 조사해 왔습니다. 국내 가금류 손실의 75%를 차지하는 식용란 산란계에 미친 상당한 영향을 확인했습니다. 생산량 감소에 집중하고 있습니다: 2.6% 이후 계란 생산량이 2021 감소했고 평균 산란계 수가 5% 감소했습니다. 이것이 모델의 핵심인 것 같습니다.\n\n\n**산란계 수명 주기 고려**\n\n이제 수명 주기 데이터를 통합하고 있습니다. 계란 생산의 회복 일정은 산란계의 성숙도에 달려 있습니다. 살처분의 영향은 생산 손실을 넘어 더 심각합니다. 2022 2월부터 2025 2월까지의 APHIS 지출 데이터를 고려하고 있습니다: HPAI 대응에 $1.811억 달러가 소요되었습니다. 여기에는 보상금 지급을 위한 $1.195억 달러가 포함됩니다. 생물 보안 고려 사항을 반영해야 할 것입니다.\n\n\n**보상금 수치 검토**\n\n저는 현재 보상금 지급 내역을 심층적으로 분석하고 있습니다. 재감염에 대한 $296백만 달러는 완충 구역 내 시설에 대한 $128백만 달러와 함께 매우 인상적입니다. 67개의 상업용 시설이 한 번 이상 감염되었다는 사실은 그 규모를 더 명확하게 보여줍니다. 이는 중요한 요인이 될 것입니다. 저는 Prop 12의 영향을 고려하고 있습니다. 최근의 가격 급등 또한 주목할 만합니다. 최근 가격이 모델에 영향을 미칠 것이며, 가격 상승이 어떻게 지속될지 고민 중입니다.\n\n\n**계란 가격 변동 요인 분석**\n\n저는 현재 미국 계란 가격을 변동시키는 요인들, 특히 2022년 말부터 현재까지의 조류 독감 발생 이후의 상황에 집중하고 있으며, 2026.년까지의 데이터를 예상하고 있습니다. 제 연구는 공급측 제약, 가금류에 미치는 생물학적 영향, 그리고 시장 변동에 영향을 미치는 규제 대응을 포괄할 것입니다.\n\n\n**최종 응답 형식 확인**\n\n연구의 한계 내에서 최종 응답이 지정된 6개 헤딩 구조와 콘텐츠 제약 조건을 준수하는지 지침을 주의 깊게 검토하고 있습니다. 예산 내에서 유지하기 위해 가용한 증거를 종합하고 불필요한 도구 호출이나 외부 데이터 통합을 피하는 데 집중하고 있습니다. 기존 지식 기반 내에서 응답을 제공해야 할 것으로 보이며, 이는 좋은 연습이 될 것입니다. 직접적이고 간결한 답변을 우선시하고 있습니다.\n\n\n**답변의 최종 형식 확정**\n\n최종 답변을 위해 요구되는 6개 헤딩 구조를 준수할 수 있음을 확인했습니다. 이는 좋은 답변을 제공하는 데 도움이 될 것입니다. 이제 구조를 고정한 상태로 시작할 수 있을 것 같습니다. 예산 내에서 유지하고 기존 지식 기반에 집중하기 위해 도구 호출과 외부 데이터 통합을 피하고 있습니다. 이제 데이터를 종합하고 직접적인 응답을 작성하는 데 집중하겠습니다.\n\n\n**증거 검증 구조화**\n\n저는 현재 검증 프로세스, 특히 정량적, 인과적, 법적 주장에 대한 구조화에 집중하고 있습니다. 각 주장에는 URL 및 증거 상태와 연결된 짧은 1차 자료 발췌문 또는 정확한 표 항목이 포함되도록 하고 있습니다. 제 우선순위는 주장에 대한 직접적인 뒷받침과 범위에 따라 '지원됨(supported)', '추론(inference)', 또는 '미해결(unresolved)'로 명확하게 라벨을 붙이는 것입니다. 원장을 간결하게 유지하고 중복 인용을 피하기 위해 증거 ID를 신중하게 재사용하고 있습니다.\n\n\n**공급 제약 조사**\n\n이제 세부 사항을 파헤치고 있습니다. 산란계 재입식 주기와 HPAI의 파동 역학, 특히 2023년 말과 2024.년 초에 발생할 수 있는 국지적 재발에 집중하고 있습니다. 주 정부 차원의 규제, 특히 케이지 프리(cage-free) 의무화가 지역 공급 및 가격에 미치는 영향을 조사하고 있으며, 회복기 동안의 투입 비용 변화도 평가하고 있습니다. CRS 보고서 R48518,를 바탕으로 산란계에 대한 첫 번째 수치를 확보했습니다.\n\n\n**가금류 교체 주기 평가**\n\n산란계 재입식 시간과 발생 영향에 관한 정보를 통합하고 있습니다. 가금류가 성숙하는 데 16-17주가 소요되며, 생산성을 갖추기까지 추가로 20주가 더 걸립니다. 2025년 4월 발생으로 168.62백만 마리의 가금류가 영향을 받았습니다. 기록적인 가격은 2025년 3월에 다스당 $6.23달러로 나타났으며, 2025년 2월 말 도매가는 전국적으로 다스당 $8.39달러, 캘리포니아의 케이지 프리는 $10.07달러였습니다. 수요는 비탄력적이어서 공급 충격을 악화시킵니다.\n\n\n**재입식 기간 평가**\n\n재입식 일정에 관한 데이터를 통합하고 있으며, 다연령 복합 시설에서의 시차를 둔 접근 방식은 이를 12-18개월까지 연장할 수 있음에 주목하고 있습니다. 특히 지난 두 달 동안 43%의 손실이 발생한 2024년 말과 2025,년 초에 28백만 마리의 산란계가 도태된 반복적인 발생이 중요합니다. 캘리포니아의 Prop 12.와 같은 규제를 고려하여 케이지 프리 산란계(2024년 말 손실의 60%)에 미치는 영향도 평가하고 있습니다.\n\n\n**비용 역학 평가**\n\n비용 역학을 분석한 결과, 2024년과 2025,년에 사료 비용이 실질적으로 감소하여 높은 계란 가격의 원인이라는 주장과 상충함을 확인했습니다. Cal-Maine의 총 이익이 급증하여 조사를 받게 되었으며, 생산자 담합에 대한 과거 연방 배심원 평결을 평가하고 있습니다. 현재 캘리포니아의 도매가가 다스당 $10.07달러에 도달했으며, 네바다주가 케이지 프리 의무화를 일시적으로 중단했다는 사실을 알고 있습니다.\n\n\n**담합 조사 검토**\n\n2025년 3월 법무부(DOJ)의 계란 가격 담합 가능성에 대한 반독점 조사를 검토하고 있습니다. 가격 상승, 공급 제약, 비용 변동에 관한 기존 데이터를 포함하여 가용한 모든 증거를 종합하여 그 타당성을 판단하는 데 집중하고 있습니다. 간결한 답변을 우선시하며 응답에 대해 6개 섹션 형식을 엄격히 준수하고 있습니다.\n\n\n**담합 분석 종합**\n\n생산자 관행 및 최근 소송에 관한 정보를 통합하고 있습니다. 가격 담합 가능성에 대한 조사 결과를 종합하고 있으며, 새로운 데이터를 포함하고 있습니다. 곧 있을 응답을 위해 증거를 6개 섹션 형식에 맞추는 데 집중하고 있으며, 이는 저에게 도움이 되었습니다. 기존 정보 내에서 직접적이고 간결한 주장을 우선시하며 6개 헤딩 구조를 고정하고 있습니다.\n\n다음 주장 원장을 포함합니다:\n\n1.  **주장:** 2024년 11월 캘리포니아 계란 가격은 다스당 $9달러였습니다.\n    **증거 상태:** 지원됨\n    **1차 발췌문 / 정확한 데이터 포인트:** \\\"캘리포니아의 계란 가격은 이미 $9달러 선을 돌파했습니다...\\\"\n    **정확한 지원 URL:** [lamag.com/food/egg-prices-crack-9-mark-across-california/](lamag.com/food/egg-prices-crack-9-mark-across-california/)\n    **범위:** 2024,년 11월 캘리포니아, 계란 가격, 다스당 가격.\n\n\n**위키백과 링크 개선**\n\n특정 구문 규칙에 집중하여 위키백과 링크 통합을 개선하고 있습니다. 표시 텍스트와 정식 문서 이름에 대한 정확한 일치 기준을 확인하고 있으며, 전체 이름을 사용하고 광범위한 링크를 피하고 있습니다. 제약 조건을 준수하여 첫 번째 출현에 집중하고 전체 이름을 사용하고 있는지 확인하고 있습니다. 현재 이러한 규칙을 테스트하고 초기 예시와 대조하여 확인하며 예산 내에서 유지되도록 하고 있습니다.\n\n\n\n**위키 링크 테스트 마무리**\n\n이제 위키백과 링크 작업을 마무리하며 구문을 재점검하고 있습니다. 링크 준비가 완료된 것 같습니다. 표시 텍스트, 표준 문서 이름, 그리고 테스트 제약 조건 간의 정확한 일치를 검증하는 데 집중했습니다. 더 광범위한 링크는 피하도록 확실히 조치했습니다. 응답 예산 범위 내에서 유지되도록 확인했습니다.\n\n\n**반론 평가**\n\n이제 반론을 통해 분석을 강화하는 데 집중하고 있습니다. 원자재 계란 시장 역학 및 비탄력적 수요와 같이 설명이 약화될 수 있는 방식을 평가하고 있습니다. 개체수 감소와 생물학적 지연에도 불구하고 사료 비용이 하락한 상황을 평가했습니다. 칼-메인(Cal-Maine)은 여전히 조류 독감의 위험에 직면해 있었으며, 수요 탄력성으로 인해 담합 없이도 가격 급등이 예측된다는 점을 알고 있습니다. 이제 각 주장을 확인됨, 가능성 높음, 그럴듯하지만 입증되지 않음, 또는 불확실함으로 분류하겠습니다.\n\n\n**재입식 기간 분석**\n\n이제 2주부터 산란 피크(약 25-30주)까지의 산란계 생산 주기에 관한 정보를 통합하고 있습니다. 생산 수명은 단일 주기의 경우 78-80주이며, 환우를 포함하면 최대 140-150주입니다. 현재 12-18개월까지 늘어날 수 있는 다연령 복합 단지 재입식을 이해하는 데 집중하고 있습니다. 또한 다양한 기간에 걸친 HPAI(고병원성 조류 인플루엔자) 유행 역학을 조사하고 있습니다. 이제 2023.년 말에 큰 타격을 입힌 2차 급증의 영향에 대해 알고 있습니다.\n\n\n**공급측 규제 평가**\n\n이제 지역 공급망 파편화를 명확히 하기 위해 캘리포니아의 발의안(Prop) 12,와 같은 주 규제에 관한 정보를 통합하고 있습니다. 케이지 프리(cage-free) 가금류가 전체 가금류의 다수가 아님에도 불구하고 상당한 손실 비중을 차지했다는 점에 주목하며, 조류 독감 손실이 케이지 프리 가금류에 미친 영향에 집중하고 있습니다. 또한 일반 계란과 케이지 프리 계란 공급망 및 이들이 주 공급에 미치는 각각의 영향을 비교하고 있습니다. 공급 붕괴에 따라 공급망 파편화가 어떻게 발생할 수 있는지에 대해 메모하고 있습니다.\n\n\n**비용 역학 분석**\n\n이제 비용 및 계란 가격과 관련된 새로운 데이터를 통합하는 데 집중하고 있습니다. 구체적으로, 2024-2025 기간 동안의 비용의 상당한 하락을 기록한 사료 가격 데이터를 통합하여 이를 가격 급등과 대조했습니다. 투입 비용 분석은 생산 비용은 하락한 반면 계란 가격은 상승했기 때문에 2024-2025 가격 급등이 사료 비용과 무관했음을 뒷받침합니다. 네바다가 일시적으로 케이지 프리 규정을 정지한 방식을 조사하고 있습니다.\n\n\n**주장 원장 검증**\n\n이제 각 항목에 상태, 정확한 데이터, URL 및 범위가 포함되어 있는지 확인하기 위해 주장 원장을 감사하고 있습니다. 산란계가 전체 손실의 75%를 차지함(지원됨, CRS R48518), 식용란 가금류 감소(지원됨, CRS R48518), 생물학적 타임라인(지원됨, CRS R48518) 주장에 대한 지원 URL로 원장을 업데이트했습니다. 전체 복합 단지 재입식 및 휴지 기간에 대한 주장에 URL을 추가했습니다. 현재 수식어들을 다듬고 있습니다.\n\n\n**증거 편찬 업데이트**\n\n이제 HPAI 유행 역학, 재감염 빈도, 소비자 물가 지수 급등 및 비탄력적 수요에 초점을 맞춰 새로운 주장들을 원장에 통합하고 있습니다. 사료 투입 비용에 대한 기존 주장에 데이터를 추가했습니다. URL을 추적하고 증거를 검증하고 있습니다. 이제 계란 가격에 대한 조사 결과를 종합하고 케이지 프리 비용 및 캘리포니아 발의안 12.의 법적 지위에 대한 새로운 데이터를 통합하고 있습니다.\n\n\n**가격 담합 분석 개선**\n\n이제 기업 이익 및 반독점 조사에 관한 주장들을 통합하고 있습니다. 칼-메인의 총이익이 상당히 증가했으며, 이를 한정하고 데이터에 연결했습니다. 지원 자료로 CRS R48518와 *Supermarket News* 데이터를 모두 사용하고 있습니다. 2025년 3월 법무부(DOJ)의 반독점 조사에 집중하고 있습니다. 현재 저의 우선순위는 가격 상승, 공급 제약 및 비용 변동을 고려하여 사실과 추론을 구별하기 위해 증거를 검증하는 것입니다."
-      },
-      "sub_chat_3_title": {
-        "text": "하위 채팅"
-      },
-      "sub_chat_3_summary": {
-        "text": "## 요약\n2022년에서 2024,년 사이 미국 계란 시장은 뚜렷한 [비대칭적 가격 전이](wiki:Asymmetric_price_transmission) 현상을 보였습니다. 이는 농업 경제학에서 흔히 \"로켓과 깃털\"로 알려진 현상으로, 소매 식료품 가격이 도매 가격의 급등은 빠르게 추종하지만, 도매 원자재 가격이 폭락할 때는 상당한 관성으로 인해 천천히 하락하는 것을 의미합니다. 2022년 말 도매 가격이 정점을 찍고 2023,년 초에 50% 이상 폭락했을 때, 소매 식료품 가격이 하향 조정되는 데는 수개월이 걸렸으며, 이로 인해 도매와 소매 간의 가격 차이(스프레드)가 일시적으로 확대되었습니다. 이러한 역학 관계는 사법적으로 판결된 담합 행위보다는 주로 공식 기반 조달 계약의 시차, 초기 비용 상승기에 겪었던 급격한 마진 압박을 만회하려는 식료품점의 노력, 그리고 매장 수준의 간접비 인플레이션에 의해 주도되었습니다.\n\n## 표면적 설명\n소비자들에게 제시된 전통적인 설명은 2022.년 초부터 미국 전역의 산란계 군집을 황폐화시킨 고병원성 조류 인플루엔자(HPAI)로 인한 공급 중단에 초점을 맞추고 있습니다. 이 서술에 따르면, 심각한 공급 부족으로 인해 도매 현물 가격이 급등했고, 소매업체들은 인상된 농장 출하 조달 비용을 쇼핑객에게 직접 전가할 수밖에 없었습니다. 2023년 봄에 가금류 개체수가 회복되면서 도매 가격이 마침내 하락했을 때, 슈퍼마켓 매대 가격의 하락이 지연된 것은 표준적인 공급망 운송 시차, 재고 회전 주기, 그리고 소매 임금, 운송 및 매장 냉장 비용의 지속적인 상승 때문으로 돌려졌습니다.\n\n## 이면의 다른 가능성\n단순한 수요와 공급이라는 표면적 서술 아래에는 도매에서 소매로의 가격 전이에 영향을 미친 몇 가지 구조적 및 미시경제적 메커니즘이 존재했습니다.\n\n- **비대칭적 가격 전이 (\"로켓과 깃털\"):** 식료품 소매업에서 가격 인상은 가격 인하보다 상류에서 하류로 더 빠르게 전달됩니다. 상류의 대체 비용이 급증할 때, 소매업체가 매대 가격을 올리지 않으면 즉각적인 현금 흐름 및 매출 총이익 손실에 직면하게 됩니다. 반면 도매 가격이 급락할 때는 소비자 가격 기대치가 천천히 조정되므로, 슈퍼마켓은 일시적으로 높은 매대 가격을 유지하여 일시적인 마진 이익을 취할 수 있습니다.\n- **계약 구조 대 현물 변동성:** 주요 슈퍼마켓 체인은 계란 물량의 100%를 일일 현물 시장에서 조달하는 경우가 드뭅니다. 식료품점은 일반적으로 30일, 60일 또는 직전 한 달간의 원자재 평균 가격(Urner Barry 또는 USDA 벤치마크 등)에 연동된 공식 기반 공급 계약에 의존합니다. 그 결과, 식료품점의 회계상 매출원가(COGS)는 현물 시장 폭락에 비해 1~2개월의 시차를 두고 하락했습니다.\n- **마진 회복 및 [미끼 상품](wiki:Loss_leader)의 변화:** 신선란은 전통적으로 슈퍼마켓이 고객 유입을 유도하기 위해 아주 적은 마진이나 마이너스 매출 총이익으로 운영하는 빈도가 높은 장바구니 품목 또는 \"미끼 상품\"으로 취급됩니다. 2022,년 말 전례 없는 도매 가격 급등 기간 동안, 많은 소매업체는 가격에 민감한 쇼핑객의 이탈을 막기 위해 마진을 줄이거나 소매 매대 가격을 초과하는 현물 비용을 감수했습니다. 2023,년에 도매 비용이 폭락하자, 식료품점들은 넓어진 가격 차이를 이용해 유제품 및 냉장 부문 전반의 수익성을 재건했습니다.\n- **비탄력적 수요 및 탐색 마찰:** 신선란은 요리 측면에서 직접적인 대체재가 거의 없습니다. 쇼핑객이 계란 구매를 쉽게 미루거나 단지 더 싼 계란을 찾기 위해 여러 매장을 돌아다니기 어렵기 때문에, 도매 가격이 급락할 때 식료품점은 가격을 빠르게 내려야 한다는 즉각적인 경쟁 압력을 최소한으로 받았습니다.\n\n## 증거\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"2c281220-8676-4dbc-80e0-5701aae31755\"}\n```\n\n\n## 반론\n몇 가지 운영 및 재무적 현실은 확대된 소매 스프레드가 약탈적 행위나 과도한 마진 추출을 나타낸다는 주장을 복잡하게 만듭니다.\n\n- **조달 시차 및 지수 공식:** 일일 현물 원자재 시세를 주간 식료품 매대 가격과 직접 비교하는 것은 식료품점의 마진을 과대평가하는 것입니다. 직전 월평균 계약을 통해 공급을 확보한 슈퍼마켓은 현물 가격이 꺾인 후에도 30일에서 60일 동안 계속해서 높은 조달 비용을 지불했으므로, 이들의 입고 재고 비용은 공개된 도매 차트와 동시에 떨어지지 않았습니다.\n- **상류 충격 흡수를 위한 마진 회복:** 2022년 말 도매 가격이 1다스당 $5.00~$7.00달러로 급등했을 때, 많은 슈퍼마켓은 브랜드 손상을 피하고 고객 유입을 유지하기 위해 현물 대체 가격보다 훨씬 저렴한 가격으로 계란 가격을 책정했습니다. 이후의 넓은 스프레드 기간은 소매업체들이 충격 기간 동안 입은 상당한 장부상 손실을 상쇄할 수 있게 해주었습니다.\n- **소매점 간접비 상승:** 2022년과 2024,년 사이에 매장 수준의 시간당 임금, 지속적인 콜드체인 냉장을 위한 에너지 요금, 디젤 화물 할증료, 포장재 등 일반적인 식료품 운영 비용이 실질적으로 증가했습니다. 이러한 고정 및 가변 매장 간접비는 냉장 신선 식품에 대해 더 높은 구조적 가격 하한선을 형성했습니다.\n- **부패성, 감모 및 재고 위험:** 껍질 계란의 유통기한은 약 30일에서 45일입니다. 공급 환경이 불안정한 상황에서 급격한 하향 가격 조정은 특히 국지적인 HPAI 재발이 지속적인 공급 중단 위험을 초래할 때 재고 부족 및 품절 사태를 유발할 위험이 있습니다.\n\n## 요점\n- **확인됨:** [노동통계국](wiki:Bureau_of_Labor_Statistics) 및 업계 데이터에 따르면, 미국의 소매 및 도매 계란 가격은 2022에서 2024, 사이에 전례 없는 변동성을 겪었으며, 소매 가격은 2022 말에 $4.00/다스를 초과했고 도매 가격은 잠시 $7.27/다스에 도달했습니다. 2023의 소매 가격 하락은 도매 현물 시장의 폭락보다 몇 달 뒤처졌으며, 이로 인해 농가-소비자 및 도매-소비자 가격 차이가 일시적으로 확대되었습니다.\n- **가능성 높음:** 이러한 시차는 주로 소매 조달의 구조적 특징으로 설명됩니다. 즉, 과거 비용 평균을 적용한 공식 기반 가격 책정 계약, 정점 기간 동안 마이너스 수익을 감수한 후 압축된 마진을 적극적으로 회복하려는 식료품점의 움직임, 그리고 더 높은 기본 매장 운영 비용 때문입니다.\n- **그럴듯하지만 입증되지 않음:** 소매업체들이 암묵적인 가격 결정력과 상황 의존적 가격 책정 재량권을 행사하여, 광범위한 식품 인플레이션에 대한 소비자의 수용을 이용해 높은 매장 가격을 연장했을 가능성이 있습니다.\n- **불확실함:** 개별 소매 체인 전반에서 고정 가격 계약 대 현물 지수 연동 공식 계약을 통해 이루어진 신선란 조달의 정확한 비율은 기밀 사항이며, 소매 단계에서의 불법적인 담합에 대한 증거 나 사법적 판결은 없습니다."
-      },
-      "sub_chat_3_message_1": {
-        "text": "미국 계란의 하류 소매 마진, 도매-소매 가격 전이 및 소비자 가격 역학을 연구하세요(2022-2024).\n\n다음에 집중하세요:\n1. 도매-소매 가격 차이: USDA ERS 데이터와 BLS CPI 계란 데이터를 조사하세요. 2022 후반/2023 초반 정점에서 도매 가격이 급격히 하락했을 때, 소매 식료품 가격은 얼마나 빨리, 어느 정도나 뒤따랐나요?\n2. '로켓과 깃털' 가격 책정 현상: 소매 계란에서 비대칭적 가격 전이(도매가가 오를 때는 가격이 로켓처럼 빠르게 치솟지만, 도매가가 폭락할 때는 깃털처럼 천천히 내려가는 현상)에 대한 실증적 증거가 있나요?\n3. 슈퍼마켓 가격 책정 전략 및 계약 구조: 식료품점은 고정 기간 계약으로 구매하나요, 아니면 현물 지수로 구매하나요? 식료품점이 계란에 대한 소매 매출총이익을 확대했나요, 아니면 변동성을 흡수했나요? 계란이 '미끼 상품(loss leader)'에서 마진 기여 상품으로 바뀌었나요?\n4. 반론: 재고 위험, 부패, 감모, 장기 조달 지연 및 소매 오버헤드 인플레이션(매장 노동력, 냉장, 물류).\n\n요구 사항:\n- 웹 검색 및 웹 읽기를 사용하여 USDA ERS 가격 차이 데이터, BLS 통계 및 농업 경제학 연구를 찾으세요.\n- 정확한 수치, 날짜 및 1차 자료 발췌문을 인용하세요.\n- 확인된 경제 데이터와 이론적 추론을 구분하세요.\n- 상태(지원됨, 조건부, 반박됨, 미해결), 정확한 URL, 지표 및 발췌문을 포함한 번호가 매겨진 증거 대장을 출력하세요."
-      },
-      "sub_chat_3_message_2": {
-        "text": "[!](embed:b1a2a445-2ff5-4659-bfc1-a19ad7a03b58)\n\n[!](embed:822f05f6-594e-4e61-90ef-9c211907cca4)\n\n[!](embed:6c4c38f8-edfb-4389-b186-ea8c9ae7568e)\n\n[!](embed:98375996-98f0-4b53-9551-054bf5a3a3f5)\n\n[!](embed:b0f2e62e-9aef-4cd0-a664-f80b942288e6)\n\n## 요약\n2022년에서 2024,년 사이 미국 계란 시장은 뚜렷한 [비대칭적 가격 전이](wiki:Asymmetric_price_transmission) 현상을 보였습니다. 이는 농업 경제학에서 흔히 \"로켓과 깃털\"로 알려진 현상으로, 소매 식료품 가격이 도매 가격의 급등은 빠르게 추종하지만, 도매 원자재 가격이 폭락할 때는 상당한 관성으로 인해 천천히 하락하는 것을 의미합니다. 2022년 말 도매 가격이 정점을 찍고 2023,년 초에 50% 이상 폭락했을 때, 소매 식료품 가격이 하향 조정되는 데는 수개월이 걸렸으며, 이로 인해 도매와 소매 간의 가격 차이(스프레드)가 일시적으로 확대되었습니다. 이러한 역학 관계는 사법적으로 판결된 담합 행위보다는 주로 공식 기반 조달 계약의 시차, 초기 비용 상승기에 겪었던 급격한 마진 압박을 만회하려는 식료품점의 노력, 그리고 매장 수준의 간접비 인플레이션에 의해 주도되었습니다.\n\n## 표면적 설명\n소비자들에게 제시된 전통적인 설명은 2022.년 초부터 미국 전역의 산란계 군집을 황폐화시킨 고병원성 조류 인플루엔자(HPAI)로 인한 공급 중단에 초점을 맞추고 있습니다. 이 서술에 따르면, 심각한 공급 부족으로 인해 도매 현물 가격이 급등했고, 소매업체들은 인상된 농장 출하 조달 비용을 쇼핑객에게 직접 전가할 수밖에 없었습니다. 2023년 봄에 가금류 개체수가 회복되면서 도매 가격이 마침내 하락했을 때, 슈퍼마켓 매대 가격의 하락이 지연된 것은 표준적인 공급망 운송 시차, 재고 회전 주기, 그리고 소매 임금, 운송 및 매장 냉장 비용의 지속적인 상승 때문으로 돌려졌습니다.\n\n## 이면의 다른 가능성\n단순한 수요와 공급이라는 표면적 서술 아래에는 도매에서 소매로의 가격 전이에 영향을 미친 몇 가지 구조적 및 미시경제적 메커니즘이 존재했습니다.\n\n- **비대칭적 가격 전이 (\"로켓과 깃털\"):** 식료품 소매업에서 가격 인상은 가격 인하보다 상류에서 하류로 더 빠르게 전달됩니다. 상류의 대체 비용이 급증할 때, 소매업체가 매대 가격을 올리지 않으면 즉각적인 현금 흐름 및 매출 총이익 손실에 직면하게 됩니다. 반면 도매 가격이 급락할 때는 소비자 가격 기대치가 천천히 조정되므로, 슈퍼마켓은 일시적으로 높은 매대 가격을 유지하여 일시적인 마진 이익을 취할 수 있습니다.\n- **계약 구조 대 현물 변동성:** 주요 슈퍼마켓 체인은 계란 물량의 100%를 일일 현물 시장에서 조달하는 경우가 드뭅니다. 식료품점은 일반적으로 30일, 60일 또는 직전 한 달간의 원자재 평균 가격(Urner Barry 또는 USDA 벤치마크 등)에 연동된 공식 기반 공급 계약에 의존합니다. 그 결과, 식료품점의 회계상 매출원가(COGS)는 현물 시장 폭락에 비해 1~2개월의 시차를 두고 하락했습니다.\n- **마진 회복 및 [미끼 상품](wiki:Loss_leader)의 변화:** 신선란은 전통적으로 슈퍼마켓이 고객 유입을 유도하기 위해 아주 적은 마진이나 마이너스 매출 총이익으로 운영하는 빈도가 높은 장바구니 품목 또는 \"미끼 상품\"으로 취급됩니다. 2022,년 말 전례 없는 도매 가격 급등 기간 동안, 많은 소매업체는 가격에 민감한 쇼핑객의 이탈을 막기 위해 마진을 줄이거나 소매 매대 가격을 초과하는 현물 비용을 감수했습니다. 2023,년에 도매 비용이 폭락하자, 식료품점들은 넓어진 가격 차이를 이용해 유제품 및 냉장 부문 전반의 수익성을 재건했습니다.\n- **비탄력적 수요 및 탐색 마찰:** 신선란은 요리 측면에서 직접적인 대체재가 거의 없습니다. 쇼핑객이 계란 구매를 쉽게 미루거나 단지 더 싼 계란을 찾기 위해 여러 매장을 돌아다니기 어렵기 때문에, 도매 가격이 급락할 때 식료품점은 가격을 빠르게 내려야 한다는 즉각적인 경쟁 압력을 최소한으로 받았습니다.\n\n## 증거\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"2c281220-8676-4dbc-80e0-5701aae31755\"}\n```\n\n## 반론\n몇 가지 운영 및 재무적 현실은 확대된 소매 스프레드가 약탈적 행위나 과도한 마진 추출을 나타낸다는 주장을 복잡하게 만듭니다.\n\n- **조달 시차 및 지수 공식:** 일일 현물 원자재 시세를 주간 식료품 매대 가격과 직접 비교하는 것은 식료품점의 마진을 과대평가하는 것입니다. 직전 월평균 계약을 통해 공급을 확보한 슈퍼마켓은 현물 가격이 꺾인 후에도 30일에서 60일 동안 계속해서 높은 조달 비용을 지불했으므로, 이들의 입고 재고 비용은 공개된 도매 차트와 동시에 떨어지지 않았습니다.\n- **상류 충격 흡수를 위한 마진 회복:** 2022년 말 도매 가격이 1다스당 $5.00~$7.00달러로 급등했을 때, 많은 슈퍼마켓은 브랜드 손상을 피하고 고객 유입을 유지하기 위해 현물 대체 가격보다 훨씬 저렴한 가격으로 계란 가격을 책정했습니다. 이후의 넓은 스프레드 기간은 소매업체들이 충격 기간 동안 입은 상당한 장부상 손실을 상쇄할 수 있게 해주었습니다.\n- **소매점 간접비 상승:** 2022년과 2024,년 사이에 매장 수준의 시간당 임금, 지속적인 콜드체인 냉장을 위한 에너지 요금, 디젤 화물 할증료, 포장재 등 일반적인 식료품 운영 비용이 실질적으로 증가했습니다. 이러한 고정 및 가변 매장 간접비는 냉장 신선 식품에 대해 더 높은 구조적 가격 하한선을 형성했습니다.\n- **부패성, 감모 및 재고 위험:** 껍질 계란의 유통기한은 약 30일에서 45일입니다. 공급 환경이 불안정한 상황에서 급격한 하향 가격 조정은 특히 국지적인 HPAI 재발이 지속적인 공급 중단 위험을 초래할 때 재고 부족 및 품절 사태를 유발할 위험이 있습니다.\n\n## 요점\n- **확인됨:** [노동통계국](wiki:Bureau_of_Labor_Statistics) 및 업계 데이터에 따르면, 미국의 소매 및 도매 계란 가격은 2022에서 2024, 사이에 전례 없는 변동성을 겪었으며, 소매 가격은 2022 말에 $4.00/다스를 초과했고 도매 가격은 잠시 $7.27/다스에 도달했습니다. 2023의 소매 가격 하락은 도매 현물 시장의 폭락보다 몇 달 뒤처졌으며, 이로 인해 농가-소비자 및 도매-소비자 가격 차이가 일시적으로 확대되었습니다.\n- **가능성 높음:** 이러한 시차는 주로 소매 조달의 구조적 특징으로 설명됩니다. 즉, 과거 비용 평균을 적용한 공식 기반 가격 책정 계약, 정점 기간 동안 마이너스 수익을 감수한 후 압축된 마진을 적극적으로 회복하려는 식료품점의 움직임, 그리고 더 높은 기본 매장 운영 비용 때문입니다.\n- **그럴듯하지만 입증되지 않음:** 소매업체들이 암묵적인 가격 결정력과 상황 의존적 가격 책정 재량권을 행사하여, 광범위한 식품 인플레이션에 대한 소비자의 수용을 이용해 높은 매장 가격을 연장했을 가능성이 있습니다.\n- **불확실함:** 개별 소매 체인 전반에서 고정 가격 계약 대 현물 지수 연동 공식 계약을 통해 이루어진 신선란 조달의 정확한 비율은 기밀 사항이며, 소매 단계에서의 불법적인 담합에 대한 증거 나 사법적 판결은 없습니다."
-      },
-      "sub_chat_3_message_2_thinking": {
-        "text": "**계란 가격 전이 분석**\n\n저는 현재 2022에서 2024. 사이의 미국 계란 도소매 가격 차이를 분석하기 위해 USDA ERS 및 BLS CPI 데이터에 집중하고 있습니다. 특히 2023. 말에 시작된 도매 가격의 급격한 하락에 소매 가격이 어떻게 반응했는지에 관심이 많습니다. 저는 산업의 이 부문을 통한 가격 변동 전이에 관한 연구를 깊이 있게 파고들 계획입니다.\n\n\n**가격 비대칭성 조사**\n\n저는 이제 \"로켓과 깃털(rockets and feathers)\" 현상을 더 깊이 파고들어 소매 계란 시장에서의 비대칭적 가격 전이에 대한 실증적 증거를 수집하고 있습니다. 또한 슈퍼마켓의 가격 책정 전략을 조사하여 고정 기간 계약과 현물 지수 가격 책정을 대조하고, 소매업체가 변동성을 처리하는 방식과 마진 기여자로의 전환을 살펴보고 있습니다. 가격 데이터, 출처 및 결론을 기록하기 위한 증거 대장을 구축할 계획입니다.\n\n\n**연구 범위 정의**\n\n복잡하고 심층적인 조사를 위한 결과물 구조를 확립했으며, 프레임워크는 요약 답변(Short Answer), 표면적 설명(Surface Explanation), 그 외의 가능성(What Else May Be Going On), 증거(Evidence), 반론(Counterarguments), 결론(Bottom Line)의 6가지 별개 제목에 의존할 것입니다. 수정 없이 이 정확한 제목들을 사용하는 것이 필수적입니다. 이 환경에서는 웹 검색만 사용하도록 제한되어 있음을 확인했습니다.\n\n\n**데이터 획득 정교화**\n\n저는 이제 2022부터 2024.까지의 계란 가격 데이터를 수집하기 위해 웹 검색을 사용하는 데 집중하고 있습니다. 소매 및 도매 수준 모두에서 등급 A 대란의 월평균 가격을 포함하여 USDA ERS 및 BLS CPI 정보를 찾고 있습니다. 제 검색은 또한 제 작업을 뒷받침하기 위해 계란 시장의 비대칭적 가격 전이(로켓과 깃털)에 관한 학술 논문을 목표로 할 것입니다. 웹 검색만 사용하기로 결정했습니다.\n\n\n**계란 가격 전이 분석**\n\n저는 현재 2022와 2024. 사이의 미국 계란 도소매 가격 차이에 집중하고 있습니다. 포괄적인 시각을 갖기 위해, 특히 최근의 전개 상황에 대해 USDA ERS 및 BLS CPI 계란 데이터를 파헤치고 있습니다. 도매 가격이 소매 가격에 어떻게 영향을 미치는지, 그리고 그 영향이 소비자에게 얼마나 빨리 전달되는지 이해해야 합니다.\n\n\n**가격 비대칭성 탐색**\n\n저는 이제 2022-2024 기간 동안 소매 계란 가격 책정에서의 비대칭적 가격 전이에 대한 실증적 근거를 찾으며 \"로켓과 깃털\" 역학 관계에 집중하고 있습니다. 또한 슈퍼마켓의 가격 책정 전략, 고정 기간 계약과 현물 지수 계약의 대조, 소매업체가 비용 흡수와 매출 총이익 확대 사이에서 균형을 맞추는 방식을 조사하고 있습니다. 가격 책정 지연을 설명할 수 있는 재고 위험 및 부패와 같은 반론을 고려하고 있습니다.\n\n\n**비대칭성 증거 검토**\n\n저는 이제 2022와 2024. 사이의 계란 가격 책정에서의 비대칭적 가격 전이에 관한 제 조사 결과를 교차 검증하고 있습니다. 계약 유형의 효과에 집중하고 있으며, 구체적인 조건을 알아야 합니다. 이를 완전히 평가하기 위해서는 제가 얻지 못한 재고 관리 및 보관 비용에 대한 정보도 필요합니다. 이러한 핵심 사실이 없으면 제 분석은 불완전한 상태로 남습니다.\n\n\n**정보 주장 검증**\n\n저는 이제 2022와 2024. 사이의 계란 가격 전이에 관한 주장을 기록하기 위해 엄격한 구조를 설정하고 있습니다. URL과 기간을 포함하여 출처의 신뢰성을 평가해야 합니다. 각 주장은 지원됨(supported), 유보됨(qualified), 반박됨(contradicted) 또는 미해결(unresolved) 중 하나의 간결한 결과를 갖게 됩니다. 검증을 위해 소스 링크와 발췌된 데이터가 포함된 직접적인 증거를 포함할 것입니다. 다음 단계는 상세한 증거 대장을 정리하는 것입니다.\n\n\n**데이터 소스 유효성 검사**\n\n저는 이제 2022와 2024. 사이의 계란 가격 전이와 관련된 데이터 소스의 신뢰성을 평가하고 있습니다. USDA ERS 가격 차이 데이터([https://primary.ers.usda.gov/data-products/price-spreads-from-farm-to-consumer](https://primary.ers.usda.gov/data-products/price-spreads-from-farm-to-consumer))와 BLS CPI 계란 데이터(예: [https://fred.stlouisfed.org/series/apu0000708111](https://fred.stlouisfed.org/series/apu0000708111))에 집중하고 있습니다. 또한 데이터 유효성을 보장하기 위해 `https://www.in2013dollars.com/Eggs/price-inflation`의 리소스와 같은 인플레이션 데이터를 평가하고 있습니다. 기간을 맞추기 위해 정확한 BLS 시리즈와 ERS 데이터를 확인해야 합니다.\n\n\n**외부 데이터 수집**\n\n저는 이제 계란 가격 전이에 대한 조사를 강화하기 위해 외부 리소스를 통합하고 있으며, 지지하거나 대조되는 증거를 제공하는 리소스에 집중하고 있습니다. CEIC Data, FRED 세인트루이스 연준, 위키백과를 포함한 웹사이트와 ScienceDirect, ResearchGate, SSRN과 같은 출처에서 비대칭적 가격 전이를 논의하는 연구 논문 및 기사를 평가하기 시작했습니다. 2022와 2024. 사이의 계란 가격 역학에 대한 이해를 넓혀줄 통찰력을 찾고 있습니다.\n\n\n**외부 관점 통합**\n\n저는 이제 2022와 2024. 사이의 계란 가격 전이 분석을 강화하기 위해 최근 외부 소스를 통합하고 있습니다. 식료품 가격 행태에 대한 관점을 이해하기 위해 *Fortune* 및 *RetailWire*의 기사를 면밀히 살펴보고 있습니다. 또한 문맥과 인용을 추가하기 위해 [비대칭적 가격 전이](wiki:Asymmetric_price_transmission), [노동통계국](wiki:Bureau_of_Labor_Statistics), [경제조사국](wiki:Economic_Research_Service), [세인트루이스 연방준비은행](wiki:Federal_Reserve_Bank_of_St._Louis)과 같은 관련 위키백과 링크를 포함할 계획입니다.\n\n\n**가격 측정 명확화**\n\n저는 이제 2022와 2024. 사이의 계란 가격 분석을 위한 방법론적 개선에 집중하고 있습니다. 평균 가격이 가격 변동을 추적하는 데 이상적이지 않다는 것을 깨달았습니다. 대신 CPI 지수 값으로 전환해야 합니다. 2024 8월 가격 데이터를 통합하여 2023 초의 사상 최고치에 대한 RetailWire의 주장과 도매 시장의 급등 및 폭락의 영향을 보정하고 평가할 것입니다. 소매 반응에 대한 로켓과 깃털 측면이 다음 순서입니다.\n\n\n**가격 역학 조사**\n\n저는 이제 2022에서 2024. 사이의 계란 가격 행태에 대한 조사를 구체화하기 위해 학술 문헌과 산업 분석의 통찰력을 통합하고 있습니다. 시장 지배력과 암묵적 담합에 관한 Borenstein, Cameron, Gilbert의 연구, 그리고 비대칭적 가격 조정에 관한 Peltzman의 연구는 조류 독감 발생의 영향에 대한 제 분석에 정보를 제공할 것입니다. 저는 급격한 도매가 상승과 그보다 느린 소매가 하락을 대조하는 데 집중하고 있습니다. 특정 Urner Barry 급등과 소매 CPI 데이터 간의 연결을 정교화할 계획입니다.\n\n\n**소매 행태 조사**\n\n저는 현재 2022에서 2024. 사이의 계란 가격 변동 기간 동안의 소매 행태를 조사하고 있습니다. 식료품점이 현물 시장을 이용했는지 아니면 비용 가산 계약(cost-plus contracts)을 이용했는지, 그리고 그것이 소매 가격 책정에 어떤 영향을 미쳤는지 이해해야 합니다. 소매업체가 계란을 어떻게 미끼 상품(loss leaders)으로 취급하는지, 그리고 도매가가 급등하거나 폭락할 때 마진을 어떻게 관리하는지 고려해야 할 것입니다. 목표는 마진 조정을 포함하여 관련된 가격 책정 전략을 밝혀내는 것입니다.\n\n\n**비대칭 역학 문서화**\n\n저는 이제 2022에서 2024. 사이의 미국 계란 시장을 특징짓는 비대칭적 가격 전이(\"로켓과 깃털\") 현상을 문서화하고 있습니다. 고병원성 조류인플루엔자(HPAI)로 인해 도매가가 급격히 치솟았을 때 소매가도 빠르게 뒤따랐음을 확인했습니다. 그러나 도매가가 폭락했을 때 소매가 하락은 몇 달의 시차를 두고 발생했으며, 이는 소매 마진의 증가로 나타났습니다. 저는 비용 가산 조달 계약과 과거의 마진 압박을 회복하려는 시도가 주요 기여 요인이라는 결론을 내렸습니다.\n\n\n**설명 평가**\n\n저는 이제 2022에서 2024. 사이의 관찰된 계란 가격 행태에 대한 대안적 설명을 깊이 파고들고 있습니다. 식료품점이 도매가 하락 이후 소매가 인하 지연을 정당화하기 위해 공급망 지연과 유통업체 계약을 어떻게 인용했는지, 그리고 소비자 옹호 단체나 정치권의 \"탐욕 인플레이션(greedflation)\" 또는 가격 폭리 주장이 미친 영향을 면밀히 살펴보고 있습니다. 현재 저의 초점은 비대칭적 가격 책정 유인, 조달 관행, 암묵적 담합을 분석하는 \"로켓과 깃털\" 역학에 맞춰져 있습니다.\n\n\n**가격 행태 편찬**\n\n저는 이제 2022에서 2024. 사이의 계란 가격 행태의 주요 역학을 요약하는 간결하고 번호가 매겨진 주장/증거 원장을 작성하고 있습니다. 특히 90일 계약과 계란을 미끼 상품으로 사용하는 것이 소매 가격 책정에 어떤 영향을 미쳤는지 규명하는 데 관심이 있습니다. 또한 식료품점이 이를 마진 회복의 기회로 활용했을 가능성의 정도와 이것이 담합이나 의도의 증거가 되는지 여부를 평가할 계획입니다.\n\n\n**증거 수집 구조화**\n\n저는 이제 2022부터 2024.까지의 계란 가격 역학에 관한 증거 대조를 위한 엄격한 프레임워크를 구축하고 있습니다. 정량적 측면, 인과 관계, 의도 및 법적 지위에 대한 주장을 관련 URL 및 간결한 결과와 함께 문서화하고 검증할 것입니다. 각 주장에는 소스 URL 및 증거 범위와 함께 '지원됨(supported)', '수정됨(qualified)', '모순됨(contradicted)' 또는 '미해결(unresolved)' 중 하나의 간결한 결과가 부여됩니다. 저는 원장에 집중하고 있으며 최종 결론을 내리기 전에 모든 주장이 완벽하게 문서화되도록 하고 있습니다.\n\n\n**주장 및 증거 공식화**\n\n저는 이제 가격 행태 원장을 위한 첫 번째 주장을 작성하고 있으며, '지원됨' 상태를 목표로 하고 있습니다. 2022년 말/2023,년 초에 미국 도시 평균 특란(Grade A large) 소매 가격이 한 판(dozen)당 평균 $4.00달러를 넘어 기록적인 수준에 도달했다는 데이터를 확보했으며, 이는 [https://retailwire.com/discussion/should-grocers-be-pricing-eggs-at-a-loss/](https://retailwire.com/discussion/should-grocers-be-pricing-eggs-at-a-loss/) 및 [https://fred.stlouisfed.org/series/apu0000708111](https://fred.stlouisfed.org/series/apu0000708111)에 근거합니다. 출처에서 발췌한 뒷받침 문구를 검토할 준비가 되었습니다.\n\n\n**주장 및 데이터 검증**\n\n저는 이제 도매 기준 가격이 한 판당 $7.27달러로 급등했다는 두 번째 주장과 2024년 8월 소매 가격에 관한 세 번째 주장을 교차 참조하고 있습니다. 데이터를 철저히 확인했으므로 이들이 정확하다고 확신합니다. 저는 이러한 가격 극단치를 검증하고, 각 소스의 데이터를 확인하며, 증거의 일관성을 평가하는 데 집중하고 있습니다.\n\n\n**시장 데이터 확인**\n\n저는 이제 네 번째 주장을 편찬하고 있습니다. 2022에서 2024. 사이의 계란 시장을 포함하여 다양한 시장에서 비대칭적 가격 전이 이론, 즉 \"로켓과 깃털\" 역학을 검증하는 데 집중하고 있습니다. 소스를 제시할 준비를 하고 있으며, 위키백과 정보가 비대칭적 가격 전이에 대한 뒷받침되는 정의를 제공함을 확인하고 있습니다.\n\n\n**가격 전이 확인**\n\n저는 이제 소비재 및 생산재의 비대칭적 가격 조정과 관련된 주장 5,를 통합하고 있습니다. 또한 2022에서 2024. 사이의 계란 시장에 대한 포괄적인 요약을 위해 ERS 가격 스프레드를 추적하는 주장 6,를 확인할 준비를 하고 있습니다. 다음으로, 모든 주장에서 발견된 내용들을 통합하기 시작할 것입니다.\n\n\n\n**수요 탄력성 분석**\n\n저는 이제 2022에서 2024. 사이의 계란 가격 변동 기간 동안의 소매 행태를 설명하기 위해 단기 수요 탄력성에 대한 통찰력을 통합하고 있습니다. 제 분석은 비탄력적인 수요로 인해 소매업체가 증가한 비용을 신속하게 전가할 수 있으며, 도매가가 하락할 때 가격 하락 압력을 줄인다는 주장을 뒷받침합니다. 이는 상태 의존적 가격 책정 임계값 모델과 일치하며 주장 7.과 관련이 있습니다. 이제 주장 8.를 진행하겠습니다.\n\n\n**담합 주장 평가**\n\n저는 이제 2022부터 2024,까지 소매업체 간의 불법적인 가격 담합 증거 가능성을 조사하고 있으며, 가격 담합의 증거가 없다는 주장 9,에 집중하고 있습니다. 시장 지배력, 담합, 암묵적 담합에 초점을 맞추고 있습니다. 고정 계약은 가격 하락 시 즉각적인 마진 압박을 방지하므로 실제 계약 관행을 고려해야 합니다. 현재 저의 평가는 이 주장을 '미해결'로 간주합니다.\n\n\n**가격 책정 전략 확인**\n\n저는 현재 2022년에서 2024년 사이의 계란 가격 형성에 영향을 미친 세 가지 주요 요인인 손실 유인 판매 이후의 마진 회복, 매장 운영비 인플레이션, 재고 관리를 분석하고 있습니다. 소매업체들이 도매가 상승기에는 마진 압박을 감수하고, 폭락기에는 마진을 확대했으며, 운영 비용이 상승하는 것을 확인했습니다. 계란의 부패하기 쉬운 특성이 느린 가격 조정에 영향을 미친다고 생각합니다. 이제 클레임 10가 뒷받침된다고 말할 수 있습니다.\n\n\n**시장 확실성 명확화**\n\n저는 이제 2022년과 2024.년 사이의 계란 가격 전이에 관한 현재 조사 결과의 확실성 수준을 명확히 하고 있습니다. BLS 및 USDA 데이터, 펠츠만(Peltzman)의 APT 조사 결과, 도매가 폭락에 뒤처지는 소매가 지연 현상이 사실임을 확인했습니다. 공식 계약 지연, 마진 흡수, 비용 상승은 가능성이 높다고 생각합니다. 소비자 혼란을 이용하거나 암묵적 담합에 대해서는 확신이 덜하며, 현물 계약 대 고정 계약 비율은 알지 못합니다."
-      }
-    },
     "usb_c_3v3_ldo_pcb_schematic": {
       "title": {
         "text": "USB-C 3.3V LDO PCB 회로도"
@@ -10907,6 +10652,38 @@
       },
       "follow_up_6": {
         "text": "디커플링 커패시터 선택 이유 설명하기"
+      }
+    },
+    "vegetarian_recipes_from_fridge_vegetables": {
+      "title": {
+        "text": "냉장고 속 재료를 활용한 채식 레시피 아이디어"
+      },
+      "summary": {
+        "text": "사용자가 시금치, 당근, 피망, 병아리콩을 활용한 채식 레시피 아이디어를 요청했고, 어시스턴트가 세 가지 옵션을 제공했습니다."
+      },
+      "message_1": {
+        "text": "채식 레시피 좀 추천해 줄 수 있어? 냉장고에 시금치, 당근, 피망, 병아리콩이 남아 있어."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\n**시금치, 당근, 피망, 병아리콩**이 있다면 맛있고 식이섬유가 풍부한 채식 요리를 만들 수 있는 훌륭한 기초가 마련된 셈이에요. \n\n원하는 요리 스타일에 따라 시도해 볼 수 있는 세 가지 레시피를 소개할게요:\n\n---\n\n### 1. 신선하고 아삭한 맛: 태국식 찹 샐러드\n빠르고 가볍고 아삭한 음식을 원한다면, 잘게 썬 생피망, 당근, 시금치를 병아리콩과 섞은 뒤 새콤한 [땅콩](wiki:Peanut) 라임 드레싱을 곁들여 보세요.\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. 고소한 패티: 바삭한 병아리콩 채소 프리터\n따뜻하고 한입 크기로 즐기기 좋은 요리(랩, 피타 브레드에 넣거나 요거트 딥과 함께 먹기 좋아요)를 원한다면, 병아리콩을 으깬 뒤 다진 당근, 피망, 살짝 데친 시금치를 넣어 반죽해 보세요.\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. 간편한 평일 저녁 메뉴: 따뜻한 병아리콩 채소 스킬렛 커리\n팬 하나로 끝내는 요리를 원한다면(코코넛 밀크 캔이나 으깬 토마토 같은 기본 식재료 활용):\n1. **향신 채소 볶기:** 스킬렛에 올리브유를 두르고 다진 양파, 마늘, 생강을 향이 올라올 때까지 볶으세요.\n2. **단단한 채소 넣기:** 당근과 피망을 한입 크기로 써세요. 큐민 가루, [강황](wiki:Turmeric), 칠리 파우더나 카레 가루 한 꼬집과 함께 넣고 볶으세요.\n3. **졸이기:** 씻어둔 병아리콩과 채소 육수 또는 코코넛 밀크 한 컵을 넣으세요. 뚜껑을 덮고 당근이 부드러워질 때까지 10~12분간 뭉근하게 끓이세요.\n4. **시금치 익히기:** 마지막에 신선한 시금치를 넣고 선명한 초록색이 돌며 숨이 죽을 때까지 1~2분간 더 익히세요. 레몬즙을 살짝 뿌려 마무리하세요.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"오늘 어떤 스타일의 요리를 만들어 보고 싶나요?\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"신선하고 아삭한 찹 샐러드\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"바삭하게 구운 프리터 또는 패티\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"따뜻한 원팬 스킬렛 커리 또는 스튜\" }\n  ]\n}\n```"
+      },
+      "follow_up_1": {
+        "text": "팬 커리(skillet curry)의 상세 조리법과 정확한 재료 계량법 검색하기"
+      },
+      "follow_up_2": {
+        "text": "남은 병아리콩 프리터의 밀프렙을 위한 손질 및 보관 방법 설명하기"
+      },
+      "follow_up_3": {
+        "text": "병아리콩 프리터와 잘 어울리는 비건 요거트 소스 레시피 검색하기"
+      },
+      "follow_up_4": {
+        "text": "팬 요리에 커리 가루가 없을 때 대신 사용할 수 있는 간단한 향신료 목록 만들기"
+      },
+      "follow_up_5": {
+        "text": "태국식 찹 샐러드에 곁들일 타히니를 활용한 다른 드레싱 레시피 검색하기"
+      },
+      "follow_up_6": {
+        "text": "이 세 가지 채식 레시피의 단백질 및 식이섬유 함량 비교하기"
       }
     },
     "vital_farms_sec_financials": {
@@ -10971,70 +10748,6 @@
       },
       "follow_up_6": {
         "text": "음성 아이디어를 체계적인 작업으로 전환하는 다양한 방법 비교하기"
-      }
-    },
-    "vegetarian_recipes_from_fridge_vegetables": {
-      "title": {
-        "text": "냉장고 속 재료를 활용한 채식 레시피 아이디어"
-      },
-      "summary": {
-        "text": "사용자가 시금치, 당근, 피망, 병아리콩을 활용한 채식 레시피 아이디어를 요청했고, 어시스턴트가 세 가지 옵션을 제공했습니다."
-      },
-      "message_1": {
-        "text": "채식 레시피 좀 추천해 줄 수 있어? 냉장고에 시금치, 당근, 피망, 병아리콩이 남아 있어."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\n**시금치, 당근, 피망, 병아리콩**이 있다면 맛있고 식이섬유가 풍부한 채식 요리를 만들 수 있는 훌륭한 기초가 마련된 셈이에요. \n\n원하는 요리 스타일에 따라 시도해 볼 수 있는 세 가지 레시피를 소개할게요:\n\n---\n\n### 1. 신선하고 아삭한 맛: 태국식 찹 샐러드\n빠르고 가볍고 아삭한 음식을 원한다면, 잘게 썬 생피망, 당근, 시금치를 병아리콩과 섞은 뒤 새콤한 [땅콩](wiki:Peanut) 라임 드레싱을 곁들여 보세요.\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. 고소한 패티: 바삭한 병아리콩 채소 프리터\n따뜻하고 한입 크기로 즐기기 좋은 요리(랩, 피타 브레드에 넣거나 요거트 딥과 함께 먹기 좋아요)를 원한다면, 병아리콩을 으깬 뒤 다진 당근, 피망, 살짝 데친 시금치를 넣어 반죽해 보세요.\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. 간편한 평일 저녁 메뉴: 따뜻한 병아리콩 채소 스킬렛 커리\n팬 하나로 끝내는 요리를 원한다면(코코넛 밀크 캔이나 으깬 토마토 같은 기본 식재료 활용):\n1. **향신 채소 볶기:** 스킬렛에 올리브유를 두르고 다진 양파, 마늘, 생강을 향이 올라올 때까지 볶으세요.\n2. **단단한 채소 넣기:** 당근과 피망을 한입 크기로 써세요. 큐민 가루, [강황](wiki:Turmeric), 칠리 파우더나 카레 가루 한 꼬집과 함께 넣고 볶으세요.\n3. **졸이기:** 씻어둔 병아리콩과 채소 육수 또는 코코넛 밀크 한 컵을 넣으세요. 뚜껑을 덮고 당근이 부드러워질 때까지 10~12분간 뭉근하게 끓이세요.\n4. **시금치 익히기:** 마지막에 신선한 시금치를 넣고 선명한 초록색이 돌며 숨이 죽을 때까지 1~2분간 더 익히세요. 레몬즙을 살짝 뿌려 마무리하세요.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"오늘 어떤 스타일의 요리를 만들어 보고 싶나요?\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"신선하고 아삭한 찹 샐러드\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"바삭하게 구운 프리터 또는 패티\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"따뜻한 원팬 스킬렛 커리 또는 스튜\" }\n  ]\n}\n```"
-      },
-      "follow_up_1": {
-        "text": "팬 커리(skillet curry)의 상세 조리법과 정확한 재료 계량법 검색하기"
-      },
-      "follow_up_2": {
-        "text": "남은 병아리콩 프리터의 밀프렙을 위한 손질 및 보관 방법 설명하기"
-      },
-      "follow_up_3": {
-        "text": "병아리콩 프리터와 잘 어울리는 비건 요거트 소스 레시피 검색하기"
-      },
-      "follow_up_4": {
-        "text": "팬 요리에 커리 가루가 없을 때 대신 사용할 수 있는 간단한 향신료 목록 만들기"
-      },
-      "follow_up_5": {
-        "text": "태국식 찹 샐러드에 곁들일 타히니를 활용한 다른 드레싱 레시피 검색하기"
-      },
-      "follow_up_6": {
-        "text": "이 세 가지 채식 레시피의 단백질 및 식이섬유 함량 비교하기"
-      }
-    },
-    "air_fryers_amazon_germany": {
-      "title": {
-        "text": "독일에서 판매되는 에어프라이어 비교"
-      },
-      "summary": {
-        "text": "독일 아마존의 인기 에어프라이어를 가격, 용량, 평점으로 비교하고 2인 가구에 Philips Airfryer 2000 시리즈를 추천했습니다."
-      },
-      "message_1": {
-        "text": "아마존 판매 상품을 포함해 독일에서 온라인으로 살 수 있는 에어프라이어를 찾아줘. 현재 가격, 용량, 구매자 평점을 비교하고 출처 링크와 함께 2인 가구에 적합한 제품 하나를 추천해 줘."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\n현재 독일 아마존에서 판매되는 평점이 높은 에어프라이어의 가격, 용량, 구매자 평가를 비교했습니다.\n\n---\n\n### 독일에서 인기 있는 모델 비교\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### 2인 가구를 위한 가장 좋은 선택\n\n#### **추천 제품: [Philips Airfryer 2000 Series 6.2L](embed:philips-airfryer-2000-fay)**\n\n* **두 사람에게 적합한 이유:**\n  * **적절한 용량(6.2 L):** 바스켓이 4.5–5 L보다 작으면 두 사람 분량도 여러 번 나눠 조리해야 할 수 있습니다. 6.2 L 바스켓에는 연어 필레 두 조각과 채소 또는 감자튀김을 한 겹으로 펼쳐 고르게 익힐 수 있습니다.\n  * **주방 공간:** Ninja나 Russell Hobbs 같은 듀얼 존 제품은 조리대 공간을 많이 차지합니다. 6 L 단일 바스켓은 독일의 일반적인 주방에도 비교적 잘 맞으면서 충분한 조리 공간을 제공합니다.\n  * **투명 창:** 서랍을 열어 열을 잃지 않고 익은 정도를 확인할 수 있습니다.\n  * **가격 대비 가치:** €99.99에 [Philips](wiki:Philips)의 안정적인 온도 제어 기능을 제공하는 합리적인 가격의 제품입니다.\n\n#### **대안(서로 다른 온도로 두 요리를 자주 조리한다면): [Philips Dual Basket 3000 Series (9.0L)](embed:philips-airfryer-dual-pjD)**\n단백질 요리와 채소 곁들임을 서로 다른 온도와 시간에 동시에 만들고 싶다면(예: 닭가슴살은 180 °C, 바삭한 감자는 200 °C), 현재 €119.99로 할인 중인 이 모델은 두 바스켓의 조리 완료 시간을 맞출 수 있습니다.\n\n---\n\n### 구매 전에 확인할 점\n1. **바스켓 모양:** Cosori와 Philips 같은 사각 바스켓은 같은 용량의 둥근 바스켓보다 스테이크, 베이킹 틀, 꼬치처럼 넓게 펼쳐야 하는 음식을 넣기 좋습니다.\n2. **식기세척기 공간:** 6 L 단일 서랍이 들어갈 만큼 높이가 충분한지 확인하세요. 논스틱 코팅을 더 오래 쓰고 싶다면 손세척도 고려해 보세요."
-      },
-      "follow_up_1": {
-        "text": "에어프라이어 전용 레시피 찾아보기"
-      },
-      "follow_up_2": {
-        "text": "싱글 바스켓과 듀얼 바스켓 에어프라이어의 주요 차이점 설명하기"
-      },
-      "follow_up_3": {
-        "text": "이 에어프라이어와 호환되는 베이킹 액세서리 찾기"
-      },
-      "follow_up_4": {
-        "text": "에어프라이어로 만드는 초보자용 저녁 요리법 살펴보기"
-      },
-      "follow_up_5": {
-        "text": "이 모델들의 현재 에너지 소비 정보 확인하기"
-      },
-      "follow_up_6": {
-        "text": "세라믹 코팅과 테플론 코팅의 세척 및 유지 관리 요구 사항 비교하기"
       }
     }
   },
@@ -16379,6 +16092,16 @@
       }
     },
     "app_store_examples": {
+      "jobs": {
+        "search": {
+          "1": {
+            "text": "스톡홀름의 소프트웨어 개발자 채용 정보"
+          },
+          "2": {
+            "text": "말뫼의 소프트웨어 개발자 채용 정보"
+          }
+        }
+      },
       "hosting": {
         "search_domains": {
           "1": {
@@ -21149,7 +20872,7 @@
       "text": "무료로 테스트"
     },
     "version_title": {
-      "text": "v0.27"
+      "text": "v0.28"
     },
     "domain_not_allowed": {
       "text": "이메일 도메인이 허용되지 않습니다."
@@ -21960,6 +21683,7 @@
     }
   },
   "videocall": {},
+  "voice_call_events": {},
   "voicecall": {},
   "waiting_list": {
     "discord_members": {
@@ -21973,6 +21697,11 @@
     }
   },
   "workflows": {
+    "home": {
+      "guest_subtitle": {
+        "text": "워크플로 자동화를 살펴보세요:"
+      }
+    },
     "template_share": {
       "title": {
         "text": "템플릿으로 공유"

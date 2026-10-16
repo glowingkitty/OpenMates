@@ -30,6 +30,7 @@ const REMOVED_GENERATED_AUDIO_EXAMPLE_SLUGS = [
 	'audio-speak-welcome-message'
 ];
 
+
 const GENERATED_AUDIO_EXAMPLE_CASES = [
 	{
 		chatId: 'example-community-garden-volunteer-chime',
@@ -37,13 +38,6 @@ const GENERATED_AUDIO_EXAMPLE_CASES = [
 		skillId: 'generate',
 		promptSnippet: 'Create a short, warm notification sound for a community garden app',
 		embedPromptSnippet: 'Warm and gentle two-note acoustic chime'
-	},
-	{
-		chatId: 'example-audio-speak-openmates-welcome-message',
-		slug: 'audio-speak-openmates-welcome-message',
-		skillId: 'speak',
-		promptSnippet: 'Say this as a warm, natural welcome message',
-		embedPromptSnippet: 'Say this as a warm, natural welcome message'
 	}
 ] as const;
 
@@ -174,6 +168,7 @@ test.describe('Example chats loading for new users', () => {
 		);
 	}
 
+
 	// contract-test: direct surface=gui.web assertions=public-example-chats.catalog.discoverable,public-example-chats.surface.semantic-parity
 	test('guest show-all examples uses expanded resume cards and global search covers every example', async ({
 		page
@@ -253,36 +248,13 @@ test.describe('Example chats loading for new users', () => {
 		).toBeVisible({ timeout: 30000 });
 	});
 
-	// contract-test: direct surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
-	test('deep research example renders static sub-chat cards without a forced focus mention', async ({
-		page
-	}: {
-		page: any;
-	}) => {
-		test.setTimeout(60000);
-
-		await page.goto(getE2EDebugUrl('/#chat-id=example-us-egg-prices-deep'), {
-			waitUntil: 'domcontentloaded'
-		});
-
-		const userMessage = page.getByTestId('user-message-content').filter({
-			hasText: 'Why did US egg prices stay high after avian flu eased?'
-		});
-		await expect(userMessage).toBeVisible({ timeout: 15000 });
-		await expect(
-			userMessage,
-			'Deep research example should demonstrate auto-selection, not @focus forcing.'
-		).not.toContainText('@focus:');
-
-		const carousel = page.getByTestId('sub-chats-carousel');
-		await expect(carousel).toBeVisible({ timeout: 15000 });
-		await expect(carousel.getByTestId('sub-chat-card')).toHaveCount(3);
-
-		const focusBar = page.getByTestId('focus-mode-bar');
-		await expect(focusBar).toBeVisible({ timeout: 15000 });
-		await expect(focusBar.getByTestId('focus-status-label')).toContainText('Deep research');
-		await expect(page.locator('body')).not.toContainText('"type":"focus_mode_activation"');
-	});
+  // contract-test: direct surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
+  test('retained web search replacement shows its real natural request', async ({ page }: { page: any }) => {
+    await page.goto(getE2EDebugUrl('/#chat-id=example-find-brand-name-and'), { waitUntil: 'domcontentloaded' });
+    await expect(page.getByTestId('user-message-content').filter({ hasText: 'Help me find a name for my new product.' })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByTestId('sub-chats-carousel')).toHaveCount(0);
+    await expect(page.locator('body')).not.toContainText('"type":"focus_mode_activation"');
+  });
 
 	// contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
 	test('chat edge fade stays shallow and fullscreen results restore the hidden chat', async ({ page }: { page: any }) => {
@@ -574,7 +546,7 @@ test.describe('Example chats loading for new users', () => {
 		await expect(page.locator('body')).toContainText('20.4g');
 	});
 
-	// contract-test: direct surface=gui.web assertions=public-example-chats.catalog.discoverable,public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity,audio-generate.output.playable-audio,audio-speak.output.playable-audio,audio-generate.surface-parity,audio-speak.surface-parity
+	// contract-test: direct surface=gui.web assertions=public-example-chats.catalog.discoverable,public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity,audio-generate.output.playable-audio,audio-generate.surface-parity
 	test('generated audio examples use natural prompts and recording-style playback', async ({
 		page,
 		request
@@ -646,16 +618,16 @@ test.describe('Example chats loading for new users', () => {
 		}
 	});
 
-	// contract-test: direct surface=gui.web assertions=audio-speak.output.playable-audio,public-example-chats.transcript.safe-rendering
-	test('generated audio speech example renders mobile playback controls', async ({
+	// contract-test: direct surface=gui.web assertions=audio-generate.output.playable-audio,public-example-chats.transcript.safe-rendering
+	test('generated audio chime example renders mobile playback controls', async ({
 		page
 	}: {
 		page: any;
 	}) => {
 		test.setTimeout(90000);
 		await page.setViewportSize({ width: 390, height: 844 });
-		const exampleCase = GENERATED_AUDIO_EXAMPLE_CASES[1];
-		expect(exampleCase.skillId, 'audio.speak example case should exist').toBe('speak');
+		const exampleCase = GENERATED_AUDIO_EXAMPLE_CASES[0];
+		expect(exampleCase.skillId, 'audio.generate example case should exist').toBe('generate');
 
 		await page.goto(getE2EDebugUrl(`/#chat-id=${exampleCase.chatId}`), {
 			waitUntil: 'domcontentloaded'
@@ -663,23 +635,23 @@ test.describe('Example chats loading for new users', () => {
 		await expect(page.getByTestId('example-chat-badge')).toBeVisible({ timeout: 15000 });
 
 		const preview = page
-			.locator('[data-testid="embed-preview"][data-app-id="audio"][data-skill-id="speak"][data-status="finished"]')
+			.locator('[data-testid="embed-preview"][data-app-id="audio"][data-skill-id="generate"][data-status="finished"]')
 			.first();
-		await expect(preview, 'mobile audio.speak example should render a finished generated-audio preview').toBeVisible({
+		await expect(preview, 'mobile audio.generate example should render a finished generated-audio preview').toBeVisible({
 			timeout: 15000
 		});
 		await preview.scrollIntoViewIfNeeded();
-		await expect(preview.getByTestId('audio-speak-preview-play-button')).toBeVisible({ timeout: 15000 });
-		const previewAudio = preview.getByTestId('audio-speak-audio');
+		await expect(preview.getByTestId('audio-generate-preview-play-button')).toBeVisible({ timeout: 15000 });
+		const previewAudio = preview.getByTestId('audio-generate-audio');
 		await expect(previewAudio).toBeAttached({ timeout: 15000 });
-		await expectAudioCanPlay(previewAudio, 'mobile audio.speak preview audio');
+		await expectAudioCanPlay(previewAudio, 'mobile audio.generate preview audio');
 
 		const fullscreenOverlay = await openFullscreen(page, preview);
-		await expect(fullscreenOverlay.getByTestId('audio-speak-fullscreen')).toBeVisible({ timeout: 15000 });
-		await expect(fullscreenOverlay.getByTestId('audio-speak-fullscreen-play-button')).toBeVisible({ timeout: 15000 });
-		const fullscreenAudio = fullscreenOverlay.getByTestId('audio-speak-fullscreen-audio');
+		await expect(fullscreenOverlay.getByTestId('audio-generate-fullscreen')).toBeVisible({ timeout: 15000 });
+		await expect(fullscreenOverlay.getByTestId('audio-generate-fullscreen-play-button')).toBeVisible({ timeout: 15000 });
+		const fullscreenAudio = fullscreenOverlay.getByTestId('audio-generate-fullscreen-audio');
 		await expect(fullscreenAudio).toBeAttached({ timeout: 15000 });
-		await expectAudioCanPlay(fullscreenAudio, 'mobile audio.speak fullscreen audio');
+		await expectAudioCanPlay(fullscreenAudio, 'mobile audio.generate fullscreen audio');
 	});
 
 	// contract-test: direct surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity,chat-processing-feedback.completed-processing-summary
