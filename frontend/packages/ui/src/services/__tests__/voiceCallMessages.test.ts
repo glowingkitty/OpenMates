@@ -50,13 +50,21 @@ const mocks = vi.hoisted(() => {
       const raw = rows.get(id);
       if (!raw) return null;
       const decrypted = { ...raw, content: String(raw.encrypted_content).slice(7) };
+      for (const name of ["category", "model_name", "sender_name"]) {
+        if (typeof raw[`encrypted_${name}`] === "string") (decrypted as Record<string, unknown>)[name] = String(raw[`encrypted_${name}`]).slice(7);
+      }
       delete (decrypted as Record<string, unknown>).encrypted_content;
       return decrypted;
     }),
     getMessageWindowForChat: vi.fn(async () => ({ messages: [] })),
     getPendingMessageRetryPage: vi.fn(async () => ({ rows: [...rows.values()].filter((row) => row.status === "sending"), nextCursor: null })),
     getTransaction: vi.fn(async () => transaction()),
-    getEncryptedFields: vi.fn(async (message: { content?: string }) => ({ encrypted_content: `cipher:${message.content}` })),
+    getEncryptedFields: vi.fn(async (message: { content?: string; category?: string; model_name?: string; sender_name?: string }) => ({
+      encrypted_content: `cipher:${message.content}`,
+      ...(message.category ? { encrypted_category: `cipher:${message.category}` } : {}),
+      ...(message.model_name ? { encrypted_model_name: `cipher:${message.model_name}` } : {}),
+      ...(message.sender_name ? { encrypted_sender_name: `cipher:${message.sender_name}` } : {}),
+    })),
     updateMessageStatus: vi.fn(async (id: string, status: string) => {
       const row = rows.get(id);
       if (row) row.status = status;
@@ -93,6 +101,11 @@ const mocks = vi.hoisted(() => {
     rejectCallWith: (code: string | null) => { rejectCode = code; } };
 });
 
+vi.mock("../authenticatedChatMessageWindow", () => ({
+  fetchAuthenticatedChatMessageWindow: vi.fn((chatId, { includeCanonicalMessages: _canonical, ...options }) => mocks.db.getMessageWindowForChat(chatId, options)),
+  loadCanonicalCallCheckpoints: vi.fn(async () => []),
+}));
+vi.mock("../initialChatHistoryGate", () => ({ initialChatHistoryGate: { pending: () => false } }));
 vi.mock("../db", () => ({ chatDB: mocks.db }));
 vi.mock("../embedStore", () => ({ embedStore: { get: vi.fn(async (ref: string) => ({
   embed_id: ref.slice(6), type: "app_skill_use", content: "app_id: web\nskill_id: search",
@@ -115,6 +128,7 @@ vi.mock("../../i18n/translations", () => ({ text: { subscribe: (run: (value: (ke
   return () => {};
 } } }));
 
+import { fetchAuthenticatedChatMessageWindow } from "../authenticatedChatMessageWindow";
 import { applyCallMessageChanged, loadCallContext, markTypedCallMessageFailed,
   persistTypedCallMessage, retryPendingCallMessages, upsertCallTranscript, upsertCallArtifact, recordCallLifecycle } from "../voiceCallMessages";
 
@@ -122,6 +136,7 @@ const artifactReferenceText = (id: string) => '```json\n' + JSON.stringify({ emb
   type: "app_skill_use", app_id: "web", skill_id: "search" }) + '\n```';
 
 beforeEach(() => {
+  vi.mocked(fetchAuthenticatedChatMessageWindow).mockReset().mockImplementation((chatId, { includeCanonicalMessages: _canonical, ...options }) => mocks.db.getMessageWindowForChat(chatId, options) as never);
   mocks.rows.clear();
   mocks.sent.length = 0;
   mocks.dispatchEvent.mockClear();
@@ -132,6 +147,7 @@ beforeEach(() => {
   mocks.db.getMessageWindowForChat.mockReset().mockResolvedValue({ messages: [] });
   mocks.db.getChatCompressionCheckpoints.mockResolvedValue([]);
   mocks.db.getAppSettingsMemoriesMetadataKeys.mockResolvedValue([]);
+  delete (mocks.chat as Record<string, unknown>).encrypted_category;
   delete (mocks.chat as Record<string, unknown>).encrypted_active_focus_id;
   delete (mocks.chat as Record<string, unknown>).encrypted_focus_phase_state;
 });
@@ -141,6 +157,39 @@ describe("voice call transcript persistence", () => {
     callId: "call-uuid-1234", chatId: "chat-uuid-1234", messageId: "message-uuid-1234",
     role: "assistant" as const, createdAt: 1_700_000_001,
   };
+
+  // contract-test: supporting surface=gui.web assertions=video-call.chat.assistant-identity,video-call.chat.transcripts,video-call.privacy
+  it("encrypts and retries the same mate and model attribution with its transcript revision", async () => {
+    await upsertCallTranscript({ ...base, text: "Hello", final: true,
+      category: "medical_health", modelName: "gemini-live-fixture", senderName: "Melvin" });
+    const raw = mocks.rows.get(base.messageId)!;
+    expect(raw).toMatchObject({ encrypted_category: "cipher:medical_health",
+      encrypted_model_name: "cipher:gemini-live-fixture", encrypted_sender_name: "cipher:Melvin" });
+    for (const name of ["category", "model_name", "sender_name"]) expect(raw).not.toHaveProperty(name);
+    expect(mocks.sent[0].payload).toMatchObject({ encrypted_category: raw.encrypted_category,
+      encrypted_model_name: raw.encrypted_model_name, encrypted_sender_name: raw.encrypted_sender_name });
+    await upsertCallTranscript({ ...base, text: "Corrected", final: true });
+    expect(mocks.sent[1].payload.encrypted_category).toBe("cipher:medical_health");
+    expect((await mocks.db.getMessage(base.messageId)) as Record<string, unknown>).toMatchObject({
+      category: "medical_health", model_name: "gemini-live-fixture", sender_name: "Melvin" });
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.chat.compressed-context,video-call.chat.transcripts
+  it("loads older canonical context even when the local message window reports no more history", async () => {
+    mocks.db.getMessageWindowForChat.mockResolvedValue({ messages: [], hasMoreBefore: false } as never);
+    vi.mocked(fetchAuthenticatedChatMessageWindow)
+      .mockResolvedValueOnce({ messages: [{ message_id: "recent", created_at: 20, role: "assistant", content: "Recent" }],
+        hasMoreBefore: true, startCursor: 20, startCursorMessageId: "recent" } as never)
+      .mockResolvedValueOnce({ messages: [{ message_id: "old", created_at: 10, role: "user", content: "My fictional test word is hazelnut" }],
+        hasMoreBefore: false } as never);
+    const context = await loadCallContext(base.chatId);
+    expect(context.history.map(row => row.text)).toEqual(["My fictional test word is hazelnut", "Recent"]);
+    expect(fetchAuthenticatedChatMessageWindow).toHaveBeenLastCalledWith(base.chatId,
+      expect.objectContaining({ direction: "before", beforeTimestamp: 20, beforeMessageId: "recent" }));
+    Object.assign(mocks.chat, { encrypted_category: "cipher:medical_health" });
+    vi.mocked(fetchAuthenticatedChatMessageWindow).mockResolvedValue({ messages: [] } as never);
+    expect((await loadCallContext(base.chatId)).mateCategory).toBe("medical_health");
+  });
 
   // contract-test: supporting surface=gui.web assertions=video-call.chat.skill-integration,video-call.chat.transcripts,video-call.privacy
   it("encrypts canonical parent metadata once and retains it when only corrected speech arrives", async () => {

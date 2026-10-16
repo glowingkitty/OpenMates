@@ -10,6 +10,10 @@ import { callArtifactReferencesInText, formatVoiceArtifactReference, loadVoiceAr
 import { websocketStatus } from "../stores/websocketStatusStore";
 import { text as translatedText } from "../i18n/translations";
 import { getWorkspaceCacheIdentity } from "./workspaceQueryCache";
+import { fetchAuthenticatedChatMessageWindow, loadCanonicalCallCheckpoints } from "./authenticatedChatMessageWindow";
+import { getWorkspaceCacheEpoch } from "./workspaceCacheLifecycle";
+import { initialChatHistoryGate } from "./initialChatHistoryGate";
+import { matesMetadata } from "../data/matesMetadata";
 import { userDB } from "./userDB";
 import { parseVoiceCallHistoryEvent, voiceCallLifecycleMessageId, type VoiceCallLifecycleEvent } from "./voiceCallLifecycleEvent";
 
@@ -23,6 +27,9 @@ export interface CallTranscriptUpdate {
   interrupted?: boolean;
   userMessageId?: string;
   createdAt?: number;
+  modelName?: string;
+  category?: string;
+  senderName?: string;
   embedRefs?: string[];
   embedReferences?: VoiceArtifactReference[];
 }
@@ -32,6 +39,7 @@ export interface VoiceCallContext {
   summary?: string;
   activeFocus?: { app_id: string; focus_id: string; state?: unknown };
   memoryMetadata?: string[];
+  mateCategory?: string;
 }
 
 const MAX_CONTEXT_MESSAGES = 30; // Matches call-gateway admission.
@@ -46,8 +54,9 @@ const RECEIPT_TIMEOUT_MS = 15_000;
 const MAX_SEND_ATTEMPTS = 3;
 const messageQueues = new Map<string, Promise<unknown>>();
 export interface CallMessagePersistenceProof { revision: number; ciphertext: string }
+type CallAttribution = Pick<Message, "encrypted_category" | "encrypted_model_name" | "encrypted_sender_name">;
 type CallOutbox = { lifecycle_event?: true; call_id: string; typed_pending?: boolean; typed_pending_at?: number;
-  entries: Array<{ revision: number; ciphertext: string }> };
+  entries: Array<{ revision: number; ciphertext: string } & CallAttribution> };
 type CallRow = Message & { call_persistence_v1?: CallOutbox; call_last_final_revision?: number };
 const typedCleanupTimers = new Map<string, ReturnType<typeof setTimeout>>();
 const TYPED_ACCEPTANCE_GRACE_MS = 30_000;
@@ -156,16 +165,24 @@ export async function prepareVoiceCallChat(existingChatId?: string): Promise<{ c
     throw error;
   }
   await emitChatUpdate(chatId);
-  return { chatId, ...await loadCallContext(chatId) };
+  return { chatId, ...await loadCallContext(chatId, false) };
 }
 
-export async function loadCallContext(chatId: string): Promise<VoiceCallContext> {
+export async function loadCallContext(chatId: string, canonical = true): Promise<VoiceCallContext> {
+  const owner = getWorkspaceCacheIdentity();
+  const epoch = getWorkspaceCacheEpoch();
+  if (initialChatHistoryGate.pending(chatId)) throw new VoiceCallContextError("context_unavailable");
   const chat = await chatDB.getChat(chatId);
   if (!chat || chat.team_id || chat.chat_visibility === "direct") throw new Error("Voice call chat unavailable");
   const key = await chatKeyManager.getKey(chatId);
   if (!key) throw new VoiceCallContextError("context_unavailable");
   const { decryptWithChatKey } = await import("./encryption/MessageEncryptor");
-  const checkpoints = (await chatDB.getChatCompressionCheckpoints(chatId))
+  let remoteCheckpoints: ChatCompressionCheckpoint[] = [];
+  if (canonical) {
+    try { remoteCheckpoints = await loadCanonicalCallCheckpoints(chatId); }
+    catch { throw new VoiceCallContextError("context_unavailable"); }
+  }
+  const checkpoints = [...remoteCheckpoints, ...(await chatDB.getChatCompressionCheckpoints(chatId))]
     .filter((entry) => entry.chat_id === chatId && entry.encrypted_summary &&
       Number.isSafeInteger(entry.compressed_up_to_timestamp) && entry.compressed_up_to_timestamp > 0 &&
       Number.isSafeInteger(entry.compressed_message_count) && entry.compressed_message_count > 0 &&
@@ -202,16 +219,29 @@ export async function loadCallContext(chatId: string): Promise<VoiceCallContext>
   const history: Array<{ role: "user" | "assistant"; text: string; messageId: string;
     userMessageId?: string; createdAt: number }> = [];
   const seen = new Set<string>();
+  let fallbackMate: { category: string; createdAt: number } | undefined;
+  const knownMate = (category: unknown): category is string => typeof category === "string" && matesMetadata.some(mate => mate.id === category);
   let scanned = 0;
   let before: { timestamp: number; id: string } | undefined;
   for (;;) {
-    const window = await chatDB.getMessageWindowForChat(chatId, before
-      ? { direction: "before", limit: CONTEXT_WINDOW_SIZE, beforeTimestamp: before.timestamp, beforeMessageId: before.id }
-      : { direction: "latest", limit: CONTEXT_WINDOW_SIZE });
+    let window;
+    const options = before
+      ? { direction: "before" as const, limit: CONTEXT_WINDOW_SIZE, beforeTimestamp: before.timestamp, beforeMessageId: before.id }
+      : { direction: "latest" as const, limit: CONTEXT_WINDOW_SIZE };
+    try {
+      if (canonical) {
+        const remote = await fetchAuthenticatedChatMessageWindow(chatId, { ...options, includeCanonicalMessages: true });
+        window = { ...remote, messages: remote.canonicalMessages ?? remote.messages };
+      } else window = await chatDB.getMessageWindowForChat(chatId, options);
+    }
+    catch { throw new VoiceCallContextError("context_unavailable"); }
     scanned += window.messages.length;
     for (const message of window.messages) {
       if (seen.has(message.message_id)) continue;
       seen.add(message.message_id);
+      if (message.role === "assistant" && knownMate(message.category) && (!fallbackMate || message.created_at >= fallbackMate.createdAt)) {
+        fallbackMate = { category: message.category, createdAt: message.created_at };
+      }
       if (includeMessage(message)) history.push({ role: message.role as "user" | "assistant", text: message.content!.trim(),
         messageId: message.message_id, userMessageId: message.user_message_id, createdAt: message.created_at });
     }
@@ -256,7 +286,13 @@ export async function loadCallContext(chatId: string): Promise<VoiceCallContext>
   // Keys advertise available private memories without granting access to their
   // plaintext. Previously authorized chat-scoped entries remain server-managed.
   const memoryMetadata = await chatDB.getAppSettingsMemoriesMetadataKeys();
-  const context: VoiceCallContext = { history: history.map(({ role, text, messageId, createdAt }) => ({ role, text, message_id: messageId, created_at: createdAt })),
+  let mateCategory = knownMate(chat.category) ? chat.category : fallbackMate?.category;
+  if (chat.encrypted_category) {
+    const category = await decryptWithChatKey(chat.encrypted_category, key);
+    if (knownMate(category)) mateCategory = category;
+  }
+  if (owner !== getWorkspaceCacheIdentity() || epoch !== getWorkspaceCacheEpoch()) throw new VoiceCallContextError("context_unavailable");
+  const context: VoiceCallContext = { ...(mateCategory ? { mateCategory } : {}), history: history.map(({ role, text, messageId, createdAt }) => ({ role, text, message_id: messageId, created_at: createdAt })),
     ...(summary ? { summary } : {}), ...(activeFocus ? { activeFocus } : {}),
     ...(memoryMetadata.length ? { memoryMetadata } : {}) };
   if (JSON.stringify(context).length > MAX_CONTEXT_CHARS) throw new VoiceCallContextError("context_too_large");
@@ -272,6 +308,11 @@ async function putEncryptedMessage(message: Message, revision: number, callId?: 
   }
   const encrypted = await chatDB.getEncryptedFields(message, message.chat_id);
   if (!encrypted.encrypted_content) throw new Error("Transcript encryption failed");
+  const attribution: CallAttribution = {
+    encrypted_category: encrypted.encrypted_category,
+    encrypted_model_name: encrypted.encrypted_model_name,
+    encrypted_sender_name: encrypted.encrypted_sender_name,
+  };
   if (lifecycle && (!identity || identity !== getWorkspaceCacheIdentity())) throw new Error("Call event account changed");
   const transaction = await chatDB.getTransaction("messages", "readwrite");
   await new Promise<void>((resolve, reject) => {
@@ -292,13 +333,13 @@ async function putEncryptedMessage(message: Message, revision: number, callId?: 
         typed_pending: !lifecycle && !final && message.status === "sending",
         ...(!lifecycle && !final && message.status === "sending" ? { typed_pending_at: Date.now() } : {}),
         entries: [...(previous?.call_persistence_v1?.entries ?? []),
-          ...(final ? [{ revision, ciphertext: encrypted.encrypted_content! }] : [])],
+          ...(final ? [{ revision, ciphertext: encrypted.encrypted_content!, ...attribution }] : [])],
       } : previous?.call_persistence_v1;
       const raw: CallRow = {
         ...previous, message_id: message.message_id, chat_id: message.chat_id,
         role: message.role, created_at: previous?.created_at ?? message.created_at,
         status: message.status, queue_revision: revision,
-        encrypted_content: encrypted.encrypted_content,
+        encrypted_content: encrypted.encrypted_content, ...attribution,
         ...(final ? { call_last_final_revision: Math.max(previous?.call_last_final_revision ?? 0, revision) } : {}),
         ...(outbox ? { call_persistence_v1: outbox } : {}),
         ...(message.user_message_id ? { user_message_id: message.user_message_id } : {}),
@@ -354,7 +395,7 @@ async function removeAcknowledgedEntry(messageId: string, revision: number): Pro
 }
 
 async function sendFinalCiphertext(callId: string, message: CallRow, revision: number,
-                                   ciphertext: string): Promise<void> {
+                                   ciphertext: string, attribution: CallAttribution): Promise<void> {
   // Use the same ciphertext for each retry: a randomized second encryption is
   // a different attempted revision and must not masquerade as an idempotent replay.
   const requestId = crypto.randomUUID();
@@ -364,7 +405,9 @@ async function sendFinalCiphertext(callId: string, message: CallRow, revision: n
       await webSocketService.sendMessage("call_message_completed", {
         request_id: requestId, call_id: callId, chat_id: message.chat_id,
         message_id: message.message_id, role: message.role,
-        encrypted_content: ciphertext, created_at: message.created_at,
+        encrypted_content: ciphertext, encrypted_category: attribution.encrypted_category,
+        encrypted_model_name: attribution.encrypted_model_name, encrypted_sender_name: attribution.encrypted_sender_name,
+        created_at: message.created_at,
         revision, ...(message.user_message_id ? { user_message_id: message.user_message_id } : {}),
       });
       const result = await receipt.promise;
@@ -393,7 +436,7 @@ async function drainCallOutbox(messageId: string): Promise<void> {
     const row = await rawCallRow(messageId);
     const entry = row?.call_persistence_v1?.entries[0];
     if (!row || !entry) return;
-    await sendFinalCiphertext(row.call_persistence_v1!.call_id, row, entry.revision, entry.ciphertext);
+    await sendFinalCiphertext(row.call_persistence_v1!.call_id, row, entry.revision, entry.ciphertext, entry);
   }
 }
 
@@ -452,7 +495,12 @@ async function applyCallTranscript(event: CallTranscriptUpdate): Promise<CallMes
     if (!text) return;
     const content = event.interrupted && event.role === "assistant"
       ? `${text}\n\n_(${get(translatedText)("voicecall.interrupted")})_` : text;
-    if (existing?.content === content) {
+    const attribution = event.role === "assistant" ? {
+      model_name: event.modelName ?? existing?.model_name,
+      category: event.category ?? existing?.category,
+      sender_name: event.senderName ?? existing?.sender_name,
+    } : {};
+    if (existing?.content === content && Object.entries(attribution).every(([key, value]) => existing[key as keyof Message] === value)) {
       if (!event.final) return;
       if (existing.status === "synced") return confirmedCallMessageProof(event, existing.queue_revision ?? 1);
       if (existing.status !== "streaming" && (existing as CallRow).call_persistence_v1?.entries.length) {
@@ -468,7 +516,7 @@ async function applyCallTranscript(event: CallTranscriptUpdate): Promise<CallMes
       : Math.max(1, existing?.queue_revision ?? 1);
     const message: Message = {
       message_id: event.messageId, chat_id: event.chatId,
-      role: event.role, content,
+      role: event.role, content, ...attribution,
       created_at: existing?.created_at ?? event.createdAt ?? seconds(),
       status: event.final ? "sending" : "streaming",
       ...(event.role === "assistant" && event.userMessageId ? { user_message_id: event.userMessageId } : {}),
@@ -485,7 +533,7 @@ export function upsertCallTranscript(event: CallTranscriptUpdate): Promise<void>
 
 /** A committed tool artifact is durable even if speech never begins. */
 export function upsertCallArtifact(event: Pick<CallTranscriptUpdate,
-  "callId" | "chatId" | "messageId" | "userMessageId" | "createdAt" | "embedReferences"> & { embedRefs: string[] }): Promise<CallMessagePersistenceProof | undefined> {
+  "callId" | "chatId" | "messageId" | "userMessageId" | "createdAt" | "embedReferences" | "modelName" | "category" | "senderName"> & { embedRefs: string[] }): Promise<CallMessagePersistenceProof | undefined> {
   return serializeMessage(event.messageId, async () => {
     const existing = await chatDB.getMessage(event.messageId);
     return applyCallTranscript({ ...event, role: "assistant", text: existing?.content ?? "",
@@ -666,10 +714,15 @@ export async function applyCallMessageChanged(event: Record<string, unknown>): P
       if (previous && (previous.chat_id !== chatId || previous.role !== role)) return;
       if ((previous as CallRow | undefined)?.call_persistence_v1?.entries.length) return;
       if (previous && (previous.queue_revision ?? 0) > (revision as number)) return;
-      if (previous && previous.queue_revision === revision && previous.encrypted_content === ciphertext) return;
+      const attribution: CallAttribution = {};
+      for (const key of ["encrypted_category", "encrypted_model_name", "encrypted_sender_name"] as const) {
+        if (typeof event[key] === "string") attribution[key] = event[key] as string;
+      }
+      if (previous && previous.queue_revision === revision && previous.encrypted_content === ciphertext &&
+          Object.entries(attribution).every(([key, value]) => previous[key as keyof Message] === value)) return;
       store.put({
         ...previous, message_id: messageId, chat_id: chatId, role,
-        encrypted_content: ciphertext, created_at: previous?.created_at ?? createdAt,
+        encrypted_content: ciphertext, ...attribution, created_at: previous?.created_at ?? createdAt,
         queue_revision: revision, status: "synced",
         ...(role === "assistant" && typeof userMessageId === "string" ? { user_message_id: userMessageId } : {}),
       } as Message);

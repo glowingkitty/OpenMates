@@ -529,6 +529,28 @@ describe('integrated voice call typed turns', () => {
     controller.hangup();
   });
 
+  // contract-test: supporting surface=gui.web assertions=video-call.chat.assistant-identity,video-call.chat.transcripts
+  it('keeps the original call attribution while an artifact waits for an earlier transcript write', async () => {
+    const { controller, harness } = liveController();
+    harness.update({ modelName: 'original-model', mateCategory: 'medical_health', mateName: 'Melvin' });
+    let release!: () => void;
+    persistence.upsert.mockImplementationOnce(() => new Promise<void>(resolve => { release = resolve; }));
+    tools.apply.mockResolvedValue('embed-one');
+    harness.handleMessage({ type: 'transcript', role: 'assistant', message_id: 'assistant-one',
+      user_message_id: 'user-one', text: 'Found it', final: true });
+    await vi.waitFor(() => expect(persistence.upsert).toHaveBeenCalled());
+    harness.handleMessage({ type: 'voice_embed', call_id: 'call-1', function_call_id: 'function-one',
+      assistant_message_id: 'assistant-one', user_message_id: 'user-one', payload: { embed_id: 'embed-one' } });
+    await vi.waitFor(() => expect(tools.apply).toHaveBeenCalled());
+    harness.update({ modelName: 'next-model', mateCategory: 'software_development', mateName: 'Sophia' });
+    release();
+    await vi.waitFor(() => expect(persistence.artifact).toHaveBeenCalledOnce());
+    expect(persistence.artifact).toHaveBeenCalledWith(expect.objectContaining({
+      modelName: 'original-model', category: 'medical_health', senderName: 'Melvin',
+    }));
+    controller.hangup();
+  });
+
   // contract-test: supporting surface=gui.web assertions=video-call.chat.compressed-context,video-call.audio.single-owner
   it('buffers microphone and typed frames in order while adopting a durable checkpoint', () => {
     const { controller, harness, socket } = liveController();

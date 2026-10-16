@@ -42,6 +42,9 @@ export interface VoiceCallState {
   usage: VoiceCallUsage | null;
   billingActivity: { inputListening: boolean; processing: boolean } | null;
   error: string | null;
+  mateCategory?: string;
+  mateName?: string;
+  modelName?: string;
 }
 export interface VoiceCallControllerLike extends Readable<VoiceCallState> {
   start(chatId?: string, onBound?: (chatId: string) => void): Promise<void>;
@@ -303,7 +306,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
         capture,
       ]);
       if (generation !== this.generation) return;
-      this.update({ chatId: prepared.chatId });
+      this.update({ chatId: prepared.chatId, mateCategory: prepared.mateCategory });
       onBound?.(prepared.chatId);
       await assistantSpeechController.stop();
       let token = getWebSocketToken();
@@ -321,7 +324,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
       socket.onopen = () => {
         if (generation !== this.generation) return;
         this.send({ type: 'start', chat_id: prepared.chatId, startup_audio_allowance_ms: 10_000, context: { summary: prepared.summary, messages: prepared.history,
-          active_focus: prepared.activeFocus, ...projectContext,
+          active_focus: prepared.activeFocus, mate_category: prepared.mateCategory, ...projectContext,
           app_settings_memories_metadata: [...new Set([...(prepared.memoryMetadata ?? []), ...(projectContext.app_settings_memories_metadata ?? [])])] } });
       };
       socket.onmessage = (event: MessageEvent<string>) => {
@@ -350,6 +353,9 @@ export class VoiceCallController implements VoiceCallControllerLike {
         this.activeMillis = 0;
         setActiveVoiceCallId(message.call_id);
         this.update({ status: 'live', callId: message.call_id, error: null,
+          modelName: typeof message.model === 'string' ? message.model : undefined,
+          mateCategory: typeof message.mate_category === 'string' ? message.mate_category : this.state.mateCategory,
+          mateName: typeof message.mate_name === 'string' ? message.mate_name : undefined,
           usage: NUMBER_FIELDS.reduce((usage, field) => ({ ...usage, [field]: Number(message[field]) || 0 }), {} as VoiceCallUsage) });
         this.lifecycleStarted = true;
         this.recordLifecycle('started');
@@ -384,6 +390,8 @@ export class VoiceCallController implements VoiceCallControllerLike {
         this.persistTranscript({
           callId, chatId, messageId, role: message.role as 'user' | 'assistant', text: message.text as string,
           final: message.final === true, interrupted: message.interrupted === true,
+          ...(message.role === 'assistant' ? { modelName: this.state.modelName, category: this.state.mateCategory,
+            senderName: this.state.mateName ?? 'OpenMates' } : {}),
           userMessageId: typeof message.user_message_id === 'string' ? message.user_message_id : undefined,
           createdAt: typeof message.created_at === 'number' ? message.created_at : undefined,
         });
@@ -420,6 +428,8 @@ export class VoiceCallController implements VoiceCallControllerLike {
         const callId = this.state.callId;
         const chatId = this.state.chatId;
         const generation = this.generation;
+        const identity = { modelName: this.state.modelName, category: this.state.mateCategory,
+          senderName: this.state.mateName ?? 'OpenMates' };
         if (!callId || !chatId || this.state.status !== 'live') return;
         const payload = message.payload as Record<string, unknown> | undefined;
         if (message.type === 'voice_embed' && message.call_id === callId &&
@@ -441,7 +451,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
           const id = message.assistant_message_id;
           const previous = this.transcriptWrites.get(id) ?? Promise.resolve();
           const persisted = previous.catch(() => {}).then(() => upsertCallArtifact({
-            callId, chatId, messageId: id, userMessageId: String(message.user_message_id), embedRefs: [embedId],
+            callId, chatId, messageId: id, ...identity, userMessageId: String(message.user_message_id), embedRefs: [embedId],
             embedReferences: [...(this.responseEmbeds.get(id)?.values() ?? [])],
             createdAt: typeof message.created_at === 'number' ? message.created_at : undefined,
           })).then(() => {});

@@ -69,6 +69,7 @@ async function dismissVisibleNotifications(page: any): Promise<void> {
 	}).toPass({ timeout: 5000 });
 }
 
+// contract-test: supporting surface=gui.web assertions=app-skills.media.application-screenshot,code-run.execution.stream-status-visible
 test('generated application embed starts explicit isolated live preview', async ({ page }: { page: any }) => {
 	test.slow();
 	test.setTimeout(420_000);

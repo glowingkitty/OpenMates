@@ -78,6 +78,7 @@ class IsolatedGeminiVoiceFixture:
 
     async def open(self, *, summary: str, messages: list[dict[str, str]],
                    base_instruction: str = "", app_catalogue: str = "",
+                   mate_instruction: str = "", voice_name: str | None = None,
                    active_focus: dict[str, Any] | None = None) -> None:
         # Context is deliberately ignored; the E2E tests exercise admission,
         # transport, identities, encryption and synchronization.

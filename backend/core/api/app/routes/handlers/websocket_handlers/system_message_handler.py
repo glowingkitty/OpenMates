@@ -173,8 +173,17 @@ async def handle_chat_system_message_added(
             # No vault-key encryption is needed here since the content is already encrypted
             # with the chat key for permanent storage.
         
-            # Increment messages_v in cache
-            new_messages_v = await cache_service.increment_chat_component_version(user_id, chat_id, "messages_v")
+            # Voice transcript commits invalidate cached versions. Allocate from
+            # durable authority so a call-end event cannot reset the chat to one.
+            if chat_metadata:
+                from backend.core.api.app.services.system_message_versions import advance_system_message_version
+                new_messages_v = await advance_system_message_version(
+                    directus_service, chat_id=chat_id, owner_hash=hashed_user_id,
+                    timestamp=int(datetime.now(timezone.utc).timestamp()),
+                )
+                await cache_service.delete_chat_versions(user_id, chat_id)
+            else:
+                new_messages_v = await cache_service.increment_chat_component_version(user_id, chat_id, "messages_v")
             if new_messages_v is None:
                 logger.warning(f"[SystemMessage] Failed to increment messages_v for chat {chat_id}")
                 new_messages_v = 0

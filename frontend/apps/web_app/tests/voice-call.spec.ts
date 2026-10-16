@@ -1348,6 +1348,7 @@ test.describe('Integrated voice-call foundation', () => {
       await expect.poll(async () => (await nativeVoiceInput(page)).localToneStarts).toBeGreaterThan(0);
       const connectedTones = (await nativeVoiceInput(page)).localToneStarts;
       await expect(page.getByTestId('message-assistant').filter({ hasText: ASSISTANT_SPEECH })).toHaveCount(1);
+    await expect(page.getByTestId('message-assistant').filter({ hasText: ASSISTANT_SPEECH }).getByTestId('generated-by')).toContainText(/Gemini.*Live/i);
       const started = await evidence(page);
       const start = voiceFrames(started, 'start')[0];
       expect(start.startupAllowanceMs).toBe(10_000);
@@ -1736,6 +1737,7 @@ test.describe('Integrated voice-call foundation', () => {
     await page.reload();
     await expect(page.getByTestId('message-user').filter({ hasText: USER_SPEECH })).toHaveCount(1);
     await expect(page.getByTestId('message-assistant').filter({ hasText: ASSISTANT_SPEECH })).toHaveCount(1);
+    await expect(page.getByTestId('message-assistant').filter({ hasText: ASSISTANT_SPEECH }).getByTestId('generated-by')).toContainText(/Gemini.*Live/i);
     await expect(page.getByTestId('message-user').filter({ hasText: PASTED_TEXT })).toHaveCount(1);
     await expect(page.getByTestId('message-assistant').filter({ hasText: 'I received your text' })).toHaveCount(1);
     await expect(page.getByTestId('voice-call-started')).toHaveCount(1);
