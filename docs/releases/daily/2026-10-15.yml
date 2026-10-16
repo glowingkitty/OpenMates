@@ -1,0 +1,3038 @@
+schema_version: 1
+cadence: daily
+date: '2026-10-15'
+generated_at: '2026-10-16T00:20:30+00:00'
+range:
+  since: '2026-10-15T00:00:00+00:00'
+  until: '2026-10-16T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 32
+  section_counts:
+    features: 1
+    bug_fixes: 24
+    improvements: 4
+    docs: 2
+    tests: 1
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 26
+  dev_only_items: 32
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  - id: skill:openmates:get-docs
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: refine landing section replays and device media'
+    section: features
+    commits:
+    - e3b567b7c
+    authored_at: '2026-10-15T12:17:06+00:00'
+    changed_paths:
+    - docs/design-guide/landing-native-captures.md
+    - docs/plans/public-site-section-followup-oct15/plan.yml
+    - frontend/apps/web_app/static/landing/screenshots/capture-manifest.json
+    - frontend/apps/web_app/static/landing/screenshots/devices-desktop.webp
+    - frontend/apps/web_app/static/landing/screenshots/events-desktop.webp
+    - frontend/apps/web_app/static/landing/screenshots/model-selector-desktop.webp
+    - frontend/apps/web_app/static/landing/screenshots/privacy-desktop.webp
+    - frontend/apps/web_app/static/landing/screenshots/workflows-desktop.webp
+    - frontend/apps/web_app/tests/components/landing-hero-motion.spec.ts
+    - frontend/apps/web_app/tests/components/landing-section-replay.spec.ts
+    - frontend/apps/web_app/tests/components/marketing-landing.spec.ts
+    - frontend/apps/web_app/tests/website-public-routes.spec.ts
+    - frontend/apps/website/static/landing/screenshots/capture-manifest.json
+    - frontend/apps/website/static/landing/screenshots/devices-desktop.webp
+    - frontend/apps/website/static/landing/screenshots/events-desktop.webp
+    - frontend/apps/website/static/landing/screenshots/model-selector-desktop.webp
+    - frontend/apps/website/static/landing/screenshots/privacy-desktop.webp
+    - frontend/apps/website/static/landing/screenshots/workflows-desktop.webp
+    - frontend/packages/public-site/src/components/DeviceFrame.svelte
+    - frontend/packages/public-site/src/components/DeviceScreenshots.svelte
+    - frontend/packages/public-site/src/components/landing/LandingFeatureAnimation.svelte
+    - frontend/packages/public-site/src/components/landing/LandingPage.svelte
+    - frontend/packages/public-site/src/components/landing/landingPageContent.ts
+    - frontend/packages/public-site/src/generated/landingLocale.generated.json
+    - frontend/packages/public-site/src/i18n/landing.yml
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/marketing-landing/examples.yml
+    - specifications/features/marketing-landing/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: answer selected Project catalog requests in CLI'
+    section: bug_fixes
+    commits:
+    - 6ee143c7f
+    authored_at: '2026-10-15T20:38:38+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-recovery-discovery.spec.ts
+    - frontend/packages/openmates-cli/src/cliJevContext.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/cliJevContext.test.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve Project reads when edits are prohibited'
+    section: bug_fixes
+    commits:
+    - 6eec78025
+    authored_at: '2026-10-15T19:50:23+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/project_file_tools.py
+    - backend/tests/test_project_focus_early_routing.py
+    - backend/tests/test_project_focus_requests.py
+    - frontend/apps/web_app/tests/projects-readme-focus.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: decode cached Focus authority mappings correctly'
+    section: bug_fixes
+    commits:
+    - ab02b5e8d
+    authored_at: '2026-10-15T19:22:49+00:00'
+    changed_paths:
+    - backend/shared/python_utils/focus_continuation_history.py
+    - backend/tests/test_focus_authority_lifecycle.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: retain canonical chat receipts for completed follow-ups'
+    section: bug_fixes
+    commits:
+    - 9eb007a21
+    authored_at: '2026-10-15T19:14:40+00:00'
+    changed_paths:
+    - docs/plans/chat-processing-next-stage/implemented-flow.md
+    - docs/plans/chat-processing-next-stage/validation-2026-10-15.md
+    - frontend/apps/web_app/tests/chat-saved-followup-admission.spec.ts
+    - frontend/apps/web_app/tests/connection-resilience.spec.ts
+    - frontend/packages/ui/src/services/__tests__/personalChatTurnBarrier.test.ts
+    - frontend/packages/ui/src/services/__tests__/sendersChatMessagesProtocol.test.ts
+    - frontend/packages/ui/src/services/personalChatTurnBarrier.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve chat authority throughout Focus continuation'
+    section: bug_fixes
+    commits:
+    - 94986e159
+    authored_at: '2026-10-15T19:09:34+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/focus_mode_auto_confirm_task.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/tests/test_ask_skill_task.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/cancel_ai_task_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/focus_mode_rejected_handler.py
+    - backend/shared/python_utils/focus_continuation_history.py
+    - backend/shared/python_utils/recent_work_summary_client.py
+    - backend/tests/test_focus_authority_lifecycle.py
+    - backend/tests/test_focus_continuation_history.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: select recovery fixture for saved follow-up regression'
+    section: bug_fixes
+    commits:
+    - 9568a640d
+    authored_at: '2026-10-15T18:49:10+00:00'
+    changed_paths:
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_maps_recovery_profile.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve focus continuation authority and speech lifecycle'
+    section: bug_fixes
+    commits:
+    - 1f6d41eb9
+    authored_at: '2026-10-15T18:29:42+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/related_work.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/shared/python_utils/recent_work_summary_client.py
+    - backend/tests/test_assistant_speech_streaming.py
+    - backend/tests/test_recent_work_summary_cache.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep landing animations above mobile controls'
+    section: bug_fixes
+    commits:
+    - 5eedd82ad
+    authored_at: '2026-10-15T16:44:58+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/landing-mobile-stories.spec.ts
+    - frontend/packages/public-site/src/components/landing/LandingFeatureAnimation.svelte
+    - frontend/packages/public-site/src/components/landing/LandingPage.svelte
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: publish real web research with saved thinking'
+    section: bug_fixes
+    commits:
+    - d186db0f6
+    authored_at: '2026-10-15T12:09:25+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/web/app.yml
+    - backend/shared/python_utils/chat_completion_recovery_job.py
+    - backend/tests/test_stream_consumer_recovery.py
+    - docs/plans/landing-example-reliability/plan.yml
+    - frontend/apps/web_app/tests/landing-app-example-admission.ts
+    - frontend/apps/web_app/tests/landing-web-laptop.spec.ts
+    - frontend/apps/web_app/tests/landing-web-phone.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/recoveryOutputClient.test.ts
+    - frontend/packages/public-site/src/generated/publicApps.generated.json
+    - frontend/packages/ui/src/demo_chats/data/example_chats/us-egg-prices-deep-research.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/demo_chats/interestTags.ts
+    - frontend/packages/ui/src/demo_chats/types.ts
+    - frontend/packages/ui/src/generated/landingExampleChats.generated.json
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/example_chats/us_egg_prices_deep_research.yml
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersRecoveryCorrelation.test.js
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+    - scripts/ci_coverage_manifest.json
+    - scripts/create-example-chat-from-share.mjs
+    - scripts/extract-shared-chat.mjs
+    - scripts/tests/create_example_chat_from_share.test.mjs
+    - scripts/tests/extract_shared_chat.test.mjs
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:web'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: repair example composer focus and recipe options'
+    section: bug_fixes
+    commits:
+    - a5a219896
+    authored_at: '2026-10-15T11:18:25+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/chat-open-focus.spec.ts
+    - frontend/apps/web_app/tests/components/questionnaire-recipe-options.spec.ts
+    - frontend/apps/web_app/tests/landing-app-example-admission.ts
+    - frontend/apps/web_app/tests/public-example-input-focus.spec.ts
+    - frontend/apps/web_app/tests/questionnaire-recipe-options-public.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ActiveChatFocusFixture.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedReferencePreview.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/GroupRenderer.test.ts
+    - frontend/packages/ui/src/components/interactive_questions/InteractiveQuestionContainer.preview.ts
+    - frontend/packages/ui/src/components/interactive_questions/InteractiveQuestionContainer.svelte
+    - frontend/packages/ui/src/components/interactive_questions/__tests__/QuestionSourceProbe.svelte
+    - frontend/packages/ui/src/components/interactive_questions/__tests__/questionnaireSourceContext.test.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: polish public sections and restore guest workspace parity'
+    section: bug_fixes
+    commits:
+    - 5e92c48b1
+    authored_at: '2026-10-15T10:30:36+00:00'
+    changed_paths:
+    - docs/plans/public-site-section-followup-oct15/plan.yml
+    - frontend/apps/web_app/src/lib/components/publications/PublicationRoute.svelte
+    - frontend/apps/web_app/src/lib/landingOrigins.test.ts
+    - frontend/apps/web_app/src/lib/landingOrigins.ts
+    - frontend/apps/web_app/src/routes/(publications)/[[locale=publicationLocale]]/[section=publicationSection]/[[slug]]/+page.server.ts
+    - frontend/apps/web_app/src/routes/(seo)/legal/[slug]/+page.server.ts
+    - frontend/apps/web_app/src/routes/(seo)/legal/[slug]/+page.svelte
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/components/guest-welcome-preview.spec.ts
+    - frontend/apps/web_app/tests/components/landing-hero-motion.spec.ts
+    - frontend/apps/web_app/tests/components/landing-native-touch-momentum.spec.ts
+    - frontend/apps/web_app/tests/components/public-newsroom-header.spec.ts
+    - frontend/apps/web_app/tests/components/workflow-guest-template-editor.spec.ts
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/apps/web_app/tests/public-publications.spec.ts
+    - frontend/apps/web_app/tests/website-public-routes.spec.ts
+    - frontend/packages/public-site/src/assets/landing/business_development.jpeg
+    - frontend/packages/public-site/src/assets/landing/general_knowledge.jpeg
+    - frontend/packages/public-site/src/components/landing/LandingFeatureAnimation.svelte
+    - frontend/packages/public-site/src/components/landing/LandingPage.svelte
+    - frontend/packages/public-site/src/components/landing/landingFeatureAnimationContent.ts
+    - frontend/packages/public-site/src/components/newsroom/NewsroomSurface.svelte
+    - frontend/packages/public-site/src/generated/landingLocale.generated.json
+    - frontend/packages/public-site/src/generated/publicLocales.generated.json
+    - frontend/packages/public-site/src/i18n/landing.yml
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.preview.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowSchemaFields.svelte
+    - frontend/packages/ui/src/demo_chats/__tests__/defaultGuestExampleChats.test.ts
+    - frontend/packages/ui/src/demo_chats/defaultGuestExampleChats.ts
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/sources/workflows.yml
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/landing-onboarding/examples.yml
+    - specifications/features/landing-onboarding/specification.yml
+    - specifications/features/marketing-landing/examples.yml
+    - specifications/features/marketing-landing/specification.yml
+    - specifications/features/public-publications/examples.yml
+    - specifications/features/public-publications/specification.yml
+    - specifications/features/workflows-ui/examples.yml
+    - specifications/features/workflows-ui/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: activate verified newsletter S3 images'
+    section: bug_fixes
+    commits:
+    - 143abde73
+    authored_at: '2026-10-15T10:06:18+00:00'
+    changed_paths:
+    - backend/newsletters/asset-map.json
+    - backend/scripts/probe_newsletter_delivery.py
+    - backend/scripts/publish_newsletter_s3_assets.py
+    - backend/tests/test_newsletter_assets.py
+    - backend/tests/test_newsletter_s3_publisher.py
+    - backend/tests/test_probe_newsletter_delivery.py
+    - docs/architecture/newsletter-delivery.md
+    - frontend/apps/web_app/tests/newsletter-flow.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: seed replay fixtures from verified candidate'
+    section: bug_fixes
+    commits:
+    - 5bdff6636
+    authored_at: '2026-10-15T09:35:23+00:00'
+    changed_paths:
+    - scripts/ci_environment.py
+    - scripts/tests/test_ci_environment.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: handle absent preprocessing debug metadata'
+    section: bug_fixes
+    commits:
+    - 14461e57a
+    authored_at: '2026-10-15T06:28:16+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/tests/test_orchestrated_terminal_failure.py
+    - docs/plans/landing-example-reliability/plan.yml
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: admit authorized primary read into synthesis catalog'
+    section: bug_fixes
+    commits:
+    - e5cef4999
+    authored_at: '2026-10-15T05:54:42+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/tests/test_delegated_primary_read.py
+    - docs/plans/landing-example-reliability/plan.yml
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: read bound primary sources during root synthesis'
+    section: bug_fixes
+    commits:
+    - 51f7638f9
+    authored_at: '2026-10-15T05:25:51+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_delegated_primary_read.py
+    - backend/tests/test_stream_consumer_recovery.py
+    - docs/plans/landing-example-reliability/plan.yml
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: require exact primary evidence in research'
+    section: bug_fixes
+    commits:
+    - 2ced3b80a
+    authored_at: '2026-10-15T05:00:59+00:00'
+    changed_paths:
+    - backend/apps/web/focus_modes/research/SKILL.ar.md
+    - backend/apps/web/focus_modes/research/SKILL.cs.md
+    - backend/apps/web/focus_modes/research/SKILL.de.md
+    - backend/apps/web/focus_modes/research/SKILL.es.md
+    - backend/apps/web/focus_modes/research/SKILL.fr.md
+    - backend/apps/web/focus_modes/research/SKILL.he.md
+    - backend/apps/web/focus_modes/research/SKILL.hi.md
+    - backend/apps/web/focus_modes/research/SKILL.id.md
+    - backend/apps/web/focus_modes/research/SKILL.it.md
+    - backend/apps/web/focus_modes/research/SKILL.ja.md
+    - backend/apps/web/focus_modes/research/SKILL.ko.md
+    - backend/apps/web/focus_modes/research/SKILL.md
+    - backend/apps/web/focus_modes/research/SKILL.nl.md
+    - backend/apps/web/focus_modes/research/SKILL.pl.md
+    - backend/apps/web/focus_modes/research/SKILL.pt.md
+    - backend/apps/web/focus_modes/research/SKILL.ru.md
+    - backend/apps/web/focus_modes/research/SKILL.sv.md
+    - backend/apps/web/focus_modes/research/SKILL.th.md
+    - backend/apps/web/focus_modes/research/SKILL.tr.md
+    - backend/apps/web/focus_modes/research/SKILL.vi.md
+    - backend/apps/web/focus_modes/research/SKILL.zh.md
+    - backend/tests/test_landing_focus_prompt_contract.py
+    - docs/plans/landing-example-reliability/plan.yml
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/focus_modes/web_research.yml
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:web'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: synthesize research in parent with an evidence ledger'
+    section: bug_fixes
+    commits:
+    - aad3ef8b9
+    authored_at: '2026-10-15T04:25:43+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/web/focus_modes/research/SKILL.ar.md
+    - backend/apps/web/focus_modes/research/SKILL.cs.md
+    - backend/apps/web/focus_modes/research/SKILL.de.md
+    - backend/apps/web/focus_modes/research/SKILL.es.md
+    - backend/apps/web/focus_modes/research/SKILL.fr.md
+    - backend/apps/web/focus_modes/research/SKILL.he.md
+    - backend/apps/web/focus_modes/research/SKILL.hi.md
+    - backend/apps/web/focus_modes/research/SKILL.id.md
+    - backend/apps/web/focus_modes/research/SKILL.it.md
+    - backend/apps/web/focus_modes/research/SKILL.ja.md
+    - backend/apps/web/focus_modes/research/SKILL.ko.md
+    - backend/apps/web/focus_modes/research/SKILL.md
+    - backend/apps/web/focus_modes/research/SKILL.nl.md
+    - backend/apps/web/focus_modes/research/SKILL.pl.md
+    - backend/apps/web/focus_modes/research/SKILL.pt.md
+    - backend/apps/web/focus_modes/research/SKILL.ru.md
+    - backend/apps/web/focus_modes/research/SKILL.sv.md
+    - backend/apps/web/focus_modes/research/SKILL.th.md
+    - backend/apps/web/focus_modes/research/SKILL.tr.md
+    - backend/apps/web/focus_modes/research/SKILL.vi.md
+    - backend/apps/web/focus_modes/research/SKILL.zh.md
+    - backend/core/directus/extensions/sub-chat-orchestration-transaction/src/operations.js
+    - backend/core/directus/extensions/sub-chat-orchestration-transaction/test/operations.test.js
+    - backend/tests/test_delegated_primary_read.py
+    - backend/tests/test_landing_focus_prompt_contract.py
+    - backend/tests/test_stream_consumer_recovery.py
+    - docs/plans/landing-example-reliability/plan.yml
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/focus_modes/web_research.yml
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:web'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: reserve a bounded primary read request'
+    section: bug_fixes
+    commits:
+    - 2e1f371d2
+    authored_at: '2026-10-15T03:46:54+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/focus_mode_routing.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/tests/test_delegated_primary_read.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: fit research reasoning and require a source read'
+    section: bug_fixes
+    commits:
+    - 45cd14cd0
+    authored_at: '2026-10-15T03:09:37+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/focus_mode_routing.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/tests/test_delegated_primary_read.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_orchestrated_ai_output_fit.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: enforce research evidence and honest output-limit failures'
+    section: bug_fixes
+    commits:
+    - ed3f57adc
+    authored_at: '2026-10-15T02:32:31+00:00'
+    changed_paths:
+    - backend/apps/ai/llm_providers/google_client.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/main_processing_failure.py
+    - backend/apps/web/app.yml
+    - backend/apps/web/focus_modes/research/SKILL.ar.md
+    - backend/apps/web/focus_modes/research/SKILL.cs.md
+    - backend/apps/web/focus_modes/research/SKILL.de.md
+    - backend/apps/web/focus_modes/research/SKILL.es.md
+    - backend/apps/web/focus_modes/research/SKILL.fr.md
+    - backend/apps/web/focus_modes/research/SKILL.he.md
+    - backend/apps/web/focus_modes/research/SKILL.hi.md
+    - backend/apps/web/focus_modes/research/SKILL.id.md
+    - backend/apps/web/focus_modes/research/SKILL.it.md
+    - backend/apps/web/focus_modes/research/SKILL.ja.md
+    - backend/apps/web/focus_modes/research/SKILL.ko.md
+    - backend/apps/web/focus_modes/research/SKILL.md
+    - backend/apps/web/focus_modes/research/SKILL.nl.md
+    - backend/apps/web/focus_modes/research/SKILL.pl.md
+    - backend/apps/web/focus_modes/research/SKILL.pt.md
+    - backend/apps/web/focus_modes/research/SKILL.ru.md
+    - backend/apps/web/focus_modes/research/SKILL.sv.md
+    - backend/apps/web/focus_modes/research/SKILL.th.md
+    - backend/apps/web/focus_modes/research/SKILL.tr.md
+    - backend/apps/web/focus_modes/research/SKILL.vi.md
+    - backend/apps/web/focus_modes/research/SKILL.zh.md
+    - backend/tests/test_delegated_output_limit.py
+    - backend/tests/test_landing_focus_prompt_contract.py
+    - backend/tests/test_orchestrated_terminal_failure.py
+    - docs/plans/landing-example-reliability/plan.yml
+    - frontend/apps/web_app/tests/landing-public-example-discovery.spec.ts
+    - frontend/packages/public-site/src/generated/publicApps.generated.json
+    - frontend/packages/ui/src/demo_chats/__tests__/exampleChatRegistration.test.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/demo_chats/interestTags.ts
+    - frontend/packages/ui/src/generated/landingExampleChats.generated.json
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/focus_modes/web_research.yml
+    - scripts/ci_coverage_manifest.json
+    - specifications/architecture/app-skill-execution/examples.yml
+    - specifications/architecture/app-skill-execution/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:web'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: fit orchestrated output to affordable budget'
+    section: bug_fixes
+    commits:
+    - 1b2c4bdc7
+    authored_at: '2026-10-15T01:24:08+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/tests/test_orchestrated_ai_checkpoint.py
+    - backend/tests/test_orchestrated_ai_output_fit.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: cache public SVG icons and publish reviewed Design example'
+    section: bug_fixes
+    commits:
+    - 1bfcad817
+    authored_at: '2026-10-15T01:14:53+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/design_icons.py
+    - backend/tests/test_design_icon_svg_route.py
+    - frontend/apps/web_app/tests/landing-app-example-admission.ts
+    - frontend/apps/web_app/tests/landing-design-laptop.spec.ts
+    - frontend/apps/web_app/tests/landing-design-targeted.spec.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/dashboard-sidebar-svg-icons.ts
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/example_chats/dashboard_sidebar_svg_icons.yml
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: reserve research AI usage and fail budget-denied children'
+    section: bug_fixes
+    commits:
+    - 3f2013087
+    authored_at: '2026-10-15T00:35:35+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/main_processing_failure.py
+    - backend/core/api/app/services/sub_chat_orchestration_service.py
+    - backend/core/directus/extensions/sub-chat-orchestration-transaction/src/operations.js
+    - backend/core/directus/extensions/sub-chat-orchestration-transaction/test/ai-checkpoint.test.js
+    - backend/tests/test_orchestrated_ai_checkpoint.py
+    - backend/tests/test_orchestrated_terminal_failure.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements:
+  - title: 'perf: accelerate saved admission and bounded encrypted recovery'
+    section: improvements
+    commits:
+    - ba4fb03d9
+    authored_at: '2026-10-15T17:40:16+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_turn_preflight_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/suggested_followup_metadata_handler.py
+    - backend/tests/test_agent_context_history_transport.py
+    - backend/tests/test_chat_turn_preflight_handler.py
+    - backend/tests/test_suggested_followup_metadata_handler.py
+    - docs/plans/chat-processing-next-stage/implemented-flow.md
+    - docs/plans/chat-processing-next-stage/validation-2026-10-15.md
+    - frontend/apps/web_app/tests/chat-response-processing-ui.spec.ts
+    - frontend/apps/web_app/tests/cli-recovery-discovery.spec.ts
+    - frontend/apps/web_app/tests/connection-resilience.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/recoveryBatch.ts
+    - frontend/packages/openmates-cli/src/serverCaddyUpdate.ts
+    - frontend/packages/openmates-cli/tests/recoveryBatch.test.ts
+    - frontend/packages/openmates-cli/tests/recoveryOutputClient.test.ts
+    - frontend/packages/openmates-cli/tests/serverCaddyUpdate.test.ts
+    - frontend/packages/openmates-cli/tests/serverCaddyUpgrade.test.ts
+    - frontend/packages/openmates-cli/tests/warmSlotRearm.test.ts
+    - frontend/packages/ui/src/services/__tests__/composerGhostSuggestion.test.ts
+    - frontend/packages/ui/src/services/__tests__/savedPersonalAdmissionHistory.test.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/composerGhostSuggestion.ts
+    - frontend/packages/ui/src/services/savedPersonalAdmissionHistory.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'perf: overlap saved-chat discovery and fence optimistic history reads'
+    section: improvements
+    commits:
+    - dd1544f5c
+    authored_at: '2026-10-15T16:30:49+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-privacy.spec.ts
+    - frontend/apps/web_app/tests/connection-resilience.spec.ts
+    - frontend/packages/openmates-cli/src/cliJevContext.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/fixtures/prepared-privacy-proof.mjs
+    - frontend/packages/openmates-cli/tests/foregroundChatRecovery.test.ts
+    - frontend/packages/openmates-cli/tests/taskContextDiscovery.test.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/services/__tests__/initialChatHistoryGate.test.ts
+    - frontend/packages/ui/src/services/initialChatHistoryGate.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'perf: cancel stale chat viewers and overlap follow-up preparation'
+    section: improvements
+    commits:
+    - ba8654432
+    authored_at: '2026-10-15T13:55:30+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/workflow_chat_delivery_handlers.py
+    - backend/tests/test_message_received_active_chat.py
+    - backend/tests/test_workflow_chat_delivery_websocket_handlers.py
+    - frontend/apps/web_app/tests/audio-recording-deferred-send.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/foregroundChatRecovery.test.ts
+    - frontend/packages/openmates-cli/tests/teams-permissions.test.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'perf: remove foreground chat discovery and recovery barriers'
+    section: improvements
+    commits:
+    - d5913cf46
+    authored_at: '2026-10-15T13:02:59+00:00'
+    changed_paths:
+    - backend/apps/ai/llm_providers/google_client.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/stage_one_task.py
+    - backend/apps/ai/testing/api_cache/storage_capacity_v1/pretalx/c08a07c19423a4c6.json
+    - backend/apps/ai/testing/capacity_fixtures.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/chat_email_notification_service.py
+    - backend/core/api/app/services/chat_recovery_service.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/core/api/app/services/notification_presence.py
+    - backend/core/api/app/tasks/push_notification_task.py
+    - backend/core/directus/extensions/chat-recovery-transaction/src/operations.js
+    - backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
+    - backend/scripts/probe_chat_response_email.py
+    - backend/tests/test_chat_recovery_large_output_intent.py
+    - backend/tests/test_chat_recovery_service.py
+    - backend/tests/test_completion_push_cache_fallback.py
+    - backend/tests/test_embed_service_versioned_updates.py
+    - backend/tests/test_foreground_chat_notification_suppression.py
+    - backend/tests/test_google_sdk_transport.py
+    - backend/tests/test_main_factual_prompt.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_notification_presence.py
+    - backend/tests/test_push_notification_preview.py
+    - backend/tests/test_storage_recovery_fixture.py
+    - docs/architecture/messaging/embeds.md
+    - docs/plans/chat-processing-next-stage/implemented-flow.md
+    - docs/plans/chat-processing-next-stage/plan.yml
+    - docs/plans/chat-processing-next-stage/validation-2026-10-15.md
+    - frontend/apps/web_app/tests/chat-response-email.spec.ts
+    - frontend/apps/web_app/tests/cli-privacy.spec.ts
+    - frontend/apps/web_app/tests/storage-recovery-replay.spec.ts
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/cliJevContext.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/cliJevContext.test.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/fixtures/prepared-privacy-proof.mjs
+    - frontend/packages/openmates-cli/tests/foregroundChatRecovery.test.ts
+    - frontend/packages/openmates-cli/tests/taskContextDiscovery.test.ts
+    - frontend/packages/ui/src/services/__tests__/recoveryCanonicalTransientRetry.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+    - specifications/features/notifications/examples.yml
+    - specifications/features/notifications/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  docs:
+  - title: 'docs: record measured chat architecture and remaining timing gaps'
+    section: docs
+    commits:
+    - 6b9fd8607
+    authored_at: '2026-10-15T14:49:14+00:00'
+    changed_paths:
+    - docs/plans/chat-processing-next-stage/implemented-flow.md
+    - docs/plans/chat-processing-next-stage/validation-2026-10-15.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: preserve default routing for example sources'
+    section: docs
+    commits:
+    - 0bb14fbbf
+    authored_at: '2026-10-15T08:53:15+00:00'
+    changed_paths:
+    - docs/plans/landing-example-reliability/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: isolate composite recovery verification'
+    section: tests
+    commits:
+    - 50cb7bd53
+    authored_at: '2026-10-15T10:31:38+00:00'
+    changed_paths:
+    - scripts/ci_coordinator.py
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_case_filter.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'fix: answer selected Project catalog requests in CLI'
+    commits:
+    - 6ee143c7f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: preserve Project reads when edits are prohibited'
+    commits:
+    - 6eec78025
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: decode cached Focus authority mappings correctly'
+    commits:
+    - ab02b5e8d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: retain canonical chat receipts for completed follow-ups'
+    commits:
+    - 9eb007a21
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: preserve chat authority throughout Focus continuation'
+    commits:
+    - 94986e159
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: select recovery fixture for saved follow-up regression'
+    commits:
+    - 9568a640d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve focus continuation authority and speech lifecycle'
+    commits:
+    - 1f6d41eb9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'perf: accelerate saved admission and bounded encrypted recovery'
+    commits:
+    - ba4fb03d9
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: keep landing animations above mobile controls'
+    commits:
+    - 5eedd82ad
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'perf: overlap saved-chat discovery and fence optimistic history reads'
+    commits:
+    - dd1544f5c
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: record measured chat architecture and remaining timing gaps'
+    commits:
+    - 6b9fd8607
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'perf: cancel stale chat viewers and overlap follow-up preparation'
+    commits:
+    - ba8654432
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'perf: remove foreground chat discovery and recovery barriers'
+    commits:
+    - d5913cf46
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'feat: refine landing section replays and device media'
+    commits:
+    - e3b567b7c
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: publish real web research with saved thinking'
+    commits:
+    - d186db0f6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+  - title: 'fix: repair example composer focus and recipe options'
+    commits:
+    - a5a219896
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: isolate composite recovery verification'
+    commits:
+    - 50cb7bd53
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: polish public sections and restore guest workspace parity'
+    commits:
+    - 5e92c48b1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: activate verified newsletter S3 images'
+    commits:
+    - 143abde73
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: seed replay fixtures from verified candidate'
+    commits:
+    - 5bdff6636
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: preserve default routing for example sources'
+    commits:
+    - 0bb14fbbf
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: handle absent preprocessing debug metadata'
+    commits:
+    - 14461e57a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: admit authorized primary read into synthesis catalog'
+    commits:
+    - e5cef4999
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: read bound primary sources during root synthesis'
+    commits:
+    - 51f7638f9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: require exact primary evidence in research'
+    commits:
+    - 2ced3b80a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+  - title: 'fix: synthesize research in parent with an evidence ledger'
+    commits:
+    - aad3ef8b9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+  - title: 'fix: reserve a bounded primary read request'
+    commits:
+    - 2e1f371d2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: fit research reasoning and require a source read'
+    commits:
+    - 45cd14cd0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: enforce research evidence and honest output-limit failures'
+    commits:
+    - ed3f57adc
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+  - title: 'fix: fit orchestrated output to affordable budget'
+    commits:
+    - 1b2c4bdc7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: cache public SVG icons and publish reviewed Design example'
+    commits:
+    - 1bfcad817
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: reserve research AI usage and fail budget-denied children'
+    commits:
+    - 3f2013087
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'perf: accelerate saved admission and bounded encrypted recovery'
+    commits:
+    - ba4fb03d9
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: publish real web research with saved thinking'
+    commits:
+    - d186db0f6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+  - title: 'fix: enforce research evidence and honest output-limit failures'
+    commits:
+    - ed3f57adc
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'fix: answer selected Project catalog requests in CLI'
+    commits:
+    - 6ee143c7f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve Project reads when edits are prohibited'
+    commits:
+    - 6eec78025
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: retain canonical chat receipts for completed follow-ups'
+    commits:
+    - 9eb007a21
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve chat authority throughout Focus continuation'
+    commits:
+    - 94986e159
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: preserve focus continuation authority and speech lifecycle'
+    commits:
+    - 1f6d41eb9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'perf: accelerate saved admission and bounded encrypted recovery'
+    commits:
+    - ba4fb03d9
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: keep landing animations above mobile controls'
+    commits:
+    - 5eedd82ad
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'perf: overlap saved-chat discovery and fence optimistic history reads'
+    commits:
+    - dd1544f5c
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'perf: cancel stale chat viewers and overlap follow-up preparation'
+    commits:
+    - ba8654432
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'perf: remove foreground chat discovery and recovery barriers'
+    commits:
+    - d5913cf46
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'feat: refine landing section replays and device media'
+    commits:
+    - e3b567b7c
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: publish real web research with saved thinking'
+    commits:
+    - d186db0f6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    newsletter_ready: false
+  - title: 'fix: repair example composer focus and recipe options'
+    commits:
+    - a5a219896
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: polish public sections and restore guest workspace parity'
+    commits:
+    - 5e92c48b1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: activate verified newsletter S3 images'
+    commits:
+    - 143abde73
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: handle absent preprocessing debug metadata'
+    commits:
+    - 14461e57a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: admit authorized primary read into synthesis catalog'
+    commits:
+    - e5cef4999
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: read bound primary sources during root synthesis'
+    commits:
+    - 51f7638f9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: require exact primary evidence in research'
+    commits:
+    - 2ced3b80a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    newsletter_ready: false
+  - title: 'fix: synthesize research in parent with an evidence ledger'
+    commits:
+    - aad3ef8b9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    newsletter_ready: false
+  - title: 'fix: reserve a bounded primary read request'
+    commits:
+    - 2e1f371d2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: fit research reasoning and require a source read'
+    commits:
+    - 45cd14cd0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: enforce research evidence and honest output-limit failures'
+    commits:
+    - ed3f57adc
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    newsletter_ready: false
+  - title: 'fix: fit orchestrated output to affordable budget'
+    commits:
+    - 1b2c4bdc7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: cache public SVG icons and publish reviewed Design example'
+    commits:
+    - 1bfcad817
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: reserve research AI usage and fail budget-denied children'
+    commits:
+    - 3f2013087
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 6ee143c7f632b80e1bc29832993eb7f83e218d59
+    short_sha: 6ee143c7f
+    authored_at: '2026-10-15T20:38:38+00:00'
+    subject: 'fix: answer selected Project catalog requests in CLI'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-recovery-discovery.spec.ts
+    - frontend/packages/openmates-cli/src/cliJevContext.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/cliJevContext.test.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 6eec780251eedda69eb335fb326e2a8283f274ca
+    short_sha: 6eec78025
+    authored_at: '2026-10-15T19:50:23+00:00'
+    subject: 'fix: preserve Project reads when edits are prohibited'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/project_file_tools.py
+    - backend/tests/test_project_focus_early_routing.py
+    - backend/tests/test_project_focus_requests.py
+    - frontend/apps/web_app/tests/projects-readme-focus.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: ab02b5e8d1db3472e17adf0a0bbd1bce463e9b63
+    short_sha: ab02b5e8d
+    authored_at: '2026-10-15T19:22:49+00:00'
+    subject: 'fix: decode cached Focus authority mappings correctly'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/shared/python_utils/focus_continuation_history.py
+    - backend/tests/test_focus_authority_lifecycle.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 9eb007a219b3c07fdc2a3ff42df47914a68e71b8
+    short_sha: 9eb007a21
+    authored_at: '2026-10-15T19:14:40+00:00'
+    subject: 'fix: retain canonical chat receipts for completed follow-ups'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/chat-processing-next-stage/implemented-flow.md
+    - docs/plans/chat-processing-next-stage/validation-2026-10-15.md
+    - frontend/apps/web_app/tests/chat-saved-followup-admission.spec.ts
+    - frontend/apps/web_app/tests/connection-resilience.spec.ts
+    - frontend/packages/ui/src/services/__tests__/personalChatTurnBarrier.test.ts
+    - frontend/packages/ui/src/services/__tests__/sendersChatMessagesProtocol.test.ts
+    - frontend/packages/ui/src/services/personalChatTurnBarrier.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 94986e1590907555021d31b04d21162f16f05d9b
+    short_sha: 94986e159
+    authored_at: '2026-10-15T19:09:34+00:00'
+    subject: 'fix: preserve chat authority throughout Focus continuation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/focus_mode_auto_confirm_task.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/tests/test_ask_skill_task.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/cancel_ai_task_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/focus_mode_rejected_handler.py
+    - backend/shared/python_utils/focus_continuation_history.py
+    - backend/shared/python_utils/recent_work_summary_client.py
+    - backend/tests/test_focus_authority_lifecycle.py
+    - backend/tests/test_focus_continuation_history.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 9568a640dc1ce6582dcaed06ec42859665f57f73
+    short_sha: 9568a640d
+    authored_at: '2026-10-15T18:49:10+00:00'
+    subject: 'fix: select recovery fixture for saved follow-up regression'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_maps_recovery_profile.py
+    related_feature_ids: []
+  - sha: 1f6d41eb931ae6ac8297188d7b3655eb5b4b72b4
+    short_sha: 1f6d41eb9
+    authored_at: '2026-10-15T18:29:42+00:00'
+    subject: 'fix: preserve focus continuation authority and speech lifecycle'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/related_work.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/shared/python_utils/recent_work_summary_client.py
+    - backend/tests/test_assistant_speech_streaming.py
+    - backend/tests/test_recent_work_summary_cache.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: ba4fb03d946fd2d4b5f1296987906d047325cba5
+    short_sha: ba4fb03d9
+    authored_at: '2026-10-15T17:40:16+00:00'
+    subject: 'perf: accelerate saved admission and bounded encrypted recovery'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_turn_preflight_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/suggested_followup_metadata_handler.py
+    - backend/tests/test_agent_context_history_transport.py
+    - backend/tests/test_chat_turn_preflight_handler.py
+    - backend/tests/test_suggested_followup_metadata_handler.py
+    - docs/plans/chat-processing-next-stage/implemented-flow.md
+    - docs/plans/chat-processing-next-stage/validation-2026-10-15.md
+    - frontend/apps/web_app/tests/chat-response-processing-ui.spec.ts
+    - frontend/apps/web_app/tests/cli-recovery-discovery.spec.ts
+    - frontend/apps/web_app/tests/connection-resilience.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/recoveryBatch.ts
+    - frontend/packages/openmates-cli/src/serverCaddyUpdate.ts
+    - frontend/packages/openmates-cli/tests/recoveryBatch.test.ts
+    - frontend/packages/openmates-cli/tests/recoveryOutputClient.test.ts
+    - frontend/packages/openmates-cli/tests/serverCaddyUpdate.test.ts
+    - frontend/packages/openmates-cli/tests/serverCaddyUpgrade.test.ts
+    - frontend/packages/openmates-cli/tests/warmSlotRearm.test.ts
+    - frontend/packages/ui/src/services/__tests__/composerGhostSuggestion.test.ts
+    - frontend/packages/ui/src/services/__tests__/savedPersonalAdmissionHistory.test.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/composerGhostSuggestion.ts
+    - frontend/packages/ui/src/services/savedPersonalAdmissionHistory.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 5eedd82ad4d38158bd92b6f584950ae295483a57
+    short_sha: 5eedd82ad
+    authored_at: '2026-10-15T16:44:58+00:00'
+    subject: 'fix: keep landing animations above mobile controls'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/landing-mobile-stories.spec.ts
+    - frontend/packages/public-site/src/components/landing/LandingFeatureAnimation.svelte
+    - frontend/packages/public-site/src/components/landing/LandingPage.svelte
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: dd1544f5cb99a5f54c0e68c5b7492065e3221904
+    short_sha: dd1544f5c
+    authored_at: '2026-10-15T16:30:49+00:00'
+    subject: 'perf: overlap saved-chat discovery and fence optimistic history reads'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-privacy.spec.ts
+    - frontend/apps/web_app/tests/connection-resilience.spec.ts
+    - frontend/packages/openmates-cli/src/cliJevContext.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/fixtures/prepared-privacy-proof.mjs
+    - frontend/packages/openmates-cli/tests/foregroundChatRecovery.test.ts
+    - frontend/packages/openmates-cli/tests/taskContextDiscovery.test.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/services/__tests__/initialChatHistoryGate.test.ts
+    - frontend/packages/ui/src/services/initialChatHistoryGate.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 6b9fd8607ddd8c65f2d72077395d88e83fbca9c3
+    short_sha: 6b9fd8607
+    authored_at: '2026-10-15T14:49:14+00:00'
+    subject: 'docs: record measured chat architecture and remaining timing gaps'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/chat-processing-next-stage/implemented-flow.md
+    - docs/plans/chat-processing-next-stage/validation-2026-10-15.md
+    related_feature_ids: []
+  - sha: ba8654432f0a4476e6c71b7c9b4bfd5b10ddbe8c
+    short_sha: ba8654432
+    authored_at: '2026-10-15T13:55:30+00:00'
+    subject: 'perf: cancel stale chat viewers and overlap follow-up preparation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/workflow_chat_delivery_handlers.py
+    - backend/tests/test_message_received_active_chat.py
+    - backend/tests/test_workflow_chat_delivery_websocket_handlers.py
+    - frontend/apps/web_app/tests/audio-recording-deferred-send.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/foregroundChatRecovery.test.ts
+    - frontend/packages/openmates-cli/tests/teams-permissions.test.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: d5913cf468e1c2902dc377f756e3c2458af325a5
+    short_sha: d5913cf46
+    authored_at: '2026-10-15T13:02:59+00:00'
+    subject: 'perf: remove foreground chat discovery and recovery barriers'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/llm_providers/google_client.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/stage_one_task.py
+    - backend/apps/ai/testing/api_cache/storage_capacity_v1/pretalx/c08a07c19423a4c6.json
+    - backend/apps/ai/testing/capacity_fixtures.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/chat_email_notification_service.py
+    - backend/core/api/app/services/chat_recovery_service.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/core/api/app/services/notification_presence.py
+    - backend/core/api/app/tasks/push_notification_task.py
+    - backend/core/directus/extensions/chat-recovery-transaction/src/operations.js
+    - backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
+    - backend/scripts/probe_chat_response_email.py
+    - backend/tests/test_chat_recovery_large_output_intent.py
+    - backend/tests/test_chat_recovery_service.py
+    - backend/tests/test_completion_push_cache_fallback.py
+    - backend/tests/test_embed_service_versioned_updates.py
+    - backend/tests/test_foreground_chat_notification_suppression.py
+    - backend/tests/test_google_sdk_transport.py
+    - backend/tests/test_main_factual_prompt.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_notification_presence.py
+    - backend/tests/test_push_notification_preview.py
+    - backend/tests/test_storage_recovery_fixture.py
+    - docs/architecture/messaging/embeds.md
+    - docs/plans/chat-processing-next-stage/implemented-flow.md
+    - docs/plans/chat-processing-next-stage/plan.yml
+    - docs/plans/chat-processing-next-stage/validation-2026-10-15.md
+    - frontend/apps/web_app/tests/chat-response-email.spec.ts
+    - frontend/apps/web_app/tests/cli-privacy.spec.ts
+    - frontend/apps/web_app/tests/storage-recovery-replay.spec.ts
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/cliJevContext.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/cliJevContext.test.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/fixtures/prepared-privacy-proof.mjs
+    - frontend/packages/openmates-cli/tests/foregroundChatRecovery.test.ts
+    - frontend/packages/openmates-cli/tests/taskContextDiscovery.test.ts
+    - frontend/packages/ui/src/services/__tests__/recoveryCanonicalTransientRetry.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+    - specifications/features/notifications/examples.yml
+    - specifications/features/notifications/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+  - sha: e3b567b7c8a003c910bb8f332f89486242b91ade
+    short_sha: e3b567b7c
+    authored_at: '2026-10-15T12:17:06+00:00'
+    subject: 'feat: refine landing section replays and device media'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/design-guide/landing-native-captures.md
+    - docs/plans/public-site-section-followup-oct15/plan.yml
+    - frontend/apps/web_app/static/landing/screenshots/capture-manifest.json
+    - frontend/apps/web_app/static/landing/screenshots/devices-desktop.webp
+    - frontend/apps/web_app/static/landing/screenshots/events-desktop.webp
+    - frontend/apps/web_app/static/landing/screenshots/model-selector-desktop.webp
+    - frontend/apps/web_app/static/landing/screenshots/privacy-desktop.webp
+    - frontend/apps/web_app/static/landing/screenshots/workflows-desktop.webp
+    - frontend/apps/web_app/tests/components/landing-hero-motion.spec.ts
+    - frontend/apps/web_app/tests/components/landing-section-replay.spec.ts
+    - frontend/apps/web_app/tests/components/marketing-landing.spec.ts
+    - frontend/apps/web_app/tests/website-public-routes.spec.ts
+    - frontend/apps/website/static/landing/screenshots/capture-manifest.json
+    - frontend/apps/website/static/landing/screenshots/devices-desktop.webp
+    - frontend/apps/website/static/landing/screenshots/events-desktop.webp
+    - frontend/apps/website/static/landing/screenshots/model-selector-desktop.webp
+    - frontend/apps/website/static/landing/screenshots/privacy-desktop.webp
+    - frontend/apps/website/static/landing/screenshots/workflows-desktop.webp
+    - frontend/packages/public-site/src/components/DeviceFrame.svelte
+    - frontend/packages/public-site/src/components/DeviceScreenshots.svelte
+    - frontend/packages/public-site/src/components/landing/LandingFeatureAnimation.svelte
+    - frontend/packages/public-site/src/components/landing/LandingPage.svelte
+    - frontend/packages/public-site/src/components/landing/landingPageContent.ts
+    - frontend/packages/public-site/src/generated/landingLocale.generated.json
+    - frontend/packages/public-site/src/i18n/landing.yml
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/marketing-landing/examples.yml
+    - specifications/features/marketing-landing/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    related_feature_ids: []
+  - sha: d186db0f6e0541819c68c8b4bd2cf56a68d64aad
+    short_sha: d186db0f6
+    authored_at: '2026-10-15T12:09:25+00:00'
+    subject: 'fix: publish real web research with saved thinking'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/web/app.yml
+    - backend/shared/python_utils/chat_completion_recovery_job.py
+    - backend/tests/test_stream_consumer_recovery.py
+    - docs/plans/landing-example-reliability/plan.yml
+    - frontend/apps/web_app/tests/landing-app-example-admission.ts
+    - frontend/apps/web_app/tests/landing-web-laptop.spec.ts
+    - frontend/apps/web_app/tests/landing-web-phone.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/recoveryOutputClient.test.ts
+    - frontend/packages/public-site/src/generated/publicApps.generated.json
+    - frontend/packages/ui/src/demo_chats/data/example_chats/us-egg-prices-deep-research.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/demo_chats/interestTags.ts
+    - frontend/packages/ui/src/demo_chats/types.ts
+    - frontend/packages/ui/src/generated/landingExampleChats.generated.json
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/example_chats/us_egg_prices_deep_research.yml
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersRecoveryCorrelation.test.js
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+    - scripts/ci_coverage_manifest.json
+    - scripts/create-example-chat-from-share.mjs
+    - scripts/extract-shared-chat.mjs
+    - scripts/tests/create_example_chat_from_share.test.mjs
+    - scripts/tests/extract_shared_chat.test.mjs
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+    - app:web
+  - sha: a5a219896865cd51af0e4442b6164c0368f53d6b
+    short_sha: a5a219896
+    authored_at: '2026-10-15T11:18:25+00:00'
+    subject: 'fix: repair example composer focus and recipe options'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/chat-open-focus.spec.ts
+    - frontend/apps/web_app/tests/components/questionnaire-recipe-options.spec.ts
+    - frontend/apps/web_app/tests/landing-app-example-admission.ts
+    - frontend/apps/web_app/tests/public-example-input-focus.spec.ts
+    - frontend/apps/web_app/tests/questionnaire-recipe-options-public.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ActiveChatFocusFixture.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedReferencePreview.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/GroupRenderer.test.ts
+    - frontend/packages/ui/src/components/interactive_questions/InteractiveQuestionContainer.preview.ts
+    - frontend/packages/ui/src/components/interactive_questions/InteractiveQuestionContainer.svelte
+    - frontend/packages/ui/src/components/interactive_questions/__tests__/QuestionSourceProbe.svelte
+    - frontend/packages/ui/src/components/interactive_questions/__tests__/questionnaireSourceContext.test.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 50cb7bd535134c642dcee0d266648128290f69e4
+    short_sha: 50cb7bd53
+    authored_at: '2026-10-15T10:31:38+00:00'
+    subject: 'test: isolate composite recovery verification'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_coordinator.py
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_case_filter.py
+    related_feature_ids: []
+  - sha: 5e92c48b1f3715dda3a9b1282e68dd9cb50deedd
+    short_sha: 5e92c48b1
+    authored_at: '2026-10-15T10:30:36+00:00'
+    subject: 'fix: polish public sections and restore guest workspace parity'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/public-site-section-followup-oct15/plan.yml
+    - frontend/apps/web_app/src/lib/components/publications/PublicationRoute.svelte
+    - frontend/apps/web_app/src/lib/landingOrigins.test.ts
+    - frontend/apps/web_app/src/lib/landingOrigins.ts
+    - frontend/apps/web_app/src/routes/(publications)/[[locale=publicationLocale]]/[section=publicationSection]/[[slug]]/+page.server.ts
+    - frontend/apps/web_app/src/routes/(seo)/legal/[slug]/+page.server.ts
+    - frontend/apps/web_app/src/routes/(seo)/legal/[slug]/+page.svelte
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/components/guest-welcome-preview.spec.ts
+    - frontend/apps/web_app/tests/components/landing-hero-motion.spec.ts
+    - frontend/apps/web_app/tests/components/landing-native-touch-momentum.spec.ts
+    - frontend/apps/web_app/tests/components/public-newsroom-header.spec.ts
+    - frontend/apps/web_app/tests/components/workflow-guest-template-editor.spec.ts
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/apps/web_app/tests/public-publications.spec.ts
+    - frontend/apps/web_app/tests/website-public-routes.spec.ts
+    - frontend/packages/public-site/src/assets/landing/business_development.jpeg
+    - frontend/packages/public-site/src/assets/landing/general_knowledge.jpeg
+    - frontend/packages/public-site/src/components/landing/LandingFeatureAnimation.svelte
+    - frontend/packages/public-site/src/components/landing/LandingPage.svelte
+    - frontend/packages/public-site/src/components/landing/landingFeatureAnimationContent.ts
+    - frontend/packages/public-site/src/components/newsroom/NewsroomSurface.svelte
+    - frontend/packages/public-site/src/generated/landingLocale.generated.json
+    - frontend/packages/public-site/src/generated/publicLocales.generated.json
+    - frontend/packages/public-site/src/i18n/landing.yml
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.preview.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowSchemaFields.svelte
+    - frontend/packages/ui/src/demo_chats/__tests__/defaultGuestExampleChats.test.ts
+    - frontend/packages/ui/src/demo_chats/defaultGuestExampleChats.ts
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/sources/workflows.yml
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/landing-onboarding/examples.yml
+    - specifications/features/landing-onboarding/specification.yml
+    - specifications/features/marketing-landing/examples.yml
+    - specifications/features/marketing-landing/specification.yml
+    - specifications/features/public-publications/examples.yml
+    - specifications/features/public-publications/specification.yml
+    - specifications/features/workflows-ui/examples.yml
+    - specifications/features/workflows-ui/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - platform:workflows
+  - sha: 143abde73aa66968eaecf22b6abb45f7330e3ae2
+    short_sha: 143abde73
+    authored_at: '2026-10-15T10:06:18+00:00'
+    subject: 'fix: activate verified newsletter S3 images'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/newsletters/asset-map.json
+    - backend/scripts/probe_newsletter_delivery.py
+    - backend/scripts/publish_newsletter_s3_assets.py
+    - backend/tests/test_newsletter_assets.py
+    - backend/tests/test_newsletter_s3_publisher.py
+    - backend/tests/test_probe_newsletter_delivery.py
+    - docs/architecture/newsletter-delivery.md
+    - frontend/apps/web_app/tests/newsletter-flow.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 5bdff66369467467eb3400d20d0127bdc41f5205
+    short_sha: 5bdff6636
+    authored_at: '2026-10-15T09:35:23+00:00'
+    subject: 'fix: seed replay fixtures from verified candidate'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_environment.py
+    - scripts/tests/test_ci_environment.py
+    related_feature_ids: []
+  - sha: 0bb14fbbffbd79563c473ec8ff431719e5bb8c00
+    short_sha: 0bb14fbbf
+    authored_at: '2026-10-15T08:53:15+00:00'
+    subject: 'docs: preserve default routing for example sources'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/landing-example-reliability/plan.yml
+    related_feature_ids: []
+  - sha: 14461e57a555e6a9227367c3bd0219c2647e0c24
+    short_sha: 14461e57a
+    authored_at: '2026-10-15T06:28:16+00:00'
+    subject: 'fix: handle absent preprocessing debug metadata'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/tests/test_orchestrated_terminal_failure.py
+    - docs/plans/landing-example-reliability/plan.yml
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: e5cef49997730089d60ccb2db90a66c15ef42b39
+    short_sha: e5cef4999
+    authored_at: '2026-10-15T05:54:42+00:00'
+    subject: 'fix: admit authorized primary read into synthesis catalog'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/tests/test_delegated_primary_read.py
+    - docs/plans/landing-example-reliability/plan.yml
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 51f7638f9bd613e0a81332a4b893d0e9a3c17ece
+    short_sha: 51f7638f9
+    authored_at: '2026-10-15T05:25:51+00:00'
+    subject: 'fix: read bound primary sources during root synthesis'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_delegated_primary_read.py
+    - backend/tests/test_stream_consumer_recovery.py
+    - docs/plans/landing-example-reliability/plan.yml
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 2ced3b80a9cc955fcacfe5a26183989f135320ff
+    short_sha: 2ced3b80a
+    authored_at: '2026-10-15T05:00:59+00:00'
+    subject: 'fix: require exact primary evidence in research'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/web/focus_modes/research/SKILL.ar.md
+    - backend/apps/web/focus_modes/research/SKILL.cs.md
+    - backend/apps/web/focus_modes/research/SKILL.de.md
+    - backend/apps/web/focus_modes/research/SKILL.es.md
+    - backend/apps/web/focus_modes/research/SKILL.fr.md
+    - backend/apps/web/focus_modes/research/SKILL.he.md
+    - backend/apps/web/focus_modes/research/SKILL.hi.md
+    - backend/apps/web/focus_modes/research/SKILL.id.md
+    - backend/apps/web/focus_modes/research/SKILL.it.md
+    - backend/apps/web/focus_modes/research/SKILL.ja.md
+    - backend/apps/web/focus_modes/research/SKILL.ko.md
+    - backend/apps/web/focus_modes/research/SKILL.md
+    - backend/apps/web/focus_modes/research/SKILL.nl.md
+    - backend/apps/web/focus_modes/research/SKILL.pl.md
+    - backend/apps/web/focus_modes/research/SKILL.pt.md
+    - backend/apps/web/focus_modes/research/SKILL.ru.md
+    - backend/apps/web/focus_modes/research/SKILL.sv.md
+    - backend/apps/web/focus_modes/research/SKILL.th.md
+    - backend/apps/web/focus_modes/research/SKILL.tr.md
+    - backend/apps/web/focus_modes/research/SKILL.vi.md
+    - backend/apps/web/focus_modes/research/SKILL.zh.md
+    - backend/tests/test_landing_focus_prompt_contract.py
+    - docs/plans/landing-example-reliability/plan.yml
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/focus_modes/web_research.yml
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:web
+  - sha: aad3ef8b94704b5f658e73386f7e7a733e24944e
+    short_sha: aad3ef8b9
+    authored_at: '2026-10-15T04:25:43+00:00'
+    subject: 'fix: synthesize research in parent with an evidence ledger'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/web/focus_modes/research/SKILL.ar.md
+    - backend/apps/web/focus_modes/research/SKILL.cs.md
+    - backend/apps/web/focus_modes/research/SKILL.de.md
+    - backend/apps/web/focus_modes/research/SKILL.es.md
+    - backend/apps/web/focus_modes/research/SKILL.fr.md
+    - backend/apps/web/focus_modes/research/SKILL.he.md
+    - backend/apps/web/focus_modes/research/SKILL.hi.md
+    - backend/apps/web/focus_modes/research/SKILL.id.md
+    - backend/apps/web/focus_modes/research/SKILL.it.md
+    - backend/apps/web/focus_modes/research/SKILL.ja.md
+    - backend/apps/web/focus_modes/research/SKILL.ko.md
+    - backend/apps/web/focus_modes/research/SKILL.md
+    - backend/apps/web/focus_modes/research/SKILL.nl.md
+    - backend/apps/web/focus_modes/research/SKILL.pl.md
+    - backend/apps/web/focus_modes/research/SKILL.pt.md
+    - backend/apps/web/focus_modes/research/SKILL.ru.md
+    - backend/apps/web/focus_modes/research/SKILL.sv.md
+    - backend/apps/web/focus_modes/research/SKILL.th.md
+    - backend/apps/web/focus_modes/research/SKILL.tr.md
+    - backend/apps/web/focus_modes/research/SKILL.vi.md
+    - backend/apps/web/focus_modes/research/SKILL.zh.md
+    - backend/core/directus/extensions/sub-chat-orchestration-transaction/src/operations.js
+    - backend/core/directus/extensions/sub-chat-orchestration-transaction/test/operations.test.js
+    - backend/tests/test_delegated_primary_read.py
+    - backend/tests/test_landing_focus_prompt_contract.py
+    - backend/tests/test_stream_consumer_recovery.py
+    - docs/plans/landing-example-reliability/plan.yml
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/focus_modes/web_research.yml
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+    - app:web
+  - sha: 2e1f371d2a5eb29a4399976a2696dff87bcc14e5
+    short_sha: 2e1f371d2
+    authored_at: '2026-10-15T03:46:54+00:00'
+    subject: 'fix: reserve a bounded primary read request'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/focus_mode_routing.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/tests/test_delegated_primary_read.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 45cd14cd08b16a5cdfd1f300bf7b407ff71f57b3
+    short_sha: 45cd14cd0
+    authored_at: '2026-10-15T03:09:37+00:00'
+    subject: 'fix: fit research reasoning and require a source read'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/focus_mode_routing.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/tests/test_delegated_primary_read.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_orchestrated_ai_output_fit.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: ed3f57adcbafa750e6a31ec08e9a3d9ad5752a2c
+    short_sha: ed3f57adc
+    authored_at: '2026-10-15T02:32:31+00:00'
+    subject: 'fix: enforce research evidence and honest output-limit failures'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/llm_providers/google_client.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/main_processing_failure.py
+    - backend/apps/web/app.yml
+    - backend/apps/web/focus_modes/research/SKILL.ar.md
+    - backend/apps/web/focus_modes/research/SKILL.cs.md
+    - backend/apps/web/focus_modes/research/SKILL.de.md
+    - backend/apps/web/focus_modes/research/SKILL.es.md
+    - backend/apps/web/focus_modes/research/SKILL.fr.md
+    - backend/apps/web/focus_modes/research/SKILL.he.md
+    - backend/apps/web/focus_modes/research/SKILL.hi.md
+    - backend/apps/web/focus_modes/research/SKILL.id.md
+    - backend/apps/web/focus_modes/research/SKILL.it.md
+    - backend/apps/web/focus_modes/research/SKILL.ja.md
+    - backend/apps/web/focus_modes/research/SKILL.ko.md
+    - backend/apps/web/focus_modes/research/SKILL.md
+    - backend/apps/web/focus_modes/research/SKILL.nl.md
+    - backend/apps/web/focus_modes/research/SKILL.pl.md
+    - backend/apps/web/focus_modes/research/SKILL.pt.md
+    - backend/apps/web/focus_modes/research/SKILL.ru.md
+    - backend/apps/web/focus_modes/research/SKILL.sv.md
+    - backend/apps/web/focus_modes/research/SKILL.th.md
+    - backend/apps/web/focus_modes/research/SKILL.tr.md
+    - backend/apps/web/focus_modes/research/SKILL.vi.md
+    - backend/apps/web/focus_modes/research/SKILL.zh.md
+    - backend/tests/test_delegated_output_limit.py
+    - backend/tests/test_landing_focus_prompt_contract.py
+    - backend/tests/test_orchestrated_terminal_failure.py
+    - docs/plans/landing-example-reliability/plan.yml
+    - frontend/apps/web_app/tests/landing-public-example-discovery.spec.ts
+    - frontend/packages/public-site/src/generated/publicApps.generated.json
+    - frontend/packages/ui/src/demo_chats/__tests__/exampleChatRegistration.test.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/demo_chats/interestTags.ts
+    - frontend/packages/ui/src/generated/landingExampleChats.generated.json
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/focus_modes/web_research.yml
+    - scripts/ci_coverage_manifest.json
+    - specifications/architecture/app-skill-execution/examples.yml
+    - specifications/architecture/app-skill-execution/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+    - app:web
+  - sha: 1b2c4bdc7f28128ce6ccc7504ed449fa6fbd4adc
+    short_sha: 1b2c4bdc7
+    authored_at: '2026-10-15T01:24:08+00:00'
+    subject: 'fix: fit orchestrated output to affordable budget'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/tests/test_orchestrated_ai_checkpoint.py
+    - backend/tests/test_orchestrated_ai_output_fit.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 1bfcad817323fc6224f1c393f2ad1e7f51b777dd
+    short_sha: 1bfcad817
+    authored_at: '2026-10-15T01:14:53+00:00'
+    subject: 'fix: cache public SVG icons and publish reviewed Design example'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/design_icons.py
+    - backend/tests/test_design_icon_svg_route.py
+    - frontend/apps/web_app/tests/landing-app-example-admission.ts
+    - frontend/apps/web_app/tests/landing-design-laptop.spec.ts
+    - frontend/apps/web_app/tests/landing-design-targeted.spec.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/dashboard-sidebar-svg-icons.ts
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/example_chats/dashboard_sidebar_svg_icons.yml
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 3f2013087441f4d6e4a1e0350c0e0b94251ffd2d
+    short_sha: 3f2013087
+    authored_at: '2026-10-15T00:35:35+00:00'
+    subject: 'fix: reserve research AI usage and fail budget-denied children'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/main_processing_failure.py
+    - backend/core/api/app/services/sub_chat_orchestration_service.py
+    - backend/core/directus/extensions/sub-chat-orchestration-transaction/src/operations.js
+    - backend/core/directus/extensions/sub-chat-orchestration-transaction/test/ai-checkpoint.test.js
+    - backend/tests/test_orchestrated_ai_checkpoint.py
+    - backend/tests/test_orchestrated_terminal_failure.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+llm_summary:
+  overview: OpenMates focused on hardening AI orchestration and research synthesis reliability, alongside significant performance
+    optimizations for chat history admission and background recovery. The update also refined landing page media and addressed
+    CLI project handling.
+  released_changes: []
+  bug_fixes:
+  - text: OpenMates corrected AI research synthesis to require exact primary evidence and maintain a consistent evidence ledger
+      during complex tasks.
+    evidence:
+      commits:
+      - aad3ef8b9
+      - ed3f57adc
+      - 2ced3b80a
+      - 45cd14cd0
+    release_status: dev_only
+  - text: The project fixed landing page animation layering for mobile devices and restored focus behavior in the example
+      composer.
+    evidence:
+      commits:
+      - 5eedd82ad
+      - a5a219896
+    release_status: dev_only
+  - text: The CLI now correctly handles project catalog requests and preserves read access when edits are restricted.
+    evidence:
+      commits:
+      - 6ee143c7f
+      - 6eec78025
+    release_status: dev_only
+  - text: Newsletter delivery was improved by activating verified S3 image assets.
+    evidence:
+      commits:
+      - 143abde73
+    release_status: dev_only
+  unreleased_progress:
+  - text: Development continues on AI budget management, including reserving usage for research tasks and failing budget-denied
+      child processes gracefully.
+    evidence:
+      commits:
+      - 3f2013087
+      - 1b2c4bdc7
+      - 2e1f371d2
+      - 14461e57a
+    release_status: dev_only
+  - text: Performance optimizations are underway to accelerate saved chat admission and remove barriers in foreground recovery.
+    evidence:
+      commits:
+      - ba4fb03d9
+      - dd1544f5c
+      - ba8654432
+      - d5913cf46
+    release_status: dev_only
+  - text: Work is progressing on workflow guest workspace parity and newsroom header polishing.
+    evidence:
+      commits:
+      - 5e92c48b1
+    release_status: dev_only
+  internal_progress:
+  - text: Documentation was updated to record measured chat architecture timings and preserve default routing for example
+      sources.
+    evidence:
+      commits:
+      - 6b9fd8607
+      - 0bb14fbbf
+    release_status: dev_only
+  - text: CI infrastructure now supports isolated composite recovery verification and verified replay fixtures.
+    evidence:
+      commits:
+      - 50cb7bd53
+      - 9568a640d
+      - 5bdff6636
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: AI Orchestration and Research Synthesis Hardening
+      evidence:
+        commits:
+        - aad3ef8b9
+        - 3f2013087
+        - 1b2c4bdc7
+        - ed3f57adc
+      reason: AI orchestration and research synthesis hardening is currently in development.
+    - text: Chat Performance and Recovery Optimizations
+      evidence:
+        commits:
+        - ba4fb03d9
+        - dd1544f5c
+        - ba8654432
+        - d5913cf46
+      reason: Chat performance optimizations are currently dev-only.
+    - text: Landing Page and Workflow Guest Parity Updates
+      evidence:
+        commits:
+        - e3b567b7c
+        - 5e92c48b1
+      reason: Landing page and workflow guest parity updates are unreleased.
+    rationale: All changes from this period are classified as dev_only and have not yet reached the main release branch for
+      public communication.
+  social_video_recommendations:
+  - idea: A technical deep-dive into how OpenMates builds an 'evidence ledger' during AI research to ensure factual accuracy.
+    priority: low
+    reason: This provides a concrete product story about AI reliability, though it is currently unreleased.
+    evidence:
+      commits:
+      - aad3ef8b9
+      - ed3f57adc
+  quality_notes:
+  - Extensive focus on AI budget management and output-limit failure handling to ensure honest system responses.
+  - Performance work targeted reducing barriers in foreground chat discovery and overlapping follow-up preparation.
+  validation_warnings: []
