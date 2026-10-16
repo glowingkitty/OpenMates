@@ -190,12 +190,12 @@ export async function generateEmbedShareBlob(
 export function deriveWebOrigin(apiUrl: string): string {
   try {
     const url = new URL(apiUrl);
-    // api.openmates.org → https://openmates.org
+    // api.openmates.org → https://app.openmates.org
     // api.dev.openmates.org → https://app.dev.openmates.org
     if (url.hostname === "api.dev.openmates.org") {
       url.hostname = "app.dev.openmates.org";
     } else if (url.hostname === "api.openmates.org") {
-      url.hostname = "openmates.org";
+      url.hostname = "app.openmates.org";
     } else {
       url.hostname = url.hostname.replace(/^api\./, "app.");
     }
@@ -205,7 +205,7 @@ export function deriveWebOrigin(apiUrl: string): string {
     url.port = "";
     return url.origin;
   } catch {
-    return "https://openmates.org";
+    return "https://app.openmates.org";
   }
 }
 

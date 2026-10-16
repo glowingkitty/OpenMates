@@ -325,7 +325,7 @@ async def preview_newsletter_confirmation_request(
         
         # Fallback to environment variable or default
         if not base_url:
-            base_url = os.getenv("WEBAPP_URL", "https://openmates.org" if not is_dev else "http://localhost:5173")
+            base_url = os.getenv("WEBAPP_URL", "https://app.openmates.org" if not is_dev else "http://localhost:5173")
         
         if not base_url.startswith("http"):
             base_url = f"https://{base_url}"

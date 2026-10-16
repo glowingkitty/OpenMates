@@ -99,7 +99,7 @@ export const baseUrls = {
     production:
       import.meta.env.VITE_WEBAPP_URL_PROD ||
       sharedUrls?.urls?.base?.webapp?.production ||
-      "https://openmates.org",
+      "https://app.openmates.org",
   },
 } as const;
 

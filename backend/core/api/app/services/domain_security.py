@@ -772,7 +772,7 @@ class DomainSecurityService:
         if production_url:
             try:
                 from urllib.parse import urlparse
-                parsed = urlparse(production_url)
+                parsed = urlparse(production_url.split(",")[0].strip())
                 hostname = parsed.hostname
                 if hostname and hostname.lower() not in ["localhost", "127.0.0.1", "::1", "0.0.0.0"]:
                     return hostname.lower()
@@ -851,7 +851,7 @@ class DomainSecurityService:
             production_url = os.getenv("PRODUCTION_URL")
             if production_url:
                 from urllib.parse import urlparse
-                parsed = urlparse(production_url)
+                parsed = urlparse(production_url.split(",")[0].strip())
                 domain = parsed.hostname
             
             # Fallback to FRONTEND_URLS (development)

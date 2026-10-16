@@ -112,17 +112,13 @@ PASSKEY_WRONG_ACCOUNT_MESSAGE = "This passkey belongs to a different OpenMates a
 # WebAuthn Configuration
 def get_rp_id_from_request(request: Request) -> str:
     """
-    Get the Relying Party ID from the request origin.
-    The rpId must match the domain of the website making the request.
-    
-    For WebAuthn to work:
-    - rpId must be the hostname (domain) without protocol, port, or path
-    - rpId must match the origin of the request
-    - For localhost, use "localhost" (not "127.0.0.1")
-    
-    IMPORTANT: Each domain has its own rp_id, so passkeys registered on one domain
-    (e.g., localhost) will NOT work on another domain (e.g., openmates.org).
-    This is correct WebAuthn behavior - passkeys are domain-specific for security.
+    Preserve production credentials when the app moves to its subdomain.
+
+    WebAuthn permits a parent-domain RP ID. Both official production origins
+    must keep openmates.org, including the deterministic PRF input used to
+    unwrap existing master keys. Origin authorization remains an exact-origin
+    check in verify_allowed_origin; this mapping does not authorize requests.
+    Development and self-hosted domains retain their existing RP IDs.
     """
     # First, try to get from Origin header (most reliable)
     origin = request.headers.get("Origin")
@@ -131,6 +127,8 @@ def get_rp_id_from_request(request: Request) -> str:
         parsed = urlparse(origin)
         hostname = parsed.hostname
         if hostname:
+            if parsed.scheme == "https" and parsed.netloc in {"openmates.org", "app.openmates.org"}:
+                return "openmates.org"
             # For localhost, ensure we use "localhost" not "127.0.0.1"
             if hostname == "127.0.0.1":
                 return "localhost"
@@ -143,6 +141,8 @@ def get_rp_id_from_request(request: Request) -> str:
         parsed = urlparse(referer)
         hostname = parsed.hostname
         if hostname:
+            if parsed.scheme == "https" and parsed.netloc in {"openmates.org", "app.openmates.org"}:
+                return "openmates.org"
             if hostname == "127.0.0.1":
                 return "localhost"
             return hostname
@@ -1851,8 +1851,8 @@ async def passkey_assertion_verify(
             origin = client_data.get("origin")
             if origin:
                 rp_id = get_rp_id_from_request(request)
-                expected_origin = f"https://{rp_id}" if not rp_id.startswith("localhost") else f"http://{rp_id}"
-                if origin != expected_origin and not origin.startswith(expected_origin):
+                expected_origin = request.headers.get("Origin")
+                if expected_origin and origin != expected_origin:
                     logger.warning(f"Origin mismatch: {origin} vs expected {expected_origin}")
                     # Log but don't block (could be legitimate variation)
             

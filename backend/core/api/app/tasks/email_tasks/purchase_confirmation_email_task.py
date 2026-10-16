@@ -681,7 +681,7 @@ async def _async_process_invoice_and_send_email(
             try:
                 customer_portal_url = await task.payment_service.get_customer_portal_url(
                     customer_id=stripe_customer_id,
-                    return_url="https://openmates.org/settings/billing"
+                    return_url="https://app.openmates.org/settings/billing"
                 )
                 logger.info(f"Generated customer portal URL for auto top-up order {order_id}")
             except Exception as portal_err:
@@ -1170,7 +1170,7 @@ async def _async_process_invoice_and_send_email(
 
                 # Fallback to environment variable or default
                 if not webapp_url:
-                    webapp_url = os.getenv("WEBAPP_URL", "https://openmates.org" if not is_dev else "http://localhost:5173")
+                    webapp_url = os.getenv("WEBAPP_URL", "https://app.openmates.org" if not is_dev else "http://localhost:5173")
 
                 # Generate deep link URL: {webapp_url}#settings/billing/invoices/{invoice_uuid}/refund
                 refund_deep_link_url = f"{webapp_url}#settings/billing/invoices/{invoice_uuid}/refund"

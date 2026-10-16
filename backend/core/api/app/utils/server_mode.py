@@ -150,7 +150,7 @@ def get_hosting_domain() -> Optional[str]:
     if production_url:
         try:
             from urllib.parse import urlparse
-            parsed = urlparse(production_url)
+            parsed = urlparse(production_url.split(",")[0].strip())
             hostname = parsed.hostname
             # Filter out localhost IPs
             if hostname and hostname.lower() not in ["localhost", "127.0.0.1", "::1", "0.0.0.0"]:

@@ -1140,7 +1140,7 @@ class StripeService:
             logger.error(f"Unexpected error deleting Stripe customer {customer_id}: {str(e)}", exc_info=True)
             return False
 
-    async def get_customer_portal_url(self, customer_id: str, return_url: str = "https://openmates.org/settings/support") -> Optional[str]:
+    async def get_customer_portal_url(self, customer_id: str, return_url: str = "https://app.openmates.org/settings/support") -> Optional[str]:
         """
         Creates a Stripe billing portal session and returns the URL.
         
@@ -1536,7 +1536,7 @@ class StripeService:
             # Create customer portal link for subscription management
             portal_session = stripe.billing_portal.Session.create(
                 customer=customer_id,
-                return_url="https://openmates.org"  # Configure this URL as needed
+                return_url="https://app.openmates.org"  # Configure this URL as needed
             )
 
             logger.info(f"Created supporter subscription {subscription.id} for {amount/100:.2f} {currency.upper()}/month")
@@ -1687,7 +1687,7 @@ class StripeService:
             # Create customer portal link for future subscription management
             portal_session = stripe.billing_portal.Session.create(
                 customer=customer_id,
-                return_url="https://openmates.org"
+                return_url="https://app.openmates.org"
             )
 
             logger.info(f"Created PaymentIntent {payment_intent.id} for monthly support subscription setup")

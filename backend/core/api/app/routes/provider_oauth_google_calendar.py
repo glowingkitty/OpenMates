@@ -39,7 +39,7 @@ CALENDAR_EVENTS_SCOPE = "https://www.googleapis.com/auth/calendar.events"
 CALENDAR_LIST_READ_SCOPE = "https://www.googleapis.com/auth/calendar.calendarlist.readonly"
 CALENDAR_APP_CREATED_SCOPE = "https://www.googleapis.com/auth/calendar.app.created"
 DEFAULT_DEV_WEBAPP_URL = "https://app.dev.openmates.org"
-DEFAULT_PROD_WEBAPP_URL = "https://openmates.org"
+DEFAULT_PROD_WEBAPP_URL = "https://app.openmates.org"
 
 
 class GoogleCalendarOAuthStartRequest(BaseModel):

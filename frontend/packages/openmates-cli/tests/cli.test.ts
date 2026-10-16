@@ -3080,7 +3080,7 @@ describe("deriveAppUrl", () => {
     reset();
     assert.strictEqual(
       deriveAppUrl("https://api.openmates.org"),
-      "https://openmates.org",
+      "https://app.openmates.org",
     );
   });
 
@@ -3470,7 +3470,7 @@ describe("CLI support command", () => {
     const output = runCliWithoutSession(["support", "--json"]);
     const parsed = JSON.parse(output) as { url: string; voluntary: boolean; message: string };
 
-    assert.equal(parsed.url, "https://openmates.org/#settings/support");
+    assert.equal(parsed.url, "https://app.openmates.org/#settings/support");
     assert.equal(parsed.voluntary, true);
     assert.match(parsed.message, /Financial support is voluntary/);
   });

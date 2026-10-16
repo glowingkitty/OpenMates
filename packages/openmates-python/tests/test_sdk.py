@@ -759,25 +759,6 @@ def test_task_workflow_app_skill_methods_expose_embed_contracts(monkeypatch):
                     "results": [],
                 },
             })
-        if url.endswith("/v1/apps/workflows/skills/create-or-modify"):
-            return FakeResponse({
-                "success": True,
-                "data": {
-                    "success": True,
-                    "app_id": "workflows",
-                    "skill_id": "create-or-modify",
-                    "parent_embed_id": "app-skill-use-1",
-                    "result_count": 1,
-                    "results": [{
-                        "type": "workflow",
-                        "parent_app_skill_type": "app_skill_use",
-                        "child_embed_id": "workflow-embed-1",
-                        "workflow_id": "workflow-1",
-                        "title": "Morning weather",
-                        "status": "draft",
-                    }],
-                },
-            })
         if url.endswith("/v1/apps/workflows/skills/search"):
             return FakeResponse({
                 "success": True,
@@ -815,7 +796,8 @@ def test_task_workflow_app_skill_methods_expose_embed_contracts(monkeypatch):
     client = OpenMates(api_key="sk-api-test")
     task_create = client.apps.tasks.create({"tasks": [{"title": "Draft checklist"}]})
     task_search = client.apps.tasks.search({"query": "checklist"})
-    workflow_create = client.apps.workflows.create_or_modify({"title": "Morning weather"})
+    # Authoring is an AI/first-party skill, intentionally absent from public SDK methods.
+    assert not hasattr(client.apps.workflows, "create_or_modify")
     workflow_search = client.apps.workflows.search({"query": "weather", "include_temporary": True})
 
     assert task_create["data"]["parent_embed_id"] == "app-skill-use-1"
@@ -824,7 +806,6 @@ def test_task_workflow_app_skill_methods_expose_embed_contracts(monkeypatch):
     assert task_search["data"]["status"] == "waiting_for_client"
     assert task_search["data"]["pending_client_search"]["request_id"] == "task-search-1"
     assert task_search["data"]["results"] == []
-    assert workflow_create["data"]["results"][0]["child_embed_id"] == "workflow-embed-1"
     assert workflow_search["data"]["status"] == "finished"
     assert workflow_search["data"]["requires_connected_client"] is False
     assert [result["child_embed_id"] for result in workflow_search["data"]["results"]] == [
@@ -835,11 +816,10 @@ def test_task_workflow_app_skill_methods_expose_embed_contracts(monkeypatch):
     assert [request["url"] for request in requests] == [
         "https://api.openmates.org/v1/apps/tasks/skills/create",
         "https://api.openmates.org/v1/apps/tasks/skills/search",
-        "https://api.openmates.org/v1/apps/workflows/skills/create-or-modify",
         "https://api.openmates.org/v1/apps/workflows/skills/search",
     ]
     assert requests[0]["json"] == {"tasks": [{"title": "Draft checklist"}]}
-    assert requests[3]["json"] == {"query": "weather", "include_temporary": True}
+    assert requests[2]["json"] == {"query": "weather", "include_temporary": True}
 
 
 def test_task_workspace_methods_match_npm_sdk_contract(monkeypatch):

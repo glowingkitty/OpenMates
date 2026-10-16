@@ -261,7 +261,7 @@ describe("generateEmbedShareBlob", () => {
 
 describe("deriveWebOrigin", () => {
   it("strips api. prefix", () => {
-    assert.equal(deriveWebOrigin("https://api.openmates.org"), "https://openmates.org");
+    assert.equal(deriveWebOrigin("https://api.openmates.org"), "https://app.openmates.org");
   });
 
   it("maps self-hosted api subdomains to app subdomains", () => {
@@ -273,20 +273,20 @@ describe("deriveWebOrigin", () => {
   });
 
   it("falls back gracefully on invalid URL", () => {
-    assert.equal(deriveWebOrigin("not-a-url"), "https://openmates.org");
+    assert.equal(deriveWebOrigin("not-a-url"), "https://app.openmates.org");
   });
 });
 
 describe("buildChatShareUrl / buildEmbedShareUrl", () => {
   it("builds chat share URL", () => {
-    const url = buildChatShareUrl("https://openmates.org", "chat-123", "blobdata");
+    const url = buildChatShareUrl("https://app.openmates.org", "chat-123", "blobdata");
     docAssert("cli-share-links-use-web-share-routes", () => {
-      assert.equal(url, "https://openmates.org/share/chat/chat-123#key=blobdata");
+      assert.equal(url, "https://app.openmates.org/share/chat/chat-123#key=blobdata");
     });
   });
 
   it("builds embed share URL", () => {
-    const url = buildEmbedShareUrl("https://openmates.org", "embed-456", "blobdata");
-    assert.equal(url, "https://openmates.org/share/embed/embed-456#key=blobdata");
+    const url = buildEmbedShareUrl("https://app.openmates.org", "embed-456", "blobdata");
+    assert.equal(url, "https://app.openmates.org/share/embed/embed-456#key=blobdata");
   });
 });

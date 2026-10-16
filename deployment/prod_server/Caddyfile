@@ -113,7 +113,7 @@ api.openmates.org {
 	# Define matchers
 	@health_path path /health /v1/health /v1/health/* /v1/server /v1/status /v1/status/* # Health check, server info, and status page endpoints (public, no auth required)
 	@webapp_paths path /v1/auth/* /v1/payments/* /v1/projects /v1/projects/* /v1/workflows /v1/workflows/* /v1/user-tasks /v1/user-tasks/* /v1/user-plans /v1/user-plans/* /v1/account-exports /v1/account-exports/* /v1/account-imports /v1/account-imports/* /v1/learning-mode /v1/learning-mode/* # Webapp paths that require Origin check
-	@webapp_origin header Origin https://openmates.org
+	@webapp_origin header_regexp webapp Origin ^https://(app\.)?openmates\.org$
 	@options_method method OPTIONS # Renamed for clarity
 	@revolut_webhook path /v1/payments/webhook # Matcher for payment provider webhooks (Stripe / Polar / Revolut Business)
 	@websocket_path path /v1/ws* /v1/apps/audio/realtime-transcription /v1/voice-call # Matcher for WebSocket paths (to exclude from compression)

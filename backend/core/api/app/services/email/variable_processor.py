@@ -93,7 +93,7 @@ def process_template_variables(context: Dict[Any, Any]) -> Dict[Any, Any]:
                     protocol = "https" if not is_dev else "http"
                     base_webapp_url = f"{protocol}://{hosting_domain}"
                 else:
-                    base_webapp_url = os.getenv("WEBAPP_URL", "https://openmates.org" if not is_dev else "http://localhost:5173")
+                    base_webapp_url = os.getenv("WEBAPP_URL", "https://app.openmates.org" if not is_dev else "http://localhost:5173")
             
             # Ensure base_webapp_url doesn't end with a slash for consistent path appending
             if base_webapp_url.endswith('/'):
@@ -129,7 +129,7 @@ def process_template_variables(context: Dict[Any, Any]) -> Dict[Any, Any]:
             logger.debug("Set block_list_url")
         except Exception as e:
             # If we can't determine the URL, use a fallback
-            processed_context['block_list_url'] = "https://openmates.org/block-email"
+            processed_context['block_list_url'] = "https://app.openmates.org/block-email"
             logger.warning(f"Could not determine block_list_url, using fallback: {str(e)}")
     
     # Set server_domain variable for use in email templates

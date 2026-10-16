@@ -10,19 +10,29 @@ export {};
 const { test, expect } = require('./helpers/cookie-audit');
 const { createStepScreenshotter, getE2EDebugUrl } = require('./signup-flow-helpers');
 const { openSignupInterface } = require('./helpers/chat-test-helpers');
+const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
+const proofContract = defineVideoProof({
+	id: 'passkey-login-alternatives', title: 'Alternative login methods remain available', surface: 'web',
+	devices: ['web-laptop'], domain: 'app.dev.openmates.org',
+	transcript: [{ id: 'alternatives', text: 'While passkey login is pending, you can choose email and password or another device.', checkpoint: 'alternatives', devices: ['web-laptop'] }],
+	assertions: [{ id: 'visible-alternatives', checkpoint: 'alternatives', visual: 'Email and password and device pairing remain visible during passkey login.', devices: ['web-laptop'] }],
+	tutorial: { readingWordsPerSecond: 2.5, minimumHoldMs: 1800, maximumHoldMs: 5000 }
+});
 
 // contract-test: direct surface=gui.web assertions=auth.login.passkey-alternative-methods
-test('keeps alternative login methods available while passkey login is pending', async ({ page }: { page: any }) => {
+test('keeps alternative login methods available while passkey login is pending', async ({ page }: { page: any }, testInfo: any) => {
+	const proof = createVideoProofRuntime(proofContract, { device: 'web-laptop', attach: testInfo.attach.bind(testInfo) });
 	const takeScreenshot = createStepScreenshotter(console.log, {
 		filenamePrefix: 'passkey-login-alternatives'
 	});
 
 	await page.addInitScript(() => {
-		const testWindow = window as Window & { __passkeyAbortCount?: number };
+		const testWindow = window as Window & { __passkeyAbortCount?: number; __passkeyRpId?: string };
 		testWindow.__passkeyAbortCount = 0;
 		Object.defineProperty(navigator.credentials, 'get', {
 			configurable: true,
-			value: ({ mediation, signal }: { mediation?: string; signal?: AbortSignal }) => {
+			value: ({ mediation, signal, publicKey }: { mediation?: string; signal?: AbortSignal; publicKey?: PublicKeyCredentialRequestOptions }) => {
+				testWindow.__passkeyRpId = publicKey?.rpId;
 				if (mediation === 'conditional') {
 					return Promise.reject(new DOMException('Conditional UI disabled for this test', 'NotAllowedError'));
 				}
@@ -48,7 +58,7 @@ test('keeps alternative login methods available while passkey login is pending',
 			body: JSON.stringify({
 				success: true,
 				challenge: 'AQIDBA',
-				rp: { id: new URL(page.url()).hostname },
+				rp: { id: 'openmates.org' },
 				timeout: 60000,
 				userVerification: 'required',
 				allowCredentials: [],
@@ -65,9 +75,13 @@ test('keeps alternative login methods available while passkey login is pending',
 	const useEmailButton = page.getByTestId('login-use-email-button');
 	const pairLoginButton = page.getByTestId('login-pair-button');
 	await expect(page.getByText(/logging in with passkey/i)).toBeVisible();
+	// A parent RP supplied by the API must survive even when the page hostname differs.
+	await expect.poll(() => page.evaluate(() => (window as Window & { __passkeyRpId?: string }).__passkeyRpId)).toBe('openmates.org');
 	await expect(useEmailButton).toHaveText(/login with e-mail \+ password/i);
 	await expect(useEmailButton.getByTestId('login-use-email-icon')).toBeVisible();
 	await expect(pairLoginButton).toBeVisible();
+	await proof.assert('visible-alternatives', async () => { await expect(useEmailButton).toBeVisible(); await expect(pairLoginButton).toBeVisible(); });
+	await proof.checkpoint('alternatives');
 	await takeScreenshot(page, 'laptop');
 
 	await useEmailButton.click();
@@ -86,4 +100,5 @@ test('keeps alternative login methods available while passkey login is pending',
 	await pairLoginButton.click();
 	await expect(page.getByText(/logging in with passkey/i)).not.toBeVisible();
 	await expect.poll(() => page.evaluate(() => (window as Window & { __passkeyAbortCount?: number }).__passkeyAbortCount)).toBe(1);
+	await proof.attach();
 });

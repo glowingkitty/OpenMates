@@ -1,5 +1,12 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "installCommand": "cd ../../.. && corepack enable && pnpm --filter website... install --frozen-lockfile",
-  "buildCommand": "cd ../../.. && pnpm --filter website... run build"
+  "buildCommand": "cd ../../.. && pnpm --filter website... run build",
+  "redirects": [
+    { "source": "/oauth/:path*", "destination": "https://app.openmates.org/oauth/:path*", "permanent": false },
+    { "source": "/share/:path*", "destination": "https://app.openmates.org/share/:path*", "permanent": false },
+    { "source": "/s/:path*", "destination": "https://app.openmates.org/s/:path*", "permanent": false },
+    { "source": "/settings/:path*", "destination": "https://app.openmates.org/#settings/:path*", "permanent": false },
+    { "source": "/block-email", "destination": "https://app.openmates.org/block-email", "permanent": false }
+  ]
 }
