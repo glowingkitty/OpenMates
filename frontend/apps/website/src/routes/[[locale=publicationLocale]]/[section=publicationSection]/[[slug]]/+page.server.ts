@@ -4,6 +4,7 @@ import type { PublicPublicationLocale, PublicPublicationSection } from '@repo/pu
 import { appOrigin } from '$lib/server/origins';
 
 export const load: PageServerLoad = ({ params, setHeaders, url }) => {
+  const publication = loadPublicationPage({ locale: (params.locale === 'de' ? 'de' : 'en') as PublicPublicationLocale, section: params.section as PublicPublicationSection, slug: params.slug ?? null, url });
   setHeaders({ 'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400' });
-  return { ...loadPublicationPage({ locale: (params.locale === 'de' ? 'de' : 'en') as PublicPublicationLocale, section: params.section as PublicPublicationSection, slug: params.slug ?? null, url }), appBaseUrl: appOrigin(url) };
+  return { ...publication, appBaseUrl: appOrigin(url) };
 };
