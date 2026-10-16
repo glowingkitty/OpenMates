@@ -3462,7 +3462,7 @@ describe("CLI support command", () => {
     const output = runCliWithoutSession(["support"]);
     assert.match(output, /Support OpenMates development/);
     assert.match(output, /Financial support is voluntary/);
-    assert.match(output, /https:\/\/openmates\.org\/#settings\/support/);
+    assert.match(output, /https:\/\/app\.openmates\.org\/#settings\/support/);
     assert.doesNotMatch(output, /donate/i);
   });
 

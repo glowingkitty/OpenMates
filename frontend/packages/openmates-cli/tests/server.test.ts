@@ -2191,7 +2191,7 @@ describe("server support prompt", () => {
 
     assert.match(hint, /Friendly reminder/);
     assert.match(hint, /financially support OpenMates development/);
-    assert.match(hint, /https:\/\/openmates\.org\/#settings\/support/);
+    assert.match(hint, /https:\/\/app\.openmates\.org\/#settings\/support/);
     assert.doesNotMatch(hint, /donate/i);
   });
 });
