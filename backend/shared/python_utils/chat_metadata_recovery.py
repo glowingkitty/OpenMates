@@ -110,7 +110,7 @@ def open_metadata_envelope(envelope: dict[str, Any], *, recovery_private_key: st
 
 
 async def persist_generated_metadata(*, request: Any, task_id: str, stage: str,
-                                     metadata: dict[str, str | None]) -> dict[str, Any] | None:
+                                     metadata: dict[str, str | None], source_metadata_v: int | None = None) -> dict[str, Any] | None:
     """Seal before transient publication; never retain server-decryptable content."""
     inference_id = request.resolved_recovery_inference_task_id()
     if (not inference_id or getattr(request, "is_external", False)
@@ -118,6 +118,23 @@ async def persist_generated_metadata(*, request: Any, task_id: str, stage: str,
         return None
     if not any(value for value in metadata.values()):
         return None
+    # Child tasks intentionally inherit a ROOT-derived recovery key/preflight.
+    # Generic metadata jobs require a same-chat preflight; do not relax that
+    # boundary. Their generated postprocessing metadata uses the existing typed
+    # descendant output, authorized against the orchestration child task.
+    if getattr(request, "is_sub_chat", False):
+        if stage != "postprocessing":
+            return None
+        try:
+            return await persist_generated_child_metadata(
+                # The live source may include an optimistic initial title
+                # bump whose typing event was never persisted. Only the
+                # authenticated request base can authorize child overwrites.
+                request=request, task_id=task_id, metadata=metadata,
+            )
+        except Exception:
+            logger.warning("Generated child metadata unavailable; transient delivery remains active")
+            return None
     data = None
     directus = None
     try:
@@ -160,3 +177,50 @@ def queue_metadata_retry(data: dict[str, Any]) -> None:
     celery_app.send_task("app.tasks.persistence_tasks.persist_chat_metadata_recovery",
                          args=[data], queue="persistence", countdown=1, expires=7 * 24 * 60 * 60,
                          task_id=f"chat-metadata-persistence:{data['job_id']}", retry=False)
+
+
+async def persist_generated_child_metadata(*, request: Any, task_id: str,
+                                           metadata: dict[str, str | None]) -> None:
+    """Seal generated navigation metadata separately from the parent's full report."""
+    from backend.shared.python_utils.chat_completion_recovery_job import build_sealed_recovery_output_data
+    from backend.core.api.app.services.cache import CacheService
+    from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+    from backend.core.api.app.services.directus import DirectusService
+
+    limits = {"summary": 1000, "title": 200, "category": 100, "icon": 100}
+    fields = {key: value for key, value in metadata.items() if value}
+    # Reject invalid generated metadata; never turn a report into a preview by
+    # truncating it. The full completion report has its own parent event.
+    if not fields.get("summary") or set(fields) - limits.keys() or any(
+        not isinstance(value, str) or len(value) > limits[key] for key, value in fields.items()
+    ):
+        logger.warning("Generated child metadata was absent or outside its bounded contract")
+        return None
+    data = build_sealed_recovery_output_data(
+        owner_id=request.user_id, owner_hash=request.user_id_hash,
+        root_chat_id=request.root_chat_id, target_chat_id=request.chat_id,
+        turn_id=request.recovery_turn_id, preflight_id=request.recovery_preflight_id,
+        inference_task_id=request.resolved_recovery_inference_task_id(),
+        recovery_public_key=request.recovery_public_key, chat_key_version=request.chat_key_version,
+        subject_id=f"{task_id}:generated-metadata", output_kind="summary",
+        output_version=request.assistant_response_source_revision,
+        content={**fields, "source_metadata_v": max(
+            int(getattr(request, "current_chat_metadata_v", None) or 0),
+            int(getattr(request, "current_chat_title_v", None) or 0),
+        )},
+    )
+    directus, cache = DirectusService(), CacheService()
+    try:
+        if not await cache.mark_ai_context_pending_persistence(request.user_id_hash, request.chat_id):
+            raise RuntimeError("Child metadata context could not be pinned")
+        await ChatRecoveryService(directus).save_sealed_output(data)
+        await cache.publish_event(f"ai_typing_indicator_events::{request.user_id_hash}", {
+            "type": "chat_typed_metadata_recovery_available", "user_id_hash": request.user_id_hash,
+        })
+    except Exception:
+        # Retry only the already sealed output, never paid inference.
+        queue_metadata_retry({**data, "job_id": data["record_id"]})
+        logger.warning("Generated child metadata queued for sealed-only persistence retry")
+    finally:
+        await directus.close()
+        await cache.close()

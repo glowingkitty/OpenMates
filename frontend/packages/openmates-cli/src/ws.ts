@@ -182,6 +182,7 @@ export type SubChatEventType =
   | "sub_chat_confirmation_resolved"
   | "awaiting_sub_chats_completion"
   | "sub_chat_completed"
+  | "sub_chat_metadata"
   | "awaiting_user_input";
 
 export interface SubChatEvent {
@@ -1320,6 +1321,7 @@ export class OpenMatesWsClient {
         pendingTaskUpdateJobs = [...byId.values()];
       };
       const subChatEvents: SubChatEvent[] = [];
+      const knownSubChatIds = new Set<string>();
       const pendingSubChatHandlers = new Set<Promise<void>>();
       const pendingMemoryRequestHandlers = new Set<Promise<void>>();
       const embeds = new Map<string, SendEmbedDataFrame>();
@@ -1577,6 +1579,13 @@ export class OpenMatesWsClient {
               : null;
         if (eventChatId && eventChatId !== chatId) return;
 
+        if (type === "spawn_sub_chats" && Array.isArray(eventPayload.sub_chats)) {
+          for (const child of eventPayload.sub_chats) {
+            if (!child || typeof child !== "object") continue;
+            const id = (child as Record<string, unknown>).id ?? (child as Record<string, unknown>).chat_id;
+            if (typeof id === "string" && id) knownSubChatIds.add(id);
+          }
+        }
         const event = { type: type as SubChatEventType, payload: eventPayload };
         subChatEvents.push(event);
         if (type === "awaiting_user_input") {
@@ -2009,6 +2018,15 @@ export class OpenMatesWsClient {
             onStream?.({ kind: "done", responseTerminal: pendingProjectOperations.size === 0 && !awaitingUnidentifiedAsyncContinuation
                   && !awaitingFocusModeContinuation && !awaitingSubChatsCompletion, content, category, modelName, taskId: taskId ?? undefined, thinkingContent, thinkingActive: false });
             scheduleResolve(content);
+            return;
+          }
+
+          // A child uses the parent's key but owns its own metadata. Forward
+          // only children admitted by this response's spawn event, so their
+          // postprocessing cannot be mistaken for the parent's metadata.
+          if (["ai_typing_started", "post_processing_completed", "post_processing_metadata"].includes(type)
+            && typeof p.chat_id === "string" && p.chat_id !== chatId && knownSubChatIds.has(p.chat_id)) {
+            handleSubChatEvent("sub_chat_metadata", { ...p, parent_id: chatId, metadata_event_type: type });
             return;
           }
 

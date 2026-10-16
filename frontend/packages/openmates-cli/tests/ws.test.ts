@@ -2183,3 +2183,36 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
     ]);
   });
 });
+
+
+// contract-test: supporting surface=cli assertions=chats.surface.semantic-parity,chats.sync.key-gated-recovery
+it("forwards generated metadata only for admitted child chats without replacing parent metadata", async () => {
+  const wss = new WebSocketServer({ port: 0 });
+  await new Promise<void>((resolve) => wss.once("listening", resolve));
+  const addr = wss.address();
+  assert.ok(addr && typeof addr !== "string");
+  wss.on("connection", (socket) => setTimeout(() => {
+    for (const frame of [
+      { type: "spawn_sub_chats", payload: { chat_id: "parent", sub_chats: [{ id: "child" }] } },
+      { type: "ai_typing_started", payload: { chat_id: "child", title: "Child findings" } },
+      { type: "post_processing_completed", payload: { chat_id: "unrelated", chat_summary: "Ignore unrelated chat" } },
+      { type: "post_processing_completed", payload: { chat_id: "child", chat_summary: "Concise child findings" } },
+      { type: "ai_message_update", payload: { chat_id: "parent", user_message_id: "user", is_final_chunk: true, full_content_so_far: "Parent answer" } },
+      { type: "post_processing_completed", payload: { chat_id: "parent", chat_summary: "Parent summary" } },
+    ]) socket.send(JSON.stringify(frame));
+  }, 20));
+  const client = new OpenMatesWsClient({ apiUrl: `http://127.0.0.1:${addr.port}`, sessionId: "child-metadata", wsToken: "token", refreshToken: null });
+  try {
+    await client.open();
+    const response = await client.collectAiResponse("user", "parent", { timeoutMs: 1000 });
+    assert.equal(response.chatSummary, "Parent summary");
+    const metadata = response.subChatEvents.filter(event => event.type === "sub_chat_metadata");
+    assert.equal(metadata.length, 2);
+    assert.equal(metadata[0].payload.title, "Child findings");
+    assert.equal(metadata[1].payload.chat_summary, "Concise child findings");
+    assert.ok(metadata.every(event => event.payload.parent_id === "parent" && event.payload.chat_id === "child"));
+  } finally {
+    client.close();
+    await new Promise<void>((resolve) => wss.close(() => resolve()));
+  }
+});

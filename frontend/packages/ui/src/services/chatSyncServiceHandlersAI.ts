@@ -6103,19 +6103,6 @@ export function handleAwaitingSubChatsCompletionImpl(
   );
 }
 
-function sanitizeSubChatSummary(summary: unknown): string | null {
-  if (typeof summary !== "string") return null;
-  const withoutProtocolBlocks = summary.replace(/```json\s*([\s\S]*?)```/gi, (block, json: string) => {
-    try {
-      const parsed = JSON.parse(json.trim()) as { type?: unknown };
-      return parsed.type === "app_skill_use" ? "" : block;
-    } catch {
-      return block;
-    }
-  }).trim();
-  return withoutProtocolBlocks || null;
-}
-
 export async function handleSubChatCompletedImpl(
   serviceInstance: ChatSynchronizationService,
   payload: {
@@ -6140,23 +6127,16 @@ export async function handleSubChatCompletedImpl(
     const chat = await chatDB.getChat(subChatId);
     const now = Math.floor(Date.now() / 1000);
     if (chat) {
-      let key = chatKeyManager.getKeySync(subChatId) || await chatKeyManager.getKey(subChatId);
-      if (!key && payload.parent_id) {
-        key = chatKeyManager.getKeySync(payload.parent_id) || await chatKeyManager.getKey(payload.parent_id);
-      }
-      const summary = sanitizeSubChatSummary(payload.summary);
       const updatedChat: Chat = {
         ...chat,
         is_sub_chat: true,
         parent_id: chat.parent_id || payload.parent_id || null,
         updated_at: Math.max(chat.updated_at || 0, now),
         last_edited_overall_timestamp: Math.max(chat.last_edited_overall_timestamp || 0, now),
-        chat_summary: summary || chat.chat_summary || null,
       };
 
-      if (summary && key) {
-        updatedChat.encrypted_chat_summary = await encryptWithChatKey(summary, key);
-      }
+      // payload.summary is the full parent-facing report. Postprocessing and
+      // typed recovery own the child's concise navigation summary/title.
 
       await chatDB.updateChat(updatedChat);
       serviceInstance.dispatchEvent(

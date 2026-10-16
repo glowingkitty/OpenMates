@@ -6066,6 +6066,7 @@ describe("sub-chat encryption helpers", () => {
         {
           id: "child-chat-id",
           user_message_id: "child-user-message-id",
+          title: "Counterarguments and caveats",
           prompt: "Research the counterargument.",
         },
       ],
@@ -6091,8 +6092,16 @@ describe("sub-chat encryption helpers", () => {
     );
     assert.equal(
       await decryptWithAesGcmCombined(payload.encrypted_title, parentKey),
-      "Research the counterargument.",
+      "Counterarguments and caveats",
     );
+  });
+
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
+  it("uses a neutral fallback while generated metadata is pending instead of exposing a truncated prompt", async () => {
+    const key = new Uint8Array(32).fill(7);
+    const [payload] = await buildSubChatEncryptedMetadataPayloads({ parentChatId: "parent", parentChatKey: key,
+      encryptedParentChatKey: "wrapped", subChats: [{ id: "child", message_id: "prompt", prompt: "A long private task prompt".repeat(10) }] });
+    assert.equal(await decryptWithAesGcmCombined(payload.encrypted_title, key), "Sub-chat");
   });
 
   // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity

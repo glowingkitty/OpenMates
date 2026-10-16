@@ -4692,7 +4692,14 @@ async def _async_process_ai_skill_ask_task(
     # External requests only care about the main response content, not suggestions or summary.
     # This also prevents 'post_processing_completed' events from being broadcasted to the web app.
     postprocessing_result: Optional[PostProcessingResult] = None
-    if not task_was_soft_limited and aggregated_final_response and not request_data.is_external:
+    # Explicit end_subchat tool reports are parent synthesis input, even when
+    # the child has no visible final text. Generate navigation metadata from
+    # that report through the normal postprocessor rather than storing it raw.
+    postprocessing_response = (
+        main_processor_debug_metadata.pop("_sub_chat_report_for_metadata", None)
+        if request_data.is_sub_chat and isinstance(main_processor_debug_metadata, dict) else None
+    ) or aggregated_final_response
+    if not task_was_soft_limited and postprocessing_response and not request_data.is_external:
         logger.info(f"[Task ID: {task_id}] Starting post-processing step...")
 
         # Get the last user message from request_data
@@ -4794,7 +4801,7 @@ async def _async_process_ai_skill_ask_task(
                 postprocessing_result = await handle_postprocessing(
                     task_id=task_id,
                     user_message=last_user_message,
-                    assistant_response=aggregated_final_response,
+                    assistant_response=postprocessing_response,
                     chat_summary=chat_summary,
                     chat_tags=chat_tags,
                     message_history=postprocessing_message_history,
@@ -4861,6 +4868,15 @@ async def _async_process_ai_skill_ask_task(
             else:
                 logger.info(f"[Task ID: {task_id}] Falling back to preprocessing chat_summary (post-processing didn't provide one)")
 
+            # Recovery-enabled private children persist generated navigation
+            # metadata only through the typed original-base/field-fill guard.
+            # A transient title's optimistic version cannot prove it was stored
+            # and must not authorize a competing legacy title/summary write.
+            typed_child_metadata = bool(
+                request_data.is_sub_chat and request_data.resolved_recovery_inference_task_id()
+                and not request_data.is_external and not request_data.is_incognito
+                and not getattr(request_data, "team_id", None)
+            )
             postprocessing_payload = {
                 "type": "post_processing_completed",
                 "event_for_client": "post_processing_completed",
@@ -4871,7 +4887,7 @@ async def _async_process_ai_skill_ask_task(
                 "user_id_hash": request_data.user_id_hash,
                 "follow_up_request_suggestions": postprocessing_result.follow_up_request_suggestions,
                 "new_chat_request_suggestions": postprocessing_result.new_chat_request_suggestions,
-                "chat_summary": final_chat_summary,  # Prefer post-processing summary (includes latest exchange), fall back to preprocessing
+                "chat_summary": "" if typed_child_metadata else final_chat_summary,
                 "share_cta_text": postprocessing_result.share_cta_text,
                 "chat_tags": postprocessing_result.chat_tags or chat_tags,
                 "harmful_response": postprocessing_result.harmful_response,
@@ -4884,7 +4900,7 @@ async def _async_process_ai_skill_ask_task(
             }
 
             # OPE-265: Include updated title only when the postprocessor determined a title change is needed
-            if postprocessing_result.updated_chat_title:
+            if postprocessing_result.updated_chat_title and not typed_child_metadata:
                 postprocessing_payload["updated_chat_title"] = postprocessing_result.updated_chat_title
                 logger.info(f"[Task ID: {task_id}] Including updated_chat_title in post-processing payload: '{postprocessing_result.updated_chat_title}'")
 
@@ -4892,8 +4908,9 @@ async def _async_process_ai_skill_ask_task(
             # typing event cannot strand the title/category/icon independently.
             final_metadata_job = await persist_generated_metadata(
                 request=request_data, task_id=task_id, stage="postprocessing",
+                source_metadata_v=source_metadata_v,
                 metadata={"title": postprocessing_result.updated_chat_title or preprocessing_result.title,
-                          "summary": final_chat_summary,
+                          "summary": postprocessing_result.chat_summary if request_data.is_sub_chat else final_chat_summary,
                           "category": (preprocessing_result.category or "general_knowledge") if not request_data.chat_has_title else None,
                           "icon": (preprocessing_result.icon_names or [None])[0] if not request_data.chat_has_title else None},
             )

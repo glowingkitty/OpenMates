@@ -67,6 +67,26 @@ test('real LLM sub-chat pipeline supports sending inside a synced sub-chat', asy
 	await expect(page.getByTestId('return-to-parent-button')).toHaveCount(0);
 	await expect(page.getByTestId('chat-close-button')).toBeVisible({ timeout: 30_000 });
 	await expect(page.getByTestId('sub-chat-broadcast-toggle')).toBeVisible({ timeout: 30_000 });
+	// Generated child metadata must survive hydration independently from the
+	// detailed report used by parent synthesis. No model/provider override.
+	const childId = new URL(page.url()).hash.match(/chat-id=([^&]+)/)?.[1];
+	expect(childId).toBeTruthy();
+	await expect.poll(async () => page.evaluate(async (id: string) => {
+		const db = await new Promise<IDBDatabase>((resolve, reject) => {
+			const request = indexedDB.open('chats_db');
+			request.onsuccess = () => resolve(request.result);
+			request.onerror = () => reject(request.error);
+		});
+		try {
+			const chat = await new Promise<any>((resolve, reject) => {
+				const request = db.transaction('chats', 'readonly').objectStore('chats').get(id);
+				request.onsuccess = () => resolve(request.result);
+				request.onerror = () => reject(request.error);
+			});
+			return Boolean(chat?.encrypted_chat_summary && chat?.encrypted_title
+				&& chat?.chat_summary?.trim() && chat.chat_summary.length <= 1000 && chat.title_v > 0);
+		} finally { db.close(); }
+	}, childId), { timeout: 60_000, message: 'Child has generated concise summary and title after hydration' }).toBe(true);
 	await screenshot(page, 'real-sub-chat-opened');
 
 	const subChatUrl = page.url();

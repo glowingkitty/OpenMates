@@ -442,6 +442,7 @@ interface PendingAIResponseFrame {
 }
 
 export interface CliSubChatRequest {
+  title?: string;
   id?: string;
   chat_id?: string;
   user_message_id?: string;
@@ -2006,7 +2007,7 @@ export async function buildSubChatEncryptedMetadataPayloads(params: {
     const prompt = subChat.prompt || "";
     if (!chatId || !messageId) continue;
 
-    const title = prompt.substring(0, 30);
+    const title = subChat.title?.trim() || "Sub-chat";
     payloads.push({
       chat_id: chatId,
       parent_id: params.parentChatId,
@@ -8603,9 +8604,22 @@ export class OpenMatesClient {
         if (result.state !== "ACKNOWLEDGED") throw new Error("Recovery message persistence was not acknowledged.");
       } else if (output.output_kind === "summary") {
         if (typeof content.summary !== "string" || !Number.isSafeInteger(ready.metadata_v)) throw new Error("Recovery summary was invalid.");
+        const generatedMetadata: Record<string, unknown> = {};
+        if (content.source_metadata_v !== undefined) {
+          if (!Number.isSafeInteger(content.source_metadata_v) || Number(content.source_metadata_v) < 0
+            || content.summary.length > 1000) throw new Error("Recovery metadata source or summary was invalid.");
+          generatedMetadata.source_metadata_v = content.source_metadata_v;
+          for (const [field, limit] of [["title", 200], ["category", 100], ["icon", 100]] as const) {
+            if (content[field] === undefined) continue;
+            if (typeof content[field] !== "string" || !content[field] || content[field].length > limit) {
+              throw new Error("Recovery generated metadata was invalid.");
+            }
+            generatedMetadata[`encrypted_${field}`] = await encryptWithAesGcmCombined(content[field], childKey);
+          }
+        }
         const encryptedSummary = await encryptWithAesGcmCombined(content.summary, childKey);
         const persist = (version: number) => request("recovery_output_persist_summary", "recovery_output_summary_persisted", output.record_id, {
-          expected_metadata_v: version, encrypted_summary: encryptedSummary,
+          expected_metadata_v: version, encrypted_summary: encryptedSummary, ...generatedMetadata,
         });
         let result: Record<string, unknown>;
         try { result = await persist(ready.metadata_v as number); }
@@ -10646,6 +10660,10 @@ export class OpenMatesClient {
         }
         return;
       }
+
+      // Child metadata events remain observable above. Their encrypted writes
+      // use typed recovery's original source and applied-field receipt; the
+      // legacy live writer cannot distinguish a bootstrap from an owner edit.
 
       if (event.type !== "sub_chat_confirmation_required") return;
 

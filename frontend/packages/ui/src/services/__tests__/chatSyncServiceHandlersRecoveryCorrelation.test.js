@@ -469,4 +469,46 @@ describe("recovery job request correlation", () => {
     },
   );
 
+  // contract-test: supporting surface=gui.web assertions=chats.local-state.precedence,chats.sync.key-gated-recovery
+  it.each(["Proper bootstrap title", "Owner renamed title"])("hydrates only committed child metadata fields while preserving %s", async (title) => {
+    vi.useRealTimers();
+    globalThis.crypto = webcrypto;
+    const key = new Uint8Array(32).fill(7);
+    mocks.chatKeyManager.getKey.mockResolvedValue(key);
+    mocks.chatKeyManager.getKeySync.mockReturnValue(key);
+    mocks.deriveChatCompletionRecoveryKeypair.mockResolvedValue({ privateKey: "private-key" });
+    const child = { chat_id: "child-chat", parent_id: "root-chat", user_id: "owner", title,
+      encrypted_title: "existing-title-ciphertext", encrypted_category: "existing-category-ciphertext",
+      category: "existing-category", metadata_v: 1, title_v: 1, messages_v: 2 };
+    mocks.chatDB.getChat.mockImplementation(async (id) => id === "root-chat"
+      ? { chat_id: "root-chat", user_id: "owner", messages_v: 2 } : child);
+    const output = { record_id: "generated-metadata-record", root_chat_id: "root-chat", target_chat_id: "child-chat",
+      turn_id: "turn", subject_id: "task:generated-metadata", output_kind: "summary", output_version: 1, chat_key_version: 1 };
+    const content = { title: "Older generated title", summary: "Concise generated child findings", category: "generated-category",
+      icon: "cpu", source_metadata_v: 0 };
+    mocks.openRecoveryOutputEnvelope.mockResolvedValue(new TextEncoder().encode(JSON.stringify({ ...output, content })));
+    const handlers = new Map();
+    mocks.webSocketService.on.mockImplementation((type, handler) => handlers.set(type, handler));
+    mocks.webSocketService.off.mockImplementation((type) => handlers.delete(type));
+    mocks.webSocketService.sendMessage.mockImplementation(async (type, payload) => {
+      const replies = {
+        recovery_output_get: ["recovery_output_ready", { ...output, sealed_payload: '{"v":2}', messages_v: 2,
+          metadata_v: 1, encrypted_chat_key: "wrapped-root-key", encrypted_title: child.encrypted_title }],
+        recovery_output_persist_summary: ["recovery_output_summary_persisted", { record_id: output.record_id,
+          state: "ACKNOWLEDGED", committed_metadata_v: 2, committed_title_v: 1, applied_fields: ["encrypted_chat_summary"] }],
+      };
+      const reply = replies[type];
+      if (reply) queueMicrotask(() => handlers.get(reply[0])?.({ ...reply[1], request_id: payload.request_id }));
+    });
+    const service = { dispatchEvent: vi.fn(), hasCompletedInitialSync_FOR_HANDLERS_ONLY: true };
+    await handleRecoveryOutputsAvailableImpl(service, { outputs: [output] });
+    const updated = mocks.chatDB.updateChat.mock.calls.at(-1)?.[0];
+    expect(updated).toMatchObject({ title, encrypted_title: child.encrypted_title,
+      category: child.category, encrypted_category: child.encrypted_category,
+      chat_summary: content.summary, metadata_v: 2, title_v: 1 });
+    expect(updated.title).not.toBe(content.title);
+    expect(await decryptWithChatKey(updated.encrypted_chat_summary, key)).toBe(content.summary);
+    expect(service.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({ type: "chatUpdated" }));
+  });
+
 });

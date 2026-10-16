@@ -663,6 +663,9 @@ async def handle_recovery_output_persist_summary(
             "device_hash": device_fingerprint_hash,
             "expected_metadata_v": payload.get("expected_metadata_v"),
             "encrypted_summary": payload.get("encrypted_summary"),
+            **{field: payload[field] for field in (
+                "encrypted_title", "encrypted_category", "encrypted_icon", "source_metadata_v",
+            ) if field in payload},
         })
         await _acknowledge_output_cache_if_complete(
             directus_service=directus_service, user_id_hash=user_id_hash,

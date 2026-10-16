@@ -11122,16 +11122,11 @@ async def _consume_main_processing_stream(
             awaiting_sub_chats_completion=awaiting_sub_chats_completion,
             prefer_final_response=request_data.is_sub_chat and web_search_performed,
         )
-        if completion_summary is not None and request_data.is_sub_chat and _recovery_inference_task_id(request_data):
-            await _persist_sealed_typed_output(
-                directus_service=directus_service, request_data=request_data,
-                cache_service=cache_service,
-                inference_task_id=_recovery_inference_task_id(request_data),
-                subject_id=_assistant_message_id(task_id, request_data),
-                output_kind="summary", output_version=request_data.assistant_response_source_revision,
-                content={"summary": completion_summary},
-            )
-    
+        # completion_summary remains the full report for parent synthesis.
+        # Generate and seal concise navigation metadata only in postprocessing.
+        if request_data.is_sub_chat and completion_summary is not None:
+            debug_metadata["_sub_chat_report_for_metadata"] = completion_summary
+
     billing_info = {}
     billing_error = None
     if should_bill:

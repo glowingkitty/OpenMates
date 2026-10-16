@@ -580,7 +580,7 @@ describe("sub-chat lifecycle metadata", () => {
   });
 
   // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,chats.surface.semantic-parity
-  it("does not persist protocol-only tool JSON as a visible child summary", async () => {
+  it("keeps generated concise metadata when the full child report completes", async () => {
     const childChat = {
       chat_id: "child-chat",
       parent_id: "parent-chat",
@@ -592,7 +592,7 @@ describe("sub-chat lifecycle metadata", () => {
       created_at: 1,
       updated_at: 1,
       last_edited_overall_timestamp: 1,
-      chat_summary: null,
+      chat_summary: "Concise generated child summary.",
     };
     mockChatDB.getChat.mockResolvedValue(childChat);
     const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
@@ -601,13 +601,13 @@ describe("sub-chat lifecycle metadata", () => {
       type: "sub_chat_completed",
       chat_id: "child-chat",
       parent_id: "parent-chat",
-      summary: '```json\n{"type":"app_skill_use","app_id":"web","skill_id":"search"}\n```',
+      summary: "Full detailed child report. ".repeat(1000),
     });
 
     expect(mockChatDB.updateChat).toHaveBeenCalledWith(expect.objectContaining({
-      chat_summary: null,
+      chat_summary: "Concise generated child summary.",
     }));
-    expect(mockEncryptWithChatKey).not.toHaveBeenCalledWith(expect.stringContaining("app_skill_use"), expect.anything());
+    expect(mockEncryptWithChatKey).not.toHaveBeenCalledWith(expect.stringContaining("Full detailed child report"), expect.anything());
   });
 
   // contract-test: direct surface=gui.web assertions=chats.local-state.precedence,chats.surface.semantic-parity

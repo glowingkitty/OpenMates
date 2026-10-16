@@ -17,13 +17,18 @@ async def persist_pending_metadata(data: dict) -> dict:
 
     directus = DirectusService()
     try:
-        result = await ChatRecoveryService(directus).execute("create_metadata_job", data)
+        typed = data.get("output_kind") == "summary"
+        if typed:
+            result = await ChatRecoveryService(directus).save_sealed_output({k: v for k, v in data.items() if k != "job_id"})
+        else:
+            result = await ChatRecoveryService(directus).execute("create_metadata_job", data)
     finally:
         await directus.close()
     cache = CacheService()
     try:
         await cache.publish_event(f"ai_typing_indicator_events::{data['hashed_user_id']}", {
-            "type": "chat_metadata_recovery_available", "user_id_hash": data["hashed_user_id"],
+            "type": "chat_typed_metadata_recovery_available" if typed else "chat_metadata_recovery_available",
+            "user_id_hash": data["hashed_user_id"],
             "metadata_recovery_job": result,
         })
     finally:

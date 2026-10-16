@@ -4612,3 +4612,131 @@ test('randomized sealed retries reject revoked Team membership before returning 
     assert.deepEqual(database.rows, before);
   }
 });
+
+
+const METADATA_CHILD = '018faaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa';
+const METADATA_CHILD_TASK = '018feeee-eeee-7eee-8eee-eeeeeeeeeeee';
+const METADATA_RECORD = '018fdddd-dddd-7ddd-8ddd-dddddddddddd';
+function childMetadataSeed() {
+  const seed = preparedSeed();
+  seed.chat_turn_preflights[0].state = 'TERMINAL';
+  seed.chat_turn_preflights[0].inference_task_id = TASK_ID;
+  seed.chat_turn_preflights[0].prepared_at = new Date('2026-01-01T00:00:00Z');
+  seed.chats.push({ id: METADATA_CHILD, parent_id: CHAT_ID, is_sub_chat: true, hashed_user_id: OWNER,
+    metadata_v: 0, title_v: 0, encrypted_chat_key: 'child-wrapped-root-key', encrypted_title: 'spawn-title' });
+  seed.sub_chat_orchestrations = [{ id: JOB_ID, root_chat_id: CHAT_ID, hashed_user_id: OWNER }];
+  seed.sub_chat_orchestration_children = [{ child_chat_id: METADATA_CHILD, parent_chat_id: CHAT_ID,
+    orchestration_id: JOB_ID, inference_task_id: METADATA_CHILD_TASK }];
+  seed.chat_recovery_outputs = [];
+  return seed;
+}
+const childMetadataOutput = () => ({ protocol_version: 1, record_id: METADATA_RECORD, hashed_user_id: OWNER,
+  root_chat_id: CHAT_ID, target_chat_id: METADATA_CHILD, turn_id: TURN_ID, preflight_id: PREFLIGHT_ID,
+  inference_task_id: METADATA_CHILD_TASK, subject_id: `${METADATA_CHILD_TASK}:generated-metadata`,
+  output_kind: 'summary', output_version: 1, chat_key_version: 1, sealed_payload: SEALED_OUTPUT });
+const childMetadataCommit = () => ({ protocol_version: 1, record_id: METADATA_RECORD, hashed_user_id: OWNER,
+  device_hash: 'device-a', expected_metadata_v: 0, source_metadata_v: 0,
+  encrypted_summary: 'generated-concise-summary', encrypted_title: 'generated-title',
+  encrypted_category: 'generated-category', encrypted_icon: 'generated-icon' });
+
+// contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted,chats.sync.key-gated-recovery
+test('generated child metadata uses the root recovery key after completion and commits bounded metadata once', async () => {
+  const database = fakeDatabase(childMetadataSeed());
+  await executeOperation(database, 'create_sealed_output', childMetadataOutput());
+  const { source_metadata_v: _source, encrypted_title: _title, encrypted_icon: _icon,
+    encrypted_category: _category, ...legacyClientCommit } = childMetadataCommit();
+  await assert.rejects(executeOperation(database, 'persist_output_summary', legacyClientCommit), /metadata_source_version_required/);
+  const result = await executeOperation(database, 'persist_output_summary', childMetadataCommit());
+  assert.equal(result.committed_metadata_v, 1);
+  assert.equal(result.committed_title_v, 1);
+  assert.equal(database.rows.chats[1].encrypted_chat_summary, 'generated-concise-summary');
+  assert.equal(database.rows.chats[1].encrypted_title, 'generated-title');
+  assert.notEqual(database.rows.chats[0].encrypted_title, 'generated-title');
+  const replay = await executeOperation(database, 'persist_output_summary', childMetadataCommit());
+  assert.equal(replay.idempotent, true);
+  assert.equal(database.rows.chats[1].metadata_v, 1);
+  assert.equal(database.rows.chat_recovery_outputs[0].sealed_payload, null);
+});
+
+// contract-test: supporting surface=rest_api assertions=chats.local-state.precedence,chats.sync.key-gated-recovery
+test('delayed child metadata cannot replace an owner edit or a later accepted child turn', async () => {
+  for (const laterTurn of [false, true]) {
+    const database = fakeDatabase(childMetadataSeed());
+    await executeOperation(database, 'create_sealed_output', childMetadataOutput());
+    if (laterTurn) database.rows.chat_turn_preflights.push({ id: JOB_ID, chat_id: METADATA_CHILD,
+      hashed_user_id: OWNER, prepared_at: new Date('2026-01-02T00:00:00Z'), deletion_invalidated_at: null });
+    else Object.assign(database.rows.chats[1], { encrypted_title: 'owner-title', encrypted_chat_summary: 'owner-summary',
+      encrypted_category: 'owner-category', encrypted_icon: 'owner-icon', metadata_v: 1, title_v: 1 });
+    const result = await executeOperation(database, 'persist_output_summary', {
+      ...childMetadataCommit(), expected_metadata_v: laterTurn ? 0 : 1,
+    });
+    assert.equal(result.superseded, true);
+    assert.equal(database.rows.chats[1].encrypted_title, laterTurn ? 'spawn-title' : 'owner-title');
+    assert.equal(database.rows.chats[1].encrypted_chat_summary, laterTurn ? undefined : 'owner-summary');
+    assert.equal(database.rows.chat_recovery_outputs[0].state, 'ACKNOWLEDGED');
+  }
+});
+
+// contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted,chats.sync.key-gated-recovery
+test('child metadata cannot borrow another owner root parent task or key identity', async () => {
+  for (const change of ['owner', 'root', 'parent', 'task', 'key']) {
+    const seed = childMetadataSeed();
+    if (change === 'owner') seed.chats[1].hashed_user_id = 'b'.repeat(64);
+    if (change === 'root') seed.sub_chat_orchestrations[0].root_chat_id = JOB_ID;
+    if (change === 'parent') seed.chats[1].parent_id = JOB_ID;
+    if (change === 'task') seed.sub_chat_orchestration_children[0].inference_task_id = TASK_ID;
+    if (change === 'key') seed.chats[0].encrypted_chat_key = 'changed-key';
+    const database = fakeDatabase(seed);
+    await assert.rejects(executeOperation(database, 'create_sealed_output', childMetadataOutput()));
+    assert.equal(database.rows.chat_recovery_outputs.length, 0);
+  }
+  const database = fakeDatabase(childMetadataSeed());
+  await executeOperation(database, 'create_sealed_output', childMetadataOutput());
+  database.rows.sub_chat_orchestration_children[0].inference_task_id = TASK_ID;
+  await assert.rejects(executeOperation(database, 'persist_output_summary', childMetadataCommit()), /child_recovery_identity_mismatch/);
+  assert.equal(database.rows.chats[1].metadata_v, 0);
+});
+
+
+// contract-test: supporting surface=rest_api assertions=chats.local-state.precedence,chats.sync.key-gated-recovery
+test('child bootstrap and missed-typing rename at allocated v1 retain existing fields while recovering missing summary', async () => {
+  for (const title of ['proper-spawn-title', 'owner-renamed-title']) {
+    const seed = childMetadataSeed();
+    // encrypted_chat_metadata_handler allocates these versions for the
+    // bootstrap title, or for a rename when the initial typing frame was lost.
+    Object.assign(seed.chats[1], { encrypted_title: title, encrypted_category: 'spawn-category',
+      encrypted_icon: 'spawn-icon', metadata_v: 1, title_v: 1 });
+    const database = fakeDatabase(seed);
+    await executeOperation(database, 'create_sealed_output', childMetadataOutput());
+    const result = await executeOperation(database, 'persist_output_summary', {
+      ...childMetadataCommit(), expected_metadata_v: 1, source_metadata_v: 0,
+    });
+    assert.deepEqual(result.applied_fields, ['encrypted_chat_summary']);
+    assert.equal(result.committed_metadata_v, 2);
+    assert.equal(result.committed_title_v, 1);
+    assert.equal(database.rows.chats[1].encrypted_title, title);
+    assert.equal(database.rows.chats[1].encrypted_chat_summary, 'generated-concise-summary');
+    assert.equal(database.rows.chats[1].encrypted_category, 'spawn-category');
+    const replay = await executeOperation(database, 'persist_output_summary', {
+      ...childMetadataCommit(), expected_metadata_v: 1, source_metadata_v: 0,
+    });
+    assert.deepEqual(replay.applied_fields, ['encrypted_chat_summary']);
+    assert.equal(database.rows.chats[1].metadata_v, 2);
+  }
+});
+
+// contract-test: supporting surface=rest_api assertions=chats.local-state.precedence,chats.sync.key-gated-recovery
+test('genuine next-turn authoritative base permits replacing an existing AI summary', async () => {
+  const seed = childMetadataSeed();
+  Object.assign(seed.chats[1], { encrypted_title: 'prior-ai-title', encrypted_chat_summary: 'prior-ai-summary',
+    encrypted_category: 'prior-category', encrypted_icon: 'prior-icon', metadata_v: 1, title_v: 1 });
+  const database = fakeDatabase(seed);
+  await executeOperation(database, 'create_sealed_output', childMetadataOutput());
+  const result = await executeOperation(database, 'persist_output_summary', {
+    ...childMetadataCommit(), expected_metadata_v: 1, source_metadata_v: 1,
+  });
+  assert.equal(result.committed_metadata_v, 2);
+  assert.equal(database.rows.chats[1].encrypted_chat_summary, 'generated-concise-summary');
+  assert.equal(database.rows.chats[1].encrypted_title, 'generated-title');
+  assert.equal(result.applied_fields.length, 4);
+});

@@ -269,7 +269,7 @@ const OPERATION_FIELDS = Object.freeze({
   ]),
   persist_output_summary: new Set([
     'protocol_version', 'hashed_user_id', 'device_hash', 'record_id',
-    'expected_metadata_v', 'encrypted_summary',
+    'expected_metadata_v', 'encrypted_summary', 'encrypted_title', 'encrypted_category', 'encrypted_icon', 'source_metadata_v',
   ]),
   has_pending_chat_outputs: new Set(['protocol_version', 'hashed_user_id', 'target_chat_id']),
   acknowledge_output_checkpoint: new Set([
@@ -4287,21 +4287,24 @@ async function createSealedOutput(database, raw, now, preparing = false, transac
     if (producer?.registration_closed_at) fail(409, 'producer_registration_closed');
     if (external && !preparing) fail(409, 'sealed_output_intent_required');
     const preflight = await trx(PREFLIGHTS).where({ id: identity.preflight_id }).forUpdate().first();
-    if (!preflight || (!producer && preflight.state !== 'RUNNING')
-      || (producer && !['RUNNING', 'TERMINAL'].includes(preflight.state)) || preflight.deletion_invalidated_at
+    const descendantMetadata = identity.output_kind === 'summary' && identity.target_chat_id !== identity.root_chat_id;
+    if (!preflight || (!producer && !descendantMetadata && preflight.state !== 'RUNNING')
+      || ((producer || descendantMetadata) && !['RUNNING', 'TERMINAL'].includes(preflight.state)) || preflight.deletion_invalidated_at
       || preflight.hashed_user_id !== identity.hashed_user_id
       || preflight.chat_id !== identity.root_chat_id || preflight.turn_id !== identity.turn_id
       || preflight.chat_key_version !== identity.chat_key_version) fail(409, 'inference_not_running');
     const rootChat = await authorizedOutputChat(trx, identity.root_chat_id, identity.hashed_user_id);
     const targetChat = await authorizedOutputChat(trx, identity.target_chat_id, identity.hashed_user_id);
     if ((rootChat.hashed_team_id || null) !== (targetChat.hashed_team_id || null)) fail(409, 'recovery_team_scope_mismatch');
+    if (descendantMetadata && rootChat.encrypted_chat_key !== preflight.wrapped_chat_key) fail(409, 'metadata_key_mismatch');
     if (identity.target_chat_id !== identity.root_chat_id) {
       const child = await trx(ORCHESTRATION_CHILDREN)
         .where({ child_chat_id: identity.target_chat_id }).first();
       const root = child && await trx(ORCHESTRATIONS).where({ id: child.orchestration_id }).first();
       if (!root || root.root_chat_id !== identity.root_chat_id
         || root.hashed_user_id !== identity.hashed_user_id
-        || child.inference_task_id !== identity.inference_task_id) fail(409, 'child_recovery_identity_mismatch');
+        || child.inference_task_id !== identity.inference_task_id
+        || (descendantMetadata && targetChat.parent_id !== child.parent_chat_id)) fail(409, 'child_recovery_identity_mismatch');
     } else if (preflight.inference_task_id !== identity.inference_task_id) {
       fail(409, 'inference_task_mismatch');
     }
@@ -4384,6 +4387,7 @@ async function getPendingOutput(database, raw) {
     payload_s3_key: row.payload_s3_key, payload_size_bytes: row.payload_size_bytes,
     payload_verified_regions: row.payload_verified_regions,
     sealed_payload_digest: row.sealed_payload_digest,
+    parent_id: chat.parent_id || null,
     messages_v: chat.messages_v,
     metadata_v: chat.metadata_v,
     encrypted_chat_key: chat.encrypted_chat_key || null,
@@ -4568,22 +4572,69 @@ async function persistOutputSummary(database, raw, now) {
   const recordId = uuid(body.record_id, 'invalid_record_id');
   const expectedVersion = integer(body.expected_metadata_v, 'invalid_metadata_version');
   const encryptedSummary = string(body.encrypted_summary, 'invalid_encrypted_summary', MAX_CONTENT_BYTES);
-  const ciphertextDigest = digest(encryptedSummary);
+  const metadata = { encrypted_chat_summary: encryptedSummary };
+  for (const field of ['encrypted_title', 'encrypted_category', 'encrypted_icon']) {
+    if (body[field] !== undefined) metadata[field] = string(body[field], 'invalid_encrypted_metadata', 4096);
+  }
+  const sourceVersion = body.source_metadata_v === undefined ? null
+    : integer(body.source_metadata_v, 'invalid_metadata_version');
+  if (Object.keys(metadata).length > 1 && sourceVersion === null) fail(400, 'metadata_source_version_required');
+  const ciphertextDigest = sourceVersion === null && Object.keys(metadata).length === 1
+    ? digest(encryptedSummary) : digest(JSON.stringify({ metadata, source_metadata_v: sourceVersion }));
   return database.transaction(async (trx) => {
     const row = await lockedOutputRecord(trx, recordId, ownerHash);
     if (!row || row.deleted_at) fail(404, 'recovery_output_not_found');
     if (row.output_kind !== 'summary') fail(409, 'output_kind_mismatch');
-    const { target: chat } = await authorizedOutputRecordChats(trx, row, ownerHash);
+    if (row.subject_id.endsWith(':generated-metadata') && sourceVersion === null) fail(400, 'metadata_source_version_required');
+    const { root, target: chat } = await authorizedOutputRecordChats(trx, row, ownerHash);
     if (row.state === 'ACKNOWLEDGED') {
       if (row.canonical_digest !== ciphertextDigest) fail(409, 'canonical_output_mismatch');
-      return { record_id: recordId, state: 'ACKNOWLEDGED', target_chat_id: row.target_chat_id, idempotent: true };
+      const appliedFields = Object.entries(metadata).filter(([field, value]) => chat[field] === value).map(([field]) => field);
+      return { record_id: recordId, state: 'ACKNOWLEDGED', target_chat_id: row.target_chat_id, idempotent: true,
+        committed_metadata_v: chat.metadata_v, committed_title_v: chat.title_v ?? 0,
+        applied_fields: appliedFields, superseded: appliedFields.length === 0 };
     }
     if (row.state !== 'PENDING') fail(409, 'invalid_output_state');
     if (chat.metadata_v !== expectedVersion) fail(409, 'version_conflict');
+    // Metadata from an old child turn must never replace a newer user edit or
+    // later child conversation. The CAS retry keeps the original sealed source
+    // version; it cannot promote old generation to the freshly-read version.
+    const metadataAdvanced = sourceVersion !== null && Math.max(chat.metadata_v ?? 0, chat.title_v ?? 0) > sourceVersion;
+    let newerTurn = false;
+    if (sourceVersion !== null) {
+      const preflight = await trx(PREFLIGHTS).where({ id: row.preflight_id }).first();
+      if (!preflight || preflight.deletion_invalidated_at || preflight.chat_id !== row.root_chat_id
+        || preflight.hashed_user_id !== ownerHash || preflight.chat_key_version !== row.chat_key_version
+        || root.encrypted_chat_key !== preflight.wrapped_chat_key) fail(409, 'metadata_key_mismatch');
+      if (row.target_chat_id !== row.root_chat_id) {
+        const child = await trx(ORCHESTRATION_CHILDREN).where({ child_chat_id: row.target_chat_id }).first();
+        const orchestration = child && await trx(ORCHESTRATIONS).where({ id: child.orchestration_id }).first();
+        if (!orchestration || orchestration.root_chat_id !== row.root_chat_id
+          || orchestration.hashed_user_id !== ownerHash || child.inference_task_id !== row.inference_task_id
+          || child.parent_chat_id !== chat.parent_id) fail(409, 'child_recovery_identity_mismatch');
+      }
+      newerTurn = !!await trx(PREFLIGHTS).where({ chat_id: row.target_chat_id, hashed_user_id: ownerHash })
+        .whereNull('deletion_invalidated_at').andWhere('prepared_at', '>', preflight.prepared_at).first();
+    }
+    // Bootstrap title persistence also advances metadata. Without proof of
+    // which field changed, preserve every existing ciphertext and fill only
+    // missing fields. A later authenticated turn's actual base can replace
+    // prior AI metadata normally; a newer accepted turn fences all old output.
+    const updates = newerTurn ? {} : Object.fromEntries(Object.entries(metadata)
+      .filter(([field]) => !metadataAdvanced || chat[field] == null || chat[field] === ''));
+    if (Object.keys(updates).length === 0) {
+      await trx(OUTPUTS).where({ id: recordId, state: 'PENDING' }).update({
+        state: 'ACKNOWLEDGED', acknowledged_at: now, canonical_digest: ciphertextDigest, sealed_payload: null,
+      });
+      return { record_id: recordId, state: 'ACKNOWLEDGED', target_chat_id: row.target_chat_id,
+        committed_metadata_v: chat.metadata_v, applied_fields: [], superseded: true };
+    }
+    const committedTitleVersion = (chat.title_v ?? 0) + ('encrypted_title' in updates ? 1 : 0);
     const updated = await trx(CHATS).where({
       ...outputChatScope(chat, ownerHash), metadata_v: expectedVersion,
     }).update({
-      encrypted_chat_summary: encryptedSummary, metadata_v: expectedVersion + 1,
+      ...updates, metadata_v: expectedVersion + 1,
+      ...('encrypted_title' in updates ? { title_v: committedTitleVersion } : {}),
       updated_at: Math.floor(now.getTime() / 1000),
     });
     if (updated !== 1) fail(409, 'version_conflict');
@@ -4592,7 +4643,8 @@ async function persistOutputSummary(database, raw, now) {
       canonical_digest: ciphertextDigest, sealed_payload: null,
     });
     return { record_id: recordId, state: 'ACKNOWLEDGED', target_chat_id: row.target_chat_id,
-      committed_metadata_v: expectedVersion + 1 };
+      committed_metadata_v: expectedVersion + 1, committed_title_v: committedTitleVersion,
+      applied_fields: Object.keys(updates) };
   });
 }
 

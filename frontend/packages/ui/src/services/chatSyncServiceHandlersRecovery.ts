@@ -1342,7 +1342,8 @@ async function processRecoveryOutputsAvailable(
       let childChat = await chatDB.getChat(output.target_chat_id);
       if (!childChat) {
         childChat = {
-          chat_id: output.target_chat_id, parent_id: output.root_chat_id,
+          chat_id: output.target_chat_id,
+          parent_id: typeof result.parent_id === "string" ? result.parent_id : output.root_chat_id,
           is_sub_chat: true, title: "Sub-chat", encrypted_title: encryptedTitle,
           encrypted_chat_key: encryptedChatKey, messages_v: result.messages_v as number,
           title_v: 0, unread_count: 0, user_id: ownerId, team_id: rootChat.team_id,
@@ -1388,12 +1389,25 @@ async function processRecoveryOutputsAvailable(
         if (typeof content.summary !== "string" || !Number.isSafeInteger(result.metadata_v)) {
           throw new Error("Recovery summary content or version was invalid.");
         }
+        const generatedMetadata: Record<string, unknown> = {};
+        if (content.source_metadata_v !== undefined) {
+          if (!Number.isSafeInteger(content.source_metadata_v) || Number(content.source_metadata_v) < 0
+            || content.summary.length > 1000) throw new Error("Recovery metadata source or summary was invalid.");
+          generatedMetadata.source_metadata_v = content.source_metadata_v;
+          for (const [field, limit] of [["title", 200], ["category", 100], ["icon", 100]] as const) {
+            if (content[field] === undefined) continue;
+            if (typeof content[field] !== "string" || !content[field] || content[field].length > limit) {
+              throw new Error("Recovery generated metadata was invalid.");
+            }
+            generatedMetadata[`encrypted_${field}`] = await encryptWithChatKey(content[field], rootKey);
+          }
+        }
         const encryptedSummary = await encryptWithChatKey(content.summary, rootKey);
         const persistSummary = (version: number) => requestRecoveryEvent(
           "recovery_output_summary_persisted", "recovery_output_persist_summary", output.record_id,
           {
             protocol_version: CHAT_RECOVERY_PROTOCOL_VERSION, record_id: output.record_id,
-            expected_metadata_v: version, encrypted_summary: encryptedSummary,
+            expected_metadata_v: version, encrypted_summary: encryptedSummary, ...generatedMetadata,
           },
         );
         let persistedSummary: Record<string, unknown>;
@@ -1409,11 +1423,33 @@ async function processRecoveryOutputsAvailable(
           persistedSummary = await persistSummary(refreshed.metadata_v as number);
         }
         if (persistedSummary.state !== "ACKNOWLEDGED") throw new Error("Recovery summary was not acknowledged.");
-        await chatDB.updateChat({
-          ...childChat, chat_summary: content.summary, encrypted_chat_summary: encryptedSummary,
+        if (persistedSummary.superseded === true) return;
+        const latestChildChat = await chatDB.getChat(output.target_chat_id) || childChat;
+        if (Math.max(latestChildChat.metadata_v || 0, latestChildChat.title_v || 0)
+          > Number(persistedSummary.committed_metadata_v)) return;
+        const appliedFields = new Set(Array.isArray(persistedSummary.applied_fields)
+          ? persistedSummary.applied_fields : ["encrypted_chat_summary", ...Object.keys(generatedMetadata)]);
+        const encryptedFields = Object.fromEntries([
+          ...Object.entries(generatedMetadata), ["encrypted_chat_summary", encryptedSummary],
+        ].filter(([field]) => field.startsWith("encrypted_") && appliedFields.has(field)));
+        const updatedChat = {
+          ...latestChildChat, ...encryptedFields,
+          ...(appliedFields.has("encrypted_title") && typeof content.title === "string" ? { title: content.title } : {}),
+          ...(appliedFields.has("encrypted_category") && typeof content.category === "string" ? { category: content.category } : {}),
+          ...(appliedFields.has("encrypted_icon") && typeof content.icon === "string" ? { icon: content.icon } : {}),
+          ...(appliedFields.has("encrypted_chat_summary") ? { chat_summary: content.summary } : {}),
           metadata_v: persistedSummary.committed_metadata_v as number,
+          title_v: typeof persistedSummary.committed_title_v === "number"
+            ? persistedSummary.committed_title_v : latestChildChat.title_v,
           updated_at: now,
-        });
+        };
+        await chatDB.updateChat(updatedChat);
+        serviceInstance.dispatchEvent(new CustomEvent("chatUpdated", {
+          detail: { chat_id: output.target_chat_id, chat: updatedChat, type: "child_metadata_recovered" },
+        }));
+        window.dispatchEvent(new CustomEvent("localChatListChanged", {
+          detail: { chat_id: childChat.parent_id || output.root_chat_id, parent_id: childChat.parent_id },
+        }));
         return;
       }
       if (typeof content.content !== "string"

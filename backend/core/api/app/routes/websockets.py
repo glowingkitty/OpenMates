@@ -1723,6 +1723,19 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                 
                 internal_event_type = redis_payload.get("type")
 
+                if internal_event_type == "chat_typed_metadata_recovery_available":
+                    owner_hash = redis_payload.get("user_id_hash")
+                    for owner_id in list(manager.active_connections):
+                        if hashlib.sha256(owner_id.encode()).hexdigest() != owner_hash:
+                            continue
+                        for device_hash in manager.get_connections_for_user(owner_id):
+                            await send_available_recovery_outputs(
+                                manager=manager, directus_service=app.state.directus_service,
+                                user_id=owner_id, user_id_hash=owner_hash,
+                                device_fingerprint_hash=device_hash,
+                            )
+                    continue
+
                 if internal_event_type == "chat_metadata_recovery_available":
                     owner_hash = redis_payload.get("user_id_hash")
                     job = redis_payload.get("metadata_recovery_job")

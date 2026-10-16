@@ -344,3 +344,80 @@ async def test_discovery_outage_does_not_abort_ordinary_socket_setup(monkeypatch
     # discovery result is sent while existing encrypted jobs remain durable.
     await manager.send_personal_message({"type": "ordinary_socket_ready"}, "owner", "device")
     assert manager.messages == [{"type": "ordinary_socket_ready"}]
+
+
+# contract-test: supporting surface=rest_api assertions=chats.sync.key-gated-recovery,chats.persistence.client-encrypted
+@pytest.mark.anyio
+@pytest.mark.parametrize("optimistic_source_metadata_v", [None, 1])
+async def test_generated_child_metadata_uses_typed_root_identity_and_never_seals_the_full_report(monkeypatch, optimistic_source_metadata_v):
+    import sys
+    from types import ModuleType
+    from backend.shared.python_utils import chat_metadata_recovery as recovery
+    from backend.shared.python_utils.chat_completion_recovery import open_recovery_output
+    from backend.core.api.app.services import chat_recovery_service
+
+    v = vector()
+    build = v["build"]
+    saved, events, pinned = [], [], []
+    directus_module = ModuleType("backend.core.api.app.services.directus")
+    cache_module = ModuleType("backend.core.api.app.services.cache")
+    class Directus:
+        async def close(self): pass
+    class Cache:
+        async def mark_ai_context_pending_persistence(self, owner, chat):
+            pinned.append((owner, chat))
+            return True
+        async def publish_event(self, channel, payload): events.append((channel, payload))
+        async def close(self): pass
+    class Service:
+        def __init__(self, directus): pass
+        async def save_sealed_output(self, data):
+            saved.append(data)
+            return {"record_id": data["record_id"], "state": "PENDING"}
+        async def execute(self, *args): raise AssertionError("Child metadata must not enter generic same-chat metadata jobs")
+    directus_module.DirectusService, cache_module.CacheService = Directus, Cache
+    monkeypatch.setitem(sys.modules, directus_module.__name__, directus_module)
+    monkeypatch.setitem(sys.modules, cache_module.__name__, cache_module)
+    monkeypatch.setattr(chat_recovery_service, "ChatRecoveryService", Service)
+    child_id = "99999999-9999-4999-8999-999999999999"
+    request = SimpleNamespace(user_id=build["owner_id"], user_id_hash=build["owner_hash"], chat_id=child_id,
+        root_chat_id=build["chat_id"], recovery_turn_id=build["task_id"], is_sub_chat=True,
+        recovery_preflight_id=build["preflight_id"], recovery_public_key=build["recovery_public_key"],
+        chat_key_version=1, assistant_response_source_revision=1, chat_has_title=False,
+        current_chat_metadata_v=0, current_chat_title_v=0,
+        resolved_recovery_inference_task_id=lambda: build["inference_task_id"])
+    metadata = {"title": "Generated child findings", "summary": "Generated concise findings from the completed child report.",
+                "category": "technology", "icon": "cpu"}
+    await recovery.persist_generated_metadata(request=request, task_id=build["task_id"], stage="initial", metadata=metadata)
+    assert saved == []
+    # Both spawn bootstrap and an owner rename after a missed typing event
+    # allocate v1 through the real handler helper. Neither proves the optimistic
+    # postprocessor bump was persisted, so the producer must retain base v0.
+    from unittest.mock import AsyncMock
+    from backend.core.api.app.routes.handlers.websocket_handlers.encrypted_chat_metadata_handler import allocate_chat_metadata_versions
+    accepted = await allocate_chat_metadata_versions(
+        cache_service=SimpleNamespace(),
+        directus_service=SimpleNamespace(chat=SimpleNamespace(get_chat_metadata=AsyncMock(return_value={
+            "messages_v": 1, "metadata_v": 0, "title_v": 0,
+        }))), user_id=request.user_id, chat_id=child_id, title_changed=True,
+    )
+    assert accepted["metadata_v"] == accepted["title_v"] == 1
+    await recovery.persist_generated_metadata(request=request, task_id=build["task_id"], stage="postprocessing",
+        source_metadata_v=optimistic_source_metadata_v, metadata=metadata)
+    assert len(saved) == 1
+    data = saved[0]
+    opened = json.loads(open_recovery_output(json.loads(data["sealed_payload"]), recovery_private_key=v["private_key"],
+        owner_id=build["owner_id"], root_chat_id=build["chat_id"], target_chat_id=child_id,
+        turn_id=request.recovery_turn_id, record_id=data["record_id"], subject_id=data["subject_id"],
+        output_kind="summary", output_version=1, key_version=1))
+    assert opened["content"] == {**metadata, "source_metadata_v": 0}
+    assert opened["content"]["source_metadata_v"] < accepted["metadata_v"]
+    assert data["preflight_id"] == build["preflight_id"]
+    assert data["inference_task_id"] == build["inference_task_id"]
+    assert pinned == [(build["owner_hash"], child_id)]
+    assert events[0][1]["type"] == "chat_typed_metadata_recovery_available"
+    assert metadata["summary"] not in json.dumps(data)
+    # A report is rejected, never made to look concise through truncation.
+    await recovery.persist_generated_metadata(request=request, task_id=build["task_id"], stage="postprocessing",
+        metadata={**metadata, "summary": "Detailed full report. " * 1000})
+    assert len(saved) == 1
