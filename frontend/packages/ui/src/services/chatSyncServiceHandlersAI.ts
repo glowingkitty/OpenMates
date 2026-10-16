@@ -44,6 +44,12 @@ import {
   wrapEmbedKeyWithChatKey,
 } from "./encryption/MetadataEncryptor";
 
+import { completePersonalChatMessage } from "./personalChatTurnBarrier";
+import { refreshPersistedAssistantVersion } from "./chatRecoveryVersionRefresh";
+import { chatAfterRecoveredReply } from "./chatRecoveryVersionApply";
+import { getWorkspaceCacheIdentity } from "./workspaceQueryCache";
+import { getConnectedAccountMutationEpoch } from "./connectedAccountStorageService";
+
 const storageFailureImmediateRetryIds = new Set<string>();
 
 // Safe TOON decoder for metadata extraction (local to avoid circular deps)
@@ -2416,31 +2422,47 @@ export async function handleAIResponseStorageConfirmedImpl(
   // Unmark message as syncing
   serviceInstance.unmarkMessageSyncing(payload.message_id);
   storageFailureImmediateRetryIds.delete(payload.message_id);
-  removePendingAIResponse(payload.message_id);
-
-  // Reconcile messages_v in IndexedDB to reflect the stored AI response.
-  // The server does NOT broadcast a chat_message_added event for AI responses,
-  // so server broadcast handlers never advance the sender tab's local chat
-  // version. Use the durable local message count instead of incrementing
-  // blindly, since sendCompletedAIResponse may have already advanced the
-  // local version optimistically.
+  // Legacy ACK task IDs are not preflight turn IDs, and an already_processed
+  // ACK can precede persistence. Only the authenticated exact assistant row
+  // supplies the durability proof and server version for the reserved user turn.
+  const workspace = getWorkspaceCacheIdentity();
+  const accountEpoch = getConnectedAccountMutationEpoch();
+  const isCurrent = () => workspace === getWorkspaceCacheIdentity() &&
+    accountEpoch === getConnectedAccountMutationEpoch();
   try {
+    const assistant = await chatDB.getMessage(payload.message_id);
+    if (!isCurrent()) return;
     const chat = await chatDB.getChat(payload.chat_id);
-    if (chat) {
-      const messageCount = await chatDB.getMessageCountForChat(payload.chat_id);
-      chat.messages_v = Math.max(chat.messages_v || 0, messageCount);
-      chat.updated_at = Math.floor(Date.now() / 1000);
-      await chatDB.updateChat(chat);
+    if (!isCurrent()) return;
+    if (workspace !== null && chat && !chat.team_id && assistant?.message_id === payload.message_id &&
+        assistant.chat_id === payload.chat_id && assistant.role === "assistant" && assistant.user_message_id) {
+      // Keep a recovery entry until durability is proven. A duplicate ACK can
+      // arrive while the original server write is still in flight.
+      addPendingAIResponse(payload.message_id, payload.chat_id);
+      const version = await refreshPersistedAssistantVersion(chat, payload.message_id, assistant.user_message_id);
+      if (!isCurrent()) return;
+      if (version !== null) {
+        const current = await chatDB.getChat(payload.chat_id);
+        if (!isCurrent()) return;
+        if (!current) return;
+        const now = Math.floor(Date.now() / 1000);
+        const updated = chatAfterRecoveredReply(current, chat, version, now);
+        await chatDB.updateChat(updated);
+        if (!isCurrent()) return;
+        // A later call may already have advanced the in-memory projection.
+        const cached = chatListCache.getCache()?.find((row) => row.chat_id === payload.chat_id) ?? null;
+        chatListCache.upsertChat(chatAfterRecoveredReply(cached, updated, updated.messages_v, now));
+        completePersonalChatMessage(payload.chat_id, assistant.user_message_id, version);
+        removePendingAIResponse(payload.message_id);
+      } else {
+        return;
+      }
     } else {
-      console.warn(
-        `[ChatSyncService:AI] Chat ${payload.chat_id} not found for messages_v update after AI storage confirmation`,
-      );
+      removePendingAIResponse(payload.message_id);
     }
   } catch (error) {
-    console.error(
-      `[ChatSyncService:AI] Error updating messages_v for chat ${payload.chat_id}:`,
-      error,
-    );
+    console.error(`[ChatSyncService:AI] Error verifying stored assistant ${payload.message_id}:`, error);
+    return;
   }
 
   // Dispatch event to notify components that AI response storage is confirmed
@@ -5772,7 +5794,7 @@ export function handleChatCompressionCompletedImpl(
   }
 }
 
-async function persistClientEncryptedCompressionCheckpoint(payload: {
+export async function persistClientEncryptedCompressionCheckpoint(payload: {
   chat_id: string;
   task_id: string;
   compressed_message_count?: number;
@@ -5782,12 +5804,16 @@ async function persistClientEncryptedCompressionCheckpoint(payload: {
   covered_message_ids?: string[] | null;
   summary_message_id?: string;
   summary_content?: string;
-}): Promise<void> {
+}, awaitStoredBy?: ChatSynchronizationService): Promise<void> {
   if (!payload.summary_content || !payload.summary_message_id) return;
   const chat = await chatDB.getChat(payload.chat_id);
-  if (!chat) return;
+  if (!chat) {
+    if (awaitStoredBy) throw new Error("Compression chat unavailable");
+    return;
+  }
   const chatKey = await chatKeyManager.getKey(payload.chat_id);
-  if (!chatKey) {
+  if (!chatKey || !await ensureChatKeySafeForWrite(payload.chat_id, chatKey, "compression checkpoint")) {
+    if (awaitStoredBy) throw new Error("Compression chat key unavailable");
     console.warn("[ChatSyncService:AI] Cannot persist compression checkpoint without chat key", payload.chat_id);
     return;
   }
@@ -5807,7 +5833,25 @@ async function persistClientEncryptedCompressionCheckpoint(payload: {
     created_at: nowSeconds,
     updated_at: nowSeconds,
   };
-  await webSocketService.sendMessage("store_chat_compression_checkpoint", {
+  let cancelStored = () => {};
+  const stored = awaitStoredBy ? new Promise<void>((resolve, reject) => {
+    const onStored = (event: Event) => {
+      const data = (event as CustomEvent<{ chat_id: string; checkpoint: ChatCompressionCheckpoint }>).detail;
+      if (data?.chat_id !== payload.chat_id || data.checkpoint?.id !== checkpoint.id ||
+          data.checkpoint.encrypted_summary !== encryptedSummary ||
+          data.checkpoint.compressed_up_to_timestamp !== checkpoint.compressed_up_to_timestamp ||
+          data.checkpoint.compressed_up_to_message_id !== checkpoint.compressed_up_to_message_id ||
+          data.checkpoint.compressed_message_count !== checkpoint.compressed_message_count) return;
+      cancelStored();
+      resolve();
+    };
+    const timeout = setTimeout(() => { cancelStored(); reject(new Error("Compression checkpoint storage timed out")); }, 30_000);
+    cancelStored = () => { clearTimeout(timeout); awaitStoredBy.removeEventListener("chatCompressionCheckpointStored", onStored); };
+    awaitStoredBy.addEventListener("chatCompressionCheckpointStored", onStored);
+  }) : Promise.resolve();
+  void stored.catch(() => {});
+  try {
+    await webSocketService.sendMessage("store_chat_compression_checkpoint", {
     chat_id: payload.chat_id,
     checkpoint_id: checkpoint.id,
     encrypted_summary: encryptedSummary,
@@ -5818,7 +5862,9 @@ async function persistClientEncryptedCompressionCheckpoint(payload: {
     summary_token_estimate: checkpoint.summary_token_estimate,
     key_version: checkpoint.key_version,
     created_at: checkpoint.created_at,
-  });
+    });
+    await stored;
+  } finally { cancelStored(); }
 }
 
 export async function handleChatCompressionCheckpointStoredImpl(
@@ -5826,6 +5872,7 @@ export async function handleChatCompressionCheckpointStoredImpl(
   payload: { chat_id: string; checkpoint: ChatCompressionCheckpoint },
 ): Promise<void> {
   const checkpoint = payload.checkpoint;
+  if (checkpoint.chat_id !== payload.chat_id) throw new Error("Compression checkpoint chat mismatch");
   const chatKey = await chatKeyManager.getKey(payload.chat_id);
   if (chatKey && checkpoint.encrypted_summary && !checkpoint.summary) {
     checkpoint.summary = await decryptWithChatKey(checkpoint.encrypted_summary, chatKey) || undefined;
@@ -5834,6 +5881,7 @@ export async function handleChatCompressionCheckpointStoredImpl(
   // encrypted summary and cursor, so do not replicate the list into IndexedDB.
   const localCheckpoint = { ...checkpoint };
   delete localCheckpoint.covered_message_ids;
+  delete localCheckpoint.summary;
   await chatDB.saveChatCompressionCheckpoint(localCheckpoint);
   if (checkpoint.covered_message_ids?.length) {
     await chatDB.deleteCoveredMessagesForChat(payload.chat_id, checkpoint.covered_message_ids);

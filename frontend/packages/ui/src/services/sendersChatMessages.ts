@@ -804,10 +804,16 @@ export function shouldSkipClientCodeBlockExtraction(language: string, content: s
 // These are authenticated server version frames, never optimistic local writes.
 webSocketService.addEventListener("message", (event) => {
   const frame = (event as CustomEvent).detail;
-  if (!["new_chat_message", "chat_message_added", "chat_message_confirmed", "message_deleted"].includes(frame?.type)) return;
+  if (!["new_chat_message", "chat_message_added", "chat_message_confirmed", "message_deleted",
+    "call_message_confirmed", "call_message_changed", "system_message_confirmed"].includes(frame?.type)) return;
   const payload = frame.payload;
-  const version = payload?.versions?.messages_v ?? payload?.new_messages_v ?? payload?.messages_v;
-  if (typeof payload?.chat_id === "string" && typeof version === "number") {
+  // Call and system receipts must include a server-issued chat version; a
+  // call's per-message `revision` is not a substitute for messages_v.
+  const directVersionReceipt = frame.type === "call_message_confirmed" || frame.type === "call_message_changed"
+    || frame.type === "system_message_confirmed";
+  const version = directVersionReceipt ? payload?.messages_v
+    : payload?.versions?.messages_v ?? payload?.new_messages_v ?? payload?.messages_v;
+  if (typeof payload?.chat_id === "string" && Number.isSafeInteger(version) && version >= 0) {
     observePersonalChatCanonicalVersion(payload.chat_id, version);
   }
 });

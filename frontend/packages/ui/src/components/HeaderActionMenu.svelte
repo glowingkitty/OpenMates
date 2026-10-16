@@ -25,6 +25,8 @@
     actionCount,
     forceOverflow = false,
     triggerTestId,
+    menuTestId,
+    compactMoreOnly = false,
   }: {
     report: Snippet;
     share: Snippet;
@@ -32,12 +34,14 @@
     hasPriorityAction?: boolean;
     actions: Snippet;
     restoreChat?: Snippet;
-    close: Snippet;
+    close?: Snippet;
     resetKey?: string;
     hasShare: boolean;
     actionCount: number;
     forceOverflow?: boolean;
     triggerTestId?: string;
+    menuTestId?: string;
+    compactMoreOnly?: boolean;
   } = $props();
   const SHARE_MIN_WIDTH = 460;
   const REPORT_LABEL_MIN_WIDTH = 640;
@@ -51,11 +55,14 @@
   let root: HTMLDivElement;
   let trigger = $state<HTMLButtonElement>();
   let anchor = $state<HTMLDivElement>();
+  let menu = $state<HTMLDivElement>();
   let menuWidth = $state(240);
+  let compactMenuLeft = $state(0);
+  let compactMenuPositioned = $state(false);
   const menuId = $props.id();
   const overflowCount = $derived(actionCount + Number(hasShare && (hasPriorityAction || containerWidth < SHARE_MIN_WIDTH)));
   // Keep Share in More whenever sensitive-data controls occupy the primary slot.
-  const hasOverflowActions = $derived(forceOverflow || overflowCount >= 2 || (hasPriorityAction && overflowCount > 0));
+  const hasOverflowActions = $derived(compactMoreOnly || forceOverflow || overflowCount >= 2 || (hasPriorityAction && overflowCount > 0));
 
   $effect(() => {
     if (!hasOverflowActions) open = false;
@@ -76,7 +83,7 @@
   });
   $effect(() => {
     void width;
-    if (open && root && anchor) {
+    if (open && root && anchor && !compactMoreOnly) {
       menuWidth = Math.max(
         0,
         (root.getBoundingClientRect().right -
@@ -85,6 +92,24 @@
           MENU_HOVER_SCALE,
       );
     }
+  });
+  $effect(() => {
+    void containerWidth;
+    if (!open || !compactMoreOnly || !root || !anchor || !menu) return;
+    const updatePosition = () => {
+      const pane = root.closest<HTMLElement>('.chat-history-container, .chat-side, .fullscreen-container') ?? root;
+      const paneBounds = pane.getBoundingClientRect();
+      const anchorBounds = anchor.getBoundingClientRect();
+      const menuBounds = menu.getBoundingClientRect();
+      const minLeft = paneBounds.left + MENU_SHADOW_CLEARANCE;
+      const maxLeft = Math.max(minLeft, paneBounds.right - MENU_SHADOW_CLEARANCE - menuBounds.width);
+      compactMenuLeft = Math.min(Math.max(anchorBounds.left, minLeft), maxLeft) - anchorBounds.left;
+      compactMenuPositioned = true;
+    };
+    updatePosition();
+    const observer = new ResizeObserver(updatePosition);
+    observer.observe(menu);
+    return () => observer.disconnect();
   });
 
   function outside(event: PointerEvent) {
@@ -121,6 +146,7 @@
 <svelte:window onpointerdown={outside} />
 <div
   class="header-action-menu"
+  class:compact-more-only={compactMoreOnly}
   bind:this={root}
   bind:clientWidth={width}
   onkeydown={keydown}
@@ -130,6 +156,7 @@
   aria-label={$text('common.more_actions')}
 >
   <div class="primary-actions">
+    {#if !compactMoreOnly}
     <div
       class="report-action"
       class:show-label={containerWidth >= REPORT_LABEL_MIN_WIDTH}
@@ -142,7 +169,8 @@
         {@render share()}
       </div>{/if}
     {@render restoreChat?.()}
-    {#if overflowCount === 1 && !hasPriorityAction && !forceOverflow}
+    {/if}
+    {#if !compactMoreOnly && overflowCount === 1 && !hasPriorityAction && !forceOverflow}
       <div class="direct-action">
         {#if hasShare && containerWidth < SHARE_MIN_WIDTH}{@render share()}{/if}
         {#if actionCount === 1}{@render actions()}{/if}
@@ -158,7 +186,10 @@
           aria-label={$text('common.more_actions')}
           aria-expanded={open}
           aria-controls={menuId}
-          onclick={() => (open = !open)}
+          onclick={() => {
+            if (!open) compactMenuPositioned = false;
+            open = !open;
+          }}
         >
           <span class="clickable-icon icon_more top-button" aria-hidden="true"
           ></span>
@@ -168,9 +199,13 @@
         <div
           id={menuId}
           class="more-actions"
+          bind:this={menu}
+          data-testid={menuTestId}
           data-header-overlay-disabled
           data-tooltip-disabled
-          style:max-width={`${menuWidth}px`}
+          style:max-width={compactMoreOnly ? undefined : `${menuWidth}px`}
+          style:left={compactMoreOnly ? `${compactMenuLeft}px` : undefined}
+          style:visibility={compactMoreOnly && !compactMenuPositioned ? 'hidden' : undefined}
           style:--menu-hover-scale={MENU_HOVER_SCALE}
           style:top={`calc(100% + ${MENU_GAP}px)`}
           transition:fly={{
@@ -181,14 +216,16 @@
               : MENU_DURATION,
           }}
         >
-          {#if hasShare && (hasPriorityAction || containerWidth < SHARE_MIN_WIDTH)}{@render share()}{/if}
+          {#if compactMoreOnly}{@render report()}{/if}
+          {#if hasShare && (compactMoreOnly || hasPriorityAction || containerWidth < SHARE_MIN_WIDTH)}{@render share()}{/if}
+          {#if compactMoreOnly && hasPriorityAction && priorityAction}{@render priorityAction()}{/if}
           {@render actions()}
         </div>
       {/if}
     </div>
     {/if}
   </div>
-  <div class="close-action">{@render close()}</div>
+  {#if !compactMoreOnly}<div class="close-action">{@render close?.()}</div>{/if}
 </div>
 
 <style>
@@ -200,6 +237,12 @@
     min-width: 0;
     gap: var(--spacing-4);
     pointer-events: none;
+  }
+  .header-action-menu.compact-more-only { width:auto; flex:none; }
+  .compact-more-only .more-wrapper { padding:0; border-radius:var(--radius-full); background:color-mix(in srgb,var(--color-font-button) 20%,transparent); }
+  .compact-more-only .more-actions {
+    min-width: min(190px, calc(100cqw - var(--spacing-8) - var(--spacing-8)));
+    max-width: min(260px, calc(100cqw - var(--spacing-8) - var(--spacing-8)));
   }
   .primary-actions {
     display: flex;
@@ -262,6 +305,8 @@
     min-width: 25px;
     min-height: 25px;
   }
+  .header-action-menu.compact-more-only .more-trigger { width:2.75rem; height:2.75rem; color:var(--color-font-button); }
+  .header-action-menu.compact-more-only .more-trigger .icon_more { background:var(--color-font-button); filter:none; }
   .header-action-menu :global(.header-action:focus-visible) {
     outline: 2px solid var(--color-primary);
     outline-offset: 4px;
@@ -307,6 +352,7 @@
     mask-image: url('@openmates/ui/static/icons/more.svg');
     -webkit-mask-image: url('@openmates/ui/static/icons/more.svg');
   }
+  @media(max-width:700px) { .header-action-menu.compact-more-only .more-trigger { width:2.25rem; height:2.25rem; } }
   @media (prefers-reduced-motion: reduce) {
     .more-wrapper,
     .header-action-menu :global(.action-label) {

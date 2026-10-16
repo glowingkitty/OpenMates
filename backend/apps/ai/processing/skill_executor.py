@@ -204,6 +204,7 @@ async def execute_skill(
     secrets_manager: Optional[Any] = None,
     is_anonymous: bool = False,
     team_id: Optional[str] = None,
+    preserve_committed_result_on_cancel: bool = False,
 ) -> Dict[str, Any]:
     """
     Execute a skill in-process via the SkillRegistry, with retry logic for
@@ -320,7 +321,7 @@ async def execute_skill(
 
             # Check cancellation post-execution
             if skill_task_id and cache_service:
-                if await is_skill_cancelled(cache_service, skill_task_id):
+                if await is_skill_cancelled(cache_service, skill_task_id) and not preserve_committed_result_on_cancel:
                     logger.info(f"[SkillCancellation] Skill '{app_id}.{skill_id}' (task_id={skill_task_id}) cancelled after execution")
                     raise SkillCancelledException(skill_task_id, app_id, skill_id)
 
@@ -458,6 +459,7 @@ async def execute_skill_with_multiple_requests(
     secrets_manager: Optional[Any] = None,
     is_anonymous: bool = False,
     team_id: Optional[str] = None,
+    preserve_committed_result_on_cancel: bool = False,
 ) -> List[Dict[str, Any]]:
     """
     Executes a skill with support for multiple parallel requests and retry logic.
@@ -528,6 +530,7 @@ async def execute_skill_with_multiple_requests(
                 secrets_manager=secrets_manager,
                 is_anonymous=is_anonymous,
                 team_id=team_id,
+                preserve_committed_result_on_cancel=preserve_committed_result_on_cancel,
             )
             # Skills return a response with a "results" array - return as list for consistency
             return [result]
@@ -541,6 +544,7 @@ async def execute_skill_with_multiple_requests(
                 secrets_manager=secrets_manager,
                 is_anonymous=is_anonymous,
                 team_id=team_id,
+                preserve_committed_result_on_cancel=preserve_committed_result_on_cancel,
             )
             return [result]
         else:
@@ -560,6 +564,7 @@ async def execute_skill_with_multiple_requests(
             secrets_manager=secrets_manager,
             is_anonymous=is_anonymous,
             team_id=team_id,
+            preserve_committed_result_on_cancel=preserve_committed_result_on_cancel,
         )
         return [result]
 
@@ -590,6 +595,7 @@ async def execute_skill_with_multiple_requests(
             secrets_manager=secrets_manager,
             is_anonymous=is_anonymous,
             team_id=team_id,
+            preserve_committed_result_on_cancel=preserve_committed_result_on_cancel,
         )
         return [result]
     
@@ -602,6 +608,7 @@ async def execute_skill_with_multiple_requests(
         secrets_manager=secrets_manager,
         is_anonymous=is_anonymous,
         team_id=team_id,
+        preserve_committed_result_on_cancel=preserve_committed_result_on_cancel,
     )
     return [result]
 

@@ -128,6 +128,43 @@ export default defaultProps;
 
 /** Named variants for different message types and states */
 export const variants = {
+  voiceUserSending: {
+    ...defaultProps, content: 'Spoken words', status: 'sending' as const,
+    original_message: { message_id: 'voice-user', chat_id: 'preview-chat', role: 'user' as const,
+      call_persistence_v1: { call_id: 'preview-call', typed_pending: false, entries: [] } },
+  },
+  voiceAssistantStreaming: {
+    ...defaultProps, role: 'assistant' as const, content: 'Spoken response', status: 'streaming' as const,
+    original_message: { message_id: 'voice-assistant', chat_id: 'preview-chat', role: 'assistant' as const,
+      call_persistence_v1: { call_id: 'preview-call', typed_pending: false, entries: [] } },
+  },
+  voiceAssistantSending: {
+    ...defaultProps, role: 'assistant' as const, content: 'Saved response', status: 'sending' as const,
+    original_message: { message_id: 'voice-assistant-final', chat_id: 'preview-chat', role: 'assistant' as const,
+      call_persistence_v1: { call_id: 'preview-call', typed_pending: false, entries: [] } },
+  },
+  typedCallSending: {
+    ...defaultProps, content: 'Typed while calling', status: 'sending' as const,
+    original_message: { message_id: 'typed-call-user', chat_id: 'preview-chat', role: 'user' as const,
+      call_persistence_v1: { call_id: 'preview-call', typed_pending: true, entries: [] } },
+  },
+  typedAcceptedSending: {
+    ...defaultProps, content: 'Accepted typed call input', status: 'sending' as const,
+    original_message: { message_id: 'typed-accepted-user', chat_id: 'preview-chat', role: 'user' as const,
+      call_persistence_v1: { call_id: 'preview-call', typed_pending: false, entries: [] } },
+  },
+  openmatesOfficial: {
+    ...defaultProps, role: 'assistant' as const, category: 'openmates_official',
+    content: 'A reply from OpenMates.',
+  },
+  importedChatGPT: {
+    ...defaultProps, role: 'assistant' as const, category: 'chatgpt',
+    content: 'A preserved imported reply.',
+  },
+  namedAssistant: {
+    ...defaultProps, role: 'assistant' as const, sender_name: 'Casey',
+    content: 'A reply with an explicit sender.',
+  },
   completedFocusSubChats: {
     ...defaultProps, role: 'assistant' as const,
     content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'embed', attrs: {

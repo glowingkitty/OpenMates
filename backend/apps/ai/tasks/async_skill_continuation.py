@@ -221,6 +221,16 @@ async def dispatch_async_skill_continuation(
     selected_project_focus_candidates: Optional[list[dict[str, Any]]] = None,
 ) -> Optional[str]:
     """Dispatch a normal AI ask task to interpret completed async skill results."""
+    from backend.apps.ai.processing.voice_async_skills import (
+        active_voice_worker_context, settle_voice_async_completion,
+    )
+    voice = active_voice_worker_context.get()
+    if voice is not None:
+        # The original issued voice assistant already references this worker's
+        # canonical embed. Completion updates it through normal embed delivery.
+        await settle_voice_async_completion(context=voice, completed_results=completed_results,
+            result_status=result_status)
+        return None
     if not cache_service or not async_task_id:
         return None
 

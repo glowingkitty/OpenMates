@@ -21,7 +21,7 @@ def _active_chat_source() -> str:
     return ACTIVE_CHAT_PATH.read_text(encoding="utf-8")
 
 
-# contract-test: direct surface=gui.web assertions=message-input.focus.guest-welcome-suppression,message-input.focus.workspace-suppression,chat-queued-followups.editing.stable-revision
+# contract-test: direct surface=gui.web assertions=message-input.focus.guest-welcome-suppression,message-input.focus.workspace-suppression,chat-queued-followups.editing.stable-revision,video-call.chat.call-strip-layout,video-call.chat.fixed-binding
 def test_focused_workspace_preserves_reachable_queued_controls() -> None:
     source = _active_chat_source()
     workspace = re.search(r'<div\s+class="chat-side"\s+(.*?)\n\s*>', source, re.S)
@@ -34,8 +34,14 @@ def test_focused_workspace_preserves_reachable_queued_controls() -> None:
     assert predicate == "messageInputFocused&&(messageInputMapsOpen||anonymousFileAttachmentPending||$recordingState.showRecordAudioUI)", (
         "Special overlay suppression must remain independent of ordinary welcome focus"
     )
-    assert "inert={messageInputFocused && !hasQueuedFollowUpActions}" in workspace.group(1), (
-        "Focus must disable the normal workspace for all users while leaving queued controls reachable"
+    inert = re.search(r"\binert=\{([^}]*)\}", workspace.group(1))
+    assert inert, "The focused workspace must retain an inert predicate"
+    assert re.sub(r"\s+", "", inert.group(1)) == (
+        "messageInputFocused&&!hasQueuedFollowUpActions"
+        "&&!voiceContextConsentVisible&&!showVoiceCallBarHere"
+    ), (
+        "Ordinary focus must disable the workspace unless queued controls, voice consent, "
+        "or bound-call controls must remain reachable"
     )
     assert "let hideWelcomeForKeyboard = $derived(messageInputFocused && showWelcome);" in source, (
         "Ordinary focus must hide new-chat welcome content without affecting established chats"

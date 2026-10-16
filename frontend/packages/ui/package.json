@@ -37,6 +37,10 @@
       "types": "./src/services/voiceCall.ts",
       "default": "./src/services/voiceCall.ts"
     },
+    "./services/chatNavigationReader": {
+      "types": "./src/services/chatNavigationReader.ts",
+      "default": "./src/services/chatNavigationReader.ts"
+    },
     "./utils/*": "./src/utils/*",
     "./stores/*": "./src/stores/*",
     "./stores/uiStateStore": {
@@ -176,7 +180,9 @@
     "vite": "^7.3.6",
     "yaml": "^2.9.0",
     "@repo/upload-privacy": "workspace:*",
-    "@repo/public-site": "workspace:*"
+    "@repo/public-site": "workspace:*",
+    "@ricky0123/vad-web": "0.0.31",
+    "onnxruntime-web": "1.30.0"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",

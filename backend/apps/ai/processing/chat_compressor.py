@@ -451,6 +451,7 @@ async def compress_chat_history(
     prior_summary: Optional[str] = None,
     force: bool = False,
     billing_operation: Any = None,
+    private_logging: bool = False,
 ) -> CompressionResult:
     """Compress older messages in a chat history into a structured summary.
 
@@ -579,7 +580,7 @@ async def compress_chat_history(
 
         if not response.success or not response.direct_message_content:
             error_msg = response.error_message or "No content returned from compression LLM"
-            logger.error(f"{log_prefix} Compression LLM call failed: {error_msg}")
+            logger.error("%s Compression LLM call failed: %s", log_prefix, "provider_failure" if private_logging else error_msg)
 
             # An active summary charge may only use a catalogued fallback.
             if billing_operation is not None:
@@ -612,10 +613,10 @@ async def compress_chat_history(
 
                 if not response.success or not response.direct_message_content:
                     fallback_error = response.error_message or "Fallback also failed"
-                    logger.error(f"{log_prefix} Fallback compression also failed: {fallback_error}")
+                    logger.error("%s Fallback compression also failed: %s", log_prefix, "provider_failure" if private_logging else fallback_error)
                     return CompressionResult(
                         was_compressed=False,
-                        error=f"Compression failed: {error_msg}. Fallback: {fallback_error}",
+                        error="compression_provider_failure" if private_logging else f"Compression failed: {error_msg}. Fallback: {fallback_error}",
                         usage_attempts=list(billing_operation.buckets) if billing_operation else [],
                     )
             except Exception as e_fallback:
@@ -624,10 +625,12 @@ async def compress_chat_history(
                     raise
                 if billing_operation is not None:
                     raise SummaryBillingAmbiguousError("Summary fallback outcome is unknown") from e_fallback
-                logger.error(f"{log_prefix} Fallback compression exception: {e_fallback}", exc_info=True)
+                logger.error("%s Fallback compression exception: %s", log_prefix,
+                             type(e_fallback).__name__ if private_logging else e_fallback,
+                             exc_info=not private_logging)
                 return CompressionResult(
                     was_compressed=False,
-                    error=f"Compression failed: {error_msg}. Fallback exception: {e_fallback}"
+                    error="compression_provider_failure" if private_logging else f"Compression failed: {error_msg}. Fallback exception: {e_fallback}"
                 )
 
         summary_content = response.direct_message_content.strip()
@@ -662,10 +665,11 @@ async def compress_chat_history(
             raise
         if billing_operation is not None:
             raise SummaryBillingAmbiguousError("Summary provider outcome is unknown") from e
-        logger.error(f"{log_prefix} Compression failed with exception: {e}", exc_info=True)
+        logger.error("%s Compression failed with exception: %s", log_prefix,
+                     type(e).__name__ if private_logging else e, exc_info=not private_logging)
         return CompressionResult(
             was_compressed=False,
-            error=f"Compression exception: {e}"
+            error="compression_provider_failure" if private_logging else f"Compression exception: {e}"
         )
 
 

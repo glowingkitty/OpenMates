@@ -7892,48 +7892,6 @@
           "text": "Bestanden in dit project"
         }
       }
-    },
-    "jobs": {
-      "search": {
-        "result_count": {
-          "text": "{count} vacatures"
-        },
-        "partial_results": {
-          "text": "Sommige bronnen waren niet beschikbaar"
-        },
-        "result": {
-          "title": {
-            "text": "Vacature"
-          },
-          "remote": {
-            "text": "Op afstand"
-          },
-          "published": {
-            "text": "Gepubliceerd"
-          },
-          "source": {
-            "text": "Bekijk op {provider}"
-          },
-          "listing": {
-            "text": "bron van de vacature"
-          },
-          "apply": {
-            "text": "Open sollicitatiepagina"
-          },
-          "company": {
-            "text": "Bedrijf"
-          },
-          "employment_type": {
-            "text": "Dienstverband"
-          },
-          "salary": {
-            "text": "Salaris"
-          },
-          "description": {
-            "text": "Beschrijving"
-          }
-        }
-      }
     }
   },
   "enter_message": {
@@ -8497,38 +8455,6 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"e7002718-62f4-43b0-9078-1ab77993edc0\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI workshop\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b110fb02-f635-45b1-8ba7-aaf75b3f7de7\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI meetup\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b2b2b2a7-6b9c-464d-a86e-86ceafcd3bcc\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"build with AI\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"0e453b88-1f20-43fc-9aa1-aad8aab6ae8a\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"top AI developer meetups Berlin 2026 for beginners\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"c7b51044-a947-4471-a287-496459454ad6\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Berlin AI builder communities and recurring workshops\", \"provider\": \"Brave\"}\n```\n\nBerlin has one of Europe's most active [AI](wiki:Artificial_intelligence) builder scenes, transitioning from general theory to practical \"hands-on\" engineering. For someone learning to build with AI tools, the focus in June 2026 is heavily on [AI agents](wiki:Software_agent), [RAG (Retrieval-Augmented Generation)](wiki:Retrieval-augmented_generation), and production-ready architectures.\n\nHere are the top upcoming workshops and meetups in Berlin where you can build, demo, and learn from other practitioners.\n\n### Featured Hands-On Workshops\nThese sessions are specifically designed for those who want to write code and build prototypes.\n\n*   **BLISS x QuantCo: Build Your Own AI Agent**\n    *   **Date:** June 10, 2026 | 17:30\n    *   **Location:** Berlin-Mitte (Altonaer Str. 26)\n    *   **Focus:** An interactive session transitioning from [LLM APIs](wiki:Large_language_model) to building a custom agent that automates complex document workflows. **Bring your laptop.**\n    *   [Event Details & RSVP](embed:bliss-x-quantco-dWg)\n*   **Open Source Europe Tour: AI in Practice**\n    *   **Date:** June 8, 2026 | 17:30\n    *   **Location:** Netlight Consulting (Invalidenstraße 117)\n    *   **Focus:** A \"hype-free\" walkthrough of modern AI, explaining Agentic AI, fine-tuning vs. RAG, and connecting AI to data architectures.\n    *   [Event Details & RSVP](embed:open-source-europe-S4k)\n*   **AI Future-Club Kickoff (Hackers / Founders)**\n    *   **Date:** June 11, 2026 | 18:00\n    *   **Location:** TBD (Berlin)\n    *   **Focus:** A session for developers to \"get their hands dirty,\" discussing what to build and ship together, featuring live demos of recent projects.\n    *   [Event Details & RSVP](embed:ai-future-club-XOk)\n\n### Community Meetups for Builders\nThese events are excellent for networking and seeing what other local developers are currently building.\n\n*   **OpenClaw Anonymous Berlin #9**\n    *   **Date:** June 9, 2026 | 19:00\n    *   **Location:** w3.hub (Möckernstraße 120)\n    *   **Focus:** Informal \"laptop-out\" meetup where people showcase OpenClaw and AI agent setups. Perfect for sharing what works and what doesn't.\n    *   [Event Details & RSVP](embed:openclaw-anonymous-berlin-JA8)\n*   **AI Tinkerers Berlin**\n    *   **Date:** June 17, 2026\n    *   **Focus:** A screened, demo-first, \"no-pitch\" community. Expect live code, architecture lessons, and technical Q&A from local founders and engineers.\n    *   Berlin AI Tinkerers Portal\n*   **Spec-Driven Development: AI for Full-Stack Java**\n    *   **Date:** June 9, 2026 | 18:30\n    *   **Location:** Capgemini (Potsdamer Platz 5)\n    *   **Focus:** Learning how AI can generate code, diagrams, and tests from structured specifications.\n    *   [Event Details & RSVP](embed:spec-driven-development-rxI)\n\n### Key Hubs to Follow\nIf you want to stay in the loop, these organizations host the majority of builder-centric AI events in Berlin:\n\n*   **Merantix AI Campus**: Located in Nord-Mitte, this 6,000m² campus is the heart of the Berlin AI ecosystem, hosting weekly reading groups and tech talks.\n    *   Campus Events Calendar\n*   **BLISS (Berlin AI Community)**: A student and professional community that organizes high-quality workshops and speaker series.\n    *   BLISS Official Site\n*   **[CODE University](wiki:CODE_University_of_Applied_Sciences)**: Often hosts \"Global AI Bootcamps\" and hands-on sessions for students and the public at their Delta Campus in Neukölln.\n\n### Practical Tips for Joining\n1.  **RSVP Early:** Many of these events (especially the BLISS and Tinkerers sessions) have limited spots and require screening or early registration.\n2.  **Bring a Laptop:** Most \"workshops\" expect you to follow along with code. Ensure you have a local environment or a [GitHub](wiki:GitHub) account ready.\n3.  **Join the Slacks:** Groups like AI Tinkerers and [Hackers/Founders](/#settings/apps/web) have local Slack/Discord channels where most \"last-minute\" build sessions are organized.\n\nWould you like me to help you find more specific resources for a particular AI tool you're learning, such as [PyTorch](wiki:PyTorch) or [LangChain](wiki:LangChain)?\n\n**Next Steps:**\n- [Browse more AI events in Berlin](/#settings/apps/events)\n- [Search for AI tutorials on YouTube](/#settings/apps/videos)"
-      }
-    },
-    "air_fryers_amazon_germany": {
-      "title": {
-        "text": "Airfryers vergelijken in Duitsland"
-      },
-      "summary": {
-        "text": "Vergeleek de beste airfryers op Amazon Duitsland op basis van prijs, capaciteit en beoordelingen, met een aanbeveling voor de Philips Airfryer 2000-serie voor een tweepersoonshuishouden."
-      },
-      "message_1": {
-        "text": "Zoek airfryers die ik online kan kopen in Duitsland, inclusief Amazon-vermeldingen. Vergelijk de huidige prijzen, capaciteiten en beoordelingen, en raad er vervolgens een aan voor een tweepersoonshuishouden met bronvermeldingen."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\nHier is een vergelijking van de best beoordeelde airfryers die momenteel beschikbaar zijn op Amazon Duitsland, waarbij prijs, capaciteit en klantbeoordelingen worden vergeleken.\n\n---\n\n### Vergelijking van populaire modellen in Duitsland\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### Beste aanbeveling voor een huishouden van 2 personen\n\n#### **Eerste keuze: [Philips Airfryer 2000 Series 6,2L](embed:philips-airfryer-2000-fay)**\n\n* **Waarom dit het beste past bij twee personen:**\n  * **Optimale capaciteit (6,2 L):** Bij manden kleiner dan 4,5–5 L moet je zelfs voor twee personen in meerdere porties koken. In een mand van 6,2 L kun je twee zalmfilets en een volledige portie groenten of frietjes plat in één laag leggen voor een gelijkmatig krokant resultaat.\n  * **Ruimtebeslag in de keuken:** Dual-zone machines (zoals Ninja of Russell Hobbs) nemen veel ruimte in op het aanrecht. Een enkele mand van 6 L biedt voldoende volume terwijl hij een compact formaat behoudt dat geschikt is voor typische Duitse keukenbladen.\n  * **Transparant venster:** Hiermee kun je de bruining controleren zonder de lade te openen en warmte te verliezen.\n  * **Waarde:** Voor € 99,99 biedt het een betrouwbare temperatuurconsistentie van [Philips](wiki:Philips) voor een redelijke prijs.\n\n#### **Alternatief (als je vaak twee gerechten op verschillende temperaturen bereidt): [Philips Dual Basket 3000 Series (9,0 L)](embed:philips-airfryer-dual-pjD)**\nAls jij en je partner liever proteïnen en bijgerechten tegelijkertijd bereiden op verschillende temperaturen en tijden (bijv. kipfilets op 180 °C en krokante aardappeltjes op 200 °C), dan is dit model momenteel afgeprijsd naar € 119,99 en beschikt het over gesynchroniseerde bereidingstijden.\n\n---\n\n### Belangrijke factoren om te overwegen voor aankoop\n1. **Vorm van de lade:** Vierkante manden (zoals Cosori and Philips) zijn veel geschikter voor platte items (steaks, bakvormen, spiesen) dan ronde manden met een identieke inhoud in liters.\n2. **Ruimte in de vaatwasser:** Zorg ervoor dat je vaatwasser genoeg hoogte heeft voor een enkele lade van 6 L, of overweeg om antiaanbaklagen met de hand te wassen om de levensduur te verlengen."
-      },
-      "follow_up_1": {
-        "text": "Zoek recepten die specifiek zijn ontworpen voor airfryers"
-      },
-      "follow_up_2": {
-        "text": "Leg de belangrijkste verschillen uit tussen airfryers met een enkele en een dubbele mand"
-      },
-      "follow_up_3": {
-        "text": "Vind compatibele bakaccessoires voor deze airfryer"
-      },
-      "follow_up_4": {
-        "text": "Toon een lijst met beginnersvriendelijke recepten voor het avondeten in een airfryer"
-      },
-      "follow_up_5": {
-        "text": "Bekijk de huidige energieverbruikscijfers voor deze modellen"
-      },
-      "follow_up_6": {
-        "text": "Vergelijk de reinigings- en onderhoudsvereisten voor keramische versus tefloncoatings"
       }
     },
     "artemis_ii_mission": {
@@ -9771,38 +9697,6 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"3a8114d9-0472-4627-9a73-8d331bef481f\", \"app_id\": \"images\", \"skill_id\": \"vectorize\"}\n```\n\nI'll convert that image to SVG for you now.Your SVG vectorization is processing! The conversion is underway and I'll update you once it's complete. This typically takes a moment as the system traces the raster image and converts it into scalable vector paths."
       }
     },
-    "jobs_in_sweden": {
-      "title": {
-        "text": "Developer-banen in Zweden"
-      },
-      "summary": {
-        "text": "Vergelijk actuele developer-banen in Stockholm en Malmö met originele vacatures en op bronnen gebaseerde werkplekdetails."
-      },
-      "message_1": {
-        "text": "Vind twee actuele software developer-banen in Stockholm en twee in Malmö via de Zweedse openbare arbeidsvoorziening. Toon voor elke baan een kort opsommingsteken met de titel, werkgever, stad van de werkplek en de link naar de originele vacature. Vermeld alleen een salarisindicatie of regeling voor thuiswerken als dit expliciet in die vacature staat; zeg anders 'niet vermeld'. Houd het antwoord onder de 200 woorden."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"ea23f42b-6a8d-4faf-912d-988d2ba20cf4\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"a9fafbeb-7f05-42d5-9dcd-cbc752f42ffd\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\nActuele vacatures voor softwareontwikkelaars van Arbetsförmedlingen (Platsbanken):\n\n### Stockholm\n\n* **Functie:** Senior Systemutvecklare  \n  **Werkgever:** NXT Interim Stockholm AB  \n  **Stad werklocatie:** Stockholm  \n  **Link naar originele vacature:** [Platsbanken annons 31589252](embed:senior-systemutvecklare-2ps)  \n  **Salarisindicatie:** Niet vermeld  \n  **Thuiswerkregeling:** Biedt externe werkplekken (*remote-arbetsplatser*)\n\n* **Functie:** Javautvecklare  \n  **Werkgever:** AFRY AB  \n  **Stad werklocatie:** Stockholm  \n  **Link naar originele vacature:** [Platsbanken annons 31588186](embed:javautvecklare-y47)  \n  **Salarisindicatie:** Niet vermeld  \n  **Thuiswerkregeling:** Mogelijkheid tot hybride werken (*möjlighet till hybridarbete*)\n\n---\n\n### Malmö\n\n* **Functie:** Senior AI Engineer  \n  **Werkgever:** Iver Accelerate AB  \n  **Stad werklocatie:** Malmö  \n  **Link naar originele vacature:** [Platsbanken annons 31588387](embed:senior-ai-engineer-Duw)  \n  **Salarisindicatie:** Niet vermeld  \n  **Thuiswerkregeling:** Mogelijkheid tot hybride werken (*möjlighet till hybridarbete*)\n\n* **Functie:** Malmö: Systemutvecklare Affärssystem Hybrid  \n  **Werkgever:** Jobbakuten Väst AB  \n  **Stad werklocatie:** Malmö  \n  **Link naar originele vacature:** [Platsbanken annons 31574628](embed:malm-systemutvecklare-aff-umf)  \n  **Salarisindicatie:** Niet vermeld (vacature vermeldt marktconform salaris zonder specifiek bedrag)  \n  **Thuiswerkregeling:** Hybride werken (*Hybridarbete*)"
-      },
-      "follow_up_1": {
-        "text": "Zoek naar remote software developer vacatures in Göteborg"
-      },
-      "follow_up_2": {
-        "text": "Vergelijk de vereisten voor deze senior developer rollen"
-      },
-      "follow_up_3": {
-        "text": "Zoek naar frontend developer vacatures in Stockholm"
-      },
-      "follow_up_4": {
-        "text": "Toon de meest genoemde technology stacks in deze vacatures"
-      },
-      "follow_up_5": {
-        "text": "Zoek naar junior developer vacatures in Zweden"
-      },
-      "follow_up_6": {
-        "text": "Vat de trends voor werken op afstand samen voor Zweedse tech-banen"
-      }
-    },
     "launch_readiness_checklist_doc": {
       "title": {
         "text": "Launch readiness checklist document"
@@ -11015,38 +10909,6 @@
         "text": "Leg de keuzes voor de ontkoppelcondensatoren uit"
       }
     },
-    "vegetarian_recipes_from_fridge_vegetables": {
-      "title": {
-        "text": "Vegetarische receptideeën met koelkastvoorraad"
-      },
-      "summary": {
-        "text": "Gebruiker vroeg om vegetarische receptideeën met spinazie, wortels, paprika en kikkererwten; de assistent gaf drie opties."
-      },
-      "message_1": {
-        "text": "Aanbevelingen voor vegetarische recepten? Ik heb nog spinazie, wortels, paprika en kikkererwten in de koelkast liggen."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\nMet **spinazie, wortels, paprika en kikkererwten** heb je een uitstekende basis voor heerlijke, vezelrijke vegetarische maaltijden. \n\nHier zijn drie verschillende culinaire richtingen, afhankelijk van waar je trek in hebt:\n\n---\n\n### 1. Fris & Knapperig: Thaise Chopped Salad\nAls je iets snels, lichts en knapperigs wilt, combineer dan fijngehakte rauwe paprika, wortels en spinazie met kikkererwten in een frisse [pindadressing](wiki:Peanut) met limoen.\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. Hartige Koekjes: Krokante Kikkererwten- & Groentefritters\nAls je zin hebt in iets warms en hapklaars (lekker in wraps, pita's of met een yoghurtdip), prak dan de kikkererwten en meng er fijngehakte wortels, paprika en geslonken spinazie doorheen.\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. Snel Doordeweeks Alternatief: Warme Kikkererwten- & Groentecurry uit de pan\nAls je een eenpansgerecht wilt maken met basisproducten uit de voorraadkast (zoals kokosmelk uit blik of tomatenblokjes):\n1. **Fruit de smaakmakers:** Verhit olijfolie in een koekenpan en bak gesnipperde ui, fijngehakte knoflook en gember tot het geurt.\n2. **Voeg de stevige groenten toe:** Snijd de wortels en paprika in hapklare stukjes. Voeg ze toe samen met gemalen komijn, [kurkuma](wiki:Turmeric) en een snufje chilipoeder of kerriepoeder.\n3. **Laten sudderen:** Voeg de afgespoelde kikkererwten toe samen met een kopje groentebouillon of kokosmelk. Dek af en laat 10-12 minuten sudderen tot de wortels zacht zijn.\n4. **Laat de spinazie slinken:** Meng de verse spinazie er pas op het laatst doorheen gedurende 1-2 minuten tot deze felgroen en geslonken is. Maak af met een kneepje citroensap.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"Welke kookstijl heeft vandaag je voorkeur?\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"Frisse & knapperige chopped salad\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"Krokante fritters of koekjes uit de pan\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"Warme eenpanscurry of stoofschotel\" }\n  ]\n}\n```"
-      },
-      "follow_up_1": {
-        "text": "Zoek naar meer gedetailleerde instructies en volledige hoeveelheden ingrediënten voor de curry uit de koekenpan"
-      },
-      "follow_up_2": {
-        "text": "Leg uit hoe je overgebleven gebakken kikkererwtenkoekjes klaarmaakt en bewaart voor meal prep"
-      },
-      "follow_up_3": {
-        "text": "Zoek naar recepten voor veganistische yoghurtdips die goed passen bij kikkererwtenkoekjes"
-      },
-      "follow_up_4": {
-        "text": "Lijst met eenvoudige kruidenvervangers als ik geen kerriepoeder heb voor de maaltijd uit de koekenpan"
-      },
-      "follow_up_5": {
-        "text": "Zoek naar alternatieve dressingrecepten met tahini voor de Thaise gehakte salade"
-      },
-      "follow_up_6": {
-        "text": "Vergelijk het eiwit- en vezelgehalte van deze drie vegetarische receptopties"
-      }
-    },
     "vital_farms_sec_financials": {
       "title": {
         "text": "Vital Farms SEC-jaarcijfers"
@@ -11109,6 +10971,70 @@
       },
       "follow_up_6": {
         "text": "Vergelijk verschillende methoden om gesproken ideeën om te zetten in georganiseerde taken"
+      }
+    },
+    "vegetarian_recipes_from_fridge_vegetables": {
+      "title": {
+        "text": "Vegetarische receptideeën met koelkastvoorraad"
+      },
+      "summary": {
+        "text": "Gebruiker vroeg om vegetarische receptideeën met spinazie, wortels, paprika en kikkererwten; de assistent gaf drie opties."
+      },
+      "message_1": {
+        "text": "Aanbevelingen voor vegetarische recepten? Ik heb nog spinazie, wortels, paprika en kikkererwten in de koelkast liggen."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\nMet **spinazie, wortels, paprika en kikkererwten** heb je een uitstekende basis voor heerlijke, vezelrijke vegetarische maaltijden. \n\nHier zijn drie verschillende culinaire richtingen, afhankelijk van waar je trek in hebt:\n\n---\n\n### 1. Fris & Knapperig: Thaise Chopped Salad\nAls je iets snels, lichts en knapperigs wilt, combineer dan fijngehakte rauwe paprika, wortels en spinazie met kikkererwten in een frisse [pindadressing](wiki:Peanut) met limoen.\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. Hartige Koekjes: Krokante Kikkererwten- & Groentefritters\nAls je zin hebt in iets warms en hapklaars (lekker in wraps, pita's of met een yoghurtdip), prak dan de kikkererwten en meng er fijngehakte wortels, paprika en geslonken spinazie doorheen.\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. Snel Doordeweeks Alternatief: Warme Kikkererwten- & Groentecurry uit de pan\nAls je een eenpansgerecht wilt maken met basisproducten uit de voorraadkast (zoals kokosmelk uit blik of tomatenblokjes):\n1. **Fruit de smaakmakers:** Verhit olijfolie in een koekenpan en bak gesnipperde ui, fijngehakte knoflook en gember tot het geurt.\n2. **Voeg de stevige groenten toe:** Snijd de wortels en paprika in hapklare stukjes. Voeg ze toe samen met gemalen komijn, [kurkuma](wiki:Turmeric) en een snufje chilipoeder of kerriepoeder.\n3. **Laten sudderen:** Voeg de afgespoelde kikkererwten toe samen met een kopje groentebouillon of kokosmelk. Dek af en laat 10-12 minuten sudderen tot de wortels zacht zijn.\n4. **Laat de spinazie slinken:** Meng de verse spinazie er pas op het laatst doorheen gedurende 1-2 minuten tot deze felgroen en geslonken is. Maak af met een kneepje citroensap.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"Welke kookstijl heeft vandaag je voorkeur?\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"Frisse & knapperige chopped salad\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"Krokante fritters of koekjes uit de pan\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"Warme eenpanscurry of stoofschotel\" }\n  ]\n}\n```"
+      },
+      "follow_up_1": {
+        "text": "Zoek naar meer gedetailleerde instructies en volledige hoeveelheden ingrediënten voor de curry uit de koekenpan"
+      },
+      "follow_up_2": {
+        "text": "Leg uit hoe je overgebleven gebakken kikkererwtenkoekjes klaarmaakt en bewaart voor meal prep"
+      },
+      "follow_up_3": {
+        "text": "Zoek naar recepten voor veganistische yoghurtdips die goed passen bij kikkererwtenkoekjes"
+      },
+      "follow_up_4": {
+        "text": "Lijst met eenvoudige kruidenvervangers als ik geen kerriepoeder heb voor de maaltijd uit de koekenpan"
+      },
+      "follow_up_5": {
+        "text": "Zoek naar alternatieve dressingrecepten met tahini voor de Thaise gehakte salade"
+      },
+      "follow_up_6": {
+        "text": "Vergelijk het eiwit- en vezelgehalte van deze drie vegetarische receptopties"
+      }
+    },
+    "air_fryers_amazon_germany": {
+      "title": {
+        "text": "Airfryers vergelijken in Duitsland"
+      },
+      "summary": {
+        "text": "Vergeleek de beste airfryers op Amazon Duitsland op basis van prijs, capaciteit en beoordelingen, met een aanbeveling voor de Philips Airfryer 2000-serie voor een tweepersoonshuishouden."
+      },
+      "message_1": {
+        "text": "Zoek airfryers die ik online kan kopen in Duitsland, inclusief Amazon-vermeldingen. Vergelijk de huidige prijzen, capaciteiten en beoordelingen, en raad er vervolgens een aan voor een tweepersoonshuishouden met bronvermeldingen."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\nHier is een vergelijking van de best beoordeelde airfryers die momenteel beschikbaar zijn op Amazon Duitsland, waarbij prijs, capaciteit en klantbeoordelingen worden vergeleken.\n\n---\n\n### Vergelijking van populaire modellen in Duitsland\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### Beste aanbeveling voor een huishouden van 2 personen\n\n#### **Eerste keuze: [Philips Airfryer 2000 Series 6,2L](embed:philips-airfryer-2000-fay)**\n\n* **Waarom dit het beste past bij twee personen:**\n  * **Optimale capaciteit (6,2 L):** Bij manden kleiner dan 4,5–5 L moet je zelfs voor twee personen in meerdere porties koken. In een mand van 6,2 L kun je twee zalmfilets en een volledige portie groenten of frietjes plat in één laag leggen voor een gelijkmatig krokant resultaat.\n  * **Ruimtebeslag in de keuken:** Dual-zone machines (zoals Ninja of Russell Hobbs) nemen veel ruimte in op het aanrecht. Een enkele mand van 6 L biedt voldoende volume terwijl hij een compact formaat behoudt dat geschikt is voor typische Duitse keukenbladen.\n  * **Transparant venster:** Hiermee kun je de bruining controleren zonder de lade te openen en warmte te verliezen.\n  * **Waarde:** Voor € 99,99 biedt het een betrouwbare temperatuurconsistentie van [Philips](wiki:Philips) voor een redelijke prijs.\n\n#### **Alternatief (als je vaak twee gerechten op verschillende temperaturen bereidt): [Philips Dual Basket 3000 Series (9,0 L)](embed:philips-airfryer-dual-pjD)**\nAls jij en je partner liever proteïnen en bijgerechten tegelijkertijd bereiden op verschillende temperaturen en tijden (bijv. kipfilets op 180 °C en krokante aardappeltjes op 200 °C), dan is dit model momenteel afgeprijsd naar € 119,99 en beschikt het over gesynchroniseerde bereidingstijden.\n\n---\n\n### Belangrijke factoren om te overwegen voor aankoop\n1. **Vorm van de lade:** Vierkante manden (zoals Cosori and Philips) zijn veel geschikter voor platte items (steaks, bakvormen, spiesen) dan ronde manden met een identieke inhoud in liters.\n2. **Ruimte in de vaatwasser:** Zorg ervoor dat je vaatwasser genoeg hoogte heeft voor een enkele lade van 6 L, of overweeg om antiaanbaklagen met de hand te wassen om de levensduur te verlengen."
+      },
+      "follow_up_1": {
+        "text": "Zoek recepten die specifiek zijn ontworpen voor airfryers"
+      },
+      "follow_up_2": {
+        "text": "Leg de belangrijkste verschillen uit tussen airfryers met een enkele en een dubbele mand"
+      },
+      "follow_up_3": {
+        "text": "Vind compatibele bakaccessoires voor deze airfryer"
+      },
+      "follow_up_4": {
+        "text": "Toon een lijst met beginnersvriendelijke recepten voor het avondeten in een airfryer"
+      },
+      "follow_up_5": {
+        "text": "Bekijk de huidige energieverbruikscijfers voor deze modellen"
+      },
+      "follow_up_6": {
+        "text": "Vergelijk de reinigings- en onderhoudsvereisten voor keramische versus tefloncoatings"
       }
     }
   },
@@ -12898,7 +12824,7 @@
             "text": "Diensten voor het zoeken naar werk"
           },
           "description": {
-            "text": "Alleen gebruikt wanneer je naar werk zoekt. De Duitse federale arbeidsdienst en JobTech ontvangen gekozen zoektermen, locatie en toepasselijke filters via serververzoeken. Arbeitnow biedt een openbare feed die OpenMates lokaal filtert. Er worden geen OpenMates-gebruikers-ID, cv of accountgegevens verzonden. 80,000 Hours stuurt trefwoorden en land naar Algolia; Hard Problems ontvangt alleen het land. Locatie en andere filters blijven lokaal."
+            "text": "Alleen gebruikt wanneer je naar werk zoekt. De Duitse federale arbeidsdienst en JobTech ontvangen gekozen zoektermen, locatie en toepasselijke filters via serververzoeken. Arbeitnow biedt een openbare feed die OpenMates lokaal filtert. Er worden geen OpenMates-gebruikers-ID, cv of accountgegevens verzonden."
           },
           "arbeitsagentur": {
             "heading": {
@@ -12922,22 +12848,6 @@
             },
             "description": {
               "text": "OpenMates haalt de openbare vacaturefeed van Arbeitnow op. Je trefwoorden, locatie en filters worden lokaal toegepast en niet naar Arbeitnow verzonden."
-            }
-          },
-          "eighty_thousand_hours": {
-            "heading": {
-              "text": "80,000 Hours Job Board"
-            },
-            "description": {
-              "text": "Het openbare vacaturebord van 80,000 Hours gebruikt Algolia. Je trefwoorden en gekozen land worden verzonden; OpenMates controleert locatie en andere filters lokaal. Je OpenMates-gebruikers-ID, cv en accountgegevens worden niet verzonden."
-            }
-          },
-          "hard_problems": {
-            "heading": {
-              "text": "Hard Problems"
-            },
-            "description": {
-              "text": "OpenMates haalt de openbare vacaturefeed van Hard Problems op voor je gekozen land. Trefwoorden, locatie en andere filters worden lokaal gecontroleerd en niet naar Hard Problems verzonden. Je OpenMates-gebruikers-ID, cv en accountgegevens worden niet verzonden."
             }
           }
         }
@@ -16469,16 +16379,6 @@
       }
     },
     "app_store_examples": {
-      "jobs": {
-        "search": {
-          "1": {
-            "text": "Vacatures voor softwareontwikkelaars in Stockholm"
-          },
-          "2": {
-            "text": "Vacatures voor softwareontwikkelaars in Malmö"
-          }
-        }
-      },
       "hosting": {
         "search_domains": {
           "1": {

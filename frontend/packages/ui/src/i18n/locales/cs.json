@@ -7892,48 +7892,6 @@
           "text": "Soubory v tomto projektu"
         }
       }
-    },
-    "jobs": {
-      "search": {
-        "result_count": {
-          "text": "{count} pracovních nabídek"
-        },
-        "partial_results": {
-          "text": "Některé zdroje nebyly dostupné"
-        },
-        "result": {
-          "title": {
-            "text": "Pracovní nabídka"
-          },
-          "remote": {
-            "text": "Na dálku"
-          },
-          "published": {
-            "text": "Zveřejněno"
-          },
-          "source": {
-            "text": "Zobrazit na {provider}"
-          },
-          "listing": {
-            "text": "zdroj nabídky"
-          },
-          "apply": {
-            "text": "Otevřít stránku přihlášky"
-          },
-          "company": {
-            "text": "Společnost"
-          },
-          "employment_type": {
-            "text": "Typ úvazku"
-          },
-          "salary": {
-            "text": "Plat"
-          },
-          "description": {
-            "text": "Popis"
-          }
-        }
-      }
     }
   },
   "enter_message": {
@@ -8497,38 +8455,6 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"e7002718-62f4-43b0-9078-1ab77993edc0\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI workshop\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b110fb02-f635-45b1-8ba7-aaf75b3f7de7\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI meetup\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b2b2b2a7-6b9c-464d-a86e-86ceafcd3bcc\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"build with AI\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"0e453b88-1f20-43fc-9aa1-aad8aab6ae8a\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"top AI developer meetups Berlin 2026 for beginners\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"c7b51044-a947-4471-a287-496459454ad6\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Berlin AI builder communities and recurring workshops\", \"provider\": \"Brave\"}\n```\n\nBerlin has one of Europe's most active [AI](wiki:Artificial_intelligence) builder scenes, transitioning from general theory to practical \"hands-on\" engineering. For someone learning to build with AI tools, the focus in June 2026 is heavily on [AI agents](wiki:Software_agent), [RAG (Retrieval-Augmented Generation)](wiki:Retrieval-augmented_generation), and production-ready architectures.\n\nHere are the top upcoming workshops and meetups in Berlin where you can build, demo, and learn from other practitioners.\n\n### Featured Hands-On Workshops\nThese sessions are specifically designed for those who want to write code and build prototypes.\n\n*   **BLISS x QuantCo: Build Your Own AI Agent**\n    *   **Date:** June 10, 2026 | 17:30\n    *   **Location:** Berlin-Mitte (Altonaer Str. 26)\n    *   **Focus:** An interactive session transitioning from [LLM APIs](wiki:Large_language_model) to building a custom agent that automates complex document workflows. **Bring your laptop.**\n    *   [Event Details & RSVP](embed:bliss-x-quantco-dWg)\n*   **Open Source Europe Tour: AI in Practice**\n    *   **Date:** June 8, 2026 | 17:30\n    *   **Location:** Netlight Consulting (Invalidenstraße 117)\n    *   **Focus:** A \"hype-free\" walkthrough of modern AI, explaining Agentic AI, fine-tuning vs. RAG, and connecting AI to data architectures.\n    *   [Event Details & RSVP](embed:open-source-europe-S4k)\n*   **AI Future-Club Kickoff (Hackers / Founders)**\n    *   **Date:** June 11, 2026 | 18:00\n    *   **Location:** TBD (Berlin)\n    *   **Focus:** A session for developers to \"get their hands dirty,\" discussing what to build and ship together, featuring live demos of recent projects.\n    *   [Event Details & RSVP](embed:ai-future-club-XOk)\n\n### Community Meetups for Builders\nThese events are excellent for networking and seeing what other local developers are currently building.\n\n*   **OpenClaw Anonymous Berlin #9**\n    *   **Date:** June 9, 2026 | 19:00\n    *   **Location:** w3.hub (Möckernstraße 120)\n    *   **Focus:** Informal \"laptop-out\" meetup where people showcase OpenClaw and AI agent setups. Perfect for sharing what works and what doesn't.\n    *   [Event Details & RSVP](embed:openclaw-anonymous-berlin-JA8)\n*   **AI Tinkerers Berlin**\n    *   **Date:** June 17, 2026\n    *   **Focus:** A screened, demo-first, \"no-pitch\" community. Expect live code, architecture lessons, and technical Q&A from local founders and engineers.\n    *   Berlin AI Tinkerers Portal\n*   **Spec-Driven Development: AI for Full-Stack Java**\n    *   **Date:** June 9, 2026 | 18:30\n    *   **Location:** Capgemini (Potsdamer Platz 5)\n    *   **Focus:** Learning how AI can generate code, diagrams, and tests from structured specifications.\n    *   [Event Details & RSVP](embed:spec-driven-development-rxI)\n\n### Key Hubs to Follow\nIf you want to stay in the loop, these organizations host the majority of builder-centric AI events in Berlin:\n\n*   **Merantix AI Campus**: Located in Nord-Mitte, this 6,000m² campus is the heart of the Berlin AI ecosystem, hosting weekly reading groups and tech talks.\n    *   Campus Events Calendar\n*   **BLISS (Berlin AI Community)**: A student and professional community that organizes high-quality workshops and speaker series.\n    *   BLISS Official Site\n*   **[CODE University](wiki:CODE_University_of_Applied_Sciences)**: Often hosts \"Global AI Bootcamps\" and hands-on sessions for students and the public at their Delta Campus in Neukölln.\n\n### Practical Tips for Joining\n1.  **RSVP Early:** Many of these events (especially the BLISS and Tinkerers sessions) have limited spots and require screening or early registration.\n2.  **Bring a Laptop:** Most \"workshops\" expect you to follow along with code. Ensure you have a local environment or a [GitHub](wiki:GitHub) account ready.\n3.  **Join the Slacks:** Groups like AI Tinkerers and [Hackers/Founders](/#settings/apps/web) have local Slack/Discord channels where most \"last-minute\" build sessions are organized.\n\nWould you like me to help you find more specific resources for a particular AI tool you're learning, such as [PyTorch](wiki:PyTorch) or [LangChain](wiki:LangChain)?\n\n**Next Steps:**\n- [Browse more AI events in Berlin](/#settings/apps/events)\n- [Search for AI tutorials on YouTube](/#settings/apps/videos)"
-      }
-    },
-    "air_fryers_amazon_germany": {
-      "title": {
-        "text": "Srovnání horkovzdušných fritéz v Německu"
-      },
-      "summary": {
-        "text": "Srovnání nejlepších horkovzdušných fritéz na německém Amazonu podle ceny, kapacity a hodnocení s doporučením modelu Philips Airfryer řady 2000 pro dvoučlennou domácnost."
-      },
-      "message_1": {
-        "text": "Najdi horkovzdušné fritézy, které si můžu koupit online v Německu, včetně nabídek na Amazonu. Porovnej aktuální ceny, kapacity a hodnocení a poté doporuč jednu pro dvoučlennou domácnost i s odkazy na zdroje."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\nZde je srovnání nejlépe hodnocených horkovzdušných fritéz aktuálně dostupných na Amazon Germany, které porovnává cenu, kapacitu a hodnocení zákazníků.\n\n---\n\n### Srovnání oblíbených modelů v Německu\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### Hlavní doporučení pro domácnost o 2 osobách\n\n#### **Hlavní volba: [Philips Airfryer 2000 Series 6,2 l](embed:philips-airfryer-2000-fay)**\n\n* **Proč se nejlépe hodí pro dva lidi:**\n  * **Optimální kapacita (6,2 l):** Košíky menší než 4,5–5 l vyžadují vaření ve více dávkách i pro dvě osoby. Košík o objemu 6,2 l ti umožní položit dva filety z lososa a celou přílohu ze zeleniny nebo hranolek naplocho v jedné vrstvě pro rovnoměrné propečení.\n  * **Prostorová náročnost:** Dvouzónové přístroje (jako Ninja nebo Russell Hobbs) zabírají na lince značné množství místa. Jeden 6l košík poskytuje dostatečný objem při zachování kompaktních rozměrů vhodných pro typické německé kuchyňské pracovní desky.\n  * **Průhledné okénko:** Umožňuje kontrolovat míru opečení bez nutnosti vysouvat zásuvku a ztrácet teplo.\n  * **Poměr cena/výkon:** Za 99,99 € nabízí spolehlivou konzistenci teploty od značky [Philips](wiki:Philips) za rozumnou cenu.\n\n#### **Alternativa (pokud často připravuješ dva pokrmy při různých teplotách): [Philips Dual Basket 3000 Series (9,0 l)](embed:philips-airfryer-dual-pjD)**\nPokud s partnerem dáváte přednost přípravě bílkovin a zeleninových příloh současně při různých teplotách a časech (např. kuřecí prsa na 180 °C a křupavé brambory na 200 °C), je tento model aktuálně zlevněn na 119,99 € a disponuje funkcí synchronizovaného času vaření.\n\n---\n\n### Klíčové faktory, které je třeba zvážit před nákupem\n1. **Tvar zásuvky:** Čtvercové košíky (jako Cosori a Philips) pojmou ploché potraviny (steaky, pečicí formy, špízy) mnohem lépe než kulaté košíky o stejném objemu v litrech.\n2. **Místo v myčce:** Ujisti se, že tvoje myčka má dostatečnou výšku koše pro jednu 6l zásuvku, nebo zvaž ruční mytí nepřilnavých povrchů pro prodloužení jejich životnosti."
-      },
-      "follow_up_1": {
-        "text": "Vyhledat recepty určené speciálně pro horkovzdušné fritézy"
-      },
-      "follow_up_2": {
-        "text": "Vysvětlit hlavní rozdíly mezi fritézami s jedním a dvěma koši"
-      },
-      "follow_up_3": {
-        "text": "Najít kompatibilní příslušenství na pečení pro tuto fritézu"
-      },
-      "follow_up_4": {
-        "text": "Vypsat recepty na večeři z horkovzdušné fritézy vhodné pro začátečníky"
-      },
-      "follow_up_5": {
-        "text": "Zkontrolovat aktuální hodnocení spotřeby energie u těchto modelů"
-      },
-      "follow_up_6": {
-        "text": "Porovnat nároky na čištění a údržbu u keramických a teflonových povrchů"
       }
     },
     "artemis_ii_mission": {
@@ -9771,38 +9697,6 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"3a8114d9-0472-4627-9a73-8d331bef481f\", \"app_id\": \"images\", \"skill_id\": \"vectorize\"}\n```\n\nI'll convert that image to SVG for you now.Your SVG vectorization is processing! The conversion is underway and I'll update you once it's complete. This typically takes a moment as the system traces the raster image and converts it into scalable vector paths."
       }
     },
-    "jobs_in_sweden": {
-      "title": {
-        "text": "Práce pro vývojáře ve Švédsku"
-      },
-      "summary": {
-        "text": "Porovnej aktuální nabídky práce pro vývojáře ve Stockholmu a Malmö s původními inzeráty a ověřenými informacemi o pracovišti."
-      },
-      "message_1": {
-        "text": "Najdi dvě aktuální pracovní pozice pro softwarové vývojáře ve Stockholmu a dvě v Malmö ze švédských veřejných služeb zaměstnanosti. U každé uveď krátký bod s názvem, zaměstnavatelem, městem pracoviště a odkazem na původní inzerát. Údaj o platu nebo možnosti práce z domova uveď pouze tehdy, pokud je v daném inzerátu výslovně uveden; jinak uveď, že není uveden. Odpověď udrž pod 200 slov."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"ea23f42b-6a8d-4faf-912d-988d2ba20cf4\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"a9fafbeb-7f05-42d5-9dcd-cbc752f42ffd\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\nAktuální nabídky práce pro softwarové vývojáře z Arbetsförmedlingen (Platsbanken):\n\n### Stockholm\n\n* **Pozice:** Senior Systemutvecklare  \n  **Zaměstnavatel:** NXT Interim Stockholm AB  \n  **Město pracoviště:** Stockholm  \n  **Odkaz na původní inzerát:** [Platsbanken annons 31589252](embed:senior-systemutvecklare-2ps)  \n  **Plat:** Neuvedeno  \n  **Práce z domova:** Nabízí vzdálená pracoviště (*remote-arbetsplatser*)\n\n* **Pozice:** Javautvecklare  \n  **Zaměstnavatel:** AFRY AB  \n  **Město pracoviště:** Stockholm  \n  **Odkaz na původní inzerát:** [Platsbanken annons 31588186](embed:javautvecklare-y47)  \n  **Plat:** Neuvedeno  \n  **Práce z domova:** Možnost hybridní práce (*möjlighet till hybridarbete*)\n\n---\n\n### Malmö\n\n* **Pozice:** Senior AI Engineer  \n  **Zaměstnavatel:** Iver Accelerate AB  \n  **Město pracoviště:** Malmö  \n  **Odkaz na původní inzerát:** [Platsbanken annons 31588387](embed:senior-ai-engineer-Duw)  \n  **Plat:** Neuvedeno  \n  **Práce z domova:** Možnost hybridní práce (*möjlighet till hybridarbete*)\n\n* **Pozice:** Malmö: Systemutvecklare Affärssystem Hybrid  \n  **Zaměstnavatel:** Jobbakuten Väst AB  \n  **Město pracoviště:** Malmö  \n  **Odkaz na původní inzerát:** [Platsbanken annons 31574628](embed:malm-systemutvecklare-aff-umf)  \n  **Plat:** Neuvedeno (v inzerátu je uveden tržní plat bez konkrétní částky)  \n  **Práce z domova:** Hybridní práce (*Hybridarbete*)"
-      },
-      "follow_up_1": {
-        "text": "Hledej remote pozice pro softwarové vývojáře v Göteborgu"
-      },
-      "follow_up_2": {
-        "text": "Porovnej požadavky na tyto pozice pro seniorní vývojáře"
-      },
-      "follow_up_3": {
-        "text": "Hledej pozice pro frontend vývojáře ve Stockholmu"
-      },
-      "follow_up_4": {
-        "text": "Vypiš nejčastější technologické stacky zmíněné v těchto inzerátech"
-      },
-      "follow_up_5": {
-        "text": "Hledej inzeráty pro juniorní vývojáře ve Švédsku"
-      },
-      "follow_up_6": {
-        "text": "Shrň trendy v oblasti práce na dálku ve švédských technologických pozicích"
-      }
-    },
     "launch_readiness_checklist_doc": {
       "title": {
         "text": "Launch readiness checklist document"
@@ -11015,38 +10909,6 @@
         "text": "Vysvětli výběr blokovacích kondenzátorů"
       }
     },
-    "vegetarian_recipes_from_fridge_vegetables": {
-      "title": {
-        "text": "Vegetariánské recepty ze zásob v lednici"
-      },
-      "summary": {
-        "text": "Uživatel požádal o nápady na vegetariánské recepty ze špenátu, mrkve, paprik a cizrny; asistent nabídl tři možnosti."
-      },
-      "message_1": {
-        "text": "Doporučení na vegetariánské recepty? V lednici mám ještě špenát, mrkev, papriky a cizrnu."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\nSe **špenátem, mrkví, paprikou a cizrnou** máš skvělý základ pro chutná vegetariánská jídla bohatá na vlákninu. \n\nTady jsou tři různé kulinářské směry podle toho, na jaký styl jídla máš zrovna chuť:\n\n---\n\n### 1. Svěží a křupavé: Thajský sekaný salát\nPokud chceš něco rychlého, lehkého a křupavého, smíchej nadrobno nakrájenou syrovou papriku, mrkev a špenát s cizrnou v pikantním [arašídovém](wiki:Peanut) limetkovém dresinku.\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. Slané placičky: Křupavé cizrnovo-zeleninové placičky\nPokud chceš něco teplého a akorát do ruky (skvělé do wrapů, pita chleba nebo s jogurtovým dipem), rozmačkej cizrnu a vmíchej do ní nadrobno nakrájenou mrkev, papriku a spařený špenát.\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. Rychlá alternativa k večeři: Teplé cizrnovo-zeleninové kari z pánve\nPokud chceš jídlo z jedné pánve ze základních surovin ze spíže (jako je kokosové mléko v plechovce nebo drcená rajčata):\n1. **Orestuj základ:** Na pánvi rozehřej olivový olej a osmahni nadrobno nakrájenou cibuli, česnek a zázvor, dokud se nerozvoní.\n2. **Přidej tvrdší zeleninu:** Nakrájej mrkev a papriku na kousky velikosti sousta. Přidej je k základu spolu s mletým římským kmínem, [kurkumou](wiki:Turmeric) a špetkou chilli nebo kari koření.\n3. **Povař:** Přidej propláchnutou cizrnu spolu s hrnkem zeleninového vývaru nebo kokosového mléka. Přikryj a vař 10–12 minut, dokud mrkev nezměkne.\n4. **Nech zavadnout špenát:** Úplně nakonec vmíchej čerstvý špenát a nechej ho 1–2 minuty zavadnout, dokud nebude mít zářivě zelenou barvu. Dokonči zastříknutím citronovou šťávou.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"Který styl vaření bys dnes chtěl/a vyzkoušet?\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"Svěží a křupavý sekaný salát\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"Křupavé smažené placičky\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"Teplé kari nebo směs z jedné pánve\" }\n  ]\n}\n```"
-      },
-      "follow_up_1": {
-        "text": "Vyhledej podrobnější pokyny a přesné množství ingrediencí pro kari z pánve"
-      },
-      "follow_up_2": {
-        "text": "Vysvětli, jak připravit a skladovat zbylé cizrnové placičky pro pozdější konzumaci"
-      },
-      "follow_up_3": {
-        "text": "Vyhledej recepty na veganské jogurtové dipy, které se hodí k cizrnovým placičkám"
-      },
-      "follow_up_4": {
-        "text": "Vyjmenuj jednoduché náhrady koření, pokud mi na kari z pánve chybí kari koření"
-      },
-      "follow_up_5": {
-        "text": "Vyhledej alternativní recepty na dresink s použitím tahini pro thajský sekaný salát"
-      },
-      "follow_up_6": {
-        "text": "Porovnej obsah bílkovin a vlákniny u těchto tří vegetariánských receptů"
-      }
-    },
     "vital_farms_sec_financials": {
       "title": {
         "text": "Finanční výkazy Vital Farms pro SEC"
@@ -11109,6 +10971,70 @@
       },
       "follow_up_6": {
         "text": "Porovnat různé metody převodu mluvených nápadů na uspořádané úkoly"
+      }
+    },
+    "vegetarian_recipes_from_fridge_vegetables": {
+      "title": {
+        "text": "Vegetariánské recepty ze zásob v lednici"
+      },
+      "summary": {
+        "text": "Uživatel požádal o nápady na vegetariánské recepty ze špenátu, mrkve, paprik a cizrny; asistent nabídl tři možnosti."
+      },
+      "message_1": {
+        "text": "Doporučení na vegetariánské recepty? V lednici mám ještě špenát, mrkev, papriky a cizrnu."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\nSe **špenátem, mrkví, paprikou a cizrnou** máš skvělý základ pro chutná vegetariánská jídla bohatá na vlákninu. \n\nTady jsou tři různé kulinářské směry podle toho, na jaký styl jídla máš zrovna chuť:\n\n---\n\n### 1. Svěží a křupavé: Thajský sekaný salát\nPokud chceš něco rychlého, lehkého a křupavého, smíchej nadrobno nakrájenou syrovou papriku, mrkev a špenát s cizrnou v pikantním [arašídovém](wiki:Peanut) limetkovém dresinku.\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. Slané placičky: Křupavé cizrnovo-zeleninové placičky\nPokud chceš něco teplého a akorát do ruky (skvělé do wrapů, pita chleba nebo s jogurtovým dipem), rozmačkej cizrnu a vmíchej do ní nadrobno nakrájenou mrkev, papriku a spařený špenát.\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. Rychlá alternativa k večeři: Teplé cizrnovo-zeleninové kari z pánve\nPokud chceš jídlo z jedné pánve ze základních surovin ze spíže (jako je kokosové mléko v plechovce nebo drcená rajčata):\n1. **Orestuj základ:** Na pánvi rozehřej olivový olej a osmahni nadrobno nakrájenou cibuli, česnek a zázvor, dokud se nerozvoní.\n2. **Přidej tvrdší zeleninu:** Nakrájej mrkev a papriku na kousky velikosti sousta. Přidej je k základu spolu s mletým římským kmínem, [kurkumou](wiki:Turmeric) a špetkou chilli nebo kari koření.\n3. **Povař:** Přidej propláchnutou cizrnu spolu s hrnkem zeleninového vývaru nebo kokosového mléka. Přikryj a vař 10–12 minut, dokud mrkev nezměkne.\n4. **Nech zavadnout špenát:** Úplně nakonec vmíchej čerstvý špenát a nechej ho 1–2 minuty zavadnout, dokud nebude mít zářivě zelenou barvu. Dokonči zastříknutím citronovou šťávou.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"Který styl vaření bys dnes chtěl/a vyzkoušet?\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"Svěží a křupavý sekaný salát\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"Křupavé smažené placičky\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"Teplé kari nebo směs z jedné pánve\" }\n  ]\n}\n```"
+      },
+      "follow_up_1": {
+        "text": "Vyhledej podrobnější pokyny a přesné množství ingrediencí pro kari z pánve"
+      },
+      "follow_up_2": {
+        "text": "Vysvětli, jak připravit a skladovat zbylé cizrnové placičky pro pozdější konzumaci"
+      },
+      "follow_up_3": {
+        "text": "Vyhledej recepty na veganské jogurtové dipy, které se hodí k cizrnovým placičkám"
+      },
+      "follow_up_4": {
+        "text": "Vyjmenuj jednoduché náhrady koření, pokud mi na kari z pánve chybí kari koření"
+      },
+      "follow_up_5": {
+        "text": "Vyhledej alternativní recepty na dresink s použitím tahini pro thajský sekaný salát"
+      },
+      "follow_up_6": {
+        "text": "Porovnej obsah bílkovin a vlákniny u těchto tří vegetariánských receptů"
+      }
+    },
+    "air_fryers_amazon_germany": {
+      "title": {
+        "text": "Srovnání horkovzdušných fritéz v Německu"
+      },
+      "summary": {
+        "text": "Srovnání nejlepších horkovzdušných fritéz na německém Amazonu podle ceny, kapacity a hodnocení s doporučením modelu Philips Airfryer řady 2000 pro dvoučlennou domácnost."
+      },
+      "message_1": {
+        "text": "Najdi horkovzdušné fritézy, které si můžu koupit online v Německu, včetně nabídek na Amazonu. Porovnej aktuální ceny, kapacity a hodnocení a poté doporuč jednu pro dvoučlennou domácnost i s odkazy na zdroje."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\nZde je srovnání nejlépe hodnocených horkovzdušných fritéz aktuálně dostupných na Amazon Germany, které porovnává cenu, kapacitu a hodnocení zákazníků.\n\n---\n\n### Srovnání oblíbených modelů v Německu\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### Hlavní doporučení pro domácnost o 2 osobách\n\n#### **Hlavní volba: [Philips Airfryer 2000 Series 6,2 l](embed:philips-airfryer-2000-fay)**\n\n* **Proč se nejlépe hodí pro dva lidi:**\n  * **Optimální kapacita (6,2 l):** Košíky menší než 4,5–5 l vyžadují vaření ve více dávkách i pro dvě osoby. Košík o objemu 6,2 l ti umožní položit dva filety z lososa a celou přílohu ze zeleniny nebo hranolek naplocho v jedné vrstvě pro rovnoměrné propečení.\n  * **Prostorová náročnost:** Dvouzónové přístroje (jako Ninja nebo Russell Hobbs) zabírají na lince značné množství místa. Jeden 6l košík poskytuje dostatečný objem při zachování kompaktních rozměrů vhodných pro typické německé kuchyňské pracovní desky.\n  * **Průhledné okénko:** Umožňuje kontrolovat míru opečení bez nutnosti vysouvat zásuvku a ztrácet teplo.\n  * **Poměr cena/výkon:** Za 99,99 € nabízí spolehlivou konzistenci teploty od značky [Philips](wiki:Philips) za rozumnou cenu.\n\n#### **Alternativa (pokud často připravuješ dva pokrmy při různých teplotách): [Philips Dual Basket 3000 Series (9,0 l)](embed:philips-airfryer-dual-pjD)**\nPokud s partnerem dáváte přednost přípravě bílkovin a zeleninových příloh současně při různých teplotách a časech (např. kuřecí prsa na 180 °C a křupavé brambory na 200 °C), je tento model aktuálně zlevněn na 119,99 € a disponuje funkcí synchronizovaného času vaření.\n\n---\n\n### Klíčové faktory, které je třeba zvážit před nákupem\n1. **Tvar zásuvky:** Čtvercové košíky (jako Cosori a Philips) pojmou ploché potraviny (steaky, pečicí formy, špízy) mnohem lépe než kulaté košíky o stejném objemu v litrech.\n2. **Místo v myčce:** Ujisti se, že tvoje myčka má dostatečnou výšku koše pro jednu 6l zásuvku, nebo zvaž ruční mytí nepřilnavých povrchů pro prodloužení jejich životnosti."
+      },
+      "follow_up_1": {
+        "text": "Vyhledat recepty určené speciálně pro horkovzdušné fritézy"
+      },
+      "follow_up_2": {
+        "text": "Vysvětlit hlavní rozdíly mezi fritézami s jedním a dvěma koši"
+      },
+      "follow_up_3": {
+        "text": "Najít kompatibilní příslušenství na pečení pro tuto fritézu"
+      },
+      "follow_up_4": {
+        "text": "Vypsat recepty na večeři z horkovzdušné fritézy vhodné pro začátečníky"
+      },
+      "follow_up_5": {
+        "text": "Zkontrolovat aktuální hodnocení spotřeby energie u těchto modelů"
+      },
+      "follow_up_6": {
+        "text": "Porovnat nároky na čištění a údržbu u keramických a teflonových povrchů"
       }
     }
   },
@@ -12898,7 +12824,7 @@
             "text": "Služby hledání práce"
           },
           "description": {
-            "text": "Používají se jen při hledání práce. Německá Spolková agentura práce a JobTech dostávají vybrané výrazy, místo a použitelné filtry v serverových požadavcích. Arbeitnow poskytuje veřejný kanál, který OpenMates filtruje lokálně. ID uživatele OpenMates, životopis ani přihlašovací údaje se neodesílají. 80,000 Hours posílá klíčová slova a zemi Algolii; Hard Problems dostává jen zemi. Místo a další filtry se kontrolují lokálně."
+            "text": "Používají se jen při hledání práce. Německá Spolková agentura práce a JobTech dostávají vybrané výrazy, místo a použitelné filtry v serverových požadavcích. Arbeitnow poskytuje veřejný kanál, který OpenMates filtruje lokálně. ID uživatele OpenMates, životopis ani přihlašovací údaje se neodesílají."
           },
           "arbeitsagentur": {
             "heading": {
@@ -12922,22 +12848,6 @@
             },
             "description": {
               "text": "OpenMates načítá veřejný kanál nabídek Arbeitnow. Klíčová slova, místo a filtry se použijí lokálně a Arbeitnow se neodesílají."
-            }
-          },
-          "eighty_thousand_hours": {
-            "heading": {
-              "text": "80,000 Hours Job Board"
-            },
-            "description": {
-              "text": "Veřejná nabídka práce 80,000 Hours používá vyhledávání Algolia. Odesílají se klíčová slova a zvolená země; místo a další filtry OpenMates kontroluje lokálně. ID uživatele, životopis ani údaje účtu se neodesílají."
-            }
-          },
-          "hard_problems": {
-            "heading": {
-              "text": "Hard Problems"
-            },
-            "description": {
-              "text": "OpenMates načítá veřejný kanál Hard Problems pro zvolenou zemi. Klíčová slova, místo a další filtry kontroluje lokálně a neposílá je Hard Problems. ID uživatele, životopis ani údaje účtu se neodesílají."
             }
           }
         }
@@ -16469,16 +16379,6 @@
       }
     },
     "app_store_examples": {
-      "jobs": {
-        "search": {
-          "1": {
-            "text": "Práce pro vývojáře softwaru ve Stockholmu"
-          },
-          "2": {
-            "text": "Práce pro vývojáře softwaru v Malmö"
-          }
-        }
-      },
       "hosting": {
         "search_domains": {
           "1": {

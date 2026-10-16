@@ -1940,6 +1940,7 @@ async def call_main_llm_stream(
     thinking_level: Optional[str] = None,
     native_cache_context: Optional[Dict[str, Any]] = None,
     failed_servers_in_turn: Optional[set[str]] = None,
+    private_logging: bool = False,
 ) -> AsyncIterator[str]:
     # Anonymous accounting reserves one dispatched attempt at a time. Returning
     # failures to its caller preserves ambiguous holds and makes any retry earn
@@ -1990,7 +1991,7 @@ async def call_main_llm_stream(
 
     # Log the exact input being sent to the LLM
     logger.info(f"{log_prefix} Message history transformation: {len(message_history)} input messages -> {len(transformed_user_assistant_messages)} transformed messages")
-    if native_cache_context is not None:
+    if native_cache_context is not None or private_logging:
         logger.debug(
             "%s Provider payload prepared with native replay context; ordinary_history_messages=%d",
             log_prefix, len(llm_api_messages),
@@ -2624,7 +2625,7 @@ async def call_main_llm_stream(
                             error_msg = chunk.strip()
                             reported_error = (
                                 "Provider emitted a stream error marker (details redacted)"
-                                if native_cache_context is not None else error_msg
+                                if native_cache_context is not None or private_logging else error_msg
                             )
                             logger.error("%s Provider emitted stream error marker: %s",
                                          attempt_log_prefix, reported_error)
@@ -2671,7 +2672,7 @@ async def call_main_llm_stream(
                     error_msg = f"Stream timeout: {str(timeout_err)}"
                     reported_error = (
                         "Stream timeout (details redacted)"
-                        if native_cache_context is not None else error_msg
+                        if native_cache_context is not None or private_logging else error_msg
                     )
                     logger.error("%s %s", attempt_log_prefix, reported_error)
                     last_error = reported_error
@@ -2711,10 +2712,10 @@ async def call_main_llm_stream(
             error_msg = str(e)
             reported_error = (
                 f"{type(e).__name__} (details redacted)"
-                if native_cache_context is not None else error_msg
+                if native_cache_context is not None or private_logging else error_msg
             )
             logger.error("%s Client or stream error: %s", attempt_log_prefix,
-                         reported_error, exc_info=native_cache_context is None)
+                         reported_error, exc_info=native_cache_context is None and not private_logging)
             last_error = reported_error
             _mark_failed_server(server_model_id)
             if stop_after_provider_failure or (recoverable_attempt and _any_content_yielded):
@@ -2768,11 +2769,11 @@ async def call_main_llm_stream(
             error_msg = str(e)
             reported_error = (
                 f"{type(e).__name__} (details redacted)"
-                if native_cache_context is not None else error_msg
+                if native_cache_context is not None or private_logging else error_msg
             )
             logger.error("%s Unexpected error during main LLM stream: %s",
                          attempt_log_prefix, reported_error,
-                         exc_info=native_cache_context is None)
+                         exc_info=native_cache_context is None and not private_logging)
             last_error = reported_error
             _mark_failed_server(server_model_id)
             if stop_after_provider_failure or (recoverable_attempt and _any_content_yielded):

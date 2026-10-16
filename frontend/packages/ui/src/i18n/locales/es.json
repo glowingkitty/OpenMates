@@ -7919,48 +7919,6 @@
           "text": "Archivos de este proyecto"
         }
       }
-    },
-    "jobs": {
-      "search": {
-        "result_count": {
-          "text": "{count} empleos"
-        },
-        "partial_results": {
-          "text": "Algunas fuentes no estaban disponibles"
-        },
-        "result": {
-          "title": {
-            "text": "Oferta de empleo"
-          },
-          "remote": {
-            "text": "Remoto"
-          },
-          "published": {
-            "text": "Publicado"
-          },
-          "source": {
-            "text": "Ver en {provider}"
-          },
-          "listing": {
-            "text": "fuente del anuncio"
-          },
-          "apply": {
-            "text": "Abrir página de solicitud"
-          },
-          "company": {
-            "text": "Empresa"
-          },
-          "employment_type": {
-            "text": "Tipo de empleo"
-          },
-          "salary": {
-            "text": "Salario"
-          },
-          "description": {
-            "text": "Descripción"
-          }
-        }
-      }
     }
   },
   "enter_message": {
@@ -8524,38 +8482,6 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"e7002718-62f4-43b0-9078-1ab77993edc0\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI workshop\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b110fb02-f635-45b1-8ba7-aaf75b3f7de7\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI meetup\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b2b2b2a7-6b9c-464d-a86e-86ceafcd3bcc\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"build with AI\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"0e453b88-1f20-43fc-9aa1-aad8aab6ae8a\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"top AI developer meetups Berlin 2026 for beginners\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"c7b51044-a947-4471-a287-496459454ad6\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Berlin AI builder communities and recurring workshops\", \"provider\": \"Brave\"}\n```\n\nBerlin has one of Europe's most active [AI](wiki:Artificial_intelligence) builder scenes, transitioning from general theory to practical \"hands-on\" engineering. For someone learning to build with AI tools, the focus in June 2026 is heavily on [AI agents](wiki:Software_agent), [RAG (Retrieval-Augmented Generation)](wiki:Retrieval-augmented_generation), and production-ready architectures.\n\nHere are the top upcoming workshops and meetups in Berlin where you can build, demo, and learn from other practitioners.\n\n### Featured Hands-On Workshops\nThese sessions are specifically designed for those who want to write code and build prototypes.\n\n*   **BLISS x QuantCo: Build Your Own AI Agent**\n    *   **Date:** June 10, 2026 | 17:30\n    *   **Location:** Berlin-Mitte (Altonaer Str. 26)\n    *   **Focus:** An interactive session transitioning from [LLM APIs](wiki:Large_language_model) to building a custom agent that automates complex document workflows. **Bring your laptop.**\n    *   [Event Details & RSVP](embed:bliss-x-quantco-dWg)\n*   **Open Source Europe Tour: AI in Practice**\n    *   **Date:** June 8, 2026 | 17:30\n    *   **Location:** Netlight Consulting (Invalidenstraße 117)\n    *   **Focus:** A \"hype-free\" walkthrough of modern AI, explaining Agentic AI, fine-tuning vs. RAG, and connecting AI to data architectures.\n    *   [Event Details & RSVP](embed:open-source-europe-S4k)\n*   **AI Future-Club Kickoff (Hackers / Founders)**\n    *   **Date:** June 11, 2026 | 18:00\n    *   **Location:** TBD (Berlin)\n    *   **Focus:** A session for developers to \"get their hands dirty,\" discussing what to build and ship together, featuring live demos of recent projects.\n    *   [Event Details & RSVP](embed:ai-future-club-XOk)\n\n### Community Meetups for Builders\nThese events are excellent for networking and seeing what other local developers are currently building.\n\n*   **OpenClaw Anonymous Berlin #9**\n    *   **Date:** June 9, 2026 | 19:00\n    *   **Location:** w3.hub (Möckernstraße 120)\n    *   **Focus:** Informal \"laptop-out\" meetup where people showcase OpenClaw and AI agent setups. Perfect for sharing what works and what doesn't.\n    *   [Event Details & RSVP](embed:openclaw-anonymous-berlin-JA8)\n*   **AI Tinkerers Berlin**\n    *   **Date:** June 17, 2026\n    *   **Focus:** A screened, demo-first, \"no-pitch\" community. Expect live code, architecture lessons, and technical Q&A from local founders and engineers.\n    *   Berlin AI Tinkerers Portal\n*   **Spec-Driven Development: AI for Full-Stack Java**\n    *   **Date:** June 9, 2026 | 18:30\n    *   **Location:** Capgemini (Potsdamer Platz 5)\n    *   **Focus:** Learning how AI can generate code, diagrams, and tests from structured specifications.\n    *   [Event Details & RSVP](embed:spec-driven-development-rxI)\n\n### Key Hubs to Follow\nIf you want to stay in the loop, these organizations host the majority of builder-centric AI events in Berlin:\n\n*   **Merantix AI Campus**: Located in Nord-Mitte, this 6,000m² campus is the heart of the Berlin AI ecosystem, hosting weekly reading groups and tech talks.\n    *   Campus Events Calendar\n*   **BLISS (Berlin AI Community)**: A student and professional community that organizes high-quality workshops and speaker series.\n    *   BLISS Official Site\n*   **[CODE University](wiki:CODE_University_of_Applied_Sciences)**: Often hosts \"Global AI Bootcamps\" and hands-on sessions for students and the public at their Delta Campus in Neukölln.\n\n### Practical Tips for Joining\n1.  **RSVP Early:** Many of these events (especially the BLISS and Tinkerers sessions) have limited spots and require screening or early registration.\n2.  **Bring a Laptop:** Most \"workshops\" expect you to follow along with code. Ensure you have a local environment or a [GitHub](wiki:GitHub) account ready.\n3.  **Join the Slacks:** Groups like AI Tinkerers and [Hackers/Founders](/#settings/apps/web) have local Slack/Discord channels where most \"last-minute\" build sessions are organized.\n\nWould you like me to help you find more specific resources for a particular AI tool you're learning, such as [PyTorch](wiki:PyTorch) or [LangChain](wiki:LangChain)?\n\n**Next Steps:**\n- [Browse more AI events in Berlin](/#settings/apps/events)\n- [Search for AI tutorials on YouTube](/#settings/apps/videos)"
-      }
-    },
-    "air_fryers_amazon_germany": {
-      "title": {
-        "text": "Comparativa de freidoras de aire en Alemania"
-      },
-      "summary": {
-        "text": "Comparó las mejores freidoras de aire de Amazon Alemania por precio, capacidad y valoraciones, recomendando la Philips Airfryer Serie 2000 para un hogar de dos personas."
-      },
-      "message_1": {
-        "text": "Busca freidoras de aire que pueda comprar online en Alemania, incluyendo listados de Amazon. Compara precios actuales, capacidades y valoraciones, y luego recomienda una para un hogar de dos personas con enlaces a las fuentes."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\nAquí tienes una comparativa de las freidoras de aire mejor valoradas disponibles actualmente en Amazon Alemania, comparando precio, capacidad y valoraciones de los clientes.\n\n---\n\n### Comparativa de modelos populares en Alemania\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### Recomendación principal para un hogar de 2 personas\n\n#### **Elección principal: [Philips Airfryer 2000 Series 6,2L](embed:philips-airfryer-2000-fay)**\n\n* **Por qué es la mejor opción para dos personas:**\n  * **Capacidad óptima (6,2 L):** Las cestas de menos de 4,5–5 L requieren cocinar en varias tandas, incluso para dos personas. Una cesta de 6,2 L te permite colocar dos filetes de salmón y una guarnición completa de verduras o patatas fritas en una sola capa para que queden crujientes de forma uniforme.\n  * **Espacio en la cocina:** Las máquinas de doble zona (como Ninja o Russell Hobbs) ocupan mucho espacio en la encimera. Una sola cesta de 6 L ofrece un volumen amplio manteniendo un tamaño compacto adecuado para las encimeras típicas de las cocinas alemanas.\n  * **Ventana transparente:** Permite comprobar el dorado sin tener que abrir el cajón y perder calor.\n  * **Relación calidad-precio:** Por 99,99 €, ofrece una consistencia de temperatura fiable de [Philips](wiki:Philips) a un precio razonable.\n\n#### **Alternativa (si sueles cocinar dos platos a diferentes temperaturas): [Philips Dual Basket 3000 Series (9,0L)](embed:philips-airfryer-dual-pjD)**\nSi tú y tu pareja preferís preparar proteínas y guarniciones de verduras simultáneamente a diferentes temperaturas y tiempos (p. ej., pechugas de pollo a 180 °C y patatas crujientes a 200 °C), este modelo está rebajado actualmente a 119,99 € y cuenta con tiempos de cocción sincronizados.\n\n---\n\n### Factores clave a tener en cuenta antes de comprar\n1. **Forma del cajón:** Las cestas cuadradas (como las de Cosori y Philips) se adaptan mucho mejor a los alimentos planos (filetes, moldes de repostería, brochetas) que las cestas redondas con la misma capacidad en litros.\n2. **Espacio en el lavavajillas:** Asegúrate de que tu lavavajillas tenga suficiente altura en la rejilla para un cajón individual de 6 L o considera lavar a mano los revestimientos antiadherentes para prolongar su vida útil."
-      },
-      "follow_up_1": {
-        "text": "Busca recetas diseñadas específicamente para freidoras de aire"
-      },
-      "follow_up_2": {
-        "text": "Explica las principales diferencias entre las freidoras de aire de cesta única y las de cesta doble"
-      },
-      "follow_up_3": {
-        "text": "Busca accesorios de repostería compatibles para esta freidora de aire"
-      },
-      "follow_up_4": {
-        "text": "Lista recetas fáciles para principiantes para preparar la cena en una freidora de aire"
-      },
-      "follow_up_5": {
-        "text": "Consulta las clasificaciones actuales de consumo energético de estos modelos"
-      },
-      "follow_up_6": {
-        "text": "Compara los requisitos de limpieza y mantenimiento de los revestimientos cerámicos frente a los de teflón"
       }
     },
     "artemis_ii_mission": {
@@ -9798,38 +9724,6 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"3a8114d9-0472-4627-9a73-8d331bef481f\", \"app_id\": \"images\", \"skill_id\": \"vectorize\"}\n```\n\nI'll convert that image to SVG for you now.Your SVG vectorization is processing! The conversion is underway and I'll update you once it's complete. This typically takes a moment as the system traces the raster image and converts it into scalable vector paths."
       }
     },
-    "jobs_in_sweden": {
-      "title": {
-        "text": "Empleos de desarrollador en Suecia"
-      },
-      "summary": {
-        "text": "Compara ofertas actuales de desarrollador en Estocolmo y Malmö con los anuncios originales y detalles del lugar de trabajo basados en fuentes."
-      },
-      "message_1": {
-        "text": "Encuentra dos empleos actuales de desarrollador de software en Estocolmo y dos en Malmö del servicio público de empleo de Suecia. Muestra un breve punto para cada uno con el título, el empleador, la ciudad de trabajo y el enlace al anuncio original. Incluye una cifra salarial o la modalidad de teletrabajo solo si se indica explícitamente en ese anuncio; de lo contrario, di que no se especifica. Mantén la respuesta por debajo de las 200 palabras."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"ea23f42b-6a8d-4faf-912d-988d2ba20cf4\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"a9fafbeb-7f05-42d5-9dcd-cbc752f42ffd\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\nOfertas actuales de desarrollador de software de Arbetsförmedlingen (Platsbanken):\n\n### Estocolmo\n\n* **Título:** Senior Systemutvecklare  \n  **Empleador:** NXT Interim Stockholm AB  \n  **Ciudad:** Estocolmo  \n  **Enlace a la oferta original:** [Platsbanken annons 31589252](embed:senior-systemutvecklare-2ps)  \n  **Salario:** No especificado  \n  **Modalidad de teletrabajo:** Ofrece puestos de trabajo remotos (*remote-arbetsplatser*)\n\n* **Título:** Javautvecklare  \n  **Empleador:** AFRY AB  \n  **Ciudad:** Estocolmo  \n  **Enlace a la oferta original:** [Platsbanken annons 31588186](embed:javautvecklare-y47)  \n  **Salario:** No especificado  \n  **Modalidad de teletrabajo:** Oportunidad de trabajo híbrido (*möjlighet till hybridarbete*)\n\n---\n\n### Malmö\n\n* **Título:** Senior AI Engineer  \n  **Empleador:** Iver Accelerate AB  \n  **Ciudad:** Malmö  \n  **Enlace a la oferta original:** [Platsbanken annons 31588387](embed:senior-ai-engineer-Duw)  \n  **Salario:** No especificado  \n  **Modalidad de teletrabajo:** Oportunidad de trabajo híbrido (*möjlighet till hybridarbete*)\n\n* **Título:** Malmö: Systemutvecklare Affärssystem Hybrid  \n  **Empleador:** Jobbakuten Väst AB  \n  **Ciudad:** Malmö  \n  **Enlace a la oferta original:** [Platsbanken annons 31574628](embed:malm-systemutvecklare-aff-umf)  \n  **Salario:** No especificado (la oferta menciona un salario de mercado sin una cifra específica)  \n  **Modalidad de teletrabajo:** Trabajo híbrido (*Hybridarbete*)"
-      },
-      "follow_up_1": {
-        "text": "Buscar empleos remotos de desarrollador de software en Gotemburgo"
-      },
-      "follow_up_2": {
-        "text": "Comparar los requisitos de estos puestos de desarrollador senior"
-      },
-      "follow_up_3": {
-        "text": "Buscar puestos de desarrollador frontend en Estocolmo"
-      },
-      "follow_up_4": {
-        "text": "Listar los stacks tecnológicos principales mencionados en estas ofertas"
-      },
-      "follow_up_5": {
-        "text": "Buscar ofertas de desarrollador junior en Suecia"
-      },
-      "follow_up_6": {
-        "text": "Resumir las tendencias de trabajo remoto en los empleos tecnológicos suecos"
-      }
-    },
     "launch_readiness_checklist_doc": {
       "title": {
         "text": "Launch readiness checklist document"
@@ -11042,38 +10936,6 @@
         "text": "Explica la elección de los condensadores de desacoplo"
       }
     },
-    "vegetarian_recipes_from_fridge_vegetables": {
-      "title": {
-        "text": "Recetas vegetarianas con básicos de la nevera"
-      },
-      "summary": {
-        "text": "El usuario pidió ideas de recetas vegetarianas usando espinacas, zanahorias, pimientos y garbanzos; el asistente ofreció tres opciones."
-      },
-      "message_1": {
-        "text": "¿Recomendaciones de recetas vegetarianas? Todavía tengo espinacas, zanahorias, pimientos y garbanzos en la nevera."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\nCon **espinacas, zanahorias, pimientos y garbanzos**, tienes una base sólida para preparar deliciosas comidas vegetarianas ricas en fibra. \n\nAquí tienes tres direcciones culinarias distintas según el estilo de plato que te apetezca:\n\n---\n\n### 1. Fresca y crujiente: Ensalada picada al estilo tailandés\nSi quieres algo rápido, ligero y crujiente, combina pimientos crudos, zanahorias y espinacas finamente picados con garbanzos en un aderezo ácido de lima y [cacahuete](wiki:Peanut).\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. Tortitas saladas: Buñuelos crujientes de garbanzos y verduras\nSi te apetece algo caliente y de bocado (ideal en wraps, pan de pita o acompañado de una salsa de yogur), machaca los garbanzos e incorpora zanahorias y pimientos picados, y espinacas salteadas.\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. Alternativa rápida para entre semana: Curry de garbanzos y verduras en sartén\nSi quieres una comida en una sola sartén usando productos básicos de la despensa (como leche de coco en lata o tomate triturado):\n1. **Sofríe los aromáticos:** Calienta aceite de oliva en una sartén y cocina cebolla picada, ajo picado y jengibre hasta que suelten su aroma.\n2. **Añade las verduras firmes:** Corta las zanahorias y los pimientos en trozos de bocado. Échalos a la sartén con comino molido, [cúrcuma](wiki:Turmeric) y una pizca de chile en polvo o curry.\n3. **Cocina a fuego lento:** Añade los garbanzos escurridos junto con una taza de caldo de verduras o leche de coco. Tapa y cocina a fuego lento durante 10-12 minutos hasta que las zanahorias estén tiernas.\n4. **Añade las espinacas:** Incorpora las espinacas frescas justo al final durante 1-2 minutos hasta que estén de un verde intenso y se hayan reducido. Termina con un chorrito de zumo de limón.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"¿Qué estilo de cocina prefieres preparar hoy?\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"Ensalada picada fresca y crujiente\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"Buñuelos o tortitas crujientes a la sartén\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"Curry o guiso caliente en una sola sartén\" }\n  ]\n}\n```"
-      },
-      "follow_up_1": {
-        "text": "Busca instrucciones más detalladas y medidas completas de los ingredientes para el curry en sartén"
-      },
-      "follow_up_2": {
-        "text": "Explica cómo preparar y guardar las sobras de los buñuelos de garbanzos cocinados para organizar las comidas de la semana"
-      },
-      "follow_up_3": {
-        "text": "Busca recetas de salsas de yogur vegano que combinen bien con los buñuelos de garbanzos"
-      },
-      "follow_up_4": {
-        "text": "Enumera sustitutos sencillos de especias por si me falta curry en polvo para la comida en sartén"
-      },
-      "follow_up_5": {
-        "text": "Busca recetas alternativas de aderezos con tahini para la ensalada picada al estilo tailandés"
-      },
-      "follow_up_6": {
-        "text": "Compara el contenido de proteínas y fibra de estas tres opciones de recetas vegetarianas"
-      }
-    },
     "vital_farms_sec_financials": {
       "title": {
         "text": "Finanzas de Vital Farms en la SEC"
@@ -11136,6 +10998,70 @@
       },
       "follow_up_6": {
         "text": "Comparar diferentes métodos para convertir ideas habladas en tareas organizadas"
+      }
+    },
+    "vegetarian_recipes_from_fridge_vegetables": {
+      "title": {
+        "text": "Recetas vegetarianas con básicos de la nevera"
+      },
+      "summary": {
+        "text": "El usuario pidió ideas de recetas vegetarianas usando espinacas, zanahorias, pimientos y garbanzos; el asistente ofreció tres opciones."
+      },
+      "message_1": {
+        "text": "¿Recomendaciones de recetas vegetarianas? Todavía tengo espinacas, zanahorias, pimientos y garbanzos en la nevera."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\nCon **espinacas, zanahorias, pimientos y garbanzos**, tienes una base sólida para preparar deliciosas comidas vegetarianas ricas en fibra. \n\nAquí tienes tres direcciones culinarias distintas según el estilo de plato que te apetezca:\n\n---\n\n### 1. Fresca y crujiente: Ensalada picada al estilo tailandés\nSi quieres algo rápido, ligero y crujiente, combina pimientos crudos, zanahorias y espinacas finamente picados con garbanzos en un aderezo ácido de lima y [cacahuete](wiki:Peanut).\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. Tortitas saladas: Buñuelos crujientes de garbanzos y verduras\nSi te apetece algo caliente y de bocado (ideal en wraps, pan de pita o acompañado de una salsa de yogur), machaca los garbanzos e incorpora zanahorias y pimientos picados, y espinacas salteadas.\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. Alternativa rápida para entre semana: Curry de garbanzos y verduras en sartén\nSi quieres una comida en una sola sartén usando productos básicos de la despensa (como leche de coco en lata o tomate triturado):\n1. **Sofríe los aromáticos:** Calienta aceite de oliva en una sartén y cocina cebolla picada, ajo picado y jengibre hasta que suelten su aroma.\n2. **Añade las verduras firmes:** Corta las zanahorias y los pimientos en trozos de bocado. Échalos a la sartén con comino molido, [cúrcuma](wiki:Turmeric) y una pizca de chile en polvo o curry.\n3. **Cocina a fuego lento:** Añade los garbanzos escurridos junto con una taza de caldo de verduras o leche de coco. Tapa y cocina a fuego lento durante 10-12 minutos hasta que las zanahorias estén tiernas.\n4. **Añade las espinacas:** Incorpora las espinacas frescas justo al final durante 1-2 minutos hasta que estén de un verde intenso y se hayan reducido. Termina con un chorrito de zumo de limón.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"¿Qué estilo de cocina prefieres preparar hoy?\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"Ensalada picada fresca y crujiente\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"Buñuelos o tortitas crujientes a la sartén\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"Curry o guiso caliente en una sola sartén\" }\n  ]\n}\n```"
+      },
+      "follow_up_1": {
+        "text": "Busca instrucciones más detalladas y medidas completas de los ingredientes para el curry en sartén"
+      },
+      "follow_up_2": {
+        "text": "Explica cómo preparar y guardar las sobras de los buñuelos de garbanzos cocinados para organizar las comidas de la semana"
+      },
+      "follow_up_3": {
+        "text": "Busca recetas de salsas de yogur vegano que combinen bien con los buñuelos de garbanzos"
+      },
+      "follow_up_4": {
+        "text": "Enumera sustitutos sencillos de especias por si me falta curry en polvo para la comida en sartén"
+      },
+      "follow_up_5": {
+        "text": "Busca recetas alternativas de aderezos con tahini para la ensalada picada al estilo tailandés"
+      },
+      "follow_up_6": {
+        "text": "Compara el contenido de proteínas y fibra de estas tres opciones de recetas vegetarianas"
+      }
+    },
+    "air_fryers_amazon_germany": {
+      "title": {
+        "text": "Comparativa de freidoras de aire en Alemania"
+      },
+      "summary": {
+        "text": "Comparó las mejores freidoras de aire de Amazon Alemania por precio, capacidad y valoraciones, recomendando la Philips Airfryer Serie 2000 para un hogar de dos personas."
+      },
+      "message_1": {
+        "text": "Busca freidoras de aire que pueda comprar online en Alemania, incluyendo listados de Amazon. Compara precios actuales, capacidades y valoraciones, y luego recomienda una para un hogar de dos personas con enlaces a las fuentes."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\nAquí tienes una comparativa de las freidoras de aire mejor valoradas disponibles actualmente en Amazon Alemania, comparando precio, capacidad y valoraciones de los clientes.\n\n---\n\n### Comparativa de modelos populares en Alemania\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### Recomendación principal para un hogar de 2 personas\n\n#### **Elección principal: [Philips Airfryer 2000 Series 6,2L](embed:philips-airfryer-2000-fay)**\n\n* **Por qué es la mejor opción para dos personas:**\n  * **Capacidad óptima (6,2 L):** Las cestas de menos de 4,5–5 L requieren cocinar en varias tandas, incluso para dos personas. Una cesta de 6,2 L te permite colocar dos filetes de salmón y una guarnición completa de verduras o patatas fritas en una sola capa para que queden crujientes de forma uniforme.\n  * **Espacio en la cocina:** Las máquinas de doble zona (como Ninja o Russell Hobbs) ocupan mucho espacio en la encimera. Una sola cesta de 6 L ofrece un volumen amplio manteniendo un tamaño compacto adecuado para las encimeras típicas de las cocinas alemanas.\n  * **Ventana transparente:** Permite comprobar el dorado sin tener que abrir el cajón y perder calor.\n  * **Relación calidad-precio:** Por 99,99 €, ofrece una consistencia de temperatura fiable de [Philips](wiki:Philips) a un precio razonable.\n\n#### **Alternativa (si sueles cocinar dos platos a diferentes temperaturas): [Philips Dual Basket 3000 Series (9,0L)](embed:philips-airfryer-dual-pjD)**\nSi tú y tu pareja preferís preparar proteínas y guarniciones de verduras simultáneamente a diferentes temperaturas y tiempos (p. ej., pechugas de pollo a 180 °C y patatas crujientes a 200 °C), este modelo está rebajado actualmente a 119,99 € y cuenta con tiempos de cocción sincronizados.\n\n---\n\n### Factores clave a tener en cuenta antes de comprar\n1. **Forma del cajón:** Las cestas cuadradas (como las de Cosori y Philips) se adaptan mucho mejor a los alimentos planos (filetes, moldes de repostería, brochetas) que las cestas redondas con la misma capacidad en litros.\n2. **Espacio en el lavavajillas:** Asegúrate de que tu lavavajillas tenga suficiente altura en la rejilla para un cajón individual de 6 L o considera lavar a mano los revestimientos antiadherentes para prolongar su vida útil."
+      },
+      "follow_up_1": {
+        "text": "Busca recetas diseñadas específicamente para freidoras de aire"
+      },
+      "follow_up_2": {
+        "text": "Explica las principales diferencias entre las freidoras de aire de cesta única y las de cesta doble"
+      },
+      "follow_up_3": {
+        "text": "Busca accesorios de repostería compatibles para esta freidora de aire"
+      },
+      "follow_up_4": {
+        "text": "Lista recetas fáciles para principiantes para preparar la cena en una freidora de aire"
+      },
+      "follow_up_5": {
+        "text": "Consulta las clasificaciones actuales de consumo energético de estos modelos"
+      },
+      "follow_up_6": {
+        "text": "Compara los requisitos de limpieza y mantenimiento de los revestimientos cerámicos frente a los de teflón"
       }
     }
   },
@@ -12925,7 +12851,7 @@
             "text": "Servicios de búsqueda de empleo"
           },
           "description": {
-            "text": "Se usan solo al buscar empleo. La Agencia Federal de Empleo alemana y JobTech reciben los términos elegidos, la ubicación y los filtros aplicables mediante solicitudes del servidor. Arbeitnow proporciona un feed público que OpenMates filtra localmente. No se envían el ID de usuario de OpenMates, el CV ni credenciales de cuenta. 80,000 Hours envía palabras clave y país a Algolia; Hard Problems solo recibe el país. La ubicación y los demás filtros se comprueban localmente."
+            "text": "Se usan solo al buscar empleo. La Agencia Federal de Empleo alemana y JobTech reciben los términos elegidos, la ubicación y los filtros aplicables mediante solicitudes del servidor. Arbeitnow proporciona un feed público que OpenMates filtra localmente. No se envían el ID de usuario de OpenMates, el CV ni credenciales de cuenta."
           },
           "arbeitsagentur": {
             "heading": {
@@ -12949,22 +12875,6 @@
             },
             "description": {
               "text": "OpenMates obtiene el feed público de empleos de Arbeitnow. Tus palabras clave, ubicación y filtros se aplican localmente y no se envían a Arbeitnow."
-            }
-          },
-          "eighty_thousand_hours": {
-            "heading": {
-              "text": "80,000 Hours Job Board"
-            },
-            "description": {
-              "text": "La bolsa pública de 80,000 Hours usa Algolia. Se envían tus palabras clave y el país elegido; OpenMates comprueba localmente la ubicación y los demás filtros. No se envían tu ID de OpenMates, CV ni credenciales."
-            }
-          },
-          "hard_problems": {
-            "heading": {
-              "text": "Hard Problems"
-            },
-            "description": {
-              "text": "OpenMates obtiene el feed público de Hard Problems para el país elegido. Tus palabras clave, ubicación y demás filtros se comprueban localmente y no se envían a Hard Problems. No se envían tu ID de OpenMates, CV ni credenciales."
             }
           }
         }
@@ -16496,16 +16406,6 @@
       }
     },
     "app_store_examples": {
-      "jobs": {
-        "search": {
-          "1": {
-            "text": "Empleos de desarrollo de software en Estocolmo"
-          },
-          "2": {
-            "text": "Empleos de desarrollo de software en Malmö"
-          }
-        }
-      },
       "hosting": {
         "search_domains": {
           "1": {

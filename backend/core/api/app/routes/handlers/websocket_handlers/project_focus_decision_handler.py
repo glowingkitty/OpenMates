@@ -59,6 +59,29 @@ async def handle_project_focus_decision(
                 )
             except ProjectWriteAuthorizationError:
                 specialist_context = None
+        if pending.get("voice_binding"):
+            from backend.apps.ai.processing.voice_call_broker import transport_key, require_binding
+            await require_binding(cache_service, {**pending["voice_binding"], "operation": "process_request"})
+            client = await cache_service.client
+            if await client.exists(transport_key(pending["voice_decision_id"], "cancel")) or (
+                pending["voice_binding"].get("request_cancel_id") and await client.exists(
+                    transport_key(pending["voice_binding"]["request_cancel_id"], "cancel"))
+            ):
+                raise ProjectWriteAuthorizationError("PROJECT_FOCUS_REQUEST_STALE", status_code=409)
+            import json
+            from backend.apps.ai.processing.voice_call_broker import user_vault_key
+            key = transport_key(pending["voice_decision_id"], "decision")
+            vault_key = await user_vault_key(cache_service, directus_service, user_id)
+            decision = {"decision_id": pending["voice_decision_id"],
+                "call_id": pending["voice_binding"]["call_id"], "accepted": accepted,
+                "specialist": specialist_context}
+            ciphertext, _ = await websocket.app.state.encryption_service.encrypt_with_user_key(json.dumps(decision), vault_key)
+            if not ciphertext:
+                raise RuntimeError("Private voice Project decision could not be sealed")
+            await client.rpush(key, ciphertext)
+            await client.expire(key, 60)
+            await websocket.send_json({"type": "project_focus_decision_confirmed", "payload": {"chat_id": chat_id, "request_id": request_id}})
+            return
         await dispatch_async_skill_continuation(
             cache_service=cache_service,
             async_task_id=pending["continuation_id"],

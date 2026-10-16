@@ -7892,48 +7892,6 @@
           "text": "此项目中的文件"
         }
       }
-    },
-    "jobs": {
-      "search": {
-        "result_count": {
-          "text": "{count} 个职位"
-        },
-        "partial_results": {
-          "text": "部分来源不可用"
-        },
-        "result": {
-          "title": {
-            "text": "职位信息"
-          },
-          "remote": {
-            "text": "远程"
-          },
-          "published": {
-            "text": "发布时间"
-          },
-          "source": {
-            "text": "在 {provider} 查看"
-          },
-          "listing": {
-            "text": "职位来源"
-          },
-          "apply": {
-            "text": "打开申请页面"
-          },
-          "company": {
-            "text": "公司"
-          },
-          "employment_type": {
-            "text": "雇佣类型"
-          },
-          "salary": {
-            "text": "薪资"
-          },
-          "description": {
-            "text": "描述"
-          }
-        }
-      }
     }
   },
   "enter_message": {
@@ -8497,38 +8455,6 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"e7002718-62f4-43b0-9078-1ab77993edc0\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI workshop\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b110fb02-f635-45b1-8ba7-aaf75b3f7de7\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI meetup\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b2b2b2a7-6b9c-464d-a86e-86ceafcd3bcc\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"build with AI\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"0e453b88-1f20-43fc-9aa1-aad8aab6ae8a\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"top AI developer meetups Berlin 2026 for beginners\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"c7b51044-a947-4471-a287-496459454ad6\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Berlin AI builder communities and recurring workshops\", \"provider\": \"Brave\"}\n```\n\nBerlin has one of Europe's most active [AI](wiki:Artificial_intelligence) builder scenes, transitioning from general theory to practical \"hands-on\" engineering. For someone learning to build with AI tools, the focus in June 2026 is heavily on [AI agents](wiki:Software_agent), [RAG (Retrieval-Augmented Generation)](wiki:Retrieval-augmented_generation), and production-ready architectures.\n\nHere are the top upcoming workshops and meetups in Berlin where you can build, demo, and learn from other practitioners.\n\n### Featured Hands-On Workshops\nThese sessions are specifically designed for those who want to write code and build prototypes.\n\n*   **BLISS x QuantCo: Build Your Own AI Agent**\n    *   **Date:** June 10, 2026 | 17:30\n    *   **Location:** Berlin-Mitte (Altonaer Str. 26)\n    *   **Focus:** An interactive session transitioning from [LLM APIs](wiki:Large_language_model) to building a custom agent that automates complex document workflows. **Bring your laptop.**\n    *   [Event Details & RSVP](embed:bliss-x-quantco-dWg)\n*   **Open Source Europe Tour: AI in Practice**\n    *   **Date:** June 8, 2026 | 17:30\n    *   **Location:** Netlight Consulting (Invalidenstraße 117)\n    *   **Focus:** A \"hype-free\" walkthrough of modern AI, explaining Agentic AI, fine-tuning vs. RAG, and connecting AI to data architectures.\n    *   [Event Details & RSVP](embed:open-source-europe-S4k)\n*   **AI Future-Club Kickoff (Hackers / Founders)**\n    *   **Date:** June 11, 2026 | 18:00\n    *   **Location:** TBD (Berlin)\n    *   **Focus:** A session for developers to \"get their hands dirty,\" discussing what to build and ship together, featuring live demos of recent projects.\n    *   [Event Details & RSVP](embed:ai-future-club-XOk)\n\n### Community Meetups for Builders\nThese events are excellent for networking and seeing what other local developers are currently building.\n\n*   **OpenClaw Anonymous Berlin #9**\n    *   **Date:** June 9, 2026 | 19:00\n    *   **Location:** w3.hub (Möckernstraße 120)\n    *   **Focus:** Informal \"laptop-out\" meetup where people showcase OpenClaw and AI agent setups. Perfect for sharing what works and what doesn't.\n    *   [Event Details & RSVP](embed:openclaw-anonymous-berlin-JA8)\n*   **AI Tinkerers Berlin**\n    *   **Date:** June 17, 2026\n    *   **Focus:** A screened, demo-first, \"no-pitch\" community. Expect live code, architecture lessons, and technical Q&A from local founders and engineers.\n    *   Berlin AI Tinkerers Portal\n*   **Spec-Driven Development: AI for Full-Stack Java**\n    *   **Date:** June 9, 2026 | 18:30\n    *   **Location:** Capgemini (Potsdamer Platz 5)\n    *   **Focus:** Learning how AI can generate code, diagrams, and tests from structured specifications.\n    *   [Event Details & RSVP](embed:spec-driven-development-rxI)\n\n### Key Hubs to Follow\nIf you want to stay in the loop, these organizations host the majority of builder-centric AI events in Berlin:\n\n*   **Merantix AI Campus**: Located in Nord-Mitte, this 6,000m² campus is the heart of the Berlin AI ecosystem, hosting weekly reading groups and tech talks.\n    *   Campus Events Calendar\n*   **BLISS (Berlin AI Community)**: A student and professional community that organizes high-quality workshops and speaker series.\n    *   BLISS Official Site\n*   **[CODE University](wiki:CODE_University_of_Applied_Sciences)**: Often hosts \"Global AI Bootcamps\" and hands-on sessions for students and the public at their Delta Campus in Neukölln.\n\n### Practical Tips for Joining\n1.  **RSVP Early:** Many of these events (especially the BLISS and Tinkerers sessions) have limited spots and require screening or early registration.\n2.  **Bring a Laptop:** Most \"workshops\" expect you to follow along with code. Ensure you have a local environment or a [GitHub](wiki:GitHub) account ready.\n3.  **Join the Slacks:** Groups like AI Tinkerers and [Hackers/Founders](/#settings/apps/web) have local Slack/Discord channels where most \"last-minute\" build sessions are organized.\n\nWould you like me to help you find more specific resources for a particular AI tool you're learning, such as [PyTorch](wiki:PyTorch) or [LangChain](wiki:LangChain)?\n\n**Next Steps:**\n- [Browse more AI events in Berlin](/#settings/apps/events)\n- [Search for AI tutorials on YouTube](/#settings/apps/videos)"
-      }
-    },
-    "air_fryers_amazon_germany": {
-      "title": {
-        "text": "比较德国的空气炸锅"
-      },
-      "summary": {
-        "text": "比较了德国亚马逊上热门空气炸锅的价格、容量和评分，并为两人家庭推荐了飞利浦 2000 系列空气炸锅。"
-      },
-      "message_1": {
-        "text": "查找我在德国可以在线购买的空气炸锅，包括亚马逊上的商品。比较当前的价格、容量和评价等级，然后为两人家庭推荐一款，并附上来源链接。"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\n以下是目前在德国亚马逊上热销的空气炸锅对比，涵盖了价格、容量和客户评分。\n\n---\n\n### 德国热门型号对比\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### 两人家庭首选推荐\n\n#### **首选：[飞利浦 2000 系列空气炸锅 6.2L](embed:philips-airfryer-2000-fay)**\n\n* **为什么它最适合两人：**\n  * **最佳容量 (6.2 L)：** 小于 4.5–5 L 的炸篮即使是两人份也需要分批烹饪。6.2 L 的炸篮可以让你平铺两块三文鱼排和一整份蔬菜或薯条，确保受热均匀、口感酥脆。\n  * **厨房占用空间：** 双篮机型（如 Ninja 或 Russell Hobbs）会占用大量的台面空间。单篮 6 L 炸锅在提供充足容量的同时，保持了紧凑的外形，适合典型的德国厨房台面。\n  * **透明视窗：** 无需拉开抽屉即可查看上色情况，避免热量流失。\n  * **性价比：** 售价 99.99 欧元，以合理的价格提供了来自[飞利浦](wiki:Philips)可靠的控温性能。\n\n#### **备选（如果你经常以不同温度烹饪两道菜）：[飞利浦 3000 系列双篮空气炸锅 (9.0L)](embed:philips-airfryer-dual-pjD)**\n如果你和伴侣喜欢同时以不同的温度和时间准备主食和配菜（例如，180 °C 烤鸡胸肉和 200 °C 炸薯条），这款型号目前折扣价为 119.99 欧元，并具有同步烹饪功能。\n\n---\n\n### 购买前需考虑的关键因素\n1. **炸篮形状：** 方形炸篮（如 Cosori 和飞利浦）比同等升数的圆形炸篮更能容纳扁平食物（牛排、烤盘、串烧）。\n2. **洗碗机空间：** 确保你的洗碗机架高度足以容纳 6 L 的单抽屉，或者考虑手洗非粘涂层以延长其使用寿命。"
-      },
-      "follow_up_1": {
-        "text": "搜索专为空气炸锅设计的食谱"
-      },
-      "follow_up_2": {
-        "text": "解释单篮和双篮空气炸锅的主要区别"
-      },
-      "follow_up_3": {
-        "text": "寻找适用于这款空气炸锅的烘焙配件"
-      },
-      "follow_up_4": {
-        "text": "列出适合初学者的空气炸锅晚餐食谱"
-      },
-      "follow_up_5": {
-        "text": "查看这些型号的当前能耗等级"
-      },
-      "follow_up_6": {
-        "text": "比较陶瓷涂层与特氟龙涂层的清洁和维护要求"
       }
     },
     "artemis_ii_mission": {
@@ -9771,38 +9697,6 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"3a8114d9-0472-4627-9a73-8d331bef481f\", \"app_id\": \"images\", \"skill_id\": \"vectorize\"}\n```\n\nI'll convert that image to SVG for you now.Your SVG vectorization is processing! The conversion is underway and I'll update you once it's complete. This typically takes a moment as the system traces the raster image and converts it into scalable vector paths."
       }
     },
-    "jobs_in_sweden": {
-      "title": {
-        "text": "瑞典开发人员职位"
-      },
-      "summary": {
-        "text": "比较斯德哥尔摩和马尔默当前的开发人员职位，提供原始招聘信息及有据可查的工作场所详情。"
-      },
-      "message_1": {
-        "text": "从瑞典公共就业服务机构中查找两个斯德哥尔摩和两个马尔默的当前软件开发人员职位。为每个职位显示简短的列点，包括职位名称、雇主、工作城市和原始招聘链接。仅在招聘信息中明确说明的情况下包含薪资数据或居家办公安排；否则请说明未注明。请将回答控制在 200 字以内。"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"ea23f42b-6a8d-4faf-912d-988d2ba20cf4\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"a9fafbeb-7f05-42d5-9dcd-cbc752f42ffd\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n来自 Arbetsförmedlingen (Platsbanken) 的最新软件开发人员招聘信息：\n\n### 斯德哥尔摩\n\n* **职位名称：** Senior Systemutvecklare  \n  **雇主：** NXT Interim Stockholm AB  \n  **工作城市：** 斯德哥尔摩  \n  **原始招聘链接：** [Platsbanken annons 31589252](embed:senior-systemutvecklare-2ps)  \n  **薪资：** 未注明  \n  **居家办公安排：** 提供远程工作岗位 (*remote-arbetsplatser*)\n\n* **职位名称：** Javautvecklare  \n  **雇主：** AFRY AB  \n  **工作城市：** 斯德哥尔摩  \n  **原始招聘链接：** [Platsbanken annons 31588186](embed:javautvecklare-y47)  \n  **薪资：** 未注明  \n  **居家办公安排：** 提供混合办公机会 (*möjlighet till hybridarbete*)\n\n---\n\n### 马尔默\n\n* **职位名称：** Senior AI Engineer  \n  **雇主：** Iver Accelerate AB  \n  **工作城市：** 马尔默  \n  **原始招聘链接：** [Platsbanken annons 31588387](embed:senior-ai-engineer-Duw)  \n  **薪资：** 未注明  \n  **居家办公安排：** 提供混合办公机会 (*möjlighet till hybridarbete*)\n\n* **职位名称：** Malmö: Systemutvecklare Affärssystem Hybrid  \n  **雇主：** Jobbakuten Väst AB  \n  **工作城市：** 马尔默  \n  **原始招聘链接：** [Platsbanken annons 31574628](embed:malm-systemutvecklare-aff-umf)  \n  **薪资：** 未注明（招聘信息中提到了市场化薪资，但未给出具体数字）  \n  **居家办公安排：** 混合办公 (*Hybridarbete*)"
-      },
-      "follow_up_1": {
-        "text": "搜索哥德堡的远程软件开发人员职位"
-      },
-      "follow_up_2": {
-        "text": "比较这些高级开发人员职位的要求"
-      },
-      "follow_up_3": {
-        "text": "搜索斯德哥尔摩的前端开发人员职位职缺"
-      },
-      "follow_up_4": {
-        "text": "列出这些招聘信息中提到的热门技术栈"
-      },
-      "follow_up_5": {
-        "text": "搜索瑞典的初级开发人员招聘信息"
-      },
-      "follow_up_6": {
-        "text": "总结瑞典科技行业的远程办公趋势"
-      }
-    },
     "launch_readiness_checklist_doc": {
       "title": {
         "text": "Launch readiness checklist document"
@@ -11015,38 +10909,6 @@
         "text": "解释去耦电容的选择依据"
       }
     },
-    "vegetarian_recipes_from_fridge_vegetables": {
-      "title": {
-        "text": "冰箱常备食材的素食食谱"
-      },
-      "summary": {
-        "text": "用户询问使用菠菜、胡萝卜、甜椒和鹰嘴豆的素食食谱创意；助手提供了三个选项。"
-      },
-      "message_1": {
-        "text": "有什么素食食谱推荐吗？我冰箱里还有菠菜、胡萝卜、甜椒和鹰嘴豆。"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\n有了**菠菜、胡萝卜、甜椒和鹰嘴豆**，你就有了制作美味、富含纤维的素食餐的坚实基础。\n\n根据你渴望的菜肴风格，这里有三个不同的烹饪方向：\n\n---\n\n### 1. 清爽脆口：泰式碎沙拉\n如果你想吃点快速、轻盈且爽口的东西，可以将切碎的生甜椒、胡萝卜和菠菜与鹰嘴豆混合，拌入酸甜的[花生](wiki:Peanut)青柠酱汁。\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. 咸香小饼：酥脆鹰嘴豆蔬菜饼\n如果你想吃点温热且小巧的食物（非常适合夹在卷饼、皮塔饼中，或搭配酸奶蘸酱），可以将鹰嘴豆捣碎，拌入胡萝卜碎、甜椒碎和烫熟的菠菜。\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. 快速工作日晚餐：温热鹰嘴豆蔬菜平底锅咖喱\n如果你想用基本的橱柜主食（如罐装椰奶或碎番茄）做一锅出料理：\n1. **炒香佐料：** 在平底锅中加热橄榄油，炒香洋葱丁、蒜末和姜末。\n2. **加入硬质蔬菜：** 将胡萝卜和甜椒切成一口大小。放入锅中，加入孜然粉、[姜黄](wiki:Turmeric)以及一小撮辣椒粉或咖喱粉。\n3. **炖煮：** 加入冲洗干净的鹰嘴豆，以及一杯蔬菜高汤或椰奶。盖上盖子炖煮 10–12 分钟，直到胡萝卜变软。\n4. **烫熟菠菜：** 最后加入新鲜菠菜，翻炒 1–2 分钟，直到菠菜变软且颜色鲜绿。最后挤入一点柠檬汁。\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"你今天更想尝试哪种烹饪风格？\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"清爽脆口的碎沙拉\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"酥脆的煎饼或小饼\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"温热的一锅出平底锅咖喱或炖菜\" }\n  ]\n}\n```"
-      },
-      "follow_up_1": {
-        "text": "搜索平底锅咖喱的更详细说明和完整配料用量"
-      },
-      "follow_up_2": {
-        "text": "解释如何准备和储存剩余的熟鹰嘴豆饼以用于备餐"
-      },
-      "follow_up_3": {
-        "text": "搜索适合搭配鹰嘴豆饼的纯素酸奶蘸酱食谱"
-      },
-      "follow_up_4": {
-        "text": "如果我没有平底锅餐所需的咖喱粉，请列出简单的香料替代品"
-      },
-      "follow_up_5": {
-        "text": "搜索使用芝麻酱的泰式切碎沙拉替代酱汁食谱"
-      },
-      "follow_up_6": {
-        "text": "比较这三种素食食谱选项的蛋白质和纤维含量"
-      }
-    },
     "vital_farms_sec_financials": {
       "title": {
         "text": "Vital Farms SEC 财务数据分析"
@@ -11109,6 +10971,70 @@
       },
       "follow_up_6": {
         "text": "比较将口头想法转化为有条理任务的不同方法"
+      }
+    },
+    "vegetarian_recipes_from_fridge_vegetables": {
+      "title": {
+        "text": "冰箱常备食材的素食食谱"
+      },
+      "summary": {
+        "text": "用户询问使用菠菜、胡萝卜、甜椒和鹰嘴豆的素食食谱创意；助手提供了三个选项。"
+      },
+      "message_1": {
+        "text": "有什么素食食谱推荐吗？我冰箱里还有菠菜、胡萝卜、甜椒和鹰嘴豆。"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\n有了**菠菜、胡萝卜、甜椒和鹰嘴豆**，你就有了制作美味、富含纤维的素食餐的坚实基础。\n\n根据你渴望的菜肴风格，这里有三个不同的烹饪方向：\n\n---\n\n### 1. 清爽脆口：泰式碎沙拉\n如果你想吃点快速、轻盈且爽口的东西，可以将切碎的生甜椒、胡萝卜和菠菜与鹰嘴豆混合，拌入酸甜的[花生](wiki:Peanut)青柠酱汁。\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. 咸香小饼：酥脆鹰嘴豆蔬菜饼\n如果你想吃点温热且小巧的食物（非常适合夹在卷饼、皮塔饼中，或搭配酸奶蘸酱），可以将鹰嘴豆捣碎，拌入胡萝卜碎、甜椒碎和烫熟的菠菜。\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. 快速工作日晚餐：温热鹰嘴豆蔬菜平底锅咖喱\n如果你想用基本的橱柜主食（如罐装椰奶或碎番茄）做一锅出料理：\n1. **炒香佐料：** 在平底锅中加热橄榄油，炒香洋葱丁、蒜末和姜末。\n2. **加入硬质蔬菜：** 将胡萝卜和甜椒切成一口大小。放入锅中，加入孜然粉、[姜黄](wiki:Turmeric)以及一小撮辣椒粉或咖喱粉。\n3. **炖煮：** 加入冲洗干净的鹰嘴豆，以及一杯蔬菜高汤或椰奶。盖上盖子炖煮 10–12 分钟，直到胡萝卜变软。\n4. **烫熟菠菜：** 最后加入新鲜菠菜，翻炒 1–2 分钟，直到菠菜变软且颜色鲜绿。最后挤入一点柠檬汁。\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"你今天更想尝试哪种烹饪风格？\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"清爽脆口的碎沙拉\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"酥脆的煎饼或小饼\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"温热的一锅出平底锅咖喱或炖菜\" }\n  ]\n}\n```"
+      },
+      "follow_up_1": {
+        "text": "搜索平底锅咖喱的更详细说明和完整配料用量"
+      },
+      "follow_up_2": {
+        "text": "解释如何准备和储存剩余的熟鹰嘴豆饼以用于备餐"
+      },
+      "follow_up_3": {
+        "text": "搜索适合搭配鹰嘴豆饼的纯素酸奶蘸酱食谱"
+      },
+      "follow_up_4": {
+        "text": "如果我没有平底锅餐所需的咖喱粉，请列出简单的香料替代品"
+      },
+      "follow_up_5": {
+        "text": "搜索使用芝麻酱的泰式切碎沙拉替代酱汁食谱"
+      },
+      "follow_up_6": {
+        "text": "比较这三种素食食谱选项的蛋白质和纤维含量"
+      }
+    },
+    "air_fryers_amazon_germany": {
+      "title": {
+        "text": "比较德国的空气炸锅"
+      },
+      "summary": {
+        "text": "比较了德国亚马逊上热门空气炸锅的价格、容量和评分，并为两人家庭推荐了飞利浦 2000 系列空气炸锅。"
+      },
+      "message_1": {
+        "text": "查找我在德国可以在线购买的空气炸锅，包括亚马逊上的商品。比较当前的价格、容量和评价等级，然后为两人家庭推荐一款，并附上来源链接。"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\n以下是目前在德国亚马逊上热销的空气炸锅对比，涵盖了价格、容量和客户评分。\n\n---\n\n### 德国热门型号对比\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### 两人家庭首选推荐\n\n#### **首选：[飞利浦 2000 系列空气炸锅 6.2L](embed:philips-airfryer-2000-fay)**\n\n* **为什么它最适合两人：**\n  * **最佳容量 (6.2 L)：** 小于 4.5–5 L 的炸篮即使是两人份也需要分批烹饪。6.2 L 的炸篮可以让你平铺两块三文鱼排和一整份蔬菜或薯条，确保受热均匀、口感酥脆。\n  * **厨房占用空间：** 双篮机型（如 Ninja 或 Russell Hobbs）会占用大量的台面空间。单篮 6 L 炸锅在提供充足容量的同时，保持了紧凑的外形，适合典型的德国厨房台面。\n  * **透明视窗：** 无需拉开抽屉即可查看上色情况，避免热量流失。\n  * **性价比：** 售价 99.99 欧元，以合理的价格提供了来自[飞利浦](wiki:Philips)可靠的控温性能。\n\n#### **备选（如果你经常以不同温度烹饪两道菜）：[飞利浦 3000 系列双篮空气炸锅 (9.0L)](embed:philips-airfryer-dual-pjD)**\n如果你和伴侣喜欢同时以不同的温度和时间准备主食和配菜（例如，180 °C 烤鸡胸肉和 200 °C 炸薯条），这款型号目前折扣价为 119.99 欧元，并具有同步烹饪功能。\n\n---\n\n### 购买前需考虑的关键因素\n1. **炸篮形状：** 方形炸篮（如 Cosori 和飞利浦）比同等升数的圆形炸篮更能容纳扁平食物（牛排、烤盘、串烧）。\n2. **洗碗机空间：** 确保你的洗碗机架高度足以容纳 6 L 的单抽屉，或者考虑手洗非粘涂层以延长其使用寿命。"
+      },
+      "follow_up_1": {
+        "text": "搜索专为空气炸锅设计的食谱"
+      },
+      "follow_up_2": {
+        "text": "解释单篮和双篮空气炸锅的主要区别"
+      },
+      "follow_up_3": {
+        "text": "寻找适用于这款空气炸锅的烘焙配件"
+      },
+      "follow_up_4": {
+        "text": "列出适合初学者的空气炸锅晚餐食谱"
+      },
+      "follow_up_5": {
+        "text": "查看这些型号的当前能耗等级"
+      },
+      "follow_up_6": {
+        "text": "比较陶瓷涂层与特氟龙涂层的清洁和维护要求"
       }
     }
   },
@@ -12898,7 +12824,7 @@
             "text": "职位搜索服务"
           },
           "description": {
-            "text": "仅在搜索职位时使用。德国联邦就业局和 JobTech 会在服务器端请求中收到所选搜索词、地点和适用筛选条件。Arbeitnow 提供公开信息流，由 OpenMates 在本地筛选。不会发送 OpenMates 用户 ID、简历或账户凭据。 80,000 Hours 将关键词和国家发送给 Algolia；Hard Problems 只接收国家。地点和其他筛选条件留在本地。"
+            "text": "仅在搜索职位时使用。德国联邦就业局和 JobTech 会在服务器端请求中收到所选搜索词、地点和适用筛选条件。Arbeitnow 提供公开信息流，由 OpenMates 在本地筛选。不会发送 OpenMates 用户 ID、简历或账户凭据。"
           },
           "arbeitsagentur": {
             "heading": {
@@ -12922,22 +12848,6 @@
             },
             "description": {
               "text": "OpenMates 获取 Arbeitnow 的公开职位信息流。你的关键词、地点和筛选条件在本地应用，不会发送给 Arbeitnow。"
-            }
-          },
-          "eighty_thousand_hours": {
-            "heading": {
-              "text": "80,000 Hours Job Board"
-            },
-            "description": {
-              "text": "80,000 Hours 公共招聘板使用 Algolia 搜索。你的关键词和所选国家会被发送；OpenMates 在本地检查地点及其他筛选条件。不会发送 OpenMates 用户 ID、简历或账户凭据。"
-            }
-          },
-          "hard_problems": {
-            "heading": {
-              "text": "Hard Problems"
-            },
-            "description": {
-              "text": "OpenMates 按你选择的国家获取 Hard Problems 的公开职位信息流。关键词、地点及其他筛选条件在本地检查，不会发送给 Hard Problems。不会发送 OpenMates 用户 ID、简历或账户凭据。"
             }
           }
         }
@@ -16469,16 +16379,6 @@
       }
     },
     "app_store_examples": {
-      "jobs": {
-        "search": {
-          "1": {
-            "text": "斯德哥尔摩的软件开发职位"
-          },
-          "2": {
-            "text": "马尔默的软件开发职位"
-          }
-        }
-      },
       "hosting": {
         "search_domains": {
           "1": {

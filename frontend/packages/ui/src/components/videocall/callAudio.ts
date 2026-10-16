@@ -44,6 +44,13 @@ export function decodePcm16(data: string): Float32Array {
   return result;
 }
 
+/** Scheduled playback uses AudioContext seconds, which pause on OS suspension. */
+export interface CallAudioPlaybackSchedule {
+  startTime: number;
+  duration: number;
+  sampleRate: number;
+}
+
 export class CallAudio {
   private context: AudioContext | null = null;
   private resumeRequested = false;
@@ -179,10 +186,12 @@ export class CallAudio {
     if (this.videoGain) this.videoGain.gain.value = value;
   }
 
-  playPcm16(data: string, sampleRate = 24_000): void {
-    if (this.stopped || !this.context) return;
+  get playbackAudioTime(): number | null { return this.context?.currentTime ?? null; }
+
+  playPcm16(data: string, sampleRate = 24_000): CallAudioPlaybackSchedule | null {
+    if (this.stopped || !this.context) return null;
     const samples = decodePcm16(data);
-    if (!samples.length) return;
+    if (!samples.length) return null;
     const buffer = this.context.createBuffer(1, samples.length, sampleRate);
     const channel = new Float32Array(samples.length);
     channel.set(samples);
@@ -200,6 +209,7 @@ export class CallAudio {
       if (this.playback.size === 0) this.onSpeaking(false, false);
     };
     source.start(start);
+    return { startTime: start, duration: buffer.duration, sampleRate };
   }
 
   interrupt(): void {

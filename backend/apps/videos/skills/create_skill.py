@@ -100,7 +100,16 @@ class CreateSkill(BaseSkill):
                     record_task_owner, task_id, user_id, self.celery_producer.conf.broker_url
                 )
                 dispatch_options["task_id"] = task_id
-            if active_recovery_output_context.get() is not None:
+            from backend.apps.ai.processing.voice_async_skills import (
+                active_voice_output_context, dispatch_voice_embed_task,
+            )
+            if active_voice_output_context.get() is not None:
+                task_signature = await dispatch_voice_embed_task(
+                    self.celery_producer, task_name="apps.videos.tasks.render_remotion",
+                    queue="app_videos", kwargs={"arguments": task_args},
+                    app_id="videos", skill_id="create", task_uuid=dispatch_options.get("task_id"),
+                )
+            elif active_recovery_output_context.get() is not None:
                 task_signature = await dispatch_recoverable_embed_task(
                     self.celery_producer,
                     task_name="apps.videos.tasks.render_remotion",

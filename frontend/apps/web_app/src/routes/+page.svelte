@@ -88,10 +88,11 @@
 	} from '@repo/ui';
 	import { pushNotificationService } from '@repo/ui';
 	import { settingsMenuVisible } from '@repo/ui/components/Settings.svelte';
-	import VoiceCallBar from '@repo/ui/components/voicecall/VoiceCallBar.svelte';
 	import { voiceCallController } from '@repo/ui/services/voiceCall';
+	import { VOICE_CALL_PILL_CONTEXT } from '@repo/ui/components/voicecall/voiceCallHeaderContext';
+	import { chatNavigationReader } from '@repo/ui/services/chatNavigationReader';
 	import { rehydratePairSession, registerPairLogoutCallback, pendingPairToken } from '@repo/ui';
-	import { onMount, onDestroy, tick, untrack } from 'svelte';
+	import { onMount, onDestroy, setContext, tick, untrack } from 'svelte';
 	import { locale, waitLocale, _ as translationStore } from 'svelte-i18n';
 	import { get } from 'svelte/store';
 	import { browser } from '$app/environment';
@@ -170,6 +171,14 @@
 			($voiceCallController.chatId !== null &&
 				($activeChatStore !== $voiceCallController.chatId || visibleChatReadyId !== $voiceCallController.chatId)))
 	);
+	// Every workspace route mounts its own Header. Share the return action with
+	// those descendants while the call remains bound to a different chat.
+	setContext(VOICE_CALL_PILL_CONTEXT, () => {
+		const chatId = $voiceCallController.chatId;
+		return showGlobalVoiceCall && chatId
+			? { onReturn: () => { void returnToVoiceCallChat(chatId); } }
+			: undefined;
+	});
 
 	async function returnToVoiceCallChat(chatId: string): Promise<void> {
 		settingsMenuVisible.set(false);
@@ -192,7 +201,7 @@
 			activeChatStore.get() === chatId;
 		try {
 			await tick();
-			const chat = await chatDB.getChat(chatId);
+			const chat = await chatNavigationReader.readChatForNavigation(chatId);
 			if (chat && stillReturningToBoundChat()) {
 				await handleChatSelected(new CustomEvent('chatSelected', { detail: { chat } }), stillReturningToBoundChat);
 			}
@@ -3827,14 +3836,7 @@
      TODO: Implement proper login overlay if needed -->
 {/if}
 
-{#if showGlobalVoiceCall}
-	<VoiceCallBar boundChatVisible={false} onReturn={(chatId) => { void returnToVoiceCallChat(chatId); }} />
-{/if}
-
 <style>
-	:global(.chat-interaction-surface[inert] [data-testid="voice-call-bar"]) {
-		visibility: hidden;
-	}
 	:root {
 		--sidebar-width: 325px;
 		--sidebar-margin: 10px;

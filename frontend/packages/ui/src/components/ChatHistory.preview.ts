@@ -43,8 +43,19 @@ const props = { currentChatId: chatId, chatTitle: "Writing preferences", chatCat
 const activeResponseProps = { ...props, activeAssistantTurn: {
   taskId: activeAssistant.message_id, userMessageId: userId,
 } };
+const compressedChatId = 'demo-preview-compressed-history';
+const cachedCompressedRows = Array.from({ length: 4 }, (_, index) => ({
+  message_id: `preview-cached-${index}`, chat_id: compressedChatId,
+  role: index % 2 ? 'assistant' : 'user', content: `Cached fictional history ${index}.`,
+  created_at: timestamp + index, status: 'synced',
+}));
 export default props;
 export const variants = {
+  partialCompressedHistory: { ...props, currentChatId: compressedChatId, isExampleChat: false, isSharedChat: true,
+    chatTitle: 'Compressed fictional history', sourceMessages: cachedCompressedRows,
+    compressionCheckpoints: [{ id: 'preview-compressed-checkpoint', chat_id: compressedChatId,
+      summary: 'Earlier fictional planning turns.', compressed_up_to_timestamp: timestamp + 4,
+      compressed_up_to_message_id: 'preview-boundary-reply', compressed_message_count: 5, created_at: timestamp + 5 }] },
   teamReminder: { ...props, isExampleChat: false, chatTitle: 'Volunteer planning', sourceMessages: [
     { ...user, sender_name: 'Alex', content: 'I will check the venue near Alexanderplatz.' },
     { ...user, message_id: 'preview-second-human', sender_name: 'Bea', content: 'I will prepare the invitation for our volunteers.', created_at: timestamp + 1 },

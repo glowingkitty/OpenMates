@@ -93,6 +93,7 @@ interface RequestAppSettingsMemoriesPayload {
   requested_keys: string[]; // Array of "app_id-item_type" format (e.g., "code-preferred_technologies")
   yaml_content: string; // YAML structure for the request (for chat history storage)
   message_id?: string; // User message ID that triggered this request (for UI display)
+  response_transport?: "voice";
 }
 
 /**
@@ -124,6 +125,7 @@ export interface AppSettingsMemoriesCategory {
  */
 export interface PendingPermissionRequest {
   requestId: string;
+  responseTransport?: "voice";
   chatId: string;
   messageId?: string; // User message ID that triggered this request (for UI display)
   categories: AppSettingsMemoriesCategory[];
@@ -134,6 +136,25 @@ export interface PendingPermissionRequest {
 // Store for pending permission requests (keyed by request_id)
 // This allows the dialog to be shown and the user to respond later
 const pendingPermissionRequests = new Map<string, PendingPermissionRequest>();
+export type MemoryPermissionResponse = Array<{ app_id: string; item_key: string; content: unknown }>;
+// Call requests retain the ordinary consent dialog/history, but their answer
+// resumes the issuing call rather than starting a second normal AI response.
+const permissionResponseTransports = new Map<string, (entries: MemoryPermissionResponse) => Promise<void>>();
+export function registerMemoryPermissionResponseTransport(requestId: string,
+  transport: (entries: MemoryPermissionResponse) => Promise<void>): void {
+  permissionResponseTransports.set(requestId, transport);
+}
+async function sendPermissionResponse(service: ChatSynchronizationService,
+  chatId: string, entries: MemoryPermissionResponse,
+  transport: ((entries: MemoryPermissionResponse) => Promise<void>) | undefined,
+  voiceRequest: boolean): Promise<void> {
+  if (transport) await transport(entries);
+  else if (voiceRequest) throw new Error("Voice memory request is no longer active");
+  else {
+    const { sendAppSettingsMemoriesConfirmedImpl } = await import("./chatSyncServiceSenders");
+    await sendAppSettingsMemoriesConfirmedImpl(service, chatId, entries);
+  }
+}
 
 /**
  * Notification IDs for the "inactive chat needs permission" banners.
@@ -196,6 +217,7 @@ export function getPendingPermissionRequestsForChat(
  */
 export function removePendingPermissionRequest(requestId: string): void {
   pendingPermissionRequests.delete(requestId);
+  permissionResponseTransports.delete(requestId);
 }
 
 /**
@@ -340,6 +362,7 @@ async function populateCategoryEntries(
 export async function handleRequestAppSettingsMemoriesImpl(
   serviceInstance: ChatSynchronizationService,
   payload: RequestAppSettingsMemoriesPayload,
+  responseTransport?: (entries: MemoryPermissionResponse) => Promise<void>,
 ): Promise<void> {
   console.info(
     "[ChatSyncService:AppSettings] Received 'request_app_settings_memories':",
@@ -347,6 +370,8 @@ export async function handleRequestAppSettingsMemoriesImpl(
   );
 
   const { request_id, chat_id, requested_keys, yaml_content } = payload;
+  if (responseTransport) registerMemoryPermissionResponseTransport(request_id, responseTransport);
+  const responseTransportKind = responseTransport || payload.response_transport === "voice" ? "voice" : undefined;
 
   if (
     !request_id ||
@@ -461,6 +486,7 @@ export async function handleRequestAppSettingsMemoriesImpl(
       console.warn(
         "[ChatSyncService:AppSettings] No valid categories found in request, skipping dialog",
       );
+      if (responseTransport) { await responseTransport([]); removePendingPermissionRequest(request_id); }
       return;
     }
 
@@ -582,6 +608,7 @@ export async function handleRequestAppSettingsMemoriesImpl(
             itemType: cat.itemType,
             entryCount: cat.entryCount,
           })),
+          responseTransportKind,
         );
         console.info(
           `[ChatSyncService:AppSettings] Persisted request ${request_id} as system message for message ${payload.message_id}`,
@@ -600,6 +627,7 @@ export async function handleRequestAppSettingsMemoriesImpl(
     // drives the dialog from the persisted system message instead
     const pendingRequest: PendingPermissionRequest = {
       requestId: request_id,
+      responseTransport: responseTransportKind,
       chatId: chat_id,
       messageId: payload.message_id, // User message that triggered this request
       categories,
@@ -710,8 +738,13 @@ export async function handlePermissionDialogConfirm(
   }
 
   const { chatId, messageId, categories } = pendingRequest;
+  // Capture before asynchronous decryption: removing a completed callback must
+  // never turn a second click into an ordinary chat inference continuation.
+  const responseTransport = permissionResponseTransports.get(requestId);
+  const voiceRequest = pendingRequest.responseTransport === "voice" || !!responseTransport;
 
   try {
+    if (voiceRequest && !responseTransport) throw new Error("Voice memory request is no longer active");
     console.info(
       `[ChatSyncService:AppSettings] Processing confirmation for ${selectedKeys.length} selected categories`,
     );
@@ -788,6 +821,10 @@ export async function handlePermissionDialogConfirm(
       console.warn(
         "[ChatSyncService:AppSettings] No entries to send after decryption",
       );
+      if (voiceRequest) {
+        await sendPermissionResponse(serviceInstance, chatId, [], responseTransport, true);
+        if (messageId) await saveAppSettingsMemoriesResponseMessage(serviceInstance, chatId, messageId, "rejected");
+      }
       removePendingPermissionRequest(requestId);
       dismissPermissionNotification(requestId);
       return;
@@ -797,13 +834,7 @@ export async function handlePermissionDialogConfirm(
     console.info(
       `[ChatSyncService:AppSettings] About to send ${appSettingsMemories.length} entries to server...`,
     );
-    const { sendAppSettingsMemoriesConfirmedImpl } =
-      await import("./chatSyncServiceSenders");
-    await sendAppSettingsMemoriesConfirmedImpl(
-      serviceInstance,
-      chatId,
-      appSettingsMemories,
-    );
+    await sendPermissionResponse(serviceInstance, chatId, appSettingsMemories, responseTransport, voiceRequest);
 
     console.info(
       `[ChatSyncService:AppSettings] Successfully sent ${appSettingsMemories.length} entries to server`,
@@ -897,6 +928,9 @@ export async function handlePermissionDialogExclude(
     }
   }
 
+  const responseTransport = permissionResponseTransports.get(requestId);
+  const voiceRequest = pendingRequest?.responseTransport === "voice" || !!responseTransport;
+
   console.info(
     `[ChatSyncService:AppSettings] User rejected app settings/memories for request ${requestId}`,
   );
@@ -905,14 +939,7 @@ export async function handlePermissionDialogExclude(
   // The server handler detects is_rejection=true when the array is empty and continues processing
   if (pendingRequest?.chatId) {
     try {
-      const { sendAppSettingsMemoriesConfirmedImpl } =
-        await import("./chatSyncServiceSenders");
-      // Send empty array - server will detect this as a rejection and continue processing without the data
-      await sendAppSettingsMemoriesConfirmedImpl(
-        serviceInstance,
-        pendingRequest.chatId,
-        [],
-      );
+      await sendPermissionResponse(serviceInstance, pendingRequest.chatId, [], responseTransport, voiceRequest);
       console.info(
         `[ChatSyncService:AppSettings] Sent rejection (empty array) to server for chat ${pendingRequest.chatId}`,
       );
@@ -992,6 +1019,11 @@ export async function handlePermissionDialogLocalDismiss(
     `[ChatSyncService:AppSettings] Locally dismissing permission dialog for request ${requestId} ` +
       `(user sent follow-up message - server will auto-reject pending context)`,
   );
+
+  if (pendingRequest?.chatId) {
+    const transport = permissionResponseTransports.get(requestId);
+    if (transport) await sendPermissionResponse(serviceInstance, pendingRequest.chatId, [], transport, true);
+  }
 
   // Create system message with "rejected" metadata (synced to server for cross-device display)
   // This ensures the "Rejected memories request." badge shows under the original user message
@@ -1245,12 +1277,14 @@ export async function saveAppSettingsMemoriesRequestMessage(
   requestId: string,
   requestedKeys: string[],
   categories: AppSettingsMemoriesRequestCategory[],
+  responseTransport?: "voice",
 ): Promise<void> {
   const { webSocketService } = await import("./websocketService");
   const requestMessage = buildMemoryRequestMessage({
     requestId,
     userMessageId,
     requestedKeys,
+    responseTransport,
     createdAt: Math.floor(Date.now() / 1000),
     entryCounts: new Map(categories.map(category => [`${category.appId}-${category.itemType}`, category.entryCount])),
   });

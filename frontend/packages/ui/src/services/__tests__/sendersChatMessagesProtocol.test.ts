@@ -602,3 +602,39 @@ it('supplies settled and remote canonical receipts to sender admission after loc
   expect(predecessor ?? preflightExpectedMessagesVersion(1)).toBe(6);
   barrier.clearPersonalChatTurnBarriers();
 });
+
+// contract-test: supporting surface=gui.web assertions=chats.completion.lease-fenced,chats.persistence.client-encrypted,video-call.chat.typed-input
+it('advances ordinary admission from server-issued call versions, never per-message revisions', async () => {
+  const barrier = await import('../personalChatTurnBarrier');
+  const chatId = 'call-then-text';
+  const first = barrier.reservePersonalChatTurn(chatId, 'ordinary-before-call');
+  barrier.bindPersonalChatTurn(first, 'ordinary-turn');
+  expect(barrier.completePersonalChatTurn(chatId, 'ordinary-turn', 4)).toBe(true);
+  const listener = canonicalWireListener.current!;
+  const callFrame = (type: string, payload: Record<string, unknown>) =>
+    listener(new CustomEvent('message', { detail: { type, payload } }));
+  callFrame('call_message_confirmed', { chat_id: chatId, revision: 99,
+    versions: { messages_v: 80 }, new_messages_v: 70 });
+  const beforeReceipt = barrier.reservePersonalChatTurn(chatId, 'before-versioned-receipt');
+  await expect(barrier.awaitPersonalChatPredecessor(beforeReceipt)).resolves.toBe(4);
+  barrier.bindPersonalChatTurn(beforeReceipt, 'before-receipt-turn');
+  expect(barrier.completePersonalChatTurn(chatId, 'before-receipt-turn', 4)).toBe(true);
+
+  callFrame('call_message_confirmed', { chat_id: chatId, revision: 1, messages_v: 6 });
+  callFrame('call_message_changed', { chat_id: chatId, revision: 1, messages_v: 7 });
+  callFrame('call_message_changed', { chat_id: 'another-chat', messages_v: 99 });
+  callFrame('call_message_confirmed', { chat_id: chatId, messages_v: 5 });
+  callFrame('call_message_confirmed', { chat_id: chatId, messages_v: '100' });
+  callFrame('call_message_changed', { chat_id: chatId, messages_v: 8.5 });
+  callFrame('call_message_changed', { chat_id: chatId, messages_v: -1 });
+  callFrame('system_message_confirmed', { chat_id: chatId, messages_v: 8 });
+  callFrame('system_message_confirmed', { chat_id: chatId, messages_v: 7 });
+  callFrame('system_message_confirmed', { chat_id: 'another-chat', messages_v: 100 });
+  callFrame('system_message_confirmed', { chat_id: chatId, messages_v: '101' });
+  const next = barrier.reservePersonalChatTurn(chatId, 'ordinary-after-call');
+  const predecessor = await barrier.awaitPersonalChatPredecessor(next);
+  expect(predecessor).toBe(8);
+  expect(shouldIncludePreflightChatMetadata(1, undefined, predecessor)).toBe(false);
+  expect(predecessor ?? preflightExpectedMessagesVersion(1)).toBe(8);
+  barrier.clearPersonalChatTurnBarriers();
+});

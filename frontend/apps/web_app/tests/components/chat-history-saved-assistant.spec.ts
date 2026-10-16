@@ -2,6 +2,48 @@
 import { test, expect } from '../helpers/cookie-audit';
 import { waitForComponentPreview } from '../helpers/component-preview';
 
+// contract-test: supporting surface=gui.web assertions=video-call.chat.compressed-context
+test('loads a missing canonical boundary reply when compressed history has a partial local cache', async ({ page }) => {
+  const timestamp = 1788870532;
+  let archiveReads = 0;
+  await page.route('**/v1/share/chat/demo-preview-compressed-history/messages?**', async route => {
+    const query = new URL(route.request().url()).searchParams;
+    expect(query.get('checkpoint_id')).toBe('preview-compressed-checkpoint');
+    expect(query.get('before_timestamp')).toBe(String(timestamp + 4));
+    expect(query.has('before_message_id'), 'Initial canonical archive read includes the checkpoint boundary row').toBe(false);
+    archiveReads += 1;
+    await route.fulfill({ contentType: 'application/json', body: JSON.stringify({
+      chat_id: 'demo-preview-compressed-history', checkpoint_id: 'preview-compressed-checkpoint',
+      messages: [...Array.from({ length: 4 }, (_, index) => ({ message_id: `preview-cached-${index}`,
+        chat_id: 'demo-preview-compressed-history', role: index % 2 ? 'assistant' : 'user',
+        content: `Cached fictional history ${index}.`, created_at: timestamp + index, status: 'synced' })),
+      { message_id: 'preview-boundary-reply', chat_id: 'demo-preview-compressed-history', role: 'assistant',
+        content: 'The archived boundary reply is still readable.', created_at: timestamp + 4, status: 'synced' }],
+      has_more: false,
+    }) });
+  });
+  await page.goto('/dev/preview/ChatHistory?variant=partialCompressedHistory&theme=light&width=680&chrome=0');
+  await waitForComponentPreview(page);
+  await expect(page.getByTestId('chat-history-content')).toHaveAttribute('data-source-message-count', '4');
+  const boundaryReply = page.locator('[data-testid="message-assistant"][data-message-id="preview-boundary-reply"]');
+  await expect(boundaryReply).toHaveCount(0);
+  const toggle = page.getByTestId('show-forgotten-messages');
+  await expect(toggle).toContainText('Show old forgotten messages');
+  await toggle.click();
+  await expect(toggle).toContainText('Hide old forgotten messages');
+  await expect.poll(() => archiveReads).toBe(1);
+  await expect(boundaryReply).toHaveCount(1);
+  // Archived bodies initialize when their actual message enters the clipped
+  // history scrollport; reveal the issued row before checking its full text.
+  await boundaryReply.scrollIntoViewIfNeeded();
+  await expect(boundaryReply).toContainText('The archived boundary reply is still readable.');
+  await expect(boundaryReply).toHaveAttribute('data-forgotten', 'true');
+  await expect(boundaryReply).toBeVisible();
+  await expect(page.locator('[data-forgotten="true"]')).toHaveCount(5);
+  await toggle.click();
+  await expect(boundaryReply).toHaveCount(0);
+});
+
 // contract-test: direct surface=gui.web assertions=chats.rendering.assistant-document-convergence
 test('renders saved assistant history without live turn metadata or pending feedback', async ({ page }) => {
   const rendererErrors: string[] = [];

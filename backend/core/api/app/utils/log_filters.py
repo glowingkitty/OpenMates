@@ -73,6 +73,9 @@ class SensitiveDataFilter(logging.Filter):
         Filter log records by redacting sensitive information from messages.
         Returns True to keep the record, with modified content.
         """
+        from backend.shared.python_utils.private_inference_logging import redact_private_record
+        if redact_private_record(record):
+            return True
         try:
             # Special handling for compliance logger - don't redact user_id
             is_compliance_log = getattr(record, 'name', '').startswith('compliance')

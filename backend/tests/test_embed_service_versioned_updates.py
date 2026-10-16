@@ -56,6 +56,8 @@ from backend.shared.python_utils.chat_recovery_context import (  # noqa: E402
     RecoveryOutputContext, RequiredRecoveryOutputError, VerifiedOutputProducer,
     active_recovery_output_context, active_verified_output_producer,
 )
+from backend.apps.ai.processing.voice_async_skills import active_voice_worker_context  # noqa: E402
+from backend.shared.python_utils import volatile_embed_authority  # noqa: E402
 
 if sys.modules.get("backend.shared.providers.e2b_application_preview") is e2b_preview_stub:
     del sys.modules["backend.shared.providers.e2b_application_preview"]
@@ -70,16 +72,15 @@ decode = EmbedService.update_application_embed_thumbnail.__globals__["decode"]
 async def test_incognito_finished_publication_rechecks_live_socket_before_cache_and_event(
     monkeypatch, fail_at,
 ):
+    assert active_voice_worker_context.get() is None
     checks = []
-    authority = types.ModuleType("backend.shared.python_utils.volatile_embed_authority")
 
     async def require_live_incognito_session(nonce, owner_hash):
         checks.append((nonce, owner_hash))
         if fail_at == len(checks):
             raise ValueError("socket_closed")
 
-    authority.require_live_incognito_session = require_live_incognito_session
-    monkeypatch.setitem(sys.modules, authority.__name__, authority)
+    monkeypatch.setattr(volatile_embed_authority, "require_live_incognito_session", require_live_incognito_session)
     cache = FakeCacheService({})
     service = EmbedService(cache, directus_service=object(), encryption_service=FakeEncryptionService())
     producer = SimpleNamespace(
@@ -115,13 +116,12 @@ async def test_incognito_finished_publication_rechecks_live_socket_before_cache_
 # contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery
 @pytest.mark.asyncio
 async def test_external_volatile_publication_does_not_require_websocket_nonce(monkeypatch):
-    authority = types.ModuleType("backend.shared.python_utils.volatile_embed_authority")
+    assert active_voice_worker_context.get() is None
 
     async def reject_if_called(*_args):
         raise AssertionError("External REST output has no incognito socket")
 
-    authority.require_live_incognito_session = reject_if_called
-    monkeypatch.setitem(sys.modules, authority.__name__, authority)
+    monkeypatch.setattr(volatile_embed_authority, "require_live_incognito_session", reject_if_called)
     cache = FakeCacheService({})
     service = EmbedService(cache, directus_service=object(), encryption_service=FakeEncryptionService())
     token = active_verified_output_producer.set(SimpleNamespace(
@@ -142,13 +142,12 @@ async def test_external_volatile_publication_does_not_require_websocket_nonce(mo
 # contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery
 @pytest.mark.asyncio
 async def test_disconnected_incognito_error_cannot_be_reported_as_published(monkeypatch):
-    authority = types.ModuleType("backend.shared.python_utils.volatile_embed_authority")
+    assert active_voice_worker_context.get() is None
 
     async def disconnected(*_args):
         raise ValueError("socket_closed")
 
-    authority.require_live_incognito_session = disconnected
-    monkeypatch.setitem(sys.modules, authority.__name__, authority)
+    monkeypatch.setattr(volatile_embed_authority, "require_live_incognito_session", disconnected)
     cache = FakeCacheService({})
     service = EmbedService(cache, directus_service=object(), encryption_service=FakeEncryptionService())
     token = active_verified_output_producer.set(SimpleNamespace(

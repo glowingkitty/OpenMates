@@ -8,7 +8,7 @@
   import { externalLinks, routes } from "../config/links";
   import { isPageVisible } from "../config/pages";
   import { waitLocale } from "svelte-i18n";
-  import { onMount } from "svelte";
+  import { getContext, onMount } from "svelte";
   import { isMenuOpen } from "../stores/menuState";
   import { text } from "../i18n/translations";
   import { isInSignupProcess, isLoggingOut } from "../stores/signupState"; // Import the signup state and logging out state
@@ -34,6 +34,9 @@
   } from "../utils/lastAuthMethod";
   import IconTabBar, { type IconTabItem } from "./IconTabBar.svelte";
   import { connectionFeedback } from "../stores/connectionFeedbackStore";
+  import { voiceCallController } from "../services/voiceCall";
+  import VoiceCallPill from "./voicecall/VoiceCallPill.svelte";
+  import { VOICE_CALL_PILL_CONTEXT, type VoiceCallPillContext } from "./voicecall/voiceCallHeaderContext";
 
   // Props using Svelte 5 runes
   let {
@@ -55,6 +58,7 @@
     onPrimaryCta = undefined as (() => void) | undefined,
     /** Layout override for an isolated status preview. Live headers use the store. */
     connectionStatusVisible = undefined as boolean | undefined,
+    voiceCallPill = undefined as { onReturn: () => void } | undefined,
   }: {
     context?: "website" | "webapp";
     isLoggedIn?: boolean;
@@ -65,7 +69,10 @@
     primaryCtaLabel?: string;
     onPrimaryCta?: () => void;
     connectionStatusVisible?: boolean;
+    voiceCallPill?: { onReturn: () => void };
   } = $props();
+  const voiceCallPillFromContext = getContext<VoiceCallPillContext | undefined>(VOICE_CALL_PILL_CONTEXT);
+  let resolvedVoiceCallPill = $derived(voiceCallPill ?? voiceCallPillFromContext?.());
 
   let serverEdition = $derived($serverStatusStore.status?.server_edition ?? null);
   let serverEditionLabel = $derived(
@@ -76,6 +83,11 @@
   );
   let hasControlledSidebar = $derived(!!onToggleSidebar);
   let hasConnectionStatus = $derived(connectionStatusVisible ?? $connectionFeedback.state !== 'idle');
+  let voiceCallActivityActive = $derived(
+    $voiceCallController.billingActivity === null ||
+    $voiceCallController.billingActivity.inputListening ||
+    $voiceCallController.billingActivity.processing,
+  );
 
   let headerDiv: HTMLElement;
   let isSignedOut = $derived(
@@ -547,6 +559,7 @@
   class:webapp={context === "webapp"}
   class:signed-out={isSignedOut}
   class:publication={!!publicationLabel}
+  class:voice-call-pill-visible={context === "webapp" && !!resolvedVoiceCallPill}
   class:connection-status-visible={hasConnectionStatus}
   style:--header-status-space={hasConnectionStatus ? '38px' : '0px'}
 >
@@ -591,6 +604,13 @@
                 : $panelState.isActivityHistoryOpen}
             ></button>
           </div>
+          {#if context === "webapp" && resolvedVoiceCallPill}
+            <VoiceCallPill
+              activeElapsedSeconds={$voiceCallController.activeElapsedSeconds}
+              activityActive={voiceCallActivityActive}
+              onReturn={resolvedVoiceCallPill.onReturn}
+            />
+          {:else}
           <div class="logo-container">
             <a
               href={!publicationLabel &&
@@ -637,6 +657,7 @@
               <div class="server-edition">{serverEditionLabel}</div>
             {/if}
           </div>
+          {/if}
         </div>
 
         {#if showNavLinks && (context !== "webapp" || isLoggedIn)}
@@ -706,7 +727,7 @@
               onNavigate={(event, item) => handleClick(event, item.href ?? null)}
             />
           </div>
-          <div class="workspace-select-shell" aria-label="Workspace switcher">
+          <div class="workspace-select-shell" data-testid="header-workspace-switcher" aria-label="Workspace switcher">
             <span
               class={`workspace-select-icon ${activeWorkspaceTab?.iconClass ?? "chat-icon"}`}
               aria-hidden="true"
@@ -1508,6 +1529,60 @@
       padding: 0;
       left: calc(50% - 30px);
     }
+  }
+
+  /* Settings pins its GitHub link 110px from the viewport end. The nav ends
+     20px from that edge, so 98px leaves the selector 8px clear of the link. */
+  @media (max-width: 500px) {
+    header.webapp.voice-call-pill-visible .workspace-select-shell,
+    header.webapp.voice-call-pill-visible.connection-status-visible:not(.signed-out) .workspace-select-shell {
+      box-sizing: border-box;
+      width: 7.25rem;
+      inset-inline-start: auto;
+      inset-inline-end: 98px;
+      transform: none;
+    }
+    header.webapp.voice-call-pill-visible :global(.call-pill) {
+      gap: var(--spacing-2);
+      padding-inline: var(--spacing-4);
+      font-size: var(--font-size-small);
+    }
+  }
+  @container main-content (max-width: 500px) {
+    header.webapp.voice-call-pill-visible .workspace-select-shell,
+    header.webapp.voice-call-pill-visible.connection-status-visible:not(.signed-out) .workspace-select-shell {
+      box-sizing: border-box;
+      width: 7.25rem;
+      inset-inline-start: auto;
+      inset-inline-end: 98px;
+      transform: none;
+    }
+    header.webapp.voice-call-pill-visible :global(.call-pill) {
+      gap: var(--spacing-2);
+      padding-inline: var(--spacing-4);
+      font-size: var(--font-size-small);
+    }
+  }
+
+  @media (max-width: 380px) {
+    header.webapp.voice-call-pill-visible .workspace-select-shell,
+    header.webapp.voice-call-pill-visible.connection-status-visible:not(.signed-out) .workspace-select-shell {
+      width: 2.875rem;
+      padding: 0;
+      gap: var(--spacing-2);
+    }
+    header.webapp.voice-call-pill-visible .workspace-select-icon { width: 1.125rem; height: 1.125rem; }
+    header.webapp.voice-call-pill-visible .workspace-select-chevron { border-left-width: .4rem; border-right-width: .4rem; border-top-width: .4rem; }
+  }
+  @container main-content (max-width: 380px) {
+    header.webapp.voice-call-pill-visible .workspace-select-shell,
+    header.webapp.voice-call-pill-visible.connection-status-visible:not(.signed-out) .workspace-select-shell {
+      width: 2.875rem;
+      padding: 0;
+      gap: var(--spacing-2);
+    }
+    header.webapp.voice-call-pill-visible .workspace-select-icon { width: 1.125rem; height: 1.125rem; }
+    header.webapp.voice-call-pill-visible .workspace-select-chevron { border-left-width: .4rem; border-right-width: .4rem; border-top-width: .4rem; }
   }
 
   @media (prefers-reduced-motion: reduce) {

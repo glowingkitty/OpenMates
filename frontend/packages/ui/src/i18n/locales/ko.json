@@ -7892,48 +7892,6 @@
           "text": "이 프로젝트의 파일"
         }
       }
-    },
-    "jobs": {
-      "search": {
-        "result_count": {
-          "text": "채용 공고 {count}건"
-        },
-        "partial_results": {
-          "text": "일부 출처를 사용할 수 없었습니다"
-        },
-        "result": {
-          "title": {
-            "text": "채용 공고"
-          },
-          "remote": {
-            "text": "원격 근무"
-          },
-          "published": {
-            "text": "게시일"
-          },
-          "source": {
-            "text": "{provider}에서 보기"
-          },
-          "listing": {
-            "text": "공고 출처"
-          },
-          "apply": {
-            "text": "지원 페이지 열기"
-          },
-          "company": {
-            "text": "회사"
-          },
-          "employment_type": {
-            "text": "고용 형태"
-          },
-          "salary": {
-            "text": "급여"
-          },
-          "description": {
-            "text": "설명"
-          }
-        }
-      }
     }
   },
   "enter_message": {
@@ -8497,38 +8455,6 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"e7002718-62f4-43b0-9078-1ab77993edc0\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI workshop\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b110fb02-f635-45b1-8ba7-aaf75b3f7de7\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI meetup\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b2b2b2a7-6b9c-464d-a86e-86ceafcd3bcc\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"build with AI\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"0e453b88-1f20-43fc-9aa1-aad8aab6ae8a\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"top AI developer meetups Berlin 2026 for beginners\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"c7b51044-a947-4471-a287-496459454ad6\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Berlin AI builder communities and recurring workshops\", \"provider\": \"Brave\"}\n```\n\nBerlin has one of Europe's most active [AI](wiki:Artificial_intelligence) builder scenes, transitioning from general theory to practical \"hands-on\" engineering. For someone learning to build with AI tools, the focus in June 2026 is heavily on [AI agents](wiki:Software_agent), [RAG (Retrieval-Augmented Generation)](wiki:Retrieval-augmented_generation), and production-ready architectures.\n\nHere are the top upcoming workshops and meetups in Berlin where you can build, demo, and learn from other practitioners.\n\n### Featured Hands-On Workshops\nThese sessions are specifically designed for those who want to write code and build prototypes.\n\n*   **BLISS x QuantCo: Build Your Own AI Agent**\n    *   **Date:** June 10, 2026 | 17:30\n    *   **Location:** Berlin-Mitte (Altonaer Str. 26)\n    *   **Focus:** An interactive session transitioning from [LLM APIs](wiki:Large_language_model) to building a custom agent that automates complex document workflows. **Bring your laptop.**\n    *   [Event Details & RSVP](embed:bliss-x-quantco-dWg)\n*   **Open Source Europe Tour: AI in Practice**\n    *   **Date:** June 8, 2026 | 17:30\n    *   **Location:** Netlight Consulting (Invalidenstraße 117)\n    *   **Focus:** A \"hype-free\" walkthrough of modern AI, explaining Agentic AI, fine-tuning vs. RAG, and connecting AI to data architectures.\n    *   [Event Details & RSVP](embed:open-source-europe-S4k)\n*   **AI Future-Club Kickoff (Hackers / Founders)**\n    *   **Date:** June 11, 2026 | 18:00\n    *   **Location:** TBD (Berlin)\n    *   **Focus:** A session for developers to \"get their hands dirty,\" discussing what to build and ship together, featuring live demos of recent projects.\n    *   [Event Details & RSVP](embed:ai-future-club-XOk)\n\n### Community Meetups for Builders\nThese events are excellent for networking and seeing what other local developers are currently building.\n\n*   **OpenClaw Anonymous Berlin #9**\n    *   **Date:** June 9, 2026 | 19:00\n    *   **Location:** w3.hub (Möckernstraße 120)\n    *   **Focus:** Informal \"laptop-out\" meetup where people showcase OpenClaw and AI agent setups. Perfect for sharing what works and what doesn't.\n    *   [Event Details & RSVP](embed:openclaw-anonymous-berlin-JA8)\n*   **AI Tinkerers Berlin**\n    *   **Date:** June 17, 2026\n    *   **Focus:** A screened, demo-first, \"no-pitch\" community. Expect live code, architecture lessons, and technical Q&A from local founders and engineers.\n    *   Berlin AI Tinkerers Portal\n*   **Spec-Driven Development: AI for Full-Stack Java**\n    *   **Date:** June 9, 2026 | 18:30\n    *   **Location:** Capgemini (Potsdamer Platz 5)\n    *   **Focus:** Learning how AI can generate code, diagrams, and tests from structured specifications.\n    *   [Event Details & RSVP](embed:spec-driven-development-rxI)\n\n### Key Hubs to Follow\nIf you want to stay in the loop, these organizations host the majority of builder-centric AI events in Berlin:\n\n*   **Merantix AI Campus**: Located in Nord-Mitte, this 6,000m² campus is the heart of the Berlin AI ecosystem, hosting weekly reading groups and tech talks.\n    *   Campus Events Calendar\n*   **BLISS (Berlin AI Community)**: A student and professional community that organizes high-quality workshops and speaker series.\n    *   BLISS Official Site\n*   **[CODE University](wiki:CODE_University_of_Applied_Sciences)**: Often hosts \"Global AI Bootcamps\" and hands-on sessions for students and the public at their Delta Campus in Neukölln.\n\n### Practical Tips for Joining\n1.  **RSVP Early:** Many of these events (especially the BLISS and Tinkerers sessions) have limited spots and require screening or early registration.\n2.  **Bring a Laptop:** Most \"workshops\" expect you to follow along with code. Ensure you have a local environment or a [GitHub](wiki:GitHub) account ready.\n3.  **Join the Slacks:** Groups like AI Tinkerers and [Hackers/Founders](/#settings/apps/web) have local Slack/Discord channels where most \"last-minute\" build sessions are organized.\n\nWould you like me to help you find more specific resources for a particular AI tool you're learning, such as [PyTorch](wiki:PyTorch) or [LangChain](wiki:LangChain)?\n\n**Next Steps:**\n- [Browse more AI events in Berlin](/#settings/apps/events)\n- [Search for AI tutorials on YouTube](/#settings/apps/videos)"
-      }
-    },
-    "air_fryers_amazon_germany": {
-      "title": {
-        "text": "독일에서 판매되는 에어프라이어 비교"
-      },
-      "summary": {
-        "text": "독일 아마존의 인기 에어프라이어를 가격, 용량, 평점으로 비교하고 2인 가구에 Philips Airfryer 2000 시리즈를 추천했습니다."
-      },
-      "message_1": {
-        "text": "아마존 판매 상품을 포함해 독일에서 온라인으로 살 수 있는 에어프라이어를 찾아줘. 현재 가격, 용량, 구매자 평점을 비교하고 출처 링크와 함께 2인 가구에 적합한 제품 하나를 추천해 줘."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\n현재 독일 아마존에서 판매되는 평점이 높은 에어프라이어의 가격, 용량, 구매자 평가를 비교했습니다.\n\n---\n\n### 독일에서 인기 있는 모델 비교\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### 2인 가구를 위한 가장 좋은 선택\n\n#### **추천 제품: [Philips Airfryer 2000 Series 6.2L](embed:philips-airfryer-2000-fay)**\n\n* **두 사람에게 적합한 이유:**\n  * **적절한 용량(6.2 L):** 바스켓이 4.5–5 L보다 작으면 두 사람 분량도 여러 번 나눠 조리해야 할 수 있습니다. 6.2 L 바스켓에는 연어 필레 두 조각과 채소 또는 감자튀김을 한 겹으로 펼쳐 고르게 익힐 수 있습니다.\n  * **주방 공간:** Ninja나 Russell Hobbs 같은 듀얼 존 제품은 조리대 공간을 많이 차지합니다. 6 L 단일 바스켓은 독일의 일반적인 주방에도 비교적 잘 맞으면서 충분한 조리 공간을 제공합니다.\n  * **투명 창:** 서랍을 열어 열을 잃지 않고 익은 정도를 확인할 수 있습니다.\n  * **가격 대비 가치:** €99.99에 [Philips](wiki:Philips)의 안정적인 온도 제어 기능을 제공하는 합리적인 가격의 제품입니다.\n\n#### **대안(서로 다른 온도로 두 요리를 자주 조리한다면): [Philips Dual Basket 3000 Series (9.0L)](embed:philips-airfryer-dual-pjD)**\n단백질 요리와 채소 곁들임을 서로 다른 온도와 시간에 동시에 만들고 싶다면(예: 닭가슴살은 180 °C, 바삭한 감자는 200 °C), 현재 €119.99로 할인 중인 이 모델은 두 바스켓의 조리 완료 시간을 맞출 수 있습니다.\n\n---\n\n### 구매 전에 확인할 점\n1. **바스켓 모양:** Cosori와 Philips 같은 사각 바스켓은 같은 용량의 둥근 바스켓보다 스테이크, 베이킹 틀, 꼬치처럼 넓게 펼쳐야 하는 음식을 넣기 좋습니다.\n2. **식기세척기 공간:** 6 L 단일 서랍이 들어갈 만큼 높이가 충분한지 확인하세요. 논스틱 코팅을 더 오래 쓰고 싶다면 손세척도 고려해 보세요."
-      },
-      "follow_up_1": {
-        "text": "에어프라이어 전용 레시피 찾아보기"
-      },
-      "follow_up_2": {
-        "text": "싱글 바스켓과 듀얼 바스켓 에어프라이어의 주요 차이점 설명하기"
-      },
-      "follow_up_3": {
-        "text": "이 에어프라이어와 호환되는 베이킹 액세서리 찾기"
-      },
-      "follow_up_4": {
-        "text": "에어프라이어로 만드는 초보자용 저녁 요리법 살펴보기"
-      },
-      "follow_up_5": {
-        "text": "이 모델들의 현재 에너지 소비 정보 확인하기"
-      },
-      "follow_up_6": {
-        "text": "세라믹 코팅과 테플론 코팅의 세척 및 유지 관리 요구 사항 비교하기"
       }
     },
     "artemis_ii_mission": {
@@ -9771,38 +9697,6 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"3a8114d9-0472-4627-9a73-8d331bef481f\", \"app_id\": \"images\", \"skill_id\": \"vectorize\"}\n```\n\nI'll convert that image to SVG for you now.Your SVG vectorization is processing! The conversion is underway and I'll update you once it's complete. This typically takes a moment as the system traces the raster image and converts it into scalable vector paths."
       }
     },
-    "jobs_in_sweden": {
-      "title": {
-        "text": "스웨덴의 개발자 채용 정보"
-      },
-      "summary": {
-        "text": "스톡홀름과 말뫼의 최신 개발자 채용 공고를 원본 리스팅 및 출처 기반의 근무지 상세 정보와 함께 비교해 보세요."
-      },
-      "message_1": {
-        "text": "스웨덴 공공 고용 서비스에서 스톡홀름의 최신 소프트웨어 개발자 일자리 2개와 말뫼의 일자리 2개를 찾아줘. 각 공고에 대해 직함, 고용주, 근무 도시, 원본 공고 링크를 포함한 짧은 불렛 포인트를 보여줘. 급여 수치나 재택근무 여부는 해당 공고에 명시된 경우에만 포함하고, 그렇지 않으면 '명시되지 않음'이라고 표시해줘. 답변은 200단어 이내로 작성해줘."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"ea23f42b-6a8d-4faf-912d-988d2ba20cf4\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"a9fafbeb-7f05-42d5-9dcd-cbc752f42ffd\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\nArbetsförmedlingen(Platsbanken)의 현재 소프트웨어 개발자 채용 공고입니다:\n\n### 스톡홀름\n\n* **직함:** Senior Systemutvecklare  \n  **고용주:** NXT Interim Stockholm AB  \n  **근무지:** 스톡홀름  \n  **원문 공고 링크:** [Platsbanken annons 31589252](embed:senior-systemutvecklare-2ps)  \n  **급여:** 기재되지 않음  \n  **재택근무 형태:** 원격 근무지 제공 (*remote-arbetsplatser*)\n\n* **직함:** Javautvecklare  \n  **고용주:** AFRY AB  \n  **근무지:** 스톡홀름  \n  **원문 공고 링크:** [Platsbanken annons 31588186](embed:javautvecklare-y47)  \n  **급여:** 기재되지 않음  \n  **재택근무 형태:** 하이브리드 근무 가능 (*möjlighet till hybridarbete*)\n\n---\n\n### 말뫼\n\n* **직함:** Senior AI Engineer  \n  **고용주:** Iver Accelerate AB  \n  **근무지:** 말뫼  \n  **원문 공고 링크:** [Platsbanken annons 31588387](embed:senior-ai-engineer-Duw)  \n  **급여:** 기재되지 않음  \n  **재택근무 형태:** 하이브리드 근무 가능 (*möjlighet till hybridarbete*)\n\n* **직함:** Malmö: Systemutvecklare Affärssystem Hybrid  \n  **고용주:** Jobbakuten Väst AB  \n  **근무지:** 말뫼  \n  **원문 공고 링크:** [Platsbanken annons 31574628](embed:malm-systemutvecklare-aff-umf)  \n  **급여:** 기재되지 않음 (공고에 구체적인 액수 없이 시장가 급여라고 언급됨)  \n  **재택근무 형태:** 하이브리드 근무 (*Hybridarbete*)"
-      },
-      "follow_up_1": {
-        "text": "예테보리의 원격 소프트웨어 개발자 채용 정보 검색"
-      },
-      "follow_up_2": {
-        "text": "이 시니어 개발자 직무의 자격 요건 비교"
-      },
-      "follow_up_3": {
-        "text": "스톡홀름의 프론트엔드 개발자 포지션 검색"
-      },
-      "follow_up_4": {
-        "text": "이 공고들에 언급된 주요 기술 스택 목록화"
-      },
-      "follow_up_5": {
-        "text": "스웨덴의 주니어 개발자 채용 공고 검색"
-      },
-      "follow_up_6": {
-        "text": "스웨덴 IT 직군의 원격 근무 트렌드 요약"
-      }
-    },
     "launch_readiness_checklist_doc": {
       "title": {
         "text": "Launch readiness checklist document"
@@ -11015,38 +10909,6 @@
         "text": "디커플링 커패시터 선택 이유 설명하기"
       }
     },
-    "vegetarian_recipes_from_fridge_vegetables": {
-      "title": {
-        "text": "냉장고 속 재료를 활용한 채식 레시피 아이디어"
-      },
-      "summary": {
-        "text": "사용자가 시금치, 당근, 피망, 병아리콩을 활용한 채식 레시피 아이디어를 요청했고, 어시스턴트가 세 가지 옵션을 제공했습니다."
-      },
-      "message_1": {
-        "text": "채식 레시피 좀 추천해 줄 수 있어? 냉장고에 시금치, 당근, 피망, 병아리콩이 남아 있어."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\n**시금치, 당근, 피망, 병아리콩**이 있다면 맛있고 식이섬유가 풍부한 채식 요리를 만들 수 있는 훌륭한 기초가 마련된 셈이에요. \n\n원하는 요리 스타일에 따라 시도해 볼 수 있는 세 가지 레시피를 소개할게요:\n\n---\n\n### 1. 신선하고 아삭한 맛: 태국식 찹 샐러드\n빠르고 가볍고 아삭한 음식을 원한다면, 잘게 썬 생피망, 당근, 시금치를 병아리콩과 섞은 뒤 새콤한 [땅콩](wiki:Peanut) 라임 드레싱을 곁들여 보세요.\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. 고소한 패티: 바삭한 병아리콩 채소 프리터\n따뜻하고 한입 크기로 즐기기 좋은 요리(랩, 피타 브레드에 넣거나 요거트 딥과 함께 먹기 좋아요)를 원한다면, 병아리콩을 으깬 뒤 다진 당근, 피망, 살짝 데친 시금치를 넣어 반죽해 보세요.\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. 간편한 평일 저녁 메뉴: 따뜻한 병아리콩 채소 스킬렛 커리\n팬 하나로 끝내는 요리를 원한다면(코코넛 밀크 캔이나 으깬 토마토 같은 기본 식재료 활용):\n1. **향신 채소 볶기:** 스킬렛에 올리브유를 두르고 다진 양파, 마늘, 생강을 향이 올라올 때까지 볶으세요.\n2. **단단한 채소 넣기:** 당근과 피망을 한입 크기로 써세요. 큐민 가루, [강황](wiki:Turmeric), 칠리 파우더나 카레 가루 한 꼬집과 함께 넣고 볶으세요.\n3. **졸이기:** 씻어둔 병아리콩과 채소 육수 또는 코코넛 밀크 한 컵을 넣으세요. 뚜껑을 덮고 당근이 부드러워질 때까지 10~12분간 뭉근하게 끓이세요.\n4. **시금치 익히기:** 마지막에 신선한 시금치를 넣고 선명한 초록색이 돌며 숨이 죽을 때까지 1~2분간 더 익히세요. 레몬즙을 살짝 뿌려 마무리하세요.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"오늘 어떤 스타일의 요리를 만들어 보고 싶나요?\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"신선하고 아삭한 찹 샐러드\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"바삭하게 구운 프리터 또는 패티\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"따뜻한 원팬 스킬렛 커리 또는 스튜\" }\n  ]\n}\n```"
-      },
-      "follow_up_1": {
-        "text": "팬 커리(skillet curry)의 상세 조리법과 정확한 재료 계량법 검색하기"
-      },
-      "follow_up_2": {
-        "text": "남은 병아리콩 프리터의 밀프렙을 위한 손질 및 보관 방법 설명하기"
-      },
-      "follow_up_3": {
-        "text": "병아리콩 프리터와 잘 어울리는 비건 요거트 소스 레시피 검색하기"
-      },
-      "follow_up_4": {
-        "text": "팬 요리에 커리 가루가 없을 때 대신 사용할 수 있는 간단한 향신료 목록 만들기"
-      },
-      "follow_up_5": {
-        "text": "태국식 찹 샐러드에 곁들일 타히니를 활용한 다른 드레싱 레시피 검색하기"
-      },
-      "follow_up_6": {
-        "text": "이 세 가지 채식 레시피의 단백질 및 식이섬유 함량 비교하기"
-      }
-    },
     "vital_farms_sec_financials": {
       "title": {
         "text": "Vital Farms SEC 재무 정보"
@@ -11109,6 +10971,70 @@
       },
       "follow_up_6": {
         "text": "음성 아이디어를 체계적인 작업으로 전환하는 다양한 방법 비교하기"
+      }
+    },
+    "vegetarian_recipes_from_fridge_vegetables": {
+      "title": {
+        "text": "냉장고 속 재료를 활용한 채식 레시피 아이디어"
+      },
+      "summary": {
+        "text": "사용자가 시금치, 당근, 피망, 병아리콩을 활용한 채식 레시피 아이디어를 요청했고, 어시스턴트가 세 가지 옵션을 제공했습니다."
+      },
+      "message_1": {
+        "text": "채식 레시피 좀 추천해 줄 수 있어? 냉장고에 시금치, 당근, 피망, 병아리콩이 남아 있어."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\n**시금치, 당근, 피망, 병아리콩**이 있다면 맛있고 식이섬유가 풍부한 채식 요리를 만들 수 있는 훌륭한 기초가 마련된 셈이에요. \n\n원하는 요리 스타일에 따라 시도해 볼 수 있는 세 가지 레시피를 소개할게요:\n\n---\n\n### 1. 신선하고 아삭한 맛: 태국식 찹 샐러드\n빠르고 가볍고 아삭한 음식을 원한다면, 잘게 썬 생피망, 당근, 시금치를 병아리콩과 섞은 뒤 새콤한 [땅콩](wiki:Peanut) 라임 드레싱을 곁들여 보세요.\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. 고소한 패티: 바삭한 병아리콩 채소 프리터\n따뜻하고 한입 크기로 즐기기 좋은 요리(랩, 피타 브레드에 넣거나 요거트 딥과 함께 먹기 좋아요)를 원한다면, 병아리콩을 으깬 뒤 다진 당근, 피망, 살짝 데친 시금치를 넣어 반죽해 보세요.\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. 간편한 평일 저녁 메뉴: 따뜻한 병아리콩 채소 스킬렛 커리\n팬 하나로 끝내는 요리를 원한다면(코코넛 밀크 캔이나 으깬 토마토 같은 기본 식재료 활용):\n1. **향신 채소 볶기:** 스킬렛에 올리브유를 두르고 다진 양파, 마늘, 생강을 향이 올라올 때까지 볶으세요.\n2. **단단한 채소 넣기:** 당근과 피망을 한입 크기로 써세요. 큐민 가루, [강황](wiki:Turmeric), 칠리 파우더나 카레 가루 한 꼬집과 함께 넣고 볶으세요.\n3. **졸이기:** 씻어둔 병아리콩과 채소 육수 또는 코코넛 밀크 한 컵을 넣으세요. 뚜껑을 덮고 당근이 부드러워질 때까지 10~12분간 뭉근하게 끓이세요.\n4. **시금치 익히기:** 마지막에 신선한 시금치를 넣고 선명한 초록색이 돌며 숨이 죽을 때까지 1~2분간 더 익히세요. 레몬즙을 살짝 뿌려 마무리하세요.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"오늘 어떤 스타일의 요리를 만들어 보고 싶나요?\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"신선하고 아삭한 찹 샐러드\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"바삭하게 구운 프리터 또는 패티\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"따뜻한 원팬 스킬렛 커리 또는 스튜\" }\n  ]\n}\n```"
+      },
+      "follow_up_1": {
+        "text": "팬 커리(skillet curry)의 상세 조리법과 정확한 재료 계량법 검색하기"
+      },
+      "follow_up_2": {
+        "text": "남은 병아리콩 프리터의 밀프렙을 위한 손질 및 보관 방법 설명하기"
+      },
+      "follow_up_3": {
+        "text": "병아리콩 프리터와 잘 어울리는 비건 요거트 소스 레시피 검색하기"
+      },
+      "follow_up_4": {
+        "text": "팬 요리에 커리 가루가 없을 때 대신 사용할 수 있는 간단한 향신료 목록 만들기"
+      },
+      "follow_up_5": {
+        "text": "태국식 찹 샐러드에 곁들일 타히니를 활용한 다른 드레싱 레시피 검색하기"
+      },
+      "follow_up_6": {
+        "text": "이 세 가지 채식 레시피의 단백질 및 식이섬유 함량 비교하기"
+      }
+    },
+    "air_fryers_amazon_germany": {
+      "title": {
+        "text": "독일에서 판매되는 에어프라이어 비교"
+      },
+      "summary": {
+        "text": "독일 아마존의 인기 에어프라이어를 가격, 용량, 평점으로 비교하고 2인 가구에 Philips Airfryer 2000 시리즈를 추천했습니다."
+      },
+      "message_1": {
+        "text": "아마존 판매 상품을 포함해 독일에서 온라인으로 살 수 있는 에어프라이어를 찾아줘. 현재 가격, 용량, 구매자 평점을 비교하고 출처 링크와 함께 2인 가구에 적합한 제품 하나를 추천해 줘."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\n현재 독일 아마존에서 판매되는 평점이 높은 에어프라이어의 가격, 용량, 구매자 평가를 비교했습니다.\n\n---\n\n### 독일에서 인기 있는 모델 비교\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### 2인 가구를 위한 가장 좋은 선택\n\n#### **추천 제품: [Philips Airfryer 2000 Series 6.2L](embed:philips-airfryer-2000-fay)**\n\n* **두 사람에게 적합한 이유:**\n  * **적절한 용량(6.2 L):** 바스켓이 4.5–5 L보다 작으면 두 사람 분량도 여러 번 나눠 조리해야 할 수 있습니다. 6.2 L 바스켓에는 연어 필레 두 조각과 채소 또는 감자튀김을 한 겹으로 펼쳐 고르게 익힐 수 있습니다.\n  * **주방 공간:** Ninja나 Russell Hobbs 같은 듀얼 존 제품은 조리대 공간을 많이 차지합니다. 6 L 단일 바스켓은 독일의 일반적인 주방에도 비교적 잘 맞으면서 충분한 조리 공간을 제공합니다.\n  * **투명 창:** 서랍을 열어 열을 잃지 않고 익은 정도를 확인할 수 있습니다.\n  * **가격 대비 가치:** €99.99에 [Philips](wiki:Philips)의 안정적인 온도 제어 기능을 제공하는 합리적인 가격의 제품입니다.\n\n#### **대안(서로 다른 온도로 두 요리를 자주 조리한다면): [Philips Dual Basket 3000 Series (9.0L)](embed:philips-airfryer-dual-pjD)**\n단백질 요리와 채소 곁들임을 서로 다른 온도와 시간에 동시에 만들고 싶다면(예: 닭가슴살은 180 °C, 바삭한 감자는 200 °C), 현재 €119.99로 할인 중인 이 모델은 두 바스켓의 조리 완료 시간을 맞출 수 있습니다.\n\n---\n\n### 구매 전에 확인할 점\n1. **바스켓 모양:** Cosori와 Philips 같은 사각 바스켓은 같은 용량의 둥근 바스켓보다 스테이크, 베이킹 틀, 꼬치처럼 넓게 펼쳐야 하는 음식을 넣기 좋습니다.\n2. **식기세척기 공간:** 6 L 단일 서랍이 들어갈 만큼 높이가 충분한지 확인하세요. 논스틱 코팅을 더 오래 쓰고 싶다면 손세척도 고려해 보세요."
+      },
+      "follow_up_1": {
+        "text": "에어프라이어 전용 레시피 찾아보기"
+      },
+      "follow_up_2": {
+        "text": "싱글 바스켓과 듀얼 바스켓 에어프라이어의 주요 차이점 설명하기"
+      },
+      "follow_up_3": {
+        "text": "이 에어프라이어와 호환되는 베이킹 액세서리 찾기"
+      },
+      "follow_up_4": {
+        "text": "에어프라이어로 만드는 초보자용 저녁 요리법 살펴보기"
+      },
+      "follow_up_5": {
+        "text": "이 모델들의 현재 에너지 소비 정보 확인하기"
+      },
+      "follow_up_6": {
+        "text": "세라믹 코팅과 테플론 코팅의 세척 및 유지 관리 요구 사항 비교하기"
       }
     }
   },
@@ -12898,7 +12824,7 @@
             "text": "채용 정보 검색 서비스"
           },
           "description": {
-            "text": "채용 정보를 검색할 때만 사용합니다. 독일 연방고용청과 JobTech에는 선택한 검색어, 위치, 해당 필터가 서버 요청으로 전달됩니다. Arbeitnow의 공개 피드는 OpenMates에서 로컬로 필터링합니다. OpenMates 사용자 ID, 이력서, 계정 인증 정보는 전송하지 않습니다. 80,000 Hours는 키워드와 국가를 Algolia에 보내고 Hard Problems는 국가만 받습니다. 위치와 기타 필터는 로컬에서 확인합니다."
+            "text": "채용 정보를 검색할 때만 사용합니다. 독일 연방고용청과 JobTech에는 선택한 검색어, 위치, 해당 필터가 서버 요청으로 전달됩니다. Arbeitnow의 공개 피드는 OpenMates에서 로컬로 필터링합니다. OpenMates 사용자 ID, 이력서, 계정 인증 정보는 전송하지 않습니다."
           },
           "arbeitsagentur": {
             "heading": {
@@ -12922,22 +12848,6 @@
             },
             "description": {
               "text": "OpenMates는 Arbeitnow의 공개 채용 피드를 가져옵니다. 키워드, 위치 및 필터는 로컬에서 적용되며 Arbeitnow로 전송되지 않습니다."
-            }
-          },
-          "eighty_thousand_hours": {
-            "heading": {
-              "text": "80,000 Hours Job Board"
-            },
-            "description": {
-              "text": "80,000 Hours 공개 채용 게시판은 Algolia 검색을 사용합니다. 키워드와 선택한 국가가 전송되며 위치와 기타 필터는 OpenMates가 로컬에서 확인합니다. OpenMates 사용자 ID, 이력서 또는 계정 정보는 전송하지 않습니다."
-            }
-          },
-          "hard_problems": {
-            "heading": {
-              "text": "Hard Problems"
-            },
-            "description": {
-              "text": "OpenMates는 선택한 국가의 Hard Problems 공개 채용 피드를 가져옵니다. 키워드, 위치 및 기타 필터는 로컬에서 확인하며 Hard Problems에 전송하지 않습니다. OpenMates 사용자 ID, 이력서 또는 계정 정보는 전송하지 않습니다."
             }
           }
         }
@@ -16469,16 +16379,6 @@
       }
     },
     "app_store_examples": {
-      "jobs": {
-        "search": {
-          "1": {
-            "text": "스톡홀름의 소프트웨어 개발자 채용 정보"
-          },
-          "2": {
-            "text": "말뫼의 소프트웨어 개발자 채용 정보"
-          }
-        }
-      },
       "hosting": {
         "search_domains": {
           "1": {

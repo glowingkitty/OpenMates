@@ -134,12 +134,12 @@ async def _invalidate_message_caches(cache_service: Any, user_id: str, chat_id: 
 
 
 async def _finish_new_message(directus_service: Any, cache_service: Any, user_id: str,
-                              user_id_hash: str, message: dict[str, Any], row: dict[str, Any]) -> None:
+                              user_id_hash: str, message: dict[str, Any], row: dict[str, Any]) -> int:
     # Zero is a durable "created but not counted" marker. If a process dies after
     # writing the row, its replay still advances the chat sync revision. A crash
     # between that advance and this CAS may overadvance it once, which is safe:
     # messages_v is a revision, not a row count.
-    await _advance_chat_version(directus_service, cache_service, user_id,
+    messages_v = await _advance_chat_version(directus_service, cache_service, user_id,
                                 message["chat_id"], user_id_hash, message["created_at"])
     updated = await directus_service.update_item_if_version(
         "messages", row["id"], {"queue_revision": 1}, 0,
@@ -152,14 +152,15 @@ async def _finish_new_message(directus_service: Any, cache_service: Any, user_id
         if not latest or int(latest.get("queue_revision") or 0) < 1:
             raise RuntimeError("Call message count marker update failed")
     await _invalidate_message_caches(cache_service, user_id, message["chat_id"])
+    return messages_v
 
 
 async def _finish_revision(directus_service: Any, cache_service: Any, user_id: str,
-                           user_id_hash: str, message: dict[str, Any], row: dict[str, Any]) -> None:
+                           user_id_hash: str, message: dict[str, Any], row: dict[str, Any]) -> int | None:
     pending = int(row.get("queue_pending_revision") or 0)
     if not pending:
         return
-    await _advance_chat_version(directus_service, cache_service, user_id,
+    messages_v = await _advance_chat_version(directus_service, cache_service, user_id,
                                 message["chat_id"], user_id_hash, message["created_at"])
     cleared = await directus_service.update_item_if_version(
         "messages", row["id"], {"queue_pending_revision": None}, pending,
@@ -172,13 +173,14 @@ async def _finish_revision(directus_service: Any, cache_service: Any, user_id: s
         if not latest or latest.get("queue_pending_revision") is not None:
             raise RuntimeError("Call correction sync marker update failed")
     await _invalidate_message_caches(cache_service, user_id, message["chat_id"])
+    return messages_v
 
 
-async def persist_encrypted_call_message(
+async def _persist_encrypted_call_message(
     *, directus_service: Any, cache_service: Any, user_id: str,
-    user_id_hash: str, session_hash: str, message: dict[str, Any],
-) -> tuple[str, int]:
-    """Return (created|updated|replayed|stale, persisted revision)."""
+    user_id_hash: str, session_hash: str, message: dict[str, Any], encryption_service: Any = None,
+) -> tuple[str, int, int, dict[str, Any] | None]:
+    """Return outcome, message revision, canonical chat version, and newly settled row."""
     if not session_hash:
         raise CallMessageError("call_session_unavailable")
     try:
@@ -188,7 +190,15 @@ async def persist_encrypted_call_message(
             message_id=message["message_id"], role=message["role"],
         )
     except ValueError as exc:
-        raise CallMessageError("call_message_not_authorized") from exc
+        if encryption_service is None:
+            raise CallMessageError("call_message_not_authorized") from exc
+        from backend.shared.python_utils.voice_action_receipts import require_committed_voice_action
+        try:
+            await require_committed_voice_action(cache_service=cache_service,
+                directus_service=directus_service, encryption_service=encryption_service,
+                user_id=user_id, user_hash=user_id_hash, session_id=session_hash, message=message)
+        except ValueError as receipt_exc:
+            raise CallMessageError("call_message_not_authorized") from receipt_exc
 
     chat = await directus_service.chat.get_chat_metadata(message["chat_id"])
     if (not chat or chat.get("hashed_user_id") != user_id_hash
@@ -217,6 +227,25 @@ async def persist_encrypted_call_message(
     if not match.valid:
         raise CallMessageError("chat_key_mismatch")
 
+    committed_version: int | None = None
+
+    async def receipt(outcome: str, revision: int) -> tuple[str, int, int, dict[str, Any] | None]:
+        # Newly committed/repair writes already hold the actual chat CAS result.
+        # Replays read current authority without incrementing the chat revision.
+        messages_v = committed_version
+        if messages_v is None:
+            latest_chat = await directus_service.chat.get_chat_metadata(message["chat_id"])
+            if not latest_chat:
+                raise RuntimeError("Call chat version authority unavailable")
+            if (latest_chat.get("hashed_user_id") != user_id_hash
+                    or latest_chat.get("hashed_team_id")
+                    or latest_chat.get("chat_visibility") in {"team", "direct"}):
+                raise CallMessageError("call_chat_not_owned")
+            messages_v = latest_chat.get("messages_v")
+            if type(messages_v) is not int or messages_v < 0:
+                raise RuntimeError("Call chat version authority unavailable")
+        return outcome, revision, messages_v, dict(row) if committed_version is not None else None
+
     row = await _load_message(directus_service, message["message_id"])
     if not row:
         if message["revision"] != 1:
@@ -239,22 +268,22 @@ async def persist_encrypted_call_message(
             raise CallMessageError("call_message_revision_conflict")
         # The Directus writer returns only id/client_message_id on a duplicate.
         if "chat_id" in created:
-            await _finish_new_message(directus_service, cache_service, user_id,
+            committed_version = await _finish_new_message(directus_service, cache_service, user_id,
                                       user_id_hash, message, row)
-            return "created", 1
+            return await receipt("created", 1)
 
     if not _same_identity(row, message, user_id_hash):
         raise CallMessageError("call_message_identity_conflict")
     current = int(row.get("queue_revision") or 0)
     if current == 0:
-        await _finish_new_message(directus_service, cache_service, user_id,
+        committed_version = await _finish_new_message(directus_service, cache_service, user_id,
                                   user_id_hash, message, row)
         row = await _load_message(directus_service, message["message_id"])
         if not row:
             raise RuntimeError("Call message repair verification failed")
         current = int(row.get("queue_revision") or 0)
     if row.get("queue_pending_revision") is not None:
-        await _finish_revision(directus_service, cache_service, user_id,
+        committed_version = await _finish_revision(directus_service, cache_service, user_id,
                                user_id_hash, message, row)
         row = await _load_message(directus_service, message["message_id"])
         if not row:
@@ -263,11 +292,11 @@ async def persist_encrypted_call_message(
     if message["revision"] <= current:
         if message["revision"] == current and row.get("encrypted_content") == message["encrypted_content"]:
             await _invalidate_message_caches(cache_service, user_id, message["chat_id"])
-            return "replayed", current
+            return await receipt("replayed", current)
         if message["revision"] == current:
             raise CallMessageError("call_message_revision_conflict", current)
         await _invalidate_message_caches(cache_service, user_id, message["chat_id"])
-        return "stale", current
+        return await receipt("stale", current)
     if message["revision"] != current + 1:
         raise CallMessageError("call_message_revision_gap")
     updated = await directus_service.update_item_if_version(
@@ -286,41 +315,60 @@ async def persist_encrypted_call_message(
                 if winning.get("encrypted_content") != message["encrypted_content"]:
                     raise CallMessageError("call_message_revision_conflict", winning_revision)
                 if winning.get("queue_pending_revision") is not None:
-                    await _finish_revision(directus_service, cache_service, user_id,
+                    committed_version = await _finish_revision(directus_service, cache_service, user_id,
                                            user_id_hash, message, winning)
+                row = winning
                 await _invalidate_message_caches(cache_service, user_id, message["chat_id"])
-                return "replayed", winning_revision
+                return await receipt("replayed", winning_revision)
             if winning_revision > message["revision"]:
                 await _invalidate_message_caches(cache_service, user_id, message["chat_id"])
-                return "stale", winning_revision
+                return await receipt("stale", winning_revision)
         raise RuntimeError("Call message revision storage failed")
-    await _finish_revision(directus_service, cache_service, user_id,
+    committed_version = await _finish_revision(directus_service, cache_service, user_id,
                            user_id_hash, message, updated)
-    return "updated", message["revision"]
+    row = updated
+    return await receipt("updated", message["revision"])
+
+
+async def persist_encrypted_call_message(
+    *, directus_service: Any, cache_service: Any, user_id: str,
+    user_id_hash: str, session_hash: str, message: dict[str, Any], encryption_service: Any = None,
+) -> tuple[str, int]:
+    """Return the existing outcome/message-revision pair for persistence callers."""
+    outcome, revision, _messages_v, _changed = await _persist_encrypted_call_message(
+        directus_service=directus_service, cache_service=cache_service, user_id=user_id,
+        user_id_hash=user_id_hash, session_hash=session_hash, message=message,
+        encryption_service=encryption_service,
+    )
+    return outcome, revision
 
 
 async def handle_call_message_completed(*, manager: Any, cache_service: Any,
                                         directus_service: Any, user_id: str,
                                         user_id_hash: str, session_hash: str,
-                                        device_fingerprint_hash: str, payload: Any) -> None:
+                                        device_fingerprint_hash: str, payload: Any,
+                                        encryption_service: Any = None) -> None:
     request_id = payload.get("request_id") if isinstance(payload, dict) else None
     try:
         message = _validated_message(payload)
-        outcome, revision = await persist_encrypted_call_message(
+        outcome, revision, messages_v, changed = await _persist_encrypted_call_message(
             directus_service=directus_service, cache_service=cache_service,
             user_id=user_id, user_id_hash=user_id_hash,
-            session_hash=session_hash, message=message,
+            session_hash=session_hash, message=message, encryption_service=encryption_service,
         )
         await manager.send_personal_message({"type": "call_message_confirmed", "payload": {
             "request_id": message["request_id"], "chat_id": message["chat_id"],
             "message_id": message["message_id"], "revision": revision, "outcome": outcome,
+            "messages_v": messages_v,
         }}, user_id, device_fingerprint_hash)
-        if outcome in {"created", "updated"}:
+        if changed is not None:
+            # A repaired replay publishes the stored winning ciphertext, even if
+            # this request carried an older partial transcript.
             await manager.broadcast_to_user({"type": "call_message_changed", "payload": {
                 "chat_id": message["chat_id"], "message_id": message["message_id"],
-                "role": message["role"], "created_at": message["created_at"],
-                "encrypted_content": message["encrypted_content"], "revision": revision,
-                "user_message_id": message["user_message_id"],
+                "role": changed["role"], "created_at": changed["created_at"],
+                "encrypted_content": changed["encrypted_content"], "revision": revision,
+                "user_message_id": changed.get("user_message_id"), "messages_v": messages_v,
             }}, user_id, exclude_device_hash=device_fingerprint_hash)
     except CallMessageError as exc:
         await manager.send_personal_message({"type": "call_message_rejected", "payload": {

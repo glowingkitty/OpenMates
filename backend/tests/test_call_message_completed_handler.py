@@ -147,17 +147,34 @@ async def test_create_correction_and_stale_replay_keep_one_encrypted_message(rig
             device_fingerprint_hash="device", payload=body,
         )
 
+    # Ordinary text turns already advanced the chat independently of this row.
+    directus.metadata["messages_v"] = 41
     await receive(payload())
-    assert directus.metadata["messages_v"] == 1
+    assert directus.metadata["messages_v"] == 42
     assert directus.message["encrypted_content"] == CIPHER_A
     assert manager.sent[-1]["payload"]["outcome"] == "created"
+    assert manager.sent[-1]["payload"]["messages_v"] == 42
+    assert manager.broadcasts[-1]["payload"]["messages_v"] == 42
+    assert manager.sent[-1]["payload"]["revision"] == 1
     await receive(payload(CIPHER_B, 2))
-    assert directus.metadata["messages_v"] == 2  # Sync revision advances; row count stays one.
+    assert directus.metadata["messages_v"] == 43  # Sync revision advances; row count stays one.
     assert directus.message["encrypted_content"] == CIPHER_B
     assert manager.sent[-1]["payload"]["outcome"] == "updated"
+    assert manager.sent[-1]["payload"]["messages_v"] == 43
+    assert manager.broadcasts[-1]["payload"]["messages_v"] == 43
+    assert manager.sent[-1]["payload"]["revision"] == 2
+    # A replay after subsequent ordinary text reads the current canonical version
+    # without creating a new version or rebroadcasting the old ciphertext.
+    directus.metadata["messages_v"] = 50
+    await receive(payload(CIPHER_B, 2))
+    assert manager.sent[-1]["payload"]["outcome"] == "replayed"
+    assert manager.sent[-1]["payload"]["messages_v"] == 50
+    assert directus.metadata["messages_v"] == 50
     await receive(payload(CIPHER_OLD, 1))
     assert directus.message["encrypted_content"] == CIPHER_B
     assert manager.sent[-1]["payload"]["outcome"] == "stale"
+    assert manager.sent[-1]["payload"]["messages_v"] == 50
+    assert directus.metadata["messages_v"] == 50
     assert len(manager.broadcasts) == 2
     assert all("content" not in write for write in directus.writes)
     assert ("sync", OWNER, CHAT) in cache.deleted
@@ -314,3 +331,175 @@ async def test_untitled_legacy_history_finds_late_modern_key_header(rig, monkeyp
             user_id_hash=OWNER_HASH, session_hash=SESSION,
             message=handler._validated_message(payload(wrong)))
     assert directus.writes == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("correction", [False, True])
+# contract-test: supporting surface=rest_api assertions=video-call.chat.transcripts,video-call.privacy
+async def test_call_receipt_waits_for_committed_chat_version_and_repair(rig, correction):
+    directus, cache, manager = rig
+    directus.metadata["messages_v"] = 20
+
+    async def receive(body):
+        await handler.handle_call_message_completed(
+            manager=manager, cache_service=cache, directus_service=directus,
+            user_id=OWNER, user_id_hash=OWNER_HASH, session_hash=SESSION,
+            device_fingerprint_hash="device", payload=body,
+        )
+
+    if correction:
+        await receive(payload())
+        manager.sent.clear()
+        manager.broadcasts.clear()
+    directus.fail_advance_once = True
+    body = payload(CIPHER_B, 2) if correction else payload()
+    await receive(body)
+    assert manager.sent[-1]["type"] == "call_message_rejected"
+    assert "messages_v" not in manager.sent[-1]["payload"]
+    assert manager.broadcasts == []
+    assert directus.metadata["messages_v"] == (21 if correction else 20)
+
+    await receive(body)
+    assert manager.sent[-1]["type"] == "call_message_confirmed"
+    assert manager.sent[-1]["payload"]["outcome"] == "replayed"
+    assert manager.sent[-1]["payload"]["messages_v"] == (22 if correction else 21)
+    assert directus.message["queue_revision"] == body["revision"]
+    assert directus.message.get("queue_pending_revision") is None
+    assert len(manager.broadcasts) == 1
+    assert manager.broadcasts[0]["payload"]["messages_v"] == (22 if correction else 21)
+    assert manager.broadcasts[0]["payload"]["encrypted_content"] == body["encrypted_content"]
+    assert manager.broadcasts[0]["payload"]["revision"] == body["revision"]
+    assert sum("message_id" in write for write in directus.writes) == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("unavailable_version", ["missing_chat", None, "7", True, -1])
+# contract-test: supporting surface=rest_api assertions=video-call.chat.transcripts
+async def test_receipt_never_fabricates_chat_version(rig, monkeypatch, unavailable_version):
+    directus, cache, manager = rig
+    await handler.handle_call_message_completed(
+        manager=manager, cache_service=cache, directus_service=directus,
+        user_id=OWNER, user_id_hash=OWNER_HASH, session_hash=SESSION,
+        device_fingerprint_hash="device", payload=payload(),
+    )
+    manager.sent.clear()
+    manager.broadcasts.clear()
+    read = directus.get_chat_metadata
+    reads = 0
+
+    async def unavailable_receipt_authority(chat_id):
+        nonlocal reads
+        reads += 1
+        chat = await read(chat_id)
+        if reads == 1:
+            return chat  # Existing authorization check still succeeds.
+        if unavailable_version == "missing_chat":
+            return None
+        return {**chat, "messages_v": unavailable_version}
+
+    monkeypatch.setattr(directus, "get_chat_metadata", unavailable_receipt_authority)
+    await handler.handle_call_message_completed(
+        manager=manager, cache_service=cache, directus_service=directus,
+        user_id=OWNER, user_id_hash=OWNER_HASH, session_hash=SESSION,
+        device_fingerprint_hash="device", payload=payload(),
+    )
+    assert manager.sent[-1]["type"] == "call_message_rejected"
+    assert manager.sent[-1]["payload"]["code"] == "call_message_storage_failed"
+    assert manager.broadcasts == []
+    assert directus.metadata["messages_v"] == 1
+    assert sum("message_id" in write for write in directus.writes) == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("correction", [False, True])
+# contract-test: supporting surface=rest_api assertions=video-call.chat.transcripts,video-call.privacy
+async def test_committed_version_survives_metadata_outage_and_retry_without_duplicate_history(rig, monkeypatch, correction):
+    directus, cache, manager = rig
+
+    async def receive(body):
+        await handler.handle_call_message_completed(
+            manager=manager, cache_service=cache, directus_service=directus,
+            user_id=OWNER, user_id_hash=OWNER_HASH, session_hash=SESSION,
+            device_fingerprint_hash="device", payload=body,
+        )
+
+    if correction:
+        await receive(payload())
+        manager.sent.clear()
+        manager.broadcasts.clear()
+    finish_name = "_finish_revision" if correction else "_finish_new_message"
+    finish = getattr(handler, finish_name)
+    read = directus.get_chat_metadata
+    outage_reads = 0
+
+    async def unavailable_chat(_chat_id):
+        nonlocal outage_reads
+        outage_reads += 1
+        raise RuntimeError("metadata outage after commit")
+
+    async def commit_then_lose_metadata(*args, **kwargs):
+        result = await finish(*args, **kwargs)  # Real row, chat CAS, and marker commits.
+        monkeypatch.setattr(directus, "get_chat_metadata", unavailable_chat)
+        return result
+
+    monkeypatch.setattr(handler, finish_name, commit_then_lose_metadata)
+    body = payload(CIPHER_B, 2) if correction else payload()
+    await receive(body)
+    expected_version = 2 if correction else 1
+    assert outage_reads == 0  # No fallible authority lookup after commit.
+    assert manager.sent[-1]["type"] == "call_message_confirmed"
+    assert manager.sent[-1]["payload"]["messages_v"] == expected_version
+    assert len(manager.broadcasts) == 1
+    assert manager.broadcasts[0]["payload"]["encrypted_content"] == body["encrypted_content"]
+    assert manager.broadcasts[0]["payload"]["messages_v"] == expected_version
+
+    # A lost receipt may cause a retry during and after the outage. Its durable
+    # encrypted row and the already delivered remote event remain exactly once.
+    await receive(body)
+    assert manager.sent[-1]["type"] == "call_message_rejected"
+    assert outage_reads == 1
+    monkeypatch.setattr(handler, finish_name, finish)
+    monkeypatch.setattr(directus, "get_chat_metadata", read)
+    await receive(body)
+    assert manager.sent[-1]["payload"]["outcome"] == "replayed"
+    assert manager.sent[-1]["payload"]["messages_v"] == expected_version
+    assert directus.metadata["messages_v"] == expected_version
+    assert directus.message["encrypted_content"] == body["encrypted_content"]
+    assert directus.message["queue_revision"] == body["revision"]
+    assert directus.message.get("queue_pending_revision") is None
+    assert sum("message_id" in write for write in directus.writes) == 1
+    assert len(manager.broadcasts) == 1
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=video-call.chat.transcripts,video-call.privacy
+async def test_stale_partial_repair_broadcasts_only_stored_winning_ciphertext(rig):
+    directus, cache, manager = rig
+
+    async def receive(body):
+        await handler.handle_call_message_completed(
+            manager=manager, cache_service=cache, directus_service=directus,
+            user_id=OWNER, user_id_hash=OWNER_HASH, session_hash=SESSION,
+            device_fingerprint_hash="device", payload=body,
+        )
+
+    await receive(payload())
+    directus.fail_advance_once = True
+    await receive(payload(CIPHER_B, 2))
+    assert manager.sent[-1]["type"] == "call_message_rejected"
+    assert directus.message["queue_pending_revision"] == 2
+    manager.broadcasts.clear()
+    await receive(payload())
+    assert manager.sent[-1]["payload"]["outcome"] == "stale"
+    assert manager.sent[-1]["payload"]["messages_v"] == 2
+    assert len(manager.broadcasts) == 1
+    remote = manager.broadcasts[0]["payload"]
+    assert remote["encrypted_content"] == CIPHER_B
+    assert remote["revision"] == 2
+    assert remote["messages_v"] == 2
+    assert directus.message["encrypted_content"] == CIPHER_B
+    assert directus.message.get("queue_pending_revision") is None
+    assert sum("message_id" in write for write in directus.writes) == 1
+    await receive(payload())
+    assert directus.metadata["messages_v"] == 2
+    assert len(manager.broadcasts) == 1

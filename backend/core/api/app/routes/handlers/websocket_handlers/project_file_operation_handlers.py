@@ -220,6 +220,17 @@ async def handle_project_file_operation_result(
             return
 
         continuation_id = str(outcome["job"].get("continuation_task_id") or "")
+        if continuation_id.startswith("voice-project:"):
+            from backend.apps.ai.processing.voice_project_tools import complete_voice_project_operation
+            await complete_voice_project_operation(
+                cache_service=cache_service, directus_service=directus_service,
+                encryption_service=websocket.app.state.encryption_service,
+                job=outcome["job"], result=outcome.get("result", submitted.result),
+                status=submitted.status, replayed=bool(outcome.get("replayed")),
+            )
+            await websocket.send_json({"type": "project_file_operation_completed",
+                                       "payload": service.public_summary(outcome["job"])})
+            return
         if continuation_id.startswith("project-authoring:"):
             # Independent Project authoring has no regular chat continuation.
             # All lease, owner, scope and proposal-commitment checks above still
@@ -303,6 +314,16 @@ async def handle_project_file_operation_reject(
             project_id=rejected.project_id,
         )
         job = outcome["job"]
+        if str(job.get("continuation_task_id") or "").startswith("voice-project:"):
+            from backend.apps.ai.processing.voice_project_tools import complete_voice_project_operation
+            await complete_voice_project_operation(
+                cache_service=cache_service, directus_service=directus_service,
+                encryption_service=websocket.app.state.encryption_service,
+                job=job, result={}, status="user_declined", replayed=bool(outcome.get("replayed")),
+            )
+            await websocket.send_json({"type": "project_file_operation_completed",
+                                       "payload": service.public_summary(job)})
+            return
         if str(job.get("continuation_task_id") or "").startswith("project-authoring:"):
             from backend.core.api.app.routes.project_authoring import get_authoring
             authoring_job = await get_authoring(websocket).settle_file_operation(user_id=user_id, operation_id=rejected.operation_id)

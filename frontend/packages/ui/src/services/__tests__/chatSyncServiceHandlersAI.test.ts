@@ -12,7 +12,7 @@ vi.mock('../generatedChatMetadataPersistence', () => ({ persistGeneratedChatMeta
 // send_embed_data, where the UI can otherwise stay on a loading preview.
 // Keep mocks narrow so handler behavior remains visible.
 
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import type { ChatSynchronizationService } from "../chatSyncService";
 import { noteChatMetadataTurn } from "../lateChatMetadataGuard";
 import { hasQueuedProcessing } from "../queuedMessageLifecycle";
@@ -36,6 +36,7 @@ import {
   handleQueuedMessageUpdatedImpl,
   handleAwaitingSubChatsCompletionImpl,
   handleChatCompressionCheckpointStoredImpl,
+  persistClientEncryptedCompressionCheckpoint,
   handleEmbedUpdateImpl,
   handlePostProcessingCompletedImpl,
   handleSendEmbedDataImpl,
@@ -113,6 +114,14 @@ const mockIncognitoChatService = vi.hoisted(() => ({
   getMessagesForChat: vi.fn(),
   updateMessage: vi.fn(),
 }));
+
+// A queued incognito case must not redirect subsequent private-chat handlers
+// into volatile storage. clearAllMocks clears calls but keeps implementations.
+beforeEach(() => {
+  mockIncognitoChatService.getChat.mockReset().mockResolvedValue(null);
+  mockIncognitoChatService.getMessagesForChat.mockReset().mockResolvedValue([]);
+  mockIncognitoChatService.updateMessage.mockReset().mockResolvedValue(false);
+});
 
 describe("queued user message socket events", () => {
   beforeEach(() => {
@@ -383,6 +392,7 @@ const mockWebSocketService = vi.hoisted(() => ({
   off: vi.fn(),
   addEventListener: vi.fn(),
   send: vi.fn(),
+  sendMessage: vi.fn(),
   notifyDataActivity: vi.fn(),
   isConnected: vi.fn(() => true),
 }));
@@ -658,6 +668,37 @@ describe("compression checkpoint source manifest", () => {
       chat_id: "chat-1", checkpoint: { ...checkpoint, id: "legacy", covered_message_ids: null },
     });
     expect(mockChatDB.deleteCoveredMessagesForChat).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("voice compression canonical storage", () => {
+  // contract-test: supporting surface=gui.web assertions=video-call.chat.compressed-context,video-call.privacy
+  it("waits for encrypted server receipt and local persistence before acknowledging a new prefix", async () => {
+    vi.clearAllMocks();
+    mockChatDB.getChat.mockResolvedValue({ chat_id: "chat-1" });
+    mockChatKeyManager.getKey.mockResolvedValue(new Uint8Array(32));
+    mockEnsureChatKeySafeForWrite.mockResolvedValue(true);
+    mockEncryptWithChatKey.mockResolvedValue("encrypted-checkpoint");
+    const service = new EventTarget() as ChatSynchronizationService;
+    const payload = { chat_id: "chat-1", task_id: "voice-task", summary_message_id: "checkpoint-voice",
+      summary_content: "Private compressed context", compressed_message_count: 2,
+      compressed_up_to_timestamp: 200, compressed_up_to_message_id: "covered-2", covered_message_ids: ["covered-1", "covered-2"] };
+    let complete = false;
+    const waiting = persistClientEncryptedCompressionCheckpoint(payload, service).then(() => { complete = true; });
+    await vi.waitFor(() => expect(mockWebSocketService.sendMessage).toHaveBeenCalledOnce());
+    expect(complete).toBe(false);
+    const sent = mockWebSocketService.sendMessage.mock.calls[0][1];
+    expect(sent).toMatchObject({ encrypted_summary: "encrypted-checkpoint" });
+    expect(sent).not.toHaveProperty("summary_content");
+    expect(sent).not.toHaveProperty("summary");
+    await handleChatCompressionCheckpointStoredImpl(service, { chat_id: "chat-1", checkpoint: {
+      id: payload.summary_message_id, chat_id: "chat-1", encrypted_summary: sent.encrypted_summary,
+      summary: payload.summary_content, compressed_up_to_timestamp: 200, compressed_up_to_message_id: "covered-2",
+      compressed_message_count: 2, created_at: 201, covered_message_ids: payload.covered_message_ids,
+    } });
+    await waiting;
+    expect(complete).toBe(true);
+    expect(mockChatDB.saveChatCompressionCheckpoint).toHaveBeenCalledWith(expect.not.objectContaining({ summary: expect.anything() }));
   });
 });
 
@@ -1624,6 +1665,7 @@ describe("handleSendEmbedDataImpl", () => {
         ...parentIndexes,
       }),
       undefined,
+      expect.objectContaining({ embedId: "child-1" }),
     );
   });
 
@@ -1709,6 +1751,7 @@ describe("handleSendEmbedDataImpl", () => {
         expect.objectContaining({ key_type: "master" }),
         expect.objectContaining({ key_type: "chat" }),
       ]) }),
+      expect.objectContaining({ embedId: "embed-1" }),
     );
     expect(service.dispatchEvent).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -1804,6 +1847,7 @@ describe("handleSendEmbedDataImpl", () => {
         expect.objectContaining({ key_type: "master" }),
         expect.objectContaining({ key_type: "chat" }),
       ]) }),
+      expect.objectContaining({ embedId: "embed-1" }),
     );
   });
 
@@ -1891,6 +1935,7 @@ describe("handleSendEmbedDataImpl", () => {
           expect.objectContaining({ key_type: "master" }),
           expect.objectContaining({ key_type: "chat" }),
         ]) }),
+        expect.objectContaining({ embedId: "embed-1" }),
       );
     } finally {
       vi.useRealTimers();
@@ -1980,6 +2025,7 @@ describe("handleSendEmbedDataImpl", () => {
           expect.objectContaining({ key_type: "master" }),
           expect.objectContaining({ key_type: "chat" }),
         ]) }),
+        expect.objectContaining({ embedId: "embed-1" }),
       );
     } finally {
       vi.useRealTimers();
@@ -2031,5 +2077,87 @@ describe("handleSendEmbedDataImpl", () => {
         }),
       }),
     );
+  });
+});
+
+const legacyScope = vi.hoisted(() => ({ identity: "personal-a", epoch: 1 }));
+import * as legacyWorkspace from "../workspaceQueryCache";
+import * as legacyAccounts from "../connectedAccountStorageService";
+import { reservePersonalChatTurn, bindPersonalChatTurn, awaitPersonalChatPredecessor, clearPersonalChatTurnBarriers } from "../personalChatTurnBarrier";
+
+describe("legacy canonical ACK turn settlement", () => {
+  const chat = { chat_id: "legacy-chat", messages_v: 2, updated_at: 1, last_edited_overall_timestamp: 1 };
+  const assistant = { message_id: "legacy-assistant", chat_id: chat.chat_id, role: "assistant", user_message_id: "legacy-user" };
+  const canonical = () => ({ chat_id: chat.chat_id, messages_v: 7, messages: [{ ...assistant, encrypted_content: "ciphertext" }] });
+  const ack = { chat_id: chat.chat_id, message_id: assistant.message_id, task_id: "already_processed" };
+  const service = { unmarkMessageSyncing: vi.fn(), dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+  let entered: ReturnType<typeof vi.fn>;
+  let queued: Promise<unknown>;
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(legacyWorkspace, "getWorkspaceCacheIdentity").mockImplementation(() => legacyScope.identity);
+    vi.spyOn(legacyAccounts, "getConnectedAccountMutationEpoch").mockImplementation(() => legacyScope.epoch);
+    legacyScope.identity = "personal-a"; legacyScope.epoch = 1;
+    mockChatDB.getMessage.mockResolvedValue(assistant);
+    mockChatDB.getChat.mockResolvedValue({ ...chat });
+    mockChatDB.updateChat.mockResolvedValue(undefined);
+    mockChatListCache.getCache.mockReturnValue(null);
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => canonical() })));
+    const first = reservePersonalChatTurn(chat.chat_id, assistant.user_message_id);
+    bindPersonalChatTurn(first, "real-preflight-turn");
+    entered = vi.fn();
+    queued = awaitPersonalChatPredecessor(reservePersonalChatTurn(chat.chat_id, "next-user")).then(entered, () => undefined);
+  });
+  afterEach(async () => { clearPersonalChatTurnBarriers(); await queued; vi.unstubAllGlobals(); });
+  // contract-test: supporting surface=gui.web assertions=chats.completion.lease-fenced,chats.message.identity-idempotent
+  it("blocks the reserved follow-up until exact canonical persistence, then releases once with the server version", async () => {
+    let finish!: (data: unknown) => void;
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: () => new Promise((resolve) => { finish = resolve; }) })));
+    const handling = handleAIResponseStorageConfirmedImpl(service, ack);
+    await vi.waitFor(() => expect(finish).toBeTypeOf("function"));
+    expect(entered).not.toHaveBeenCalled(); finish(canonical()); await handling; await queued;
+    expect(mockChatDB.updateChat).toHaveBeenCalledWith(expect.objectContaining({ messages_v: 7 }));
+    expect(mockChatListCache.upsertChat).toHaveBeenCalledWith(expect.objectContaining({ messages_v: 7 }));
+    expect(entered).toHaveBeenCalledExactlyOnceWith(7);
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => canonical() })));
+    await handleAIResponseStorageConfirmedImpl(service, ack);
+    expect(entered).toHaveBeenCalledTimes(1);
+  });
+  // contract-test: supporting surface=gui.web assertions=chats.completion.lease-fenced
+  it.each(["wrong-chat", "wrong-message", "missing-row", "empty-content", "wrong-role", "wrong-canonical-user", "bad-version", "failed-fetch", "failed-local-apply", "wrong-local-user", "wrong-local-chat", "stale-workspace", "stale-epoch"])("keeps the follow-up fenced on %s", async (failure) => {
+    const data = canonical();
+    if (failure === "wrong-chat") data.chat_id = "other";
+    if (failure === "wrong-message") data.messages[0].message_id = "other";
+    if (failure === "missing-row") data.messages = [];
+    if (failure === "empty-content") data.messages[0].encrypted_content = "";
+    if (failure === "wrong-role") data.messages[0].role = "user";
+    if (failure === "wrong-canonical-user") data.messages[0].user_message_id = "other";
+    if (failure === "bad-version") data.messages_v = -1;
+    if (failure === "failed-local-apply") mockChatDB.updateChat.mockRejectedValueOnce(new Error("local write failed"));
+    if (failure === "wrong-local-user") mockChatDB.getMessage.mockResolvedValue({ ...assistant, user_message_id: "other" });
+    if (failure === "wrong-local-chat") mockChatDB.getMessage.mockResolvedValue({ ...assistant, chat_id: "other" });
+    vi.stubGlobal("fetch", vi.fn(async () => {
+      if (failure === "failed-fetch") throw new Error("network unavailable");
+      if (failure === "stale-workspace") legacyScope.identity = "personal-b";
+      if (failure === "stale-epoch") legacyScope.epoch++;
+      return { ok: true, json: async () => data };
+    }));
+    await handleAIResponseStorageConfirmedImpl(service, ack); await Promise.resolve();
+    expect(entered).not.toHaveBeenCalled();
+    if (failure !== "failed-local-apply") expect(mockChatDB.updateChat).not.toHaveBeenCalled();
+    if (!["wrong-local-chat", "stale-workspace", "stale-epoch"].includes(failure)) {
+      expect(mockPendingAIResponses.add).toHaveBeenCalledWith(ack.message_id, ack.chat_id);
+      expect(mockPendingAIResponses.remove).not.toHaveBeenCalled();
+      expect(service.dispatchEvent).not.toHaveBeenCalledWith(expect.objectContaining({ type: "aiResponseStorageConfirmed" }));
+    }
+  });
+  // contract-test: supporting surface=gui.web assertions=chats.completion.lease-fenced
+  it("preserves later call DB/cache versions while releasing the server fence", async () => {
+    mockChatDB.getChat.mockResolvedValueOnce({ ...chat }).mockResolvedValue({ ...chat, messages_v: 12 });
+    mockChatListCache.getCache.mockReturnValue([{ ...chat, messages_v: 14 }]);
+    await handleAIResponseStorageConfirmedImpl(service, ack); await queued;
+    expect(mockChatDB.updateChat).toHaveBeenCalledWith(expect.objectContaining({ messages_v: 12 }));
+    expect(mockChatListCache.upsertChat).toHaveBeenCalledWith(expect.objectContaining({ messages_v: 14 }));
+    expect(entered).toHaveBeenCalledExactlyOnceWith(7);
   });
 });

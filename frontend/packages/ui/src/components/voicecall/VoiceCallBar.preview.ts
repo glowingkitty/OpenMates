@@ -6,13 +6,15 @@ class PreviewVoiceCall implements VoiceCallControllerLike {
   subscribe;
   private state: VoiceCallState;
   constructor(state: Partial<VoiceCallState>) {
-    this.state = { ...initialVoiceCallState, chatId: 'preview-chat', ...state };
+    this.state = { ...initialVoiceCallState, activeElapsedSeconds:state.status==='live'?15:0, chatId: 'preview-chat', ...state };
     this.store = writable(this.state);
     this.subscribe = this.store.subscribe;
   }
   async start() {}
   async submitText() { return true; }
-  setMuted(muted: boolean) { this.publish({ muted }); }
+  setMuted(muted: boolean) {
+    this.publish({ muted, inputIdle: false, userSpeaking: false, billingActivity: { inputListening: !muted, processing: this.state.billingActivity?.processing ?? false } });
+  }
   setMinimized(minimized: boolean) { this.publish({ minimized }); }
   hangup() { this.publish({ status: 'ended' }); }
   private publish(patch: Partial<VoiceCallState>) {
@@ -23,17 +25,35 @@ class PreviewVoiceCall implements VoiceCallControllerLike {
 
 const usage = {
   elapsed_seconds: 32, credits_accrued: 14.4, credits_charged: 15, audio_credits: 14.4,
-  gemini_input_tokens: 340, gemini_output_tokens: 120, audio_credits_per_minute: 27.6,
+  gemini_input_tokens: 340, gemini_output_tokens: 120,
 };
 const onReturn = (chatId: string) => window.dispatchEvent(new CustomEvent('voice-call-preview-return', { detail: { chatId } }));
 const props = (state: Partial<VoiceCallState>, boundChatVisible = true) => ({
   controller: new PreviewVoiceCall(state), boundChatVisible, onReturn,
 });
 
-export default props({ status: 'live', callId: 'preview-call', elapsedSeconds: 32, usage });
+const listening = { inputListening: true, processing: false };
+const suspended = { inputListening: false, processing: false };
+export default props({ status: 'live', callId: 'preview-call', elapsedSeconds: 32, activeElapsedSeconds:15, usage, billingActivity: listening });
 export const variants = {
   connecting: props({ status: 'connecting' }),
-  muted: props({ status: 'live', callId: 'preview-call', muted: true, elapsedSeconds: 83, usage }),
-  away: props({ status: 'live', callId: 'preview-call', elapsedSeconds: 91, usage }, false),
+  muted: props({ status: 'live', callId: 'preview-call', muted: true, elapsedSeconds: 83, activeElapsedSeconds:15, usage, billingActivity: suspended }),
+  mutedProcessing: props({ status: 'live', callId: 'preview-call', muted: true, elapsedSeconds: 83, activeElapsedSeconds:15, usage,
+    billingActivity: { inputListening: false, processing: true } }),
+  playbackOnly: props({ status: 'live', callId: 'preview-call', muted: true, assistantSpeaking: true, elapsedSeconds: 83, activeElapsedSeconds:15,
+    usage, billingActivity: suspended }),
+  vadLoading: props({ status: 'live', callId: 'preview-call', usage, billingActivity: listening }),
+  inputIdle: props({ status: 'live', callId: 'preview-call', inputIdle: true, usage, billingActivity: suspended }),
+  idleAwaitingServer: props({ status: 'live', callId: 'preview-call', inputIdle: true, usage, billingActivity: listening }),
+  idleUnknownBilling: props({ status: 'live', callId: 'preview-call', inputIdle: true, usage }),
+  idleProcessing: props({ status: 'live', callId: 'preview-call', inputIdle: true, usage,
+    billingActivity: { inputListening: false, processing: true } }),
+  idlePlayback: props({ status: 'live', callId: 'preview-call', inputIdle: true, assistantSpeaking: true, usage,
+    billingActivity: suspended }),
+  resumedSpeech: props({ status: 'live', callId: 'preview-call', userSpeaking: true, assistantSpeaking: true, usage,
+    billingActivity: { inputListening: true, processing: true } }),
+  away: props({ status: 'live', callId: 'preview-call', elapsedSeconds: 91, activeElapsedSeconds:15, usage, billingActivity: listening }, false),
   error: props({ status: 'error', error: 'microphone_denied' }),
+  contextTooLarge: props({ status: 'error', error: 'context_too_large' }),
+  contextUnavailable: props({ status: 'error', error: 'context_unavailable' }),
 };

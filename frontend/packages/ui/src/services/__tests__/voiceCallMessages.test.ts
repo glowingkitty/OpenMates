@@ -44,9 +44,14 @@ const mocks = vi.hoisted(() => {
   };
   const db = {
     getChat: vi.fn(async () => chat),
+    getChatCompressionCheckpoints: vi.fn(async () => [] as Array<Record<string, unknown>>),
+    getAppSettingsMemoriesMetadataKeys: vi.fn(async () => [] as string[]),
     getMessage: vi.fn(async (id: string) => {
       const raw = rows.get(id);
-      return raw ? { ...raw, content: String(raw.encrypted_content).slice(7) } : null;
+      if (!raw) return null;
+      const decrypted = { ...raw, content: String(raw.encrypted_content).slice(7) };
+      delete (decrypted as Record<string, unknown>).encrypted_content;
+      return decrypted;
     }),
     getMessageWindowForChat: vi.fn(async () => ({ messages: [] })),
     getPendingMessageRetryPage: vi.fn(async () => ({ rows: [...rows.values()].filter((row) => row.status === "sending"), nextCursor: null })),
@@ -75,6 +80,9 @@ const mocks = vi.hoisted(() => {
             request_id: payload.request_id, revision: payload.revision, outcome: "created",
           });
         }
+        if (type === "chat_system_message_added") emit("system_message_confirmed", {
+          chat_id: payload.chat_id, message_id: (payload.message as Record<string, unknown>).message_id,
+        });
         if (type === "encrypted_chat_metadata") emit("encrypted_metadata_stored", { chat_id: payload.chat_id });
       });
     }),
@@ -86,10 +94,17 @@ const mocks = vi.hoisted(() => {
 });
 
 vi.mock("../db", () => ({ chatDB: mocks.db }));
+vi.mock("../embedStore", () => ({ embedStore: { get: vi.fn(async (ref: string) => ({
+  embed_id: ref.slice(6), type: "app_skill_use", content: "app_id: web\nskill_id: search",
+})) } }));
 vi.mock("../encryption/ChatKeyManager", () => ({ chatKeyManager: {
   getKey: vi.fn(async () => new Uint8Array(32)),
   createAndPersistKeyLocked: vi.fn(async () => ({ chatKey: new Uint8Array(32), encryptedChatKey: "wrapped-key" })),
 } }));
+vi.mock("../encryption/MessageEncryptor", () => ({ decryptWithChatKey: vi.fn(async (value: string) => {
+  if (value === "invalid") throw new Error("Invalid ciphertext");
+  return value.slice(7);
+}) }));
 vi.mock("../chatKeyWriteGuard", () => ({ ensureChatKeySafeForWrite: vi.fn(async () => true) }));
 vi.mock("../websocketService", () => ({ webSocketService: mocks.socket }));
 vi.mock("../chatSyncService", () => ({ chatSyncService: { dispatchEvent: mocks.dispatchEvent } }));
@@ -101,7 +116,10 @@ vi.mock("../../i18n/translations", () => ({ text: { subscribe: (run: (value: (ke
 } } }));
 
 import { applyCallMessageChanged, loadCallContext, markTypedCallMessageFailed,
-  persistTypedCallMessage, retryPendingCallMessages, upsertCallTranscript } from "../voiceCallMessages";
+  persistTypedCallMessage, retryPendingCallMessages, upsertCallTranscript, upsertCallArtifact, recordCallLifecycle } from "../voiceCallMessages";
+
+const artifactReferenceText = (id: string) => '```json\n' + JSON.stringify({ embed_id: id,
+  type: "app_skill_use", app_id: "web", skill_id: "search" }) + '\n```';
 
 beforeEach(() => {
   mocks.rows.clear();
@@ -111,7 +129,11 @@ beforeEach(() => {
   mocks.dropNextReceipts(0);
   mocks.rejectCallWith(null);
   websocketStatus.setStatus("connected");
-  mocks.db.getMessageWindowForChat.mockResolvedValue({ messages: [] });
+  mocks.db.getMessageWindowForChat.mockReset().mockResolvedValue({ messages: [] });
+  mocks.db.getChatCompressionCheckpoints.mockResolvedValue([]);
+  mocks.db.getAppSettingsMemoriesMetadataKeys.mockResolvedValue([]);
+  delete (mocks.chat as Record<string, unknown>).encrypted_active_focus_id;
+  delete (mocks.chat as Record<string, unknown>).encrypted_focus_phase_state;
 });
 
 describe("voice call transcript persistence", () => {
@@ -119,6 +141,21 @@ describe("voice call transcript persistence", () => {
     callId: "call-uuid-1234", chatId: "chat-uuid-1234", messageId: "message-uuid-1234",
     role: "assistant" as const, createdAt: 1_700_000_001,
   };
+
+  // contract-test: supporting surface=gui.web assertions=video-call.chat.skill-integration,video-call.chat.transcripts,video-call.privacy
+  it("encrypts canonical parent metadata once and retains it when only corrected speech arrives", async () => {
+    const reference = { type: "app_skill_use", embed_id: "search-parent", app_id: "web", skill_id: "search",
+      query: "Fictional recipe", provider: "Fixture", status: "finished" };
+    await upsertCallArtifact({ ...base, embedRefs: [reference.embed_id], embedReferences: [reference] });
+    await upsertCallTranscript({ ...base, text: "The search is ready", final: true });
+    await upsertCallTranscript({ ...base, text: "Corrected search result", final: true });
+    const row = mocks.rows.get(base.messageId)!;
+    expect(row).not.toHaveProperty("content");
+    const content = String(row.encrypted_content).slice(7);
+    expect(content).toBe('Corrected search result\n\n```json\n' + JSON.stringify(reference) + '\n```');
+    expect(content.match(/search-parent/g)).toHaveLength(1);
+    expect(row.queue_revision).toBe(3);
+  });
 
   // contract-test: supporting surface=gui.web assertions=video-call.chat.transcripts,video-call.privacy
   it("updates one encrypted local row progressively and sends ciphertext only on completion", async () => {
@@ -137,6 +174,85 @@ describe("voice call transcript persistence", () => {
     expect(mocks.sent[0].payload).not.toHaveProperty("content");
     expect(mocks.rows.get(base.messageId)?.status).toBe("synced");
     expect(mocks.dispatchEvent).toHaveBeenCalled();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.chat.transcripts,video-call.chat.typed-input
+  it("emits the persisted call origin for spoken rows and typed input awaiting acceptance", async () => {
+    const emitted = (messageId: string) => mocks.dispatchEvent.mock.calls
+      .map(([event]) => (event as CustomEvent<{ newMessage?: Record<string, unknown> }>).detail.newMessage)
+      .findLast((message) => message?.message_id === messageId);
+    await upsertCallTranscript({ ...base, messageId: "spoken-user", role: "user", text: "Spoken words", final: false });
+    expect(emitted("spoken-user")).toMatchObject({ status: "streaming",
+      call_persistence_v1: { call_id: base.callId, typed_pending: false } });
+    await persistTypedCallMessage(base.callId, base.chatId, "typed-user", "Typed words", base.createdAt);
+    expect(emitted("typed-user")).toMatchObject({ status: "sending",
+      call_persistence_v1: { call_id: base.callId, typed_pending: true } });
+    expect(mocks.rows.get("typed-user")).not.toHaveProperty("content");
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.chat.skill-integration,video-call.chat.transcripts,video-call.privacy
+  it("persists an artifact-only response and increments final revision after provisional speech", async () => {
+    await upsertCallArtifact({ ...base, userMessageId: "user-turn", embedRefs: ["artifact-one"] });
+    expect(mocks.rows.get(base.messageId)).toMatchObject({ encrypted_content: `cipher:${artifactReferenceText("artifact-one")}`,
+      status: "synced", call_last_final_revision: 1 });
+    await upsertCallTranscript({ ...base, userMessageId: "user-turn", text: "Here is", embedRefs: ["artifact-one"], final: false });
+    expect(mocks.rows.get(base.messageId)).toMatchObject({ status: "streaming", call_last_final_revision: 1 });
+    await upsertCallTranscript({ ...base, userMessageId: "user-turn", text: "Here is your result", embedRefs: ["artifact-one"], final: true });
+    expect(mocks.sent.map((item) => item.payload.revision)).toEqual([1, 2]);
+    expect(mocks.rows.get(base.messageId)).toMatchObject({ status: "synced", call_last_final_revision: 2,
+      encrypted_content: `cipher:Here is your result\n\n${artifactReferenceText("artifact-one")}` });
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.chat.skill-integration,video-call.chat.transcripts,video-call.privacy
+  it("returns the confirmed raw ciphertext proof for an identical artifact receipt after hangup or replay", async () => {
+    const event = { ...base, userMessageId: "user-turn", embedRefs: ["artifact-one"] };
+    const original = await upsertCallArtifact(event);
+    expect(await mocks.db.getMessage(base.messageId)).not.toHaveProperty("encrypted_content");
+    const replay = await upsertCallArtifact(event);
+    expect(replay).toEqual(original);
+    expect(replay).toEqual({ revision: 1, ciphertext: `cipher:${artifactReferenceText("artifact-one")}` });
+    expect(mocks.sent.filter((entry) => entry.type === "call_message_completed")).toHaveLength(1);
+    expect(mocks.rows.get(base.messageId)).not.toHaveProperty("content");
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.chat.skill-integration,video-call.privacy
+  it("never returns a replay proof for another call, chat or role", async () => {
+    const event = { ...base, embedRefs: ["artifact-one"] };
+    await upsertCallArtifact(event);
+    const confirmed = { ...mocks.rows.get(base.messageId)! };
+    for (const mismatch of [{ chat_id: "other-chat" }, { role: "user" },
+      { call_persistence_v1: { call_id: "other-call", entries: [] } }]) {
+      mocks.rows.set(base.messageId, { ...confirmed, ...mismatch });
+      await expect(upsertCallArtifact(event)).rejects.toThrow("Call message identity conflict");
+    }
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.chat.skill-integration,video-call.chat.transcripts,video-call.privacy
+  it("waits for server confirmation before returning an identical pending artifact proof", async () => {
+    const event = { ...base, embedRefs: ["artifact-one"] };
+    mocks.rejectNextSends(3);
+    await expect(upsertCallArtifact(event)).rejects.toThrow("socket disconnected");
+    expect(mocks.rows.get(base.messageId)?.status).toBe("sending");
+    mocks.rejectNextSends(3);
+    await expect(upsertCallArtifact(event)).rejects.toThrow("socket disconnected");
+    expect(mocks.rows.get(base.messageId)).toMatchObject({ status: "sending", queue_revision: 1 });
+    const proof = await upsertCallArtifact(event);
+    expect(proof).toEqual({ revision: 1, ciphertext: `cipher:${artifactReferenceText("artifact-one")}` });
+    expect(mocks.rows.get(base.messageId)?.status).toBe("synced");
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.chat.skill-integration,video-call.chat.transcripts
+  it("keeps a pending artifact ciphertext revision before the spoken final and preserves aggregated references", async () => {
+    mocks.rejectNextSends(3);
+    await expect(upsertCallArtifact({ ...base, embedRefs: ["artifact-one"] })).rejects.toThrow();
+    await upsertCallTranscript({ ...base, text: "Spoken interim", final: false });
+    mocks.rejectNextSends(0);
+    await upsertCallTranscript({ ...base, text: "Spoken final", final: true });
+    expect(mocks.sent.map((entry) => entry.payload.revision)).toEqual([1, 2]);
+    const proof = await upsertCallArtifact({ ...base, embedRefs: ["artifact-two"] });
+    expect(proof).toEqual({ revision: 3, ciphertext: `cipher:Spoken final\n\n${artifactReferenceText("artifact-one")}\n\n${artifactReferenceText("artifact-two")}` });
+    await upsertCallTranscript({ ...base, text: "Corrected final", final: true });
+    expect(mocks.rows.get(base.messageId)?.encrypted_content).toBe(`cipher:Corrected final\n\n${artifactReferenceText("artifact-one")}\n\n${artifactReferenceText("artifact-two")}`);
   });
 
   // contract-test: supporting surface=gui.web assertions=video-call.chat.transcripts
@@ -249,8 +365,125 @@ describe("voice call transcript persistence", () => {
       { message_id: "user-z", role: "user", created_at: 1, content: "Question" },
     ] });
     expect((await loadCallContext(base.chatId)).history).toEqual([
-      { role: "user", text: "Question" }, { role: "assistant", text: "Reply" },
+      { role: "user", text: "Question", message_id: "user-z", created_at: 1 }, { role: "assistant", text: "Reply", message_id: "assistant-a", created_at: 1 },
     ]);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.chat.compressed-context
+  it("pages a 25-turn uncheckpointed conversation instead of dropping its oldest fact", async () => {
+    const turns = Array.from({ length: 25 }, (_, index) => ({ message_id: `turn-${String(index).padStart(2, "0")}`,
+      created_at: index + 1, role: "user", content: index === 0 ? "Oldest uncovered fact" : `Turn ${index}` }));
+    mocks.db.getMessageWindowForChat.mockResolvedValueOnce({ messages: turns.slice(1), hasMoreBefore: true,
+      startCursor: 2, startCursorMessageId: "turn-01" }).mockResolvedValueOnce({ messages: turns.slice(0, 1), hasMoreBefore: false });
+    const context = await loadCallContext(base.chatId);
+    expect(context.history).toHaveLength(25);
+    expect(context.history[0].text).toBe("Oldest uncovered fact");
+    expect(mocks.db.getMessageWindowForChat).toHaveBeenNthCalledWith(2, base.chatId, {
+      direction: "before", limit: 24, beforeTimestamp: 2, beforeMessageId: "turn-01",
+    });
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.chat.compressed-context,video-call.chat.transcripts
+  it("pages all uncovered checkpoint tail and stops before its archive while retaining a final correction", async () => {
+    mocks.db.getChatCompressionCheckpoints.mockResolvedValue([{ id: "checkpoint", chat_id: base.chatId,
+      encrypted_summary: "cipher:Complete checkpoint", compressed_up_to_timestamp: 10,
+      compressed_up_to_message_id: "covered-z", compressed_message_count: 3, created_at: 11 }]);
+    const tail = Array.from({ length: 25 }, (_, index) => ({ message_id: `tail-${index}`,
+      created_at: 11 + index, role: "user", content: index === 0 ? "Earliest uncovered detail" : `Tail ${index}` }));
+    mocks.db.getMessageWindowForChat.mockResolvedValueOnce({ messages: tail.slice(1), hasMoreBefore: true,
+      startCursor: 12, startCursorMessageId: "tail-1" }).mockResolvedValueOnce({ messages: [
+        { message_id: "archived", created_at: 9, role: "user", content: "Already summarized" },
+        { message_id: "corrected-a", created_at: 10, role: "assistant", content: "Final corrected fact",
+          status: "synced", queue_revision: 2, call_persistence_v1: { call_id: "old-call", entries: [] } },
+        tail[0],
+      ], hasMoreBefore: true, startCursor: 9, startCursorMessageId: "archived" });
+    const context = await loadCallContext(base.chatId);
+    expect(context.summary).toBe("Complete checkpoint");
+    expect(context.history).toHaveLength(26);
+    expect(context.history.slice(0, 2).map((turn) => turn.text)).toEqual(["Final corrected fact", "Earliest uncovered detail"]);
+    expect(mocks.db.getMessageWindowForChat).toHaveBeenCalledTimes(2);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.chat.compressed-context
+  it("visibly rejects more than 30 uncovered turns instead of accepting a truncated tail", async () => {
+    const turns = Array.from({ length: 31 }, (_, index) => ({ message_id: `turn-${index}`,
+      created_at: index + 1, role: "user", content: `Important turn ${index}` }));
+    mocks.db.getMessageWindowForChat.mockResolvedValueOnce({ messages: turns.slice(7), hasMoreBefore: true,
+      startCursor: 8, startCursorMessageId: "turn-7" }).mockResolvedValueOnce({ messages: turns.slice(0, 7), hasMoreBefore: false });
+    await expect(loadCallContext(base.chatId)).rejects.toMatchObject({ code: "context_too_large" });
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.chat.compressed-context
+  it("refuses an incomplete window with a cursor that cannot advance", async () => {
+    mocks.db.getMessageWindowForChat.mockResolvedValue({ messages: [{ message_id: "turn-1", created_at: 1,
+      role: "user", content: "Known detail" }], hasMoreBefore: true, startCursor: 1, startCursorMessageId: "turn-1" });
+    await expect(loadCallContext(base.chatId)).rejects.toMatchObject({ code: "context_unavailable" });
+    expect(mocks.db.getMessageWindowForChat).toHaveBeenCalledTimes(2);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.chat.compressed-context,video-call.privacy
+  it("keeps the complete latest valid encrypted checkpoint and only uncovered turns", async () => {
+    const checkpoint = { id: "checkpoint-1", chat_id: base.chatId, encrypted_summary: "cipher:" + "complete context ".repeat(400),
+      compressed_up_to_timestamp: 10, compressed_up_to_message_id: "message-b", compressed_message_count: 2,
+      covered_message_ids: ["covered-late"], created_at: 11 };
+    mocks.db.getChatCompressionCheckpoints.mockResolvedValue([
+      checkpoint, { ...checkpoint, id: "broken-newer", encrypted_summary: "invalid", created_at: 12 },
+      { ...checkpoint, id: "other-chat", chat_id: "unrelated", created_at: 13 },
+    ]);
+    mocks.db.getMessageWindowForChat.mockResolvedValue({ messages: [
+      { message_id: "message-a", created_at: 10, role: "user", content: "covered" },
+      { message_id: "message-c", created_at: 10, role: "user", content: "uncovered" },
+      { message_id: "covered-late", created_at: 12, role: "assistant", content: "covered late" },
+      { message_id: "message-z", created_at: 12, role: "assistant", content: "recent reply" },
+    ] });
+    const context = await loadCallContext(base.chatId);
+    expect(context.summary).toBe(checkpoint.encrypted_summary.slice(7).trim());
+    expect(context.history).toEqual([{ role: "user", text: "uncovered", message_id: "message-c", created_at: 10 }, { role: "assistant", text: "recent reply", message_id: "message-z", created_at: 12 }]);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.chat.compressed-context,video-call.chat.transcripts
+  it("retains a final correction after checkpoint ACK while excluding provisional covered speech", async () => {
+    mocks.db.getChatCompressionCheckpoints.mockResolvedValue([{ id: "checkpoint", chat_id: base.chatId,
+      encrypted_summary: "cipher:Prior compressed conversation", compressed_up_to_timestamp: 10,
+      compressed_up_to_message_id: "message-z", compressed_message_count: 2, created_at: 11 }]);
+    mocks.db.getMessageWindowForChat.mockResolvedValue({ messages: [
+      { message_id: "message-a", created_at: 10, role: "user", content: "Final corrected detail", status: "synced",
+        queue_revision: 2, call_persistence_v1: { call_id: "finished-call", entries: [] } },
+      { message_id: "message-b", created_at: 10, role: "assistant", content: "Provisional", status: "streaming",
+        queue_revision: 3, call_persistence_v1: { call_id: "active-call", entries: [] } },
+    ] });
+    expect((await loadCallContext(base.chatId)).history).toEqual([
+      { role: "user", text: "Final corrected detail", message_id: "message-a", created_at: 10 },
+    ]);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.chat.compressed-context,video-call.privacy
+  it("rejects oversized checkpoint meaning instead of clipping it", async () => {
+    mocks.db.getChatCompressionCheckpoints.mockResolvedValue([{ id: "large", chat_id: base.chatId,
+      encrypted_summary: "cipher:" + "x".repeat(48_001), compressed_up_to_timestamp: 10,
+      compressed_up_to_message_id: "message-b", compressed_message_count: 2, created_at: 11 }]);
+    await expect(loadCallContext(base.chatId)).rejects.toMatchObject({ code: "context_too_large" });
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.chat.compressed-context,video-call.privacy
+  it("loads canonical encrypted active focus and advertises memory keys without contents", async () => {
+    Object.assign(mocks.chat, { encrypted_active_focus_id: "cipher:jobs-career_insights",
+      encrypted_focus_phase_state: 'cipher:{"jobs-career_insights":{"version":2}}' });
+    mocks.db.getAppSettingsMemoriesMetadataKeys.mockResolvedValue(["health-medical_history"]);
+    expect(await loadCallContext(base.chatId)).toEqual({ history: [],
+      activeFocus: { app_id: "jobs", focus_id: "jobs-career_insights", state: { version: 2 } },
+      memoryMetadata: ["health-medical_history"] });
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.chat.skill-integration,video-call.chat.transcripts,video-call.privacy
+  it("keeps artifact references on the same encrypted call response across text corrections", async () => {
+    await upsertCallTranscript({ ...base, userMessageId: "user-turn", text: "Result", embedRefs: ["artifact-1"], final: true });
+    await upsertCallTranscript({ ...base, userMessageId: "user-turn", text: "Corrected", embedRefs: ["artifact-1", "artifact-1"], final: true });
+    expect(mocks.rows.size).toBe(1);
+    expect(mocks.rows.get(base.messageId)).toMatchObject({ encrypted_content: `cipher:Corrected\n\n${artifactReferenceText("artifact-1")}`,
+      user_message_id: "user-turn", queue_revision: 2 });
+    expect(mocks.sent.map((entry) => entry.payload.message_id)).toEqual([base.messageId, base.messageId]);
+    expect(mocks.rows.get(base.messageId)).not.toHaveProperty("content");
   });
 
   // contract-test: supporting surface=gui.web assertions=video-call.chat.transcripts,video-call.privacy
@@ -261,4 +494,95 @@ describe("voice call transcript persistence", () => {
     expect(mocks.rows.get(base.messageId)).toMatchObject({ encrypted_content: "cipher:Latest", queue_revision: 2 });
     expect(mocks.rows.get(base.messageId)).not.toHaveProperty("content");
   });
+});
+
+
+describe("encrypted call lifecycle history", () => {
+  const event = { type: "started" as const, callId: "call-lifecycle-1234", chatId: "chat-uuid-1234",
+    occurredAt: 1_700_000_000, activeElapsedSeconds: 0 };
+  // contract-test: supporting surface=gui.web assertions=video-call.chat.call-events,video-call.privacy
+  it("persists ciphertext only, deduplicates callbacks and reload replay without AI inference", async () => {
+    await Promise.all([recordCallLifecycle(event), recordCallLifecycle(event)]);
+    await recordCallLifecycle({ ...event, occurredAt: event.occurredAt + 20 });
+    const row = mocks.rows.get(`00000000-voice-call-${event.callId}-started`)!;
+    expect(row.role).toBe("system");
+    expect(row.content).toBeUndefined();
+    expect(row.status).toBe("synced");
+    expect(JSON.parse(String(row.encrypted_content).slice(7))).toMatchObject({
+      type: "voice_call", action: "started", created_at: event.occurredAt });
+    expect(mocks.sent.map((entry) => entry.type)).toEqual(["chat_system_message_added"]);
+    expect(mocks.sent[0].payload.message).not.toHaveProperty("content");
+    await retryPendingCallMessages();
+    expect(mocks.sent).toHaveLength(1);
+    // A normal server history reload restores ciphertext, without local outbox fields.
+    delete row.call_persistence_v1;
+    await recordCallLifecycle(event);
+    expect(mocks.sent).toHaveLength(1);
+  });
+  // contract-test: supporting surface=gui.web assertions=video-call.chat.call-events,video-call.chat.fixed-binding
+  it("keeps the original chat and event timestamp when delayed teardown arrives", async () => {
+    await recordCallLifecycle({ ...event, type: "ended", occurredAt: event.occurredAt + 95, activeElapsedSeconds: 37 });
+    const message = mocks.sent[0].payload.message as Record<string, unknown>;
+    expect(mocks.sent[0].payload.chat_id).toBe(event.chatId);
+    expect(message.created_at).toBe(event.occurredAt + 95);
+    expect(JSON.parse(String(message.encrypted_content).slice(7))).toMatchObject({
+      action: "ended", active_elapsed_seconds: 37 });
+  });
+  // contract-test: supporting surface=gui.web assertions=video-call.chat.call-events,video-call.lifecycle.recovery-and-billing,video-call.privacy
+  it("retries a durable ciphertext row after a failed send without re-encrypting", async () => {
+    mocks.socket.sendMessage.mockRejectedValueOnce(new Error("disconnected"));
+    await expect(recordCallLifecycle(event)).rejects.toThrow("disconnected");
+    const row = mocks.rows.get(`00000000-voice-call-${event.callId}-started`)!;
+    expect(row.status).toBe("sending");
+    const ciphertext = row.encrypted_content;
+    const encryptions = mocks.db.getEncryptedFields.mock.calls.length;
+    await retryPendingCallMessages();
+    expect(mocks.db.getEncryptedFields.mock.calls).toHaveLength(encryptions);
+    expect(row.encrypted_content).toBe(ciphertext);
+    expect(mocks.rows.get(String(row.message_id))?.status).toBe("synced");
+    expect(mocks.sent.map((entry) => entry.type)).toEqual(["chat_system_message_added"]);
+  });
+  // contract-test: supporting surface=gui.web assertions=video-call.chat.call-events,video-call.privacy
+  it("rejects shared chat writes and malformed lifecycle data before persistence", async () => {
+    mocks.db.getChat.mockResolvedValueOnce({ ...mocks.chat, team_id: "team" } as never);
+    await expect(recordCallLifecycle(event)).rejects.toThrow("personal chat");
+    await expect(recordCallLifecycle({ ...event, activeElapsedSeconds: -1 })).rejects.toThrow("Invalid");
+    expect(mocks.rows.size).toBe(0);
+    expect(mocks.sent).toHaveLength(0);
+  });
+});
+
+
+import { parseVoiceCallHistoryEvent, voiceCallLifecycleMessageId } from "../voiceCallLifecycleEvent";
+// contract-test: supporting surface=gui.web assertions=video-call.chat.call-events
+it("parses only valid lifecycle history schemas", () => {
+  const event = { schema_version: 1, type: "voice_call", action: "ended", call_id: "call-12345678",
+    created_at: 1700000000, active_elapsed_seconds: 42 };
+  expect(parseVoiceCallHistoryEvent(JSON.stringify(event))).toEqual(event);
+  for (const invalid of ["null", "[]", "not JSON", JSON.stringify({ ...event, action: "grant_privilege" }),
+    JSON.stringify({ ...event, active_elapsed_seconds: -1 }), JSON.stringify({ ...event, created_at: "12:31" })]) {
+    expect(parseVoiceCallHistoryEvent(invalid)).toBeNull();
+  }
+});
+
+
+// contract-test: supporting surface=gui.web assertions=video-call.chat.call-events
+it("orders same-second lifecycle events around UUIDv7 transcripts while preserving timestamps", async () => {
+  const callId = "call-same-second-1234";
+  const occurredAt = 1_700_000_000;
+  const event = { callId, chatId: "chat-uuid-1234", occurredAt, activeElapsedSeconds: 0 };
+  await recordCallLifecycle({ ...event, type: "started" });
+  await recordCallLifecycle({ ...event, type: "ended" });
+  const start = voiceCallLifecycleMessageId(callId, "started");
+  const end = voiceCallLifecycleMessageId(callId, "ended");
+  const user = "018bcfe5-6800-7000-8000-000000000001";
+  const assistant = "018bcfe5-6800-7000-8000-000000000002";
+  expect([end, assistant, start, user].sort((a, b) => a.localeCompare(b))).toEqual([start, user, assistant, end]);
+  for (const id of [start, end]) {
+    const row = mocks.rows.get(id)!;
+    expect(row.created_at).toBe(occurredAt);
+    expect(JSON.parse(String(row.encrypted_content).slice(7)).created_at).toBe(occurredAt);
+  }
+  expect(voiceCallLifecycleMessageId(callId, "started")).toBe(start);
+  expect(voiceCallLifecycleMessageId("call-other-1234", "started")).not.toBe(start);
 });

@@ -30,6 +30,8 @@
   import Icon from './Icon.svelte';
   import type { MessageStatus, MessageRole, Message } from '../types/chat';
   import FocusPhaseNotice from './FocusPhaseNotice.svelte';
+  import VoiceCallEventNotice from './VoiceCallEventNotice.svelte';
+  import { parseVoiceCallHistoryEvent } from '../services/voiceCallLifecycleEvent';
   import SystemMessageNotice from './SystemMessageNotice.svelte';
   import { parseFocusPhaseEvent } from '../types/focusPhases';
   import { text, settingsDeepLink, panelState } from '@repo/ui'; // For translations
@@ -232,6 +234,12 @@
   const legacySubChatActivityId = $derived(activityRuns?.find((run) => assistantActivityItems(run.document).some((item) => item.type === 'focus-mode-activation'))?.id ?? firstSkillActivityId);
   const legacySubChatsActive = $derived(subChatsOfThisMessage.some((chat) => ['thinking', 'waiting', 'queued'].includes(getSubChatCardStatus(chat).state)));
   const responseActive = $derived(role === 'assistant' && (assistantTurnActive ?? (status === 'processing' || status === 'streaming')));
+  // Typed call text is shown as Sending only until the live model accepts it.
+  // Spoken transcript rows carry the same local outbox, without typed_pending.
+  const callMessageOrigin = $derived((original_message as (Partial<Message> & {
+    call_persistence_v1?: { call_id?: string; typed_pending?: boolean };
+  }) | null)?.call_persistence_v1);
+  const isVoiceCallTranscript = $derived(!!callMessageOrigin?.call_id && callMessageOrigin.typed_pending !== true);
   const responseStatus = $derived.by(() => {
     const lastRun = activityRuns?.[activityRuns.length - 1];
     if (lastRun?.kind === 'skills') {
@@ -1166,6 +1174,7 @@
   }
 
   let phaseEvent = $derived(parseFocusPhaseEvent(systemRawContent()));
+  let voiceCallEvent = $derived(parseVoiceCallHistoryEvent(systemRawContent()));
   let systemMessageText = $derived.by(() => {
     const rawContent = systemRawContent();
     return connectedAccountReceipt ? connectedAccountReceiptText(connectedAccountReceipt) : rawContent;
@@ -1176,9 +1185,10 @@
                     sender_name ? (sender_name.charAt(0).toUpperCase() + sender_name.slice(1)) : 
                     category === 'openmates_official' ? 'OpenMates' :
                     category ? $text(`mates.${category}`) :
-                    'Assistant');
+                    'OpenMates');
   let importedProvider = $derived(role === 'assistant' ? getImportedAssistantProvider(category) : null);
   let assistantDisplayName = $derived(importedProvider?.displayName ?? displayName);
+  let isOpenMatesIdentity = $derived(role === 'assistant' && (!category || category === 'openmates_official'));
   let remoteHumanName = $derived(sender_name?.trim() || $text('settings.teams_ui.team_member'));
   let isRemoteHuman = $derived(role === 'user' && !isOwnUserMessage);
   let hasRemoteHumanIdentity = $derived(isRemoteHuman && !!teamId && !!senderUserId);
@@ -3057,7 +3067,8 @@
 
   // Add reactive statement to handle status changes using $derived (Svelte 5 runes mode)
   // Note: 'processing' status is NOT shown under the message - it's shown in the typing indicator area instead
-  let messageStatusText = $derived(status === 'sending' ? $text('enter_message.sending') :
+  let messageStatusText = $derived(role !== 'user' || isVoiceCallTranscript ? '' :
+                      status === 'sending' ? $text('enter_message.sending') :
                       status === 'waiting_for_internet' ? $text('enter_message.waiting_for_internet') :
                       status === 'waiting_for_upload' ? $text('enter_message.waiting_for_upload') : '');
 
@@ -3228,7 +3239,8 @@
         </button>
       {:else}
         <!-- Normal system message (e.g., credit rejection notice) -->
-        {#if phaseEvent}<FocusPhaseNotice event={phaseEvent} />
+        {#if voiceCallEvent}<VoiceCallEventNotice event={voiceCallEvent} />
+        {:else if phaseEvent}<FocusPhaseNotice event={phaseEvent} />
         {:else if anonymousFeatureNotice}
           <span class="system-message-text" data-testid="anonymous-feature-notice">
             <a href="/#signup/basics" class="anonymous-signup-link" data-testid="anonymous-signup-link" onclick={openAnonymousSignup}>{$text('chat.anonymous_free_usage.signup_now')}</a>{' '}{$text('chat.anonymous_free_usage.signup_benefits')}
@@ -3291,6 +3303,14 @@
       >
         <Icon name={importedProvider.iconName} type="provider" size={shouldStackMobile ? '25px' : '60px'} noMargin={true} noAnimation={true} ariaHidden={true} />
       </div>
+    {:else if isOpenMatesIdentity}
+      <img
+        class="imported-provider-profile"
+        class:imported-provider-profile-small-mobile={shouldStackMobile}
+        data-testid="openmates-profile"
+        src="/favicon.svg"
+        alt="OpenMates"
+      />
     {:else if isMateClickable}
       <button
         type="button"
@@ -3660,7 +3680,7 @@
             {/if}
           </div>
         {/if}
-        {#if role === 'assistant' && responseActive && !isTransientResponse}
+        {#if role === 'assistant' && responseActive && !isTransientResponse && !isVoiceCallTranscript}
           <div class="assistant-response-status" data-testid="assistant-response-status" role="status">
             <span class="assistant-status-ai-glyph" data-testid="assistant-status-ai-glyph" aria-hidden="true"></span>
             {responseStatus}

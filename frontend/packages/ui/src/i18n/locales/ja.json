@@ -7892,48 +7892,6 @@
           "text": "このプロジェクトのファイル"
         }
       }
-    },
-    "jobs": {
-      "search": {
-        "result_count": {
-          "text": "{count} 件の求人"
-        },
-        "partial_results": {
-          "text": "一部の提供元を利用できませんでした"
-        },
-        "result": {
-          "title": {
-            "text": "求人情報"
-          },
-          "remote": {
-            "text": "リモート"
-          },
-          "published": {
-            "text": "掲載日"
-          },
-          "source": {
-            "text": "{provider} で見る"
-          },
-          "listing": {
-            "text": "求人元"
-          },
-          "apply": {
-            "text": "応募ページを開く"
-          },
-          "company": {
-            "text": "会社"
-          },
-          "employment_type": {
-            "text": "雇用形態"
-          },
-          "salary": {
-            "text": "給与"
-          },
-          "description": {
-            "text": "説明"
-          }
-        }
-      }
     }
   },
   "enter_message": {
@@ -8497,38 +8455,6 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"e7002718-62f4-43b0-9078-1ab77993edc0\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI workshop\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b110fb02-f635-45b1-8ba7-aaf75b3f7de7\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI meetup\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b2b2b2a7-6b9c-464d-a86e-86ceafcd3bcc\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"build with AI\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"0e453b88-1f20-43fc-9aa1-aad8aab6ae8a\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"top AI developer meetups Berlin 2026 for beginners\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"c7b51044-a947-4471-a287-496459454ad6\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Berlin AI builder communities and recurring workshops\", \"provider\": \"Brave\"}\n```\n\nBerlin has one of Europe's most active [AI](wiki:Artificial_intelligence) builder scenes, transitioning from general theory to practical \"hands-on\" engineering. For someone learning to build with AI tools, the focus in June 2026 is heavily on [AI agents](wiki:Software_agent), [RAG (Retrieval-Augmented Generation)](wiki:Retrieval-augmented_generation), and production-ready architectures.\n\nHere are the top upcoming workshops and meetups in Berlin where you can build, demo, and learn from other practitioners.\n\n### Featured Hands-On Workshops\nThese sessions are specifically designed for those who want to write code and build prototypes.\n\n*   **BLISS x QuantCo: Build Your Own AI Agent**\n    *   **Date:** June 10, 2026 | 17:30\n    *   **Location:** Berlin-Mitte (Altonaer Str. 26)\n    *   **Focus:** An interactive session transitioning from [LLM APIs](wiki:Large_language_model) to building a custom agent that automates complex document workflows. **Bring your laptop.**\n    *   [Event Details & RSVP](embed:bliss-x-quantco-dWg)\n*   **Open Source Europe Tour: AI in Practice**\n    *   **Date:** June 8, 2026 | 17:30\n    *   **Location:** Netlight Consulting (Invalidenstraße 117)\n    *   **Focus:** A \"hype-free\" walkthrough of modern AI, explaining Agentic AI, fine-tuning vs. RAG, and connecting AI to data architectures.\n    *   [Event Details & RSVP](embed:open-source-europe-S4k)\n*   **AI Future-Club Kickoff (Hackers / Founders)**\n    *   **Date:** June 11, 2026 | 18:00\n    *   **Location:** TBD (Berlin)\n    *   **Focus:** A session for developers to \"get their hands dirty,\" discussing what to build and ship together, featuring live demos of recent projects.\n    *   [Event Details & RSVP](embed:ai-future-club-XOk)\n\n### Community Meetups for Builders\nThese events are excellent for networking and seeing what other local developers are currently building.\n\n*   **OpenClaw Anonymous Berlin #9**\n    *   **Date:** June 9, 2026 | 19:00\n    *   **Location:** w3.hub (Möckernstraße 120)\n    *   **Focus:** Informal \"laptop-out\" meetup where people showcase OpenClaw and AI agent setups. Perfect for sharing what works and what doesn't.\n    *   [Event Details & RSVP](embed:openclaw-anonymous-berlin-JA8)\n*   **AI Tinkerers Berlin**\n    *   **Date:** June 17, 2026\n    *   **Focus:** A screened, demo-first, \"no-pitch\" community. Expect live code, architecture lessons, and technical Q&A from local founders and engineers.\n    *   Berlin AI Tinkerers Portal\n*   **Spec-Driven Development: AI for Full-Stack Java**\n    *   **Date:** June 9, 2026 | 18:30\n    *   **Location:** Capgemini (Potsdamer Platz 5)\n    *   **Focus:** Learning how AI can generate code, diagrams, and tests from structured specifications.\n    *   [Event Details & RSVP](embed:spec-driven-development-rxI)\n\n### Key Hubs to Follow\nIf you want to stay in the loop, these organizations host the majority of builder-centric AI events in Berlin:\n\n*   **Merantix AI Campus**: Located in Nord-Mitte, this 6,000m² campus is the heart of the Berlin AI ecosystem, hosting weekly reading groups and tech talks.\n    *   Campus Events Calendar\n*   **BLISS (Berlin AI Community)**: A student and professional community that organizes high-quality workshops and speaker series.\n    *   BLISS Official Site\n*   **[CODE University](wiki:CODE_University_of_Applied_Sciences)**: Often hosts \"Global AI Bootcamps\" and hands-on sessions for students and the public at their Delta Campus in Neukölln.\n\n### Practical Tips for Joining\n1.  **RSVP Early:** Many of these events (especially the BLISS and Tinkerers sessions) have limited spots and require screening or early registration.\n2.  **Bring a Laptop:** Most \"workshops\" expect you to follow along with code. Ensure you have a local environment or a [GitHub](wiki:GitHub) account ready.\n3.  **Join the Slacks:** Groups like AI Tinkerers and [Hackers/Founders](/#settings/apps/web) have local Slack/Discord channels where most \"last-minute\" build sessions are organized.\n\nWould you like me to help you find more specific resources for a particular AI tool you're learning, such as [PyTorch](wiki:PyTorch) or [LangChain](wiki:LangChain)?\n\n**Next Steps:**\n- [Browse more AI events in Berlin](/#settings/apps/events)\n- [Search for AI tutorials on YouTube](/#settings/apps/videos)"
-      }
-    },
-    "air_fryers_amazon_germany": {
-      "title": {
-        "text": "ドイツで買えるエアフライヤーの比較"
-      },
-      "summary": {
-        "text": "Amazonドイツの人気エアフライヤーを価格、容量、評価で比較し、2人暮らしにはPhilips Airfryer 2000シリーズをおすすめしました。"
-      },
-      "message_1": {
-        "text": "ドイツでオンライン購入できるエアフライヤーを、Amazonの出品を含めて探して。現在の価格、容量、レビュー評価を比較し、出典リンクを付けて2人暮らし向けの1台をおすすめして。"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\n現在ドイツのAmazonで販売されている高評価のエアフライヤーについて、価格、容量、購入者の評価を比較します。\n\n---\n\n### ドイツで人気のモデルを比較\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### 2人暮らしに最もおすすめのモデル\n\n#### **第一候補：[Philips Airfryer 2000 Series 6.2L](embed:philips-airfryer-2000-fay)**\n\n* **2人に最適な理由：**\n  * **適切な容量（6.2 L）：** 4.5–5 L未満のバスケットでは、2人分でも何回かに分けて調理する必要があります。6.2 Lならサーモンの切り身2枚と野菜やフライドポテトを一層に広げて、むらなく加熱できます。\n  * **キッチンでの設置面積：** NinjaやRussell Hobbsのような2ゾーン型は調理台をかなり占有します。6 Lのシングルバスケットなら、一般的なドイツのキッチンでも比較的省スペースで、十分な調理容量を確保できます。\n  * **透明窓：** 引き出しを開けて熱を逃がさずに焼き色を確認できます。\n  * **価格と性能のバランス：** €99.99で、[Philips](wiki:Philips)の安定した温度管理が得られる、手頃な価格のモデルです。\n\n#### **別の候補（異なる温度で2品を同時に作ることが多い場合）：[Philips Dual Basket 3000 Series (9.0L)](embed:philips-airfryer-dual-pjD)**\n肉や魚と付け合わせの野菜を異なる温度と時間で同時に調理したい場合（例：鶏むね肉を180 °C、カリカリのポテトを200 °C）、このモデルは現在€119.99に値下げされており、2つのバスケットの調理完了時刻をそろえられます。\n\n---\n\n### 購入前に確認したいポイント\n1. **バスケットの形：** 四角いバスケット（CosoriやPhilipsなど）は、同じ容量の丸いバスケットより、ステーキや焼き型、串など平らな食品を入れやすくなります。\n2. **食洗機に入るか：** 6 Lのシングルバスケットを入れられる高さがあるか確認しましょう。フッ素樹脂などの焦げ付き防止コーティングを長持ちさせたいなら、手洗いも検討してください。"
-      },
-      "follow_up_1": {
-        "text": "エアフライヤー専用のレシピを探す"
-      },
-      "follow_up_2": {
-        "text": "シングルバスケットとデュアルバスケットのエアフライヤーの主な違いを説明して"
-      },
-      "follow_up_3": {
-        "text": "このエアフライヤーに対応した調理用アクセサリーを探す"
-      },
-      "follow_up_4": {
-        "text": "エアフライヤーで作れる初心者向けの夕食レシピを挙げて"
-      },
-      "follow_up_5": {
-        "text": "これらのモデルの現在の消費電力を確認して"
-      },
-      "follow_up_6": {
-        "text": "セラミックコーティングとテフロンコーティングの洗浄・手入れ方法を比較して"
       }
     },
     "artemis_ii_mission": {
@@ -9771,38 +9697,6 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"3a8114d9-0472-4627-9a73-8d331bef481f\", \"app_id\": \"images\", \"skill_id\": \"vectorize\"}\n```\n\nI'll convert that image to SVG for you now.Your SVG vectorization is processing! The conversion is underway and I'll update you once it's complete. This typically takes a moment as the system traces the raster image and converts it into scalable vector paths."
       }
     },
-    "jobs_in_sweden": {
-      "title": {
-        "text": "スウェーデンの開発者求人"
-      },
-      "summary": {
-        "text": "ストックホルムとマルメの最新の開発者求人を、元の募集要項や出典に基づいた職場の詳細情報とともに比較します。"
-      },
-      "message_1": {
-        "text": "スウェーデンの公共職業安定所から、ストックホルムのソフトウェア開発者の最新求人を2件、マルメの求人を2件探してください。それぞれについて、職種名、雇用主、勤務地、元の求人へのリンクを短い箇条書きで示してください。給与額や在宅勤務の取り決めについては、その求人に明記されている場合のみ含め、そうでない場合は「記載なし」としてください。回答は200語以内にまとめてください。"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"ea23f42b-6a8d-4faf-912d-988d2ba20cf4\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"a9fafbeb-7f05-42d5-9dcd-cbc752f42ffd\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\nスウェーデン公立雇用庁（Platsbanken）による現在のソフトウェア開発者の求人情報：\n\n### ストックホルム\n\n* **職種：** Senior Systemutvecklare  \n  **雇用主：** NXT Interim Stockholm AB  \n  **勤務地：** ストックホルム  \n  **元の求人リンク：** [Platsbanken annons 31589252](embed:senior-systemutvecklare-2ps)  \n  **給与額：** 記載なし  \n  **在宅勤務の形態：** リモートワーク可能（*remote-arbetsplatser*）\n\n* **職種：** Javautvecklare  \n  **雇用主：** AFRY AB  \n  **勤務地：** ストックホルム  \n  **元の求人リンク：** [Platsbanken annons 31588186](embed:javautvecklare-y47)  \n  **給与額：** 記載なし  \n  **在宅勤務の形態：** ハイブリッドワークの可能性あり（*möjlighet till hybridarbete*）\n\n---\n\n### マルメ\n\n* **職種：** Senior AI Engineer  \n  **雇用主：** Iver Accelerate AB  \n  **勤務地：** マルメ  \n  **元の求人リンク：** [Platsbanken annons 31588387](embed:senior-ai-engineer-Duw)  \n  **給与額：** 記載なし  \n  **在宅勤務の形態：** ハイブリッドワークの可能性あり（*möjlighet till hybridarbete*）\n\n* **職種：** Malmö: Systemutvecklare Affärssystem Hybrid  \n  **雇用主：** Jobbakuten Väst AB  \n  **勤務地：** マルメ  \n  **元の求人リンク：** [Platsbanken annons 31574628](embed:malm-systemutvecklare-aff-umf)  \n  **給与額：** 記載なし（求人票には具体的な金額ではなく市場レートの給与と記載）  \n  **在宅勤務の形態：** ハイブリッドワーク（*Hybridarbete*）"
-      },
-      "follow_up_1": {
-        "text": "ヨーテボリのリモートソフトウェア開発者の求人を検索"
-      },
-      "follow_up_2": {
-        "text": "これらのシニア開発者の応募要件を比較"
-      },
-      "follow_up_3": {
-        "text": "ストックホルムのフロントエンド開発者の求人を検索"
-      },
-      "follow_up_4": {
-        "text": "これらの求人に記載されている主要な技術スタックを一覧表示"
-      },
-      "follow_up_5": {
-        "text": "スウェーデンのジュニア開発者の求人を検索"
-      },
-      "follow_up_6": {
-        "text": "スウェーデンのテック系求人におけるリモートワークの傾向を要約"
-      }
-    },
     "launch_readiness_checklist_doc": {
       "title": {
         "text": "Launch readiness checklist document"
@@ -11015,38 +10909,6 @@
         "text": "デカップリングコンデンサの選定理由を説明して"
       }
     },
-    "vegetarian_recipes_from_fridge_vegetables": {
-      "title": {
-        "text": "冷蔵庫の常備野菜で作るベジタリアンレシピ"
-      },
-      "summary": {
-        "text": "ほうれん草、人参、ピーマン、ひよこ豆を使ったベジタリアンレシピのアイデアをユーザーが求め、アシスタントが3つの選択肢を提案しました。"
-      },
-      "message_1": {
-        "text": "ベジタリアンレシピのおすすめはありますか？冷蔵庫にほうれん草、人参、ピーマン、ひよこ豆が残っています。"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\n**ほうれん草、人参、パプリカ、ひよこ豆**があれば、食物繊維たっぷりの美味しいベジタリアン料理を作るための素晴らしいベースが揃っています。\n\n気分に合わせて選べる、3つの異なる料理のアイデアをご紹介します：\n\n---\n\n### 1. フレッシュ＆シャキシャキ：タイ風チョップドサラダ\n手早く、軽くてシャキシャキしたものが食べたいときは、細かく刻んだ生のパプリカ、人参、ほうれん草をひよこ豆と合わせ、酸味の効いた[ピーナッツ](wiki:Peanut)ライムドレッシングで和えましょう。\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. 香ばしいパテ：ひよこ豆と野菜のカリカリフリッター\n温かくて一口サイズの料理（ラップサンドやピタパン、ヨーグルトディップとの相性も抜群です）がお好みの場合は、ひよこ豆を潰し、みじん切りにした人参、パプリカ、さっと火を通したほうれん草を混ぜて焼き上げます。\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. 平日の時短メニュー：ひよこ豆と野菜の温かいフライパンカレー\n常備菜やストック食材（ココナッツミルク缶やカットトマト缶など）を使ってフライパン一つで作りたい場合：\n1. **香味野菜を炒める：** フライパンにオリーブオイルを熱し、みじん切りにした玉ねぎ、にんにく、生姜を香りが出るまで炒めます。\n2. **硬い野菜を加える：** 人参とパプリカを一口大に切ります。クミンパウダー、[ターメリック](wiki:Turmeric)、チリパウダーまたはカレー粉を少々加え、野菜と一緒に炒め合わせます。\n3. **煮込む：** 水気を切ったひよこ豆と、野菜だしまたはココナッツミルクを1カップ加えます。蓋をして、人参が柔らかくなるまで10〜12分ほど煮込みます。\n4. **ほうれん草を加える：** 最後に生のほうれん草を加え、鮮やかな緑色になり、しんなりするまで1〜2分ほど火を通します。仕上げにレモン汁を絞って完成です。\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"今日はどのスタイルの料理を作りたいですか？\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"フレッシュ＆シャキシャキのチョップドサラダ\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"カリッと香ばしいフリッターまたはパテ\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"温かいフライパンカレーまたは煮込み料理\" }\n  ]\n}\n```"
-      },
-      "follow_up_1": {
-        "text": "スキレットカレーのより詳細な作り方と正確な分量を検索する"
-      },
-      "follow_up_2": {
-        "text": "作り置き用に、余ったひよこ豆のフリッターの下準備と保存方法を教えて"
-      },
-      "follow_up_3": {
-        "text": "ひよこ豆のフリッターに合うヴィーガンヨーグルトディップのレシピを検索する"
-      },
-      "follow_up_4": {
-        "text": "スキレット料理でカレー粉がない場合の、簡単なスパイスの代用法をリストアップして"
-      },
-      "follow_up_5": {
-        "text": "タイ風チョップドサラダに使える、タヒニを使った別のドレッシングのレシピを検索する"
-      },
-      "follow_up_6": {
-        "text": "これら3つのベジタリアンレシピのタンパク質と食物繊維の含有量を比較して"
-      }
-    },
     "vital_farms_sec_financials": {
       "title": {
         "text": "Vital Farms SEC 財務情報"
@@ -11109,6 +10971,70 @@
       },
       "follow_up_6": {
         "text": "話したアイデアを整理されたタスクに変換するさまざまな方法を比較する"
+      }
+    },
+    "vegetarian_recipes_from_fridge_vegetables": {
+      "title": {
+        "text": "冷蔵庫の常備野菜で作るベジタリアンレシピ"
+      },
+      "summary": {
+        "text": "ほうれん草、人参、ピーマン、ひよこ豆を使ったベジタリアンレシピのアイデアをユーザーが求め、アシスタントが3つの選択肢を提案しました。"
+      },
+      "message_1": {
+        "text": "ベジタリアンレシピのおすすめはありますか？冷蔵庫にほうれん草、人参、ピーマン、ひよこ豆が残っています。"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\n**ほうれん草、人参、パプリカ、ひよこ豆**があれば、食物繊維たっぷりの美味しいベジタリアン料理を作るための素晴らしいベースが揃っています。\n\n気分に合わせて選べる、3つの異なる料理のアイデアをご紹介します：\n\n---\n\n### 1. フレッシュ＆シャキシャキ：タイ風チョップドサラダ\n手早く、軽くてシャキシャキしたものが食べたいときは、細かく刻んだ生のパプリカ、人参、ほうれん草をひよこ豆と合わせ、酸味の効いた[ピーナッツ](wiki:Peanut)ライムドレッシングで和えましょう。\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. 香ばしいパテ：ひよこ豆と野菜のカリカリフリッター\n温かくて一口サイズの料理（ラップサンドやピタパン、ヨーグルトディップとの相性も抜群です）がお好みの場合は、ひよこ豆を潰し、みじん切りにした人参、パプリカ、さっと火を通したほうれん草を混ぜて焼き上げます。\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. 平日の時短メニュー：ひよこ豆と野菜の温かいフライパンカレー\n常備菜やストック食材（ココナッツミルク缶やカットトマト缶など）を使ってフライパン一つで作りたい場合：\n1. **香味野菜を炒める：** フライパンにオリーブオイルを熱し、みじん切りにした玉ねぎ、にんにく、生姜を香りが出るまで炒めます。\n2. **硬い野菜を加える：** 人参とパプリカを一口大に切ります。クミンパウダー、[ターメリック](wiki:Turmeric)、チリパウダーまたはカレー粉を少々加え、野菜と一緒に炒め合わせます。\n3. **煮込む：** 水気を切ったひよこ豆と、野菜だしまたはココナッツミルクを1カップ加えます。蓋をして、人参が柔らかくなるまで10〜12分ほど煮込みます。\n4. **ほうれん草を加える：** 最後に生のほうれん草を加え、鮮やかな緑色になり、しんなりするまで1〜2分ほど火を通します。仕上げにレモン汁を絞って完成です。\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"今日はどのスタイルの料理を作りたいですか？\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"フレッシュ＆シャキシャキのチョップドサラダ\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"カリッと香ばしいフリッターまたはパテ\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"温かいフライパンカレーまたは煮込み料理\" }\n  ]\n}\n```"
+      },
+      "follow_up_1": {
+        "text": "スキレットカレーのより詳細な作り方と正確な分量を検索する"
+      },
+      "follow_up_2": {
+        "text": "作り置き用に、余ったひよこ豆のフリッターの下準備と保存方法を教えて"
+      },
+      "follow_up_3": {
+        "text": "ひよこ豆のフリッターに合うヴィーガンヨーグルトディップのレシピを検索する"
+      },
+      "follow_up_4": {
+        "text": "スキレット料理でカレー粉がない場合の、簡単なスパイスの代用法をリストアップして"
+      },
+      "follow_up_5": {
+        "text": "タイ風チョップドサラダに使える、タヒニを使った別のドレッシングのレシピを検索する"
+      },
+      "follow_up_6": {
+        "text": "これら3つのベジタリアンレシピのタンパク質と食物繊維の含有量を比較して"
+      }
+    },
+    "air_fryers_amazon_germany": {
+      "title": {
+        "text": "ドイツで買えるエアフライヤーの比較"
+      },
+      "summary": {
+        "text": "Amazonドイツの人気エアフライヤーを価格、容量、評価で比較し、2人暮らしにはPhilips Airfryer 2000シリーズをおすすめしました。"
+      },
+      "message_1": {
+        "text": "ドイツでオンライン購入できるエアフライヤーを、Amazonの出品を含めて探して。現在の価格、容量、レビュー評価を比較し、出典リンクを付けて2人暮らし向けの1台をおすすめして。"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\n現在ドイツのAmazonで販売されている高評価のエアフライヤーについて、価格、容量、購入者の評価を比較します。\n\n---\n\n### ドイツで人気のモデルを比較\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### 2人暮らしに最もおすすめのモデル\n\n#### **第一候補：[Philips Airfryer 2000 Series 6.2L](embed:philips-airfryer-2000-fay)**\n\n* **2人に最適な理由：**\n  * **適切な容量（6.2 L）：** 4.5–5 L未満のバスケットでは、2人分でも何回かに分けて調理する必要があります。6.2 Lならサーモンの切り身2枚と野菜やフライドポテトを一層に広げて、むらなく加熱できます。\n  * **キッチンでの設置面積：** NinjaやRussell Hobbsのような2ゾーン型は調理台をかなり占有します。6 Lのシングルバスケットなら、一般的なドイツのキッチンでも比較的省スペースで、十分な調理容量を確保できます。\n  * **透明窓：** 引き出しを開けて熱を逃がさずに焼き色を確認できます。\n  * **価格と性能のバランス：** €99.99で、[Philips](wiki:Philips)の安定した温度管理が得られる、手頃な価格のモデルです。\n\n#### **別の候補（異なる温度で2品を同時に作ることが多い場合）：[Philips Dual Basket 3000 Series (9.0L)](embed:philips-airfryer-dual-pjD)**\n肉や魚と付け合わせの野菜を異なる温度と時間で同時に調理したい場合（例：鶏むね肉を180 °C、カリカリのポテトを200 °C）、このモデルは現在€119.99に値下げされており、2つのバスケットの調理完了時刻をそろえられます。\n\n---\n\n### 購入前に確認したいポイント\n1. **バスケットの形：** 四角いバスケット（CosoriやPhilipsなど）は、同じ容量の丸いバスケットより、ステーキや焼き型、串など平らな食品を入れやすくなります。\n2. **食洗機に入るか：** 6 Lのシングルバスケットを入れられる高さがあるか確認しましょう。フッ素樹脂などの焦げ付き防止コーティングを長持ちさせたいなら、手洗いも検討してください。"
+      },
+      "follow_up_1": {
+        "text": "エアフライヤー専用のレシピを探す"
+      },
+      "follow_up_2": {
+        "text": "シングルバスケットとデュアルバスケットのエアフライヤーの主な違いを説明して"
+      },
+      "follow_up_3": {
+        "text": "このエアフライヤーに対応した調理用アクセサリーを探す"
+      },
+      "follow_up_4": {
+        "text": "エアフライヤーで作れる初心者向けの夕食レシピを挙げて"
+      },
+      "follow_up_5": {
+        "text": "これらのモデルの現在の消費電力を確認して"
+      },
+      "follow_up_6": {
+        "text": "セラミックコーティングとテフロンコーティングの洗浄・手入れ方法を比較して"
       }
     }
   },
@@ -12898,7 +12824,7 @@
             "text": "求人検索サービス"
           },
           "description": {
-            "text": "求人検索時にのみ使用します。ドイツ連邦雇用庁と JobTech には、選択した検索語、場所、適用されるフィルターがサーバー経由で送られます。Arbeitnow の公開フィードは OpenMates がローカルで絞り込みます。OpenMates のユーザー ID、履歴書、アカウント認証情報は送信しません。 80,000 Hours はキーワードと国を Algolia に送信します。Hard Problems は国だけを受け取ります。場所や他の条件はローカルで確認します。"
+            "text": "求人検索時にのみ使用します。ドイツ連邦雇用庁と JobTech には、選択した検索語、場所、適用されるフィルターがサーバー経由で送られます。Arbeitnow の公開フィードは OpenMates がローカルで絞り込みます。OpenMates のユーザー ID、履歴書、アカウント認証情報は送信しません。"
           },
           "arbeitsagentur": {
             "heading": {
@@ -12922,22 +12848,6 @@
             },
             "description": {
               "text": "OpenMates は Arbeitnow の公開求人フィードを取得します。キーワード、場所、フィルターはローカルで適用され、Arbeitnow には送信されません。"
-            }
-          },
-          "eighty_thousand_hours": {
-            "heading": {
-              "text": "80,000 Hours Job Board"
-            },
-            "description": {
-              "text": "80,000 Hours の公開求人掲示板は Algolia 検索を使用します。キーワードと選択した国が送信され、場所やその他の条件は OpenMates がローカルで確認します。OpenMates のユーザー ID、履歴書、アカウント情報は送信しません。"
-            }
-          },
-          "hard_problems": {
-            "heading": {
-              "text": "Hard Problems"
-            },
-            "description": {
-              "text": "OpenMates は選択した国の Hard Problems 公開求人フィードを取得します。キーワード、場所、その他の条件はローカルで確認され、Hard Problems には送信されません。OpenMates のユーザー ID、履歴書、アカウント情報は送信しません。"
             }
           }
         }
@@ -16469,16 +16379,6 @@
       }
     },
     "app_store_examples": {
-      "jobs": {
-        "search": {
-          "1": {
-            "text": "ストックホルムのソフトウェア開発職"
-          },
-          "2": {
-            "text": "マルメのソフトウェア開発職"
-          }
-        }
-      },
       "hosting": {
         "search_domains": {
           "1": {

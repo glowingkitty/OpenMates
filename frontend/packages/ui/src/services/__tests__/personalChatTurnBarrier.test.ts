@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   awaitPersonalChatPredecessor, bindPersonalChatTurn, clearPersonalChatTurnBarriers,
-  completePersonalChatTurn, failMatchingPersonalChatTurn, failPersonalChatTurn,
+  completePersonalChatTurn, completePersonalChatMessage, failMatchingPersonalChatTurn, failPersonalChatTurn,
   reservePersonalChatTurn, observePersonalChatCanonicalVersion,
 } from '../personalChatTurnBarrier';
 
@@ -79,4 +79,22 @@ it('retains a settled canonical receipt, advances remote versions, and clears on
   const { invalidateWorkspaceCaches } = await import('../workspaceCacheLifecycle');
   invalidateWorkspaceCaches();
   await expect(awaitPersonalChatPredecessor(reservePersonalChatTurn('settled-chat', 'fresh'))).resolves.toBeNull();
+});
+
+describe('legacy user message settlement', () => {
+  // contract-test: supporting surface=gui.web assertions=chats.completion.lease-fenced,chats.message.identity-idempotent
+  it('settles only the exact reserved chat/user identity with a canonical integer version', async () => {
+    const first = reservePersonalChatTurn('legacy-chat', 'user-1');
+    bindPersonalChatTurn(first, 'real-turn');
+    const second = reservePersonalChatTurn('legacy-chat', 'user-2');
+    expect(completePersonalChatMessage('other-chat', 'user-1', 7)).toBe(false);
+    expect(completePersonalChatMessage('legacy-chat', 'other-user', 7)).toBe(false);
+    expect(completePersonalChatMessage('legacy-chat', 'user-1', NaN)).toBe(false);
+    expect(completePersonalChatMessage('legacy-chat', 'user-1', -1)).toBe(false);
+    expect(first.settled).toBe(false);
+    expect(completePersonalChatMessage('legacy-chat', 'user-1', 7)).toBe(true);
+    await expect(awaitPersonalChatPredecessor(second)).resolves.toBe(7);
+    expect(completePersonalChatMessage('legacy-chat', 'user-1', 8)).toBe(false);
+    expect(second.settled).toBe(false);
+  });
 });

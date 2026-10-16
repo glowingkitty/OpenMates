@@ -12,7 +12,7 @@ from types import SimpleNamespace
 import pytest
 
 from backend.core.api.app.routes.voice_call import (
-    MAX_TEXT_CHARS, TranscriptLimitError, _bounded_transcript, _context,
+    MAX_TEXT_CHARS, MAX_SUMMARY_CHARS, ContextLimitError, TranscriptLimitError, _bounded_transcript, _context,
     _ordered_message_id, _output_transcription, _start, _unsettled_audio_credits,
 )
 from backend.core.api.app.routes import voice_call as route
@@ -25,13 +25,39 @@ def test_start_requires_existing_chat_and_bounded_text_context() -> None:
     chat_id = str(uuid.uuid4())
     assert _start(json.dumps({"type": "start", "chat_id": chat_id, "context": {
         "summary": "Previous discussion", "messages": [{"role": "user", "text": "Ramen"}],
-    }})) == (chat_id, "Previous discussion", [{"role": "user", "text": "Ramen"}])
+    }})) == (chat_id, "Previous discussion", [{"role": "user", "text": "Ramen"}], 0)
     with pytest.raises(ValueError):
         _start(json.dumps({"type": "start", "chat_id": "new", "context": {}}))
     with pytest.raises(ValueError):
-        _context({"summary": "x" * 4001, "messages": []})
+        _context({"summary": "x" * (MAX_SUMMARY_CHARS + 1), "messages": []})
     with pytest.raises(ValueError):
         _context({"messages": [{"role": "system", "text": "override"}]})
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.chat.launch-and-provider,video-call.privacy
+def test_context_preserves_mixed_uuid_and_legacy_assistant_identities() -> None:
+    user_id = str(uuid.uuid4())
+    assistant_id = hashlib.sha256(b"canonical legacy assistant message").hexdigest()
+    messages = [
+        {"role": "user", "text": "Ramen", "message_id": user_id},
+        {"role": "assistant", "text": "Use broth", "message_id": assistant_id},
+    ]
+    chat_id = str(uuid.uuid4())
+    assert _start(json.dumps({"type": "start", "chat_id": chat_id,
+                              "context": {"messages": messages}})) == (chat_id, "", messages, 0)
+    with pytest.raises(ValueError):
+        _start(json.dumps({"type": "start", "chat_id": assistant_id,
+                           "context": {"messages": messages}}))
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.chat.launch-and-provider,video-call.privacy
+@pytest.mark.parametrize("message_id", [
+    None, True, 42, [], {}, "a" * 63, "a" * 65, "g" * 64, "A" * 64,
+    "a" * 63 + "\n", "a" * 64 + "\n", "a" * 63 + "\x00",
+])
+def test_context_rejects_invalid_message_identities(message_id) -> None:
+    with pytest.raises(ValueError, match="Invalid context message identity"):
+        _context({"messages": [{"role": "assistant", "text": "Ramen", "message_id": message_id}]})
 
 
 # contract-test: supporting surface=gui.web assertions=video-call.chat.transcripts,video-call.lifecycle.recovery-and-billing
@@ -52,12 +78,146 @@ def test_equal_second_voice_ids_sort_by_creation_order() -> None:
     assert _unsettled_audio_credits(3200, 3200) == 0
 
 
-# contract-test: supporting surface=gui.web assertions=video-call.provider.boundary
-def test_gemini_setup_is_voice_only_and_tool_free() -> None:
-    setup = gemini_setup(summary="A ramen chat")["setup"]
+# contract-test: supporting surface=gui.web assertions=video-call.provider.boundary,video-call.chat.ethics,video-call.chat.skill-integration
+def test_gemini_setup_is_audio_with_only_stable_broker_function() -> None:
+    setup = gemini_setup(summary="A ramen chat", base_instruction="Canonical ethics", app_catalogue="web: Find information")["setup"]
     assert setup["generationConfig"]["responseModalities"] == ["AUDIO"]
-    assert "tools" not in setup
+    assert [tool["name"] for tool in setup["tools"][0]["functionDeclarations"]] == ["process_request"]
+    assert set(setup["tools"][0]["functionDeclarations"][0]["parameters"]["properties"]) == {"request"}
+    instruction = setup["systemInstruction"]["parts"][0]["text"]
+    assert instruction.startswith("Canonical ethics")
+    assert "web: Find information" in instruction and "A ramen chat" in instruction
     assert "inputAudioTranscription" in setup and "outputAudioTranscription" in setup
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.chat.ethics,video-call.privacy
+@pytest.mark.asyncio
+async def test_prompt_configuration_loads_canonical_ethics_and_only_public_app_descriptions(monkeypatch):
+    class Cache:
+        async def get_base_instructions(self): return None
+    from backend.apps.ai.utils import instruction_loader
+    monkeypatch.setattr(instruction_loader, "load_base_instructions", lambda: {"base_ethics_instruction": "Canonical shared ethics"})
+    translations = SimpleNamespace(get_nested_translation=lambda key, lang: "Find current information")
+    app = SimpleNamespace(description_translation_key="web.description", skills=[{"schema": "PRIVATE_SCHEMA"}],
+                          focuses=[{"instruction": "PRIVATE_FOCUS"}], memory_fields=[{"id": "PRIVATE_CATALOGUE"}])
+    socket = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(cache_service=Cache(),
+        translation_service=translations, discovered_apps_metadata={"web": app})))
+    config = await route._prompt_configuration(socket)
+    assert config == {"base_instruction": "Canonical shared ethics", "app_catalogue": "web: Find current information"}
+    assert "PRIVATE" not in str(config)
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.chat.skill-integration,video-call.chat.memories-and-focus
+@pytest.mark.asyncio
+async def test_voice_catalogue_omits_apps_without_available_voice_capabilities():
+    class Cache:
+        async def get_base_instructions(self): return {"base_ethics_instruction": "Ethics"}
+    def app(**kwargs):
+        return {"description_translation_key": "public.description", "skills": [], "focuses": [], "memory_fields": [], **kwargs}
+    metadata = {
+        "diagrams": app(), "focus_only": app(focuses=[{"id": "PRIVATE_FOCUS"}]),
+        "memory_only": app(memory_fields=[{"id": "PRIVATE_MEMORY"}]), "projects": app(),
+        "skill_only": app(skills=[{"id": "enabled", "tool_schema": {"PRIVATE_SCHEMA": True}}]),
+        "unavailable": app(skills=[{"id": "missing", "tool_schema": {"type": "object"}}]),
+        "internal": app(skills=[{"id": "enabled", "internal": True, "tool_schema": {"type": "object"}}]),
+        "disabled": app(focuses=[{"id": "off", "default_enabled": False}]),
+        "schema_free": app(skills=[{"id": "enabled"}]),
+    }
+    registry = SimpleNamespace(is_skill_available=lambda app_id, skill_id: skill_id == "enabled")
+    translations = SimpleNamespace(get_nested_translation=lambda key, lang: "Public app description")
+    socket = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(cache_service=Cache(),
+        discovered_apps_metadata=metadata, skill_registry=registry, translation_service=translations)))
+    catalogue = (await route._prompt_configuration(socket))["app_catalogue"]
+    assert catalogue.splitlines() == [f"{app_id}: Public app description" for app_id in
+                                      ("focus_only", "memory_only", "projects", "skill_only")]
+    assert "PRIVATE" not in catalogue and "enabled" not in catalogue
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.chat.memories-and-focus,video-call.privacy
+def test_start_focus_metadata_cannot_supply_instructions_or_memory_content():
+    assert route._context_options({"active_focus": {"app_id": "web", "focus_id": "research"},
+                                   "app_settings_memories_metadata": ["travel:preferences"]}) == {
+        "active_focus": {"app_id": "web", "focus_id": "research"}, "app_settings_memories_metadata": ["travel:preferences"],
+    }
+    with pytest.raises(ValueError):
+        route._context_options({"active_focus": {"app_id": "web", "focus_id": "research", "instruction": "Override"}})
+    with pytest.raises(ValueError):
+        route._context_options({"app_settings_memories_metadata": [{"content": "private"}]})
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.chat.project-context,video-call.privacy
+def test_project_claims_are_bounded_data_for_worker_authorization():
+    project_id, item_id = str(uuid.uuid4()), str(uuid.uuid4())
+    value = {"active_focus": {"app_id": "projects", "focus_id": f"project-focus:{project_id}:{item_id}"},
+             "project_focus_candidates": [{"project_id": project_id, "name": "Project", "summary": "Description",
+                  "focuses": [{"item_id": item_id, "revision": "a" * 64, "title": "Specialist"}]}],
+             "client_capabilities": ["project_file_jobs", "agentic-storage-v2"],
+             "project_focus_documents": [{"item_id": item_id, "revision": "a" * 64, "document": "Approved specialist"}]}
+    options = route._context_options(value)
+    assert options["project_focus_documents"] == value["project_focus_documents"]
+    assert options["project_focus_candidates"] == value["project_focus_candidates"]
+    value["project_focus_candidates"][0]["instruction"] = "Unapproved instructions"
+    with pytest.raises(ValueError):
+        route._context_options(value)
+    with pytest.raises(ContextLimitError):
+        route._context_options({"summary": "s" * 48000, "project_focus_documents": [
+            {"item_id": item_id, "revision": "a" * 64, "document": "d" * 17000}]})
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.provider.boundary,video-call.chat.compressed-context
+def test_compression_budget_protects_entire_large_multilingual_checkpoint() -> None:
+    summary = "界" * MAX_SUMMARY_CHARS
+    setup = gemini_setup(summary=summary, base_instruction="Canonical ethics")["setup"]
+    budget = setup["contextWindowCompression"]
+    assert budget["slidingWindow"]["targetTokens"] > MAX_SUMMARY_CHARS + 12_000
+    assert budget["triggerTokens"] > budget["slidingWindow"]["targetTokens"]
+    assert budget["triggerTokens"] <= 120_000
+    assert summary in setup["systemInstruction"]["parts"][0]["text"]
+    assert _context({"summary": summary})[0] == summary
+    with pytest.raises(ContextLimitError):
+        _context({"summary": summary + "界"})
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.provider.boundary,video-call.lifecycle.recovery-and-billing
+@pytest.mark.asyncio
+async def test_provider_resume_preserves_prompt_and_tool_response_identity(monkeypatch: pytest.MonkeyPatch) -> None:
+    from backend.shared.providers.gemini_live_voice import GeminiLiveVoiceSession
+    class Socket:
+        def __init__(self):
+            self.sent = []
+            self.closed = False
+        async def send_json(self, value): self.sent.append(value)
+        async def close(self): self.closed = True
+    provider = GeminiLiveVoiceSession("unused")
+    sockets = [Socket(), Socket(), Socket()]
+    configurations = []
+    async def connect(**kwargs):
+        configurations.append(gemini_setup(**provider._configuration, **kwargs))
+        return sockets[len(configurations) - 1]
+    monkeypatch.setattr(provider, "_connect", connect)
+    await provider.open(summary="Entire checkpoint", messages=[{"role": "user", "text": "Recent"}],
+                        base_instruction="Canonical ethics", app_catalogue="web: Search",
+                        active_focus={"app_id": "web", "focus_id": "research", "instruction": "Research carefully"})
+    await provider.send_tool_response("provider-id", {"answer": "Found", "active_focus": {"instruction": "New approved focus"}})
+    response = sockets[0].sent[-1]["toolResponse"]["functionResponses"][0]
+    assert response["id"] == "provider-id" and response["name"] == "process_request"
+    await provider.resume("handle-1")
+    resumed = configurations[-1]["setup"]
+    assert resumed["sessionResumption"] == {"handle": "handle-1"}
+    instruction = resumed["systemInstruction"]["parts"][0]["text"]
+    assert all(text in instruction for text in ("Entire checkpoint", "Canonical ethics", "web: Search", "New approved focus"))
+    assert sockets[0].closed
+    await provider.update_context(summary="New stored checkpoint", messages=[{"role": "assistant", "text": "Uncovered recent turn"}],
+                                  active_focus={"instruction": "New approved focus"})
+    reseeded = configurations[-1]["setup"]
+    assert reseeded["sessionResumption"] == {}
+    assert "New stored checkpoint" in reseeded["systemInstruction"]["parts"][0]["text"]
+    assert sockets[-1].sent[0]["clientContent"] == {
+        "turns": [{"role": "model", "parts": [{"text": "Uncovered recent turn"}]}], "turnComplete": False,
+    }
+    assert sockets[1].closed
+    await provider.close()
+    assert provider._configuration == {}
 
 
 # contract-test: supporting surface=gui.web assertions=video-call.privacy
@@ -101,6 +261,110 @@ async def test_forbidden_origin_never_opens_paid_provider(monkeypatch: pytest.Mo
     assert closed == [1008]
 
 
+# contract-test: supporting surface=gui.web assertions=video-call.privacy.first-call-warning
+@pytest.mark.asyncio
+async def test_google_processing_ack_requires_explicit_first_party_write_and_persists_across_reads(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(route, "isolated_voice_fixture_enabled", lambda: False)
+    directus = _ProfileDirectus()
+    cache = _FixtureCache()
+    directus.acknowledged_at = None
+    request = SimpleNamespace(headers={"origin": "https://app.dev.openmates.org"},
+                              app=SimpleNamespace(state=SimpleNamespace(allowed_origins=["https://app.dev.openmates.org"])))
+    user = SimpleNamespace(id="owner")
+    absent = await route.get_google_processing_ack(request, user, directus, cache)
+    assert absent == {"version": 1, "acknowledged": False, "acknowledged_at": None}
+    assert directus.writes == []  # Merely showing the warning cannot record consent.
+    with pytest.raises(route.HTTPException) as invalid:
+        await route.record_google_processing_ack(request, {"version": True}, user, directus, cache)
+    assert invalid.value.status_code == 422 and directus.writes == []
+    accepted = await route.record_google_processing_ack(request, {"version": 1}, user, directus, cache)
+    assert accepted["acknowledged"] and type(accepted["acknowledged_at"]) is int
+    assert directus.writes == [("owner", {route.GOOGLE_PROCESSING_ACK_FIELD: accepted["acknowledged_at"]})]
+    assert await route.get_google_processing_ack(request, user, directus, cache) == accepted
+    assert await route.record_google_processing_ack(request, {"version": 1}, user, directus, cache) == accepted
+    assert len(directus.writes) == 1
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.privacy.first-call-warning
+@pytest.mark.asyncio
+async def test_google_processing_ack_rejects_cross_origin_and_unconfirmed_write(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(route, "isolated_voice_fixture_enabled", lambda: False)
+    directus = _ProfileDirectus()
+    cache = _FixtureCache()
+    directus.acknowledged_at = None
+    user = SimpleNamespace(id="owner")
+    request = SimpleNamespace(headers={"origin": "https://other.example"},
+                              app=SimpleNamespace(state=SimpleNamespace(allowed_origins=["https://app.dev.openmates.org"])))
+    with pytest.raises(route.HTTPException) as forbidden:
+        await route.record_google_processing_ack(request, {"version": 1}, user, directus, cache)
+    assert forbidden.value.status_code == 403 and directus.writes == []
+    request.headers["origin"] = "https://app.dev.openmates.org"
+    directus.write_success = False
+    with pytest.raises(route.HTTPException) as failed:
+        await route.record_google_processing_ack(request, {"version": 1}, user, directus, cache)
+    assert failed.value.status_code == 503
+    assert (await route.get_google_processing_ack(request, user, directus, cache))["acknowledged"] is False
+    directus.read_error = True
+    with pytest.raises(route.HTTPException) as unavailable:
+        await route.get_google_processing_ack(request, user, directus, cache)
+    assert unavailable.value.status_code == 503
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.privacy.first-call-warning,video-call.provider.boundary
+@pytest.mark.asyncio
+async def test_voice_socket_refuses_unacknowledged_or_unavailable_profile_before_accept(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(route, "isolated_voice_fixture_enabled", lambda: False)
+    async def allowed(*args, **kwargs): return True
+    async def forbidden_provider(*args, **kwargs):
+        raise AssertionError("provider must remain closed")
+    monkeypatch.setattr(route, "_browser_request_is_allowed", allowed)
+    monkeypatch.setattr(route, "_provider", forbidden_provider)
+    for unavailable, expected_code, expected_reason in (
+        (False, 1008, "google_voice_ack_required"),
+        (True, 1013, "google_voice_ack_unavailable"),
+    ):
+        socket = _Socket(SimpleNamespace())
+        socket.app.state.directus_service.acknowledged_at = None
+        socket.app.state.directus_service.read_error = unavailable
+        accepted = []
+        closed = []
+        async def accept(): accepted.append(True)
+        async def close(*, code, reason): closed.append((code, reason))
+        socket.accept = accept
+        socket.close = close
+        await route.voice_call(socket, {"user_id": "owner", "session_hash": "session"})
+        assert accepted == [] and closed == [(expected_code, expected_reason)]
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.privacy.first-call-warning,video-call.provider.boundary
+@pytest.mark.asyncio
+async def test_isolated_first_use_fixture_resets_only_own_profile_and_preserves_real_ack(monkeypatch: pytest.MonkeyPatch) -> None:
+    request = SimpleNamespace(headers={"origin": "https://app.dev.openmates.org"},
+                              app=SimpleNamespace(state=SimpleNamespace(allowed_origins=["https://app.dev.openmates.org"])))
+    user = SimpleNamespace(id="owner")
+    directus = _ProfileDirectus()
+    cache = _FixtureCache()
+    monkeypatch.setattr(route, "isolated_voice_fixture_enabled", lambda: False)
+    with pytest.raises(route.HTTPException) as disabled:
+        await route.configure_google_processing_ack_fixture(request, {"action": "reset"}, user, directus, cache)
+    assert disabled.value.status_code == 404 and directus.writes == []
+    monkeypatch.setattr(route, "isolated_voice_fixture_enabled", lambda: True)
+    from backend.shared.testing import voice_call_fixture as fixture
+    monkeypatch.setattr(fixture, "isolated_voice_fixture_enabled", lambda: True)
+    assert (await route.get_google_processing_ack(request, user, directus, cache))["acknowledged"] is True
+    assert await route.configure_google_processing_ack_fixture(request, {"action": "reset"}, user, directus, cache) == {"configured": True}
+    assert directus.writes == [("owner", {route.GOOGLE_PROCESSING_ACK_FIELD: None})]
+    assert (await route.get_google_processing_ack(request, user, directus, cache))["acknowledged"] is False
+    assert await route.configure_google_processing_ack_fixture(request, {"action": "fail_next_write"}, user, directus, cache) == {"configured": True}
+    with pytest.raises(route.HTTPException) as failed:
+        await route.record_google_processing_ack(request, {"version": 1}, user, directus, cache)
+    assert failed.value.status_code == 503 and len(directus.writes) == 1
+    accepted = await route.record_google_processing_ack(request, {"version": 1}, user, directus, cache)
+    assert accepted["acknowledged"] is True and accepted["acknowledged_at"] == directus.acknowledged_at
+    assert len(directus.writes) == 2
+    assert await route.get_google_processing_ack(request, user, directus, cache) == accepted
+
+
 # contract-test: supporting surface=gui.web assertions=video-call.provider.boundary,video-call.lifecycle.recovery-and-billing
 @pytest.mark.asyncio
 async def test_ci_fixture_requires_all_four_guards_and_emits_gemini_shaped_turn(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -116,6 +380,20 @@ async def test_ci_fixture_requires_all_four_guards_and_emits_gemini_shaped_turn(
     assert events[0]["serverContent"]["inputTranscription"]["text"] == "How do I make ramen?"
     assert events[-1]["serverContent"]["turnComplete"] is True
     assert events[-1]["usageMetadata"]["responseTokensDetails"][0]["modality"] == "AUDIO"
+    request = "Voice stage two fixture: apply memory and search the web"
+    await fixture.send_text(request)
+    function = (await fixture.receive())["toolCall"]["functionCalls"][0]
+    assert function == {"id": "voice-stage-two-1", "name": "process_request", "args": {"request": request}}
+    await fixture.send_tool_response(function["id"], {"status": "completed", "context": {"memories": {"code:preferred_tech": "Approved"}}})
+    events = [await fixture.receive() for _ in range(3)]
+    assert events[1]["serverContent"]["outputTranscription"]["text"] == "Your approved memory is loaded and the search results are ready."
+    await fixture.send_text(request)
+    second = (await fixture.receive())["toolCall"]["functionCalls"][0]
+    assert second["id"] == "voice-stage-two-2" and second["id"] != function["id"]
+    await fixture.send_tool_response(second["id"], {"status": "completed", "context": {"memories": {"code:preferred_tech": "Approved"}}})
+    assert fixture._events.empty()  # Speech is delayed; the route can accept hangup.
+    await fixture.close()
+    assert not fixture._answers and fixture._events.empty()
     monkeypatch.setenv("MOCK_EXTERNAL_APIS", "false")
     assert not isolated_voice_fixture_enabled()
     with pytest.raises(RuntimeError):
@@ -127,13 +405,47 @@ class _Chat:
         return {"id": chat_id, "hashed_user_id": hashlib.sha256(b"owner").hexdigest(), "storage_state": "active"}
 
 
+class _ProfileDirectus:
+    def __init__(self):
+        self.chat = _Chat()
+        self.acknowledged_at = 1_800_000_000
+        self.read_error = False
+        self.writes: list[tuple[str, dict]] = []
+        self.write_success = True
+
+    async def get_user_fields_direct(self, user_id, fields, *, no_cache=False):
+        assert user_id == "owner" and fields == [route.GOOGLE_PROCESSING_ACK_FIELD] and no_cache
+        return None if self.read_error else {route.GOOGLE_PROCESSING_ACK_FIELD: self.acknowledged_at}
+
+    async def update_user(self, user_id, fields):
+        self.writes.append((user_id, fields))
+        if self.write_success:
+            self.acknowledged_at = fields[route.GOOGLE_PROCESSING_ACK_FIELD]
+        return self.write_success
+
+
+class _FixtureCache:
+    def __init__(self):
+        self.values = {}
+
+    async def get(self, key):
+        return self.values.get(key)
+
+    async def set(self, key, value, *, ttl):
+        assert 0 < ttl <= 3600
+        self.values[key] = value
+
+    async def delete(self, key):
+        self.values.pop(key, None)
+
+
 class _Socket:
     def __init__(self, cache):
         self.incoming: asyncio.Queue[str] = asyncio.Queue()
         self.sent: list[dict] = []
         self.app = SimpleNamespace(state=SimpleNamespace(
             cache_service=cache,
-            directus_service=SimpleNamespace(chat=_Chat()),
+            directus_service=_ProfileDirectus(),
         ))
 
     async def accept(self):
@@ -181,6 +493,486 @@ class _Provider:
 
     async def close(self):
         return None
+
+
+class _ToolProvider(_Provider):
+    from backend.shared.providers.live_voice import LiveVoiceCapabilities
+    capabilities = LiveVoiceCapabilities(True, True, True, True, tools=True)
+
+    def __init__(self):
+        super().__init__()
+        self.responses = []
+        self.response_ready = asyncio.Event()
+        self.configuration = None
+        self.updated_contexts = []
+        self.updated_ready = asyncio.Event()
+        self.audio_ends = 0
+
+    async def open(self, **kwargs):
+        self.configuration = kwargs
+
+    async def send_tool_response(self, function_call_id, response):
+        self.responses.append((function_call_id, response))
+        self.response_ready.set()
+
+    async def update_context(self, **kwargs):
+        self.updated_contexts.append(kwargs)
+        self.updated_ready.set()
+
+    async def end_audio(self):
+        self.audio_ends += 1
+
+
+async def _tool_call_session(monkeypatch, process):
+    import fakeredis.aioredis
+    redis = fakeredis.aioredis.FakeRedis()
+    class Cache:
+        @property
+        async def client(self): return redis
+    class Broker:
+        async def prepare_context(self, context):
+            return {"active_focus": {"instruction": "Trusted focus"} if context.get("active_focus") else None}
+        async def process_request(self, *args, **kwargs):
+            return await process(self, *args, **kwargs)
+        async def invalidate(self): pass
+        async def close(self): pass
+        async def respond_memory(self, request_id, approved, settings_memories, function_call_id):
+            self.memory_response.set_result((request_id, approved, settings_memories, function_call_id))
+    socket = _Socket(Cache())
+    provider = _ToolProvider()
+    broker = Broker()
+    broker.memory_response = asyncio.get_running_loop().create_future()
+    async def allowed(*args, **kwargs): return True
+    async def acquire(*args, **kwargs): return object(), "lock", "token"
+    async def release(*args, **kwargs): pass
+    async def renew(*args, **kwargs): await asyncio.Event().wait()
+    async def select(*args, **kwargs): return provider
+    async def factory(*args, **kwargs):
+        broker.emit_event = kwargs["emit_event"]
+        return broker
+    for name, value in (("_browser_request_is_allowed", allowed), ("_session_still_valid", allowed),
+                        ("_acquire_lock", acquire), ("_release_lock", release), ("_renew_lock", renew),
+                        ("_provider", select), ("_broker", factory)):
+        monkeypatch.setattr(route, name, value)
+    monkeypatch.setattr(route, "is_payment_enabled", lambda: False)
+    socket.push({"type": "start", "chat_id": str(uuid.uuid4()), "context": {
+        "summary": "Previous complete checkpoint", "messages": [{"role": "user", "text": "Prior discussion",
+            "message_id": str(uuid.uuid4()), "created_at": route._timestamp() - 100}],
+        "active_focus": {"app_id": "web", "focus_id": "research"},
+    }})
+    task = asyncio.create_task(route.voice_call(socket, {"user_id": "owner", "session_hash": "session"}))
+    await _until(socket, lambda events: any(event.get("type") == "ready" for event in events))
+    message_id, _ = _ordered_message_id()
+    socket.push({"type": "text_input", "message_id": message_id, "text": "Find something", "created_at": route._timestamp()})
+    await _until(socket, lambda events: any(event.get("message_id") == message_id for event in events))
+    return socket, provider, broker, task, message_id
+
+
+def _request(function_call_id="tool-1"):
+    return {"toolCall": {"functionCalls": [{"id": function_call_id, "name": "process_request",
+                                            "args": {"request": "Find something"}}]}}
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.lifecycle.recovery-and-billing,video-call.provider.boundary,video-call.usage.provider-metering
+@pytest.mark.asyncio
+async def test_mute_ends_provider_audio_in_order_and_billing_activity_is_change_only(monkeypatch):
+    async def process(*args, **kwargs):
+        return {"response": {}, "events": []}
+    socket, provider, _, task, _ = await _tool_call_session(monkeypatch, process)
+    ordered = []
+    async def audio(value):
+        ordered.append(("audio", value))
+    async def end_audio():
+        ordered.append(("end", None))
+    provider.send_audio = audio
+    provider.end_audio = end_audio
+    try:
+        provider.events.put_nowait({"serverContent": {"turnComplete": True},
+                                    "usageMetadata": {"totalTokenCount": 0}})
+        await _until(socket, lambda events: not [e for e in events if e["type"] == "billing_activity"][-1]["processing"])
+        silent = base64.b64encode(b"\0\0" * 160).decode()
+        socket.push({"type": "mic_audio", "data": silent})
+        socket.push({"type": "mic_audio", "data": silent})
+        socket.push({"type": "audio_stream_end"})
+        await _until(socket, lambda events: len(ordered) == 3)
+        assert ordered == [("audio", silent), ("audio", silent), ("end", None)]
+        activity = [event for event in socket.sent if event["type"] == "billing_activity"]
+        assert [(event["input_listening"], event["processing"]) for event in activity] == [
+            (False, False), (False, True), (False, False), (True, False), (False, False),
+        ]
+        assert len({event["call_id"] for event in activity}) == 1
+        ready = next(event for event in socket.sent if event["type"] == "ready")
+        assert ready["billing_basis"] == "provider_tokens"
+        assert "audio_credits_per_minute" not in ready
+        usage = next(event for event in socket.sent if event["type"] == "usage")
+        assert usage["billing_basis"] == "provider_tokens" and usage["credits_accrued"] == 0
+        assert "audio_credits_per_minute" not in usage
+        # Generation can finish before browser playback or turnComplete.
+        provider.events.put_nowait({"serverContent": {"modelTurn": {"parts": []}}})
+        provider.events.put_nowait({"serverContent": {"generationComplete": True}})
+        await _until(socket, lambda events: len([e for e in events if e["type"] == "billing_activity"]) == 7)
+        assert [e for e in socket.sent if e["type"] == "billing_activity"][-1]["processing"] is False
+        # A late transcription does not restart completed provider generation.
+        provider.events.put_nowait({"serverContent": {"outputTranscription": {"text": "Finished"}}})
+        await _until(socket, lambda events: any(e.get("text") == "Finished" for e in events))
+        assert len([e for e in socket.sent if e["type"] == "billing_activity"]) == 7
+        socket.push({"type": "mic_audio", "data": silent})
+        await _until(socket, lambda events: [e for e in events if e["type"] == "billing_activity"][-1]["input_listening"])
+    finally:
+        socket.push({"type": "hangup"})
+        await asyncio.wait_for(task, timeout=2)
+    assert [e for e in socket.sent if e["type"] == "billing_activity"][-1] == {
+        "type": "billing_activity", "call_id": ready["call_id"],
+        "input_listening": False, "processing": False,
+    }
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.lifecycle.recovery-and-billing,video-call.provider.boundary,video-call.usage.provider-metering
+@pytest.mark.asyncio
+async def test_audio_end_keeps_order_across_provider_handoff_and_tools_remain_processing(monkeypatch):
+    release_tool = asyncio.Event()
+    tool_started = asyncio.Event()
+    async def process(*args, **kwargs):
+        tool_started.set()
+        await release_tool.wait()
+        return {"response": {"status": "completed"}, "events": []}
+    socket, provider, _, task, _ = await _tool_call_session(monkeypatch, process)
+    entered_resume, release_resume = asyncio.Event(), asyncio.Event()
+    ordered = []
+    async def resume(handle):
+        entered_resume.set()
+        await release_resume.wait()
+        ordered.append("resumed")
+    async def audio(value): ordered.append("audio")
+    async def end_audio(): ordered.append("end")
+    provider.resume, provider.send_audio, provider.end_audio = resume, audio, end_audio
+    try:
+        provider.events.put_nowait({"sessionResumptionUpdate": {"resumable": True, "newHandle": "resume"}})
+        provider.events.put_nowait({"goAway": {"timeLeft": "10s"}})
+        await asyncio.wait_for(entered_resume.wait(), timeout=2)
+        socket.push({"type": "mic_audio", "data": base64.b64encode(b"\0\0" * 160).decode()})
+        socket.push({"type": "audio_stream_end"})
+        release_resume.set()
+        await _until(socket, lambda events: len(ordered) == 3)
+        assert ordered == ["resumed", "audio", "end"]
+        provider.events.put_nowait(_request())
+        provider.events.put_nowait({"serverContent": {"generationComplete": True, "turnComplete": True}})
+        await asyncio.wait_for(tool_started.wait(), timeout=2)
+        assert [e for e in socket.sent if e["type"] == "billing_activity"][-1]["processing"] is True
+        release_tool.set()
+        await asyncio.wait_for(provider.response_ready.wait(), timeout=2)
+        provider.events.put_nowait({"serverContent": {"interrupted": True}})
+        await _until(socket, lambda events: [e for e in events if e["type"] == "billing_activity"][-1]["processing"] is False)
+    finally:
+        release_resume.set()
+        release_tool.set()
+        socket.push({"type": "hangup"})
+        await asyncio.wait_for(task, timeout=2)
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.chat.skill-integration,video-call.chat.transcripts
+@pytest.mark.asyncio
+async def test_tool_result_uses_reserved_assistant_and_replay_never_reexecutes(monkeypatch):
+    calls = []
+    async def process(broker, function_id, generation, request, context, **kwargs):
+        calls.append((function_id, context, kwargs))
+        return {"response": {"answer": "Found one result"}, "events": [{"type": "voice_embed", "embed_id": "result-1"}]}
+    socket, provider, broker, task, user_id = await _tool_call_session(monkeypatch, process)
+    try:
+        provider.events.put_nowait(_request())
+        await _until(socket, lambda events: any(event.get("type") == "voice_embed" for event in events))
+        embed = next(event for event in socket.sent if event.get("type") == "voice_embed")
+        assert embed["user_message_id"] == user_id and embed["function_call_id"] == "tool-1"
+        assert calls[0][2]["assistant_message_id"] == embed["assistant_message_id"]
+        assert calls[0][1]["summary"] == "Previous complete checkpoint"
+        assert provider.configuration["active_focus"] == {"instruction": "Trusted focus"}
+        assert "Find something" in str(calls[0][1]["messages"])
+        provider.events.put_nowait(_request())
+        provider.events.put_nowait({"serverContent": {"outputTranscription": {"text": "Found one result"}, "turnComplete": True}})
+        await _until(socket, lambda events: any(event.get("role") == "assistant" and event.get("final") for event in events))
+        assistant = next(event for event in socket.sent if event.get("role") == "assistant")
+        assert assistant["message_id"] == embed["assistant_message_id"]
+        assert assistant["created_at"] == embed["created_at"]
+        assert calls[0][2]["assistant_created_at"] == assistant["created_at"]
+        assert len(calls) == 1
+        assert provider.responses == [("tool-1", {"answer": "Found one result"})] * 2
+        socket.push({"type": "hangup"})
+        await asyncio.wait_for(task, 2)
+    finally:
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.provider.boundary,video-call.audio.single-owner
+@pytest.mark.asyncio
+@pytest.mark.parametrize("interruption", ["typed", "vad", "provider", "tool_cancel"])
+async def test_pending_tools_drop_stale_callbacks_and_responses_on_interruption(monkeypatch, interruption):
+    started = asyncio.Event()
+    cancelled = asyncio.Event()
+    calls = []
+    async def process(broker, function_id, generation, request, context, **kwargs):
+        calls.append(function_id)
+        started.set()
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            cancelled.set()
+            await broker.emit_event({"type": "voice_embed", "function_call_id": function_id, "embed_id": "stale"})
+            return {"response": {"answer": "Stale"}, "events": []}
+    socket, provider, broker, task, _ = await _tool_call_session(monkeypatch, process)
+    try:
+        provider.events.put_nowait(_request())
+        await asyncio.wait_for(started.wait(), 2)
+        if interruption == "typed":
+            message_id, _ = _ordered_message_id()
+            socket.push({"type": "text_input", "message_id": message_id, "text": "New question", "created_at": route._timestamp()})
+        elif interruption == "vad":
+            provider.events.put_nowait({"voiceActivity": {"type": "ACTIVITY_START", "audioOffset": "3s"}})
+        elif interruption == "provider":
+            provider.events.put_nowait({"serverContent": {"interrupted": True}})
+        else:
+            provider.events.put_nowait({"toolCallCancellation": {"ids": ["tool-1"]}})
+        await asyncio.wait_for(cancelled.wait(), 2)
+        provider.events.put_nowait(_request())  # Cancelled provider IDs never restart effects.
+        socket.push({"type": "hangup"})
+        await asyncio.wait_for(task, 2)
+        assert calls == ["tool-1"]
+        assert provider.responses == []
+        assert not any(event.get("embed_id") == "stale" for event in socket.sent)
+    finally:
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.chat.skill-integration,video-call.chat.transcripts
+@pytest.mark.asyncio
+async def test_interruption_finalizes_artifact_only_reply_with_original_user_identity(monkeypatch):
+    async def process(broker, function_id, generation, request, context, **kwargs):
+        await broker.emit_event({"type": "voice_embed", "function_call_id": function_id,
+                                 "payload": {"embed_id": "chart-1", "embed_reference": "embed:chart-1"}})
+        await asyncio.Event().wait()
+    socket, provider, broker, task, user_id = await _tool_call_session(monkeypatch, process)
+    try:
+        provider.events.put_nowait(_request())
+        await _until(socket, lambda events: any(event.get("type") == "voice_embed" for event in events))
+        artifact = next(event for event in socket.sent if event.get("type") == "voice_embed")
+        provider.events.put_nowait({"voiceActivity": {"type": "ACTIVITY_START", "audioOffset": "2s"}})
+        provider.events.put_nowait({"serverContent": {"interrupted": True}})
+        await _until(socket, lambda events: any(event.get("role") == "assistant" and event.get("final") for event in events))
+        final = next(event for event in socket.sent if event.get("role") == "assistant" and event.get("final"))
+        assert final["message_id"] == artifact["assistant_message_id"]
+        assert final["created_at"] == artifact["created_at"]
+        assert final["user_message_id"] == user_id
+        assert final["text"] == "" and final["interrupted"]
+        assert provider.responses == []
+        socket.push({"type": "hangup"})
+        await asyncio.wait_for(task, 2)
+    finally:
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.chat.memories-and-focus,video-call.privacy
+@pytest.mark.asyncio
+async def test_memory_permission_keeps_original_live_function_pending(monkeypatch):
+    async def process(broker, function_id, generation, request, context, **kwargs):
+        await broker.emit_event({"type": "voice_memory", "function_call_id": function_id,
+                                 "request_id": "permission-1", "requested_keys": ["travel-preferences"]})
+        decision = await broker.memory_response
+        assert decision == ("permission-1", False, [], function_id)
+        return {"response": {"answer": "Memory access was declined"}, "events": []}
+    socket, provider, broker, task, _ = await _tool_call_session(monkeypatch, process)
+    try:
+        provider.events.put_nowait(_request())
+        await _until(socket, lambda events: any(event.get("type") == "voice_memory" for event in events))
+        assert not provider.responses
+        permission = next(event for event in socket.sent if event.get("type") == "voice_memory")
+        socket.push({"type": "voice_memory_response", "call_id": permission["call_id"],
+                     "function_call_id": "tool-1", "request_id": "permission-1", "approved": False, "settings_memories": []})
+        await asyncio.wait_for(provider.response_ready.wait(), 2)
+        assert provider.responses == [("tool-1", {"answer": "Memory access was declined"})]
+        socket.push({"type": "hangup"})
+        await asyncio.wait_for(task, 2)
+    finally:
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.chat.memories-and-focus,video-call.lifecycle.recovery-and-billing,video-call.usage.provider-metering
+@pytest.mark.asyncio
+async def test_muted_memory_consent_is_idle_until_approval_resumes_processing(monkeypatch):
+    async def process(broker, function_id, *args, **kwargs):
+        await broker.emit_event({"type": "voice_memory", "function_call_id": function_id,
+                                "payload": {"request_id": "permission-1", "requested_keys": ["code-preferred_tech"]}})
+        assert await broker.memory_response == ("permission-1", True, [], function_id)
+        return {"response": {"status": "completed"}, "events": []}
+    socket, provider, _, task, _ = await _tool_call_session(monkeypatch, process)
+    try:
+        socket.push({"type": "audio_stream_end"})
+        provider.events.put_nowait(_request())
+        await _until(socket, lambda events: any(e["type"] == "voice_memory" for e in events))
+        permission = next(e for e in socket.sent if e["type"] == "voice_memory")
+        idle = [e for e in socket.sent if e["type"] == "billing_activity"][-1]
+        assert idle["input_listening"] is False and idle["processing"] is False
+        count = len([e for e in socket.sent if e["type"] == "billing_activity"])
+        provider.events.put_nowait({"serverContent": {"generationComplete": True, "turnComplete": True}})
+        # A subsequent provider event fences processing of both completion flags.
+        provider.events.put_nowait({"serverContent": {"outputTranscription": {"text": "Waiting for permission"}}})
+        await _until(socket, lambda events: any(e.get("text") == "Waiting for permission" for e in events))
+        assert len([e for e in socket.sent if e["type"] == "billing_activity"]) == count
+        socket.push({"type": "voice_memory_response", "call_id": permission["call_id"],
+                     "function_call_id": "tool-1", "request_id": "permission-1",
+                     "approved": True, "settings_memories": []})
+        await asyncio.wait_for(provider.response_ready.wait(), timeout=2)
+        active = [e for e in socket.sent if e["type"] == "billing_activity"][-1]
+        assert active["input_listening"] is False and active["processing"] is True
+        provider.events.put_nowait({"serverContent": {"generationComplete": True}})
+        await _until(socket, lambda events: not [e for e in events if e["type"] == "billing_activity"][-1]["processing"])
+    finally:
+        socket.push({"type": "hangup"})
+        await asyncio.wait_for(task, timeout=2)
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.chat.compressed-context,video-call.privacy,video-call.usage.provider-metering
+@pytest.mark.asyncio
+async def test_long_call_checkpoint_waits_for_encrypted_ack_and_keeps_newer_turns(monkeypatch):
+    async def unused(*args, **kwargs):
+        raise AssertionError("No tool execution is needed")
+    socket, provider, broker, task, _ = await _tool_call_session(monkeypatch, unused)
+    compression_started = asyncio.Event()
+    release_compression = asyncio.Event()
+    checkpoint_id = str(uuid.uuid4())
+    snapshot = []
+    async def compress(context, **kwargs):
+        snapshot.extend(context["messages"])
+        compression_started.set()
+        await release_compression.wait()
+        return {"was_compressed": True, "summary": "Preserved facts from completed turns", "messages": [],
+                "event": {"type": "chat_compression_completed", "summary_message_id": checkpoint_id,
+                          "summary_content": "Preserved facts from completed turns",
+                          "covered_message_ids": [row["message_id"] for row in snapshot]}}
+    broker.compress_context = compress
+    try:
+        socket.push({"type": "audio_stream_end"})
+        provider.events.put_nowait({"voiceActivity": {"type": "ACTIVITY_START", "audioOffset": "100s"}})
+        provider.events.put_nowait({"serverContent": {"inputTranscription": {"text": "Earlier speech"}}})
+        await _until(socket, lambda events: any(event.get("text") == "Earlier speech" for event in events))
+        provider.events.put_nowait({"serverContent": {"outputTranscription": {"text": "A" * 6000}, "turnComplete": True}})
+        await _until(socket, lambda events: any(event.get("role") == "assistant" and event.get("final") for event in events))
+        long_user_id, _ = _ordered_message_id()
+        socket.push({"type": "text_input", "message_id": long_user_id, "text": "B" * 6000, "created_at": route._timestamp()})
+        await _until(socket, lambda events: any(event.get("message_id") == long_user_id for event in events))
+        provider.events.put_nowait({"serverContent": {"outputTranscription": {"text": "C" * 6000}, "turnComplete": True}})
+        await asyncio.wait_for(compression_started.wait(), 2)
+        start_index = next(i for i, e in enumerate(socket.sent) if e["type"] == "voice_compression_started")
+        assert [e for e in socket.sent[:start_index] if e["type"] == "billing_activity"][-1]["processing"]
+        activity = [e for e in socket.sent if e["type"] == "billing_activity"][-1]
+        assert not activity["input_listening"] and activity["processing"]
+        provider.events.put_nowait({"serverContent": {"inputTranscription": {"text": "Corrected long question"}}})
+        await _until(socket, lambda events: any(event.get("message_id") == long_user_id and event.get("text") == "Corrected long question" for event in events))
+        new_user_id, _ = _ordered_message_id()
+        socket.push({"type": "text_input", "message_id": new_user_id, "text": "New fact after compression started", "created_at": route._timestamp()})
+        await _until(socket, lambda events: any(event.get("message_id") == new_user_id for event in events))
+        provider.events.put_nowait({"serverContent": {"outputTranscription": {"text": "New response"}, "turnComplete": True}})
+        await _until(socket, lambda events: any(event.get("role") == "assistant" and event.get("text") == "New response" and event.get("final") for event in events))
+        # Live turn completion must not hide a separately running compression.
+        assert [e for e in socket.sent if e["type"] == "billing_activity"][-1]["processing"]
+        release_compression.set()
+        await _until(socket, lambda events: any(event.get("type") == "voice_compression" for event in events))
+        activity = [e for e in socket.sent if e["type"] == "billing_activity"][-1]
+        assert not activity["input_listening"] and not activity["processing"]
+        assert not provider.updated_contexts
+        call_id = next(event["call_id"] for event in socket.sent if event.get("type") == "ready")
+        socket.push({"type": "voice_compression_confirmed", "call_id": call_id, "checkpoint_id": "wrong-checkpoint"})
+        socket.push({"type": "voice_compression_confirmed", "call_id": call_id, "checkpoint_id": checkpoint_id})
+        await _until(socket, lambda events: any(event.get("type") == "voice_context_pause" for event in events))
+        assert not provider.updated_contexts
+        socket.push({"type": "voice_context_paused", "call_id": call_id, "checkpoint_id": checkpoint_id})
+        await asyncio.wait_for(provider.updated_ready.wait(), 3)
+        updated = provider.updated_contexts[0]
+        assert updated["summary"] == "Preserved facts from completed turns"
+        assert [row["text"] for row in updated["messages"]] == ["Corrected long question", "New fact after compression started", "New response"]
+        assert provider.audio_ends == 2  # Explicit mute, then checkpoint pause.
+        assert updated["messages"][0]["message_id"] == long_user_id
+        assert updated["messages"][1]["message_id"] == new_user_id
+        await _until(socket, lambda events: any(event.get("type") == "voice_context_resumed" for event in events))
+        # Fresh context uses a new provider connection, whose audio offsets
+        # restart. A lower offset must still reserve a new turn and cancel a
+        # pending tool instead of inheriting the old session's offset fence.
+        tool_started, tool_cancelled = asyncio.Event(), asyncio.Event()
+        async def pending_tool(*args, **kwargs):
+            tool_started.set()
+            try:
+                await asyncio.get_running_loop().create_future()
+            finally:
+                tool_cancelled.set()
+        broker.process_request = pending_tool
+        fresh_typed_id, _ = _ordered_message_id()
+        socket.push({"type": "text_input", "message_id": fresh_typed_id,
+                     "text": "A fresh request", "created_at": route._timestamp()})
+        await _until(socket, lambda events: any(event.get("message_id") == fresh_typed_id for event in events))
+        provider.events.put_nowait(_request("fresh-session-tool"))
+        await asyncio.wait_for(tool_started.wait(), timeout=2)
+        provider.events.put_nowait({"voiceActivity": {"type": "ACTIVITY_START", "audioOffset": "1s"}})
+        provider.events.put_nowait({"serverContent": {"inputTranscription": {"text": "Fresh session speech"}}})
+        await _until(socket, lambda events: any(event.get("text") == "Fresh session speech" for event in events))
+        speech = next(event for event in socket.sent if event.get("text") == "Fresh session speech")
+        assert speech["message_id"] != fresh_typed_id
+        await asyncio.wait_for(tool_cancelled.wait(), timeout=2)
+        socket.push({"type": "hangup"})
+        await asyncio.wait_for(task, 2)
+    finally:
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.chat.compressed-context,video-call.lifecycle.recovery-and-billing,video-call.usage.provider-metering
+@pytest.mark.asyncio
+@pytest.mark.parametrize("termination", ["failure", "hangup", "cancel"])
+async def test_muted_compression_activity_clears_on_failure_and_terminal_teardown(monkeypatch, termination):
+    async def unused(*args, **kwargs):
+        raise AssertionError("No tool request is needed")
+    socket, provider, broker, task, _ = await _tool_call_session(monkeypatch, unused)
+    compression_started, release_compression, compression_finished = asyncio.Event(), asyncio.Event(), asyncio.Event()
+    async def compress(*args, **kwargs):
+        compression_started.set()
+        try:
+            await release_compression.wait()
+            raise RuntimeError("Compression failed")
+        finally:
+            compression_finished.set()
+    broker.compress_context = compress
+    try:
+        socket.push({"type": "audio_stream_end"})
+        long_user_id, _ = _ordered_message_id()
+        socket.push({"type": "text_input", "message_id": long_user_id, "text": "B" * 6000,
+                     "created_at": route._timestamp()})
+        await _until(socket, lambda events: any(e.get("message_id") == long_user_id for e in events))
+        provider.events.put_nowait({"serverContent": {"outputTranscription": {"text": "C" * 6000}, "turnComplete": True}})
+        await asyncio.wait_for(compression_started.wait(), timeout=2)
+        activity = [e for e in socket.sent if e["type"] == "billing_activity"][-1]
+        assert not activity["input_listening"] and activity["processing"]
+        if termination == "failure":
+            release_compression.set()
+            await _until(socket, lambda events: any(e["type"] == "error" for e in events))
+            await asyncio.wait_for(task, timeout=2)
+            before_error = socket.sent[:next(i for i, e in enumerate(socket.sent) if e["type"] == "error")]
+            assert [e for e in before_error if e["type"] == "billing_activity"][-1]["processing"] is False
+        elif termination == "hangup":
+            socket.push({"type": "hangup"})
+            await asyncio.wait_for(task, timeout=2)
+        else:
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await asyncio.wait_for(task, timeout=2)
+        assert compression_finished.is_set()
+        activity = [e for e in socket.sent if e["type"] == "billing_activity"][-1]
+        assert not activity["input_listening"] and not activity["processing"]
+        assert not any(e["type"] == "voice_compression" for e in socket.sent)
+    finally:
+        if not task.done():
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
 
 
 async def _until(socket, predicate):
@@ -452,3 +1244,153 @@ async def test_low_balance_stops_quiet_audio_before_provider_acceptance(monkeypa
         if not task.done():
             task.cancel()
             await asyncio.gather(task, return_exceptions=True)
+
+
+@pytest.fixture
+async def startup_audio_session(monkeypatch):
+    """Run the actual route with frozen time and a delayed, unpaid fake provider."""
+    import fakeredis.aioredis
+
+    redis = fakeredis.aioredis.FakeRedis()
+
+    class Cache:
+        @property
+        async def client(self): return redis
+
+    class Provider(_Provider):
+        def __init__(self):
+            super().__init__()
+            self.opens = 0
+            self.audio_ends = 0
+
+        async def open(self, **kwargs):
+            self.opens += 1
+            clock[0] += 45  # Connection time must not masquerade as ingress time.
+
+        async def end_audio(self):
+            self.audio_ends += 1
+
+    clock = [1000.0]
+    monkeypatch.setattr(route, "time", SimpleNamespace(monotonic=lambda: clock[0], time=route.time.time))
+    socket = _Socket(Cache())
+    provider = Provider()
+    state = SimpleNamespace(balance=10_000, charges=[], tasks=[], clock=clock)
+    async def allowed(*args, **kwargs): return True
+    async def acquire(*args, **kwargs): return object(), "lock", "token"
+    async def release(*args, **kwargs): pass
+    async def renew(*args, **kwargs): await asyncio.Event().wait()
+    async def select(*args, **kwargs): return provider
+    async def configuration(*args, **kwargs): return {}
+    async def credits(*args, **kwargs): return state.balance
+    async def charge(**kwargs):
+        state.charges.append(kwargs)
+        return {"charged_credits": kwargs["credits_to_deduct"]}
+    for name, value in (("_browser_request_is_allowed", allowed), ("_session_still_valid", allowed),
+                        ("_acquire_lock", acquire), ("_release_lock", release), ("_renew_lock", renew),
+                        ("_provider", select), ("_prompt_configuration", configuration),
+                        ("_authoritative_credits", credits)):
+        monkeypatch.setattr(route, name, value)
+    monkeypatch.setattr(route, "is_payment_enabled", lambda: True)
+    monkeypatch.setattr(route, "_billing", lambda _: SimpleNamespace(charge_user_credits=charge))
+
+    async def start(**fields):
+        socket.push({"type": "start", "chat_id": str(uuid.uuid4()), "context": {"messages": []}, **fields})
+        task = asyncio.create_task(route.voice_call(socket, {"user_id": "owner", "session_hash": "session"}))
+        state.tasks.append(task)
+        await _until(socket, lambda events: any(event.get("type") in {"ready", "error"} for event in events))
+        return socket, provider, task, state
+
+    yield start
+    for task in state.tasks:
+        if not task.done():
+            task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+    await redis.aclose()
+
+
+def _push_pcm_seconds(socket, seconds):
+    # One-second packets stay safely below the route's independent chunk cap.
+    for _ in range(seconds):
+        socket.push({"type": "mic_audio", "data": base64.b64encode(b"\0\0" * 16000).decode()})
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.audio.startup-buffer,video-call.privacy
+@pytest.mark.asyncio
+@pytest.mark.parametrize("value", [True, False, 1.0, 10_000.0, -1, 10_001, "10000", None])
+async def test_invalid_startup_audio_declaration_never_opens_provider(startup_audio_session, value):
+    socket, provider, task, _ = await startup_audio_session(startup_audio_allowance_ms=value)
+    await asyncio.wait_for(task, 2)
+    assert provider.opens == 0
+    assert not any(event.get("type") == "ready" for event in socket.sent)
+    assert any(event.get("type") == "error" for event in socket.sent)
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.audio.startup-buffer,video-call.lifecycle.recovery-and-billing
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("declaration", "seconds", "tokens", "expected_credits"), [({}, 1, 40, 1),
+    ({"startup_audio_allowance_ms": 10_000}, 10, 400, 2)])
+async def test_startup_pcm_flushes_after_ready_and_keeps_provider_token_billing(
+    startup_audio_session, declaration, seconds, tokens, expected_credits,
+):
+    socket, provider, task, state = await startup_audio_session(**declaration)
+    _push_pcm_seconds(socket, seconds)
+    await _until(socket, lambda _: len(provider.audio_inputs) == seconds)
+    assert not any(event.get("type") == "error" for event in socket.sent)
+    assert sum(len(base64.b64decode(value)) for value in provider.audio_inputs) == seconds * 32000
+    provider.events.put_nowait({"serverContent": {"turnComplete": True}, "usageMetadata": {
+        "promptTokenCount": tokens, "responseTokenCount": 0, "totalTokenCount": tokens,
+        "promptTokensDetails": [{"modality": "AUDIO", "tokenCount": tokens}],
+    }})
+    await _until(socket, lambda events: any(event.get("type") == "usage" for event in events))
+    assert [charge["credits_to_deduct"] for charge in state.charges] == [expected_credits]
+    socket.push({"type": "hangup"})
+    await asyncio.wait_for(task, 2)
+    assert len(state.charges) == 1
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.audio.startup-buffer,video-call.privacy
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("declaration", "accepted_seconds"), [({}, 2),
+    ({"startup_audio_allowance_ms": 0}, 2), ({"startup_audio_allowance_ms": 1000}, 3),
+    ({"startup_audio_allowance_ms": 10_000}, 12)])
+async def test_startup_audio_allowance_stays_bounded_and_preserves_legacy_jitter(
+    startup_audio_session, declaration, accepted_seconds,
+):
+    socket, provider, task, _ = await startup_audio_session(**declaration)
+    _push_pcm_seconds(socket, accepted_seconds + 1)
+    await asyncio.wait_for(task, 2)
+    assert len(provider.audio_inputs) == accepted_seconds
+    assert any(event.get("type") == "error" for event in socket.sent)
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.audio.startup-buffer,video-call.privacy,video-call.lifecycle.recovery-and-billing
+@pytest.mark.asyncio
+async def test_end_audio_and_provider_resume_cannot_replenish_startup_allowance(startup_audio_session):
+    socket, provider, task, state = await startup_audio_session(startup_audio_allowance_ms=10_000)
+    _push_pcm_seconds(socket, 10)
+    await _until(socket, lambda _: len(provider.audio_inputs) == 10)
+    for index in range(2):
+        socket.push({"type": "audio_stream_end", "startup_audio_allowance_ms": 10_000})
+        await _until(socket, lambda _: provider.audio_ends == index + 1)
+        provider.events.put_nowait({"sessionResumptionUpdate": {"resumable": True, "newHandle": f"resume-{index}"}})
+        provider.events.put_nowait({"goAway": {"timeLeft": "5s"}})
+        await _until(socket, lambda _: len(provider.resume_handles) == index + 1)
+    state.clock[0] += 1  # Only elapsed call time adds one second to the budget.
+    _push_pcm_seconds(socket, 4)
+    await asyncio.wait_for(task, 2)
+    assert len(provider.audio_inputs) == 13
+    assert provider.resume_handles == ["resume-0", "resume-1"]
+    assert any(event.get("type") == "error" for event in socket.sent)
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.audio.startup-buffer,video-call.privacy,video-call.lifecycle.recovery-and-billing
+@pytest.mark.asyncio
+async def test_startup_allowance_does_not_exempt_pcm_from_authoritative_credit_reserve(startup_audio_session):
+    socket, provider, task, state = await startup_audio_session(startup_audio_allowance_ms=10_000)
+    state.balance = route.MIN_VOICE_HEADROOM + 1
+    _push_pcm_seconds(socket, 10)
+    await asyncio.wait_for(task, 2)
+    # The seventh second requires a second reserved credit, despite the valid
+    # declaration and enough call-wide rate budget for all ten seconds.
+    assert len(provider.audio_inputs) == 6
+    assert any(event.get("type") == "error" for event in socket.sent)

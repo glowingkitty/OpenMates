@@ -1,0 +1,10 @@
+started:
+  context: Encrypted chat history system event for an admitted voice call, followed by its timestamp
+  en: You started a voice call
+  de: Du hast einen Sprachanruf gestartet
+  verified_by_human: []
+ended:
+  context: Encrypted chat history system event when an admitted voice call ends, followed by its timestamp
+  en: You ended a voice call
+  de: Du hast einen Sprachanruf beendet
+  verified_by_human: []

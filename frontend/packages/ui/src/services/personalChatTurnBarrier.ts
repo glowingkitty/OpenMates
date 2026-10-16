@@ -79,6 +79,16 @@ export function completePersonalChatTurn(chatId: string, turnId: string, version
   return false;
 }
 
+/** Legacy storage ACKs identify the user message, not the preflight turn ID.
+ * Call only after verifying its exact assistant row in canonical persistence. */
+export function completePersonalChatMessage(chatId: string, messageId: string, version: number): boolean {
+  if (!Number.isSafeInteger(version) || version < 0) return false;
+  const turn = turns.get(key(chatId, messageId));
+  if (!turn) return false;
+  settle(turn, { version });
+  return true;
+}
+
 export function failPersonalChatTurn(turn: PersonalChatTurn, error: unknown): void {
   settle(turn, { error: error instanceof Error ? error : new Error('Encrypted chat turn was not sent.') });
 }

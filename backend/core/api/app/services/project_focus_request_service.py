@@ -167,11 +167,17 @@ class ProjectFocusRequestService:
         local old=redis.call('GET',KEYS[4]); local old_id=''
         if old then old_id=cjson.decode(old).activation_id or '' end
         if old_id~=(p.expected_base_activation_id or '') then return 0 end
+        if p.voice_binding and p.voice_binding.request_cancel_id
+          and redis.call('EXISTS',KEYS[6])~=0 then return 0 end
         redis.call('SET',KEYS[4],ARGV[7],'EX',ARGV[8]); return 1
         """
-        return bool(await self._eval(script, [pointer + ":" + request_id, pointer,
+        keys = [pointer + ":" + request_id, pointer,
             async_skill_latest_user_turn_key(user, chat), self.authorization._focus_key(user, chat),
-            self.approval_key(user, chat, request_id)],
+            self.approval_key(user, chat, request_id)]
+        if pending.get("voice_binding", {}).get("request_cancel_id"):
+            from backend.apps.ai.processing.voice_call_broker import transport_key
+            keys.append(transport_key(pending["voice_binding"]["request_cancel_id"], "cancel"))
+        return bool(await self._eval(script, keys,
             [request_id, user, chat, pending["project_id"], pending["message_id"], time.time(),
              json.dumps(binding), PROJECT_FOCUS_TTL_SECONDS]))
 
@@ -238,7 +244,9 @@ class ProjectFocusRequestService:
     async def create_pending(self, *, user_id: str, chat_id: str, request_id: str,
                              project_id: str, message_id: str, team_id: str | None = None,
                              activation_policy: str = "delayed",
-                             selected_specialist: dict[str, Any] | None = None) -> dict[str, Any]:
+                             selected_specialist: dict[str, Any] | None = None,
+                             voice_binding: dict[str, str] | None = None,
+                             voice_decision_id: str | None = None) -> dict[str, Any]:
         """Start the policy-specific request; expiry always bounds its lifetime."""
         if activation_policy not in PROJECT_FOCUS_POLICIES:
             raise ValueError("Unsupported Project focus activation policy")
@@ -253,6 +261,14 @@ class ProjectFocusRequestService:
         if selected_specialist:
             pending["selected_specialist"] = {field: selected_specialist[field]
                 for field in ("focus_id", "item_id", "revision", "title") if field in selected_specialist}
+        if voice_binding:
+            from backend.apps.ai.processing.voice_call_broker import require_binding, transport_key
+            await require_binding(self.cache, {**voice_binding, "operation": "process_request"})
+            transport_key(voice_decision_id, "decision")
+            if voice_binding.get("user_id") != user_id or voice_binding.get("chat_id") != chat_id:
+                raise PermissionError("Voice Project proposal binding mismatch")
+            pending["voice_binding"] = voice_binding
+            pending["voice_decision_id"] = voice_decision_id
         key = self.key(user_id, chat_id)
         if not await self.cache.set(key + ":" + request_id, pending, ttl=PROJECT_FOCUS_REQUEST_TTL):
             raise ProjectWriteAuthorizationError("PROJECT_FOCUS_CACHE_UNAVAILABLE", status_code=503)
@@ -291,6 +307,15 @@ class ProjectFocusRequestService:
                 or project_id is not None and pending.get("project_id") != project_id):
             raise ProjectWriteAuthorizationError("PROJECT_FOCUS_REQUEST_EXPIRED", status_code=409)
         latest = await self.cache.get(async_skill_latest_user_turn_key(user_id, chat_id))
+        if pending.get("voice_binding"):
+            from backend.apps.ai.processing.voice_call_broker import require_binding, transport_key
+            await require_binding(self.cache, {**pending["voice_binding"], "operation": "process_request"})
+            client = await self.cache.client
+            if await client.exists(transport_key(pending["voice_decision_id"], "cancel")) or (
+                pending["voice_binding"].get("request_cancel_id") and await client.exists(
+                    transport_key(pending["voice_binding"]["request_cancel_id"], "cancel"))
+            ):
+                raise ProjectWriteAuthorizationError("PROJECT_FOCUS_REQUEST_STALE", status_code=409)
         if latest != pending.get("message_id"):
             raise ProjectWriteAuthorizationError("PROJECT_FOCUS_REQUEST_STALE", status_code=409)
         await self.authorization._require_chat_access(user_id, chat_id, pending.get("team_id"))

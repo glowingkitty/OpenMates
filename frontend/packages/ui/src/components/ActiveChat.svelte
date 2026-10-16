@@ -15,7 +15,11 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import ChatProcessingIndicator from './ChatProcessingIndicator.svelte';
     import AssistantSpeechPlayer from './AssistantSpeechPlayer.svelte';
     import VoiceCallBar from './voicecall/VoiceCallBar.svelte';
+    import VoiceCallMoreMenu from './voicecall/VoiceCallMoreMenu.svelte';
+    import VoiceCallHeaderActions from './voicecall/VoiceCallHeaderActions.svelte';
     import { voiceCallController } from '../services/voiceCall';
+    import { currentPermissionRequest, isPermissionDialogVisible } from '../stores/appSettingsMemoriesPermissionStore';
+    import { pendingFocusActivationStore } from '../stores/pendingFocusActivationStore';
     import NewChatSuggestions from './NewChatSuggestions.svelte';
     import ChatSearchSuggestions from './ChatSearchSuggestions.svelte';
     // FollowUpSuggestions has been moved to ChatHistory.svelte (rendered below last assistant message)
@@ -35,6 +39,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import { tooltip } from '../actions/tooltip';
     import { chatDB } from '../services/db';
     import { isChatMetadataTurnCurrent, getChatMetadataTurnKey } from '../services/lateChatMetadataGuard';
+    import { chatNavigationReader } from '../services/chatNavigationReader';
     import { initialChatHistoryGate } from '../services/initialChatHistoryGate';
     import { getWorkspaceCacheEpoch } from '../services/workspaceCacheLifecycle';
     import { hasRoomForLargeContinueCards } from '../utils/continueCardLayout';
@@ -126,8 +131,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import { chatDebugStore } from '../stores/chatDebugStore';
     import { videoIframeStore } from '../stores/videoIframeStore'; // For standalone VideoIframe component with CSS-based PiP
     import { updateHashParams } from '../utils/settingsHashUtils';
-    import { isDraftOnlyChatSurface, isPersistedDraftOnlyChat, classifyFirstTurnComposerContext, canBindUnclaimedFreshShell, reserveInitialFreshShellId } from '../utils/chatDraftState';
-    import { getPreparedChatForSend } from '../services/preparedChatForSend';
+    import { isDraftOnlyChatSurface, isPersistedDraftOnlyChat, classifyFirstTurnComposerContext } from '../utils/chatDraftState';
     import { formatDraftPreview } from '../utils/draftPreview';
     import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, isNewsletterChat, isLegalChat, isDemoChat, translateDemoChat, getAllExampleChats, isExampleChat, getExampleChat, getExampleChatCompressionCheckpoints, getExampleChatEmbed } from '../demo_chats';
     import { getVideoForLocale } from '../demo_chats/data/videos';
@@ -2652,12 +2656,13 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
      * Fetches the full Chat object from IndexedDB and loads it via loadChat(), matching the
      * same flow as clicking a chat in the sidebar (Chats.svelte handleChatClick).
      */
-    async function handleChatNavigate(chatId: string) {
+    async function handleChatNavigate(chatId: string, canNavigate?: () => boolean) {
         console.debug('[ActiveChat] Chat navigate from suggestion area:', chatId);
         try {
             // Clean up the current draft before navigating — prevents garbage draft chats
             // from accumulating when the user searches and clicks an existing chat instead of sending.
             await clearCurrentDraft();
+            if (canNavigate && !canNavigate()) return;
 
             if (isPublicChat(chatId)) {
                 const publicChat = getPublicChatForNavigation(chatId);
@@ -2667,7 +2672,10 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 }
                 phasedSyncState.markInitialChatLoaded();
                 activeChatStore.setActiveChat(publicChat.chat_id);
-                await loadChat(publicChat);
+                const loading = loadChat(publicChat);
+                const committedGeneration = loadChatGeneration;
+                await loading;
+                if (canNavigate && committedGeneration !== loadChatGeneration) return;
                 window.dispatchEvent(new CustomEvent('globalChatSelected', {
                     bubbles: true, composed: true, detail: { chatId: publicChat.chat_id }
                 }));
@@ -2675,13 +2683,17 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             }
 
             await chatDB.init();
-            const chat = await chatDB.getChat(chatId);
+            const chat = await chatNavigationReader.readChatForNavigation(chatId);
+            if (canNavigate && !canNavigate()) return;
             if (!chat) {
                 console.warn('[ActiveChat] Chat not found in IndexedDB:', chatId);
                 return;
             }
             activeChatStore.setActiveChat(chatId);
-            await loadChat(chat);
+            const loading = loadChat(chat);
+            const committedGeneration = loadChatGeneration;
+            await loading;
+            if (canNavigate && committedGeneration !== loadChatGeneration) return;
             window.dispatchEvent(new CustomEvent('globalChatSelected', {
                 bubbles: true, composed: true, detail: { chatId }
             }));
@@ -5542,31 +5554,12 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             currentChat?.chat_id ? hasLiveDraftComposerContent(currentChat.chat_id) : false,
         ),
      );
-     // Send eligibility follows exact draft/chat identity and unsent data, not
-     // welcome-screen presentation, which can change while the click is handled.
-     function bindUnclaimedFreshShellOnFocus(composerChatId: string): boolean {
-         const draftState = get(draftEditorUIState);
-         if (!canBindUnclaimedFreshShell({
-             chat: currentChat,
-             temporaryChatId,
-             composerChatId,
-             draftChatId: draftState.currentChatId,
-             activeChatId: activeChatStore.get(),
-             pendingDraftSelection: !!draftState.newlyCreatedChatIdToSelect,
-             hasMessages: currentMessages.length > 0,
-             hasLiveDraftContent: messageInputHasContent,
-             showWelcome,
-             authenticated: get(authStore).isAuthenticated,
-             accountId: get(userProfile).user_id,
-             teamId: get(activeTeamId),
-             incognito: get(incognitoMode),
-         })) return false;
-         // There is no await between checking the visible shell and claiming its
-         // draft ID. A non-null binding belongs to another editor or saved chat.
-         draftEditorUIState.update(state => state.currentChatId === null && !state.newlyCreatedChatIdToSelect
-             ? { ...state, currentChatId: composerChatId } : state);
-         return get(draftEditorUIState).currentChatId === composerChatId;
-     }
+
+     $effect(() => {
+        if (showWelcome && isActiveDraftOnlyChat) {
+            showWelcome = false;
+        }
+     });
      let firstTurnSourceReason = $derived(classifyFirstTurnComposerContext({
          chat: currentChat,
          temporaryChatId,
@@ -5577,11 +5570,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
          teamId: $activeTeamId,
      }));
 
-     $effect(() => {
-        if (showWelcome && isActiveDraftOnlyChat) {
-            showWelcome = false;
-        }
-     });
      let currentCompressionCheckpoints = $state<ChatCompressionCheckpoint[]>(initialRecentChatSelection?.window.compressionCheckpoints ?? initialPublicCompressionCheckpoints);
       let currentMessageWindowHasMoreBefore = $state(initialRecentChatSelection?.window.hasMoreBefore ?? false);
       let olderMessageWindowLoading = $state(false);
@@ -8004,13 +7992,40 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     const showChatRemindersAction = $derived(!!(hasActivePrivateChatSurface && $authStore.isAuthenticated && currentChat?.chat_id && !currentChat.is_shared_by_others));
     const showChatPIIAction = $derived(!!(chatHasPII && !showWelcome));
     const voiceCallOwnsAudio = $derived($voiceCallController.status === 'connecting' || $voiceCallController.status === 'live');
-    let voiceCallInlineHeight = $state(0);
+    const voiceContextConsentKey = $derived.by(() => {
+        const chatId = currentChat?.chat_id;
+        if (!voiceCallOwnsAudio || !chatId || chatId !== $voiceCallController.chatId) return null;
+        const request = $currentPermissionRequest;
+        if ($isPermissionDialogVisible && request?.chatId === chatId && request.responseTransport === 'voice') {
+            return `memory:${request.requestId}`;
+        }
+        const pendingFocus = Object.entries($pendingFocusActivationStore).find(([, pending]) =>
+            pending.chatId === chatId && !pending.confirmed && !pending.expired);
+        return pendingFocus ? `focus:${pendingFocus[0]}` : null;
+    });
+    const voiceContextConsentVisible = $derived(voiceContextConsentKey !== null);
+    $effect(() => {
+        const consentKey = voiceContextConsentKey;
+        const input = messageInputFieldRef;
+        if (!consentKey) return;
+        // Shared history consent must remain operable after typed call input.
+        // Track request/ref readiness, but not child focus reads or call updates.
+        untrack(() => {
+            input?.dismissFocus();
+            voiceCallController.setMinimized(true);
+        });
+    });
+    let voiceCallStripStuck = $state(false);
+    const voiceCallHasVisibleControls = $derived(
+        $voiceCallController.status === 'connecting' || $voiceCallController.status === 'live' ||
+        $voiceCallController.status === 'error'
+    );
     const showVoiceCallBarHere = $derived(
-        !globalVoiceCallControlsVisible &&
-        (($voiceCallController.status === 'connecting' && !$voiceCallController.chatId) ||
+        voiceCallHasVisibleControls && !globalVoiceCallControlsVisible &&
+        ((($voiceCallController.status === 'connecting' || $voiceCallController.status === 'error') && !$voiceCallController.chatId) ||
             (!showWelcome && !!currentChat?.chat_id && currentChat.chat_id === $voiceCallController.chatId))
     );
-    const voiceCallExpandedHere = $derived(showVoiceCallBarHere && !$voiceCallController.minimized);
+    $effect(() => { if (!showVoiceCallBarHere) voiceCallStripStuck = false; });
     const voiceCallLaunchEligible = $derived(
         $authStore.isAuthenticated && !voiceCallOwnsAudio &&
         (showWelcome ? !$incognitoMode : !!currentChat?.chat_id && !currentChat.is_incognito &&
@@ -8019,11 +8034,24 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     );
 
     function handleStartVoiceCall(): void {
+        if (voiceCallOwnsAudio) {
+            voiceCallController.hangup();
+            return;
+        }
         if (!voiceCallLaunchEligible) return;
         messageInputFieldRef?.stopRecordingForVoiceCall();
         void assistantSpeechController.stop();
         const chatId = showWelcome ? undefined : currentChat?.chat_id;
         void voiceCallController.start(chatId, (boundChatId) => { void handleChatNavigate(boundChatId); });
+    }
+
+    export function handleReturnToVoiceCallChat(chatId: string): void {
+        const navigationGeneration = loadChatGeneration;
+        const callId = $voiceCallController.callId;
+        // An earlier Return lookup must not undo a later Close or chat selection.
+        void handleChatNavigate(chatId, () => navigationGeneration === loadChatGeneration
+            && callId === $voiceCallController.callId && chatId === $voiceCallController.chatId
+            && voiceCallOwnsAudio);
     }
 
     async function handleCloseChat() {
@@ -11934,19 +11962,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     });
 
     onMount(() => {
-        // The editor can become focusable while initializeApp and server-status
-        // are still pending. Claim its visible shell ID before either await.
-        const draftChatIdAtMount = get(draftEditorUIState).currentChatId;
-        const preparedDraftAtMount = draftChatIdAtMount
-            ? getPreparedChatForSend(draftChatIdAtMount) : null;
-        temporaryChatId = reserveInitialFreshShellId({
-            chat: currentChat,
-            temporaryChatId,
-            selectedChatId: activeChatStore.get(),
-            preparedDraftChatId: preparedDraftAtMount?.shell.chat_id ?? null,
-            showWelcome,
-            hasMessages: currentMessages.length > 0,
-        }, () => crypto.randomUUID());
         if (initialAnonymousChatId) {
             void restoreAnonymousHashChatOnMount();
         }
@@ -11983,6 +11998,13 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 isSelfHosted = false; // Default to not self-hosted if check fails
             }
             
+            // Generate a temporary chat ID for draft saving if no chat is loaded
+            // This ensures the draft service always has a chat ID to work with
+            if (!currentChat?.chat_id && !temporaryChatId) {
+                temporaryChatId = crypto.randomUUID();
+                console.debug("[ActiveChat] Generated temporary chat ID for draft saving:", temporaryChatId);
+            }
+
             if (!$authStore.isAuthenticated) {
                 const guestTopicPreferences = topicPreferencesStore.loadGuest();
                 if ((guestTopicPreferences?.selectedTagIds.length ?? 0) >= 4) {
@@ -14079,16 +14101,15 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 <div
                     class="chat-side"
                     class:composer-welcome-hidden={hideWelcomeForComposerOverlay && (showWelcome || isActiveDraftOnlyChat)}
-                    inert={messageInputFocused && !hasQueuedFollowUpActions}
+                    inert={messageInputFocused && !hasQueuedFollowUpActions && !voiceContextConsentVisible && !showVoiceCallBarHere}
                     class:welcome-chat-side={showWelcome}
                     data-testid="chat-side"
                     bind:this={chatSideEl}
                     bind:clientWidth={chatSideWidth}
                     bind:clientHeight={chatSideHeight}
-                    class:voice-call-inline-active={voiceCallExpandedHere}
+                    class:voice-call-strip-stuck={voiceCallStripStuck}
                     style:--welcome-banner-height={`${welcomeBannerHeight}px`}
                     style:--assistant-speech-overlay-reserve={`${assistantSpeechOverlayHeight}px`}
-                    style:--voice-call-inline-reserve={`${voiceCallInlineHeight}px`}
                 >
                     <!-- Welcome hero/inspiration banners – shown above greeting on new chat screen. -->
                     <!-- Guests and authenticated users see ordinary Daily Inspiration. -->
@@ -14116,25 +14137,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                         </div>
                     {/if}
 
-                    <!-- Top action buttons row.
-                         On the welcome screen (showWelcome=true): rendered in normal document flow
-                         below the daily inspiration banner (top-buttons-flow class removes position:absolute).
-                         On the active chat screen (showWelcome=false): absolutely positioned at top. -->
-                    <div
-                        class="top-buttons"
-                        use:headerOverlayControls
-                        data-testid="chat-top-actions"
-                        class:top-buttons-flow={showWelcome}
-                        class:guest-all-examples-top-buttons={guestAllExamplesVisible && !$authStore.isAuthenticated}
-                        class:welcome-hiding={showWelcome && hideWelcomeForKeyboard}
-                        inert={showWelcome && hideWelcomeForKeyboard}
-                    >
-                        <HeaderActionMenu
-                            resetKey={currentChat?.chat_id}
-                            hasShare={hasActiveShareableChatSurface}
-                            hasPriorityAction={showChatPIIAction}
-                            actionCount={[showChatSettingsAction, showChatRemindersAction, isAdminUser].filter(Boolean).length}
-                        >
                   {#snippet report()}
                     <div
                       class="new-chat-button-wrapper"
@@ -14269,37 +14271,37 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                     {/if}
                   {/snippet}
                   {#snippet close()}
-                    {#if voiceCallLaunchEligible}
-                      <div class="new-chat-button-wrapper">
-                        <button
-                          class="header-action"
-                          data-testid="voice-call-start"
-                          aria-label={$text('voicecall.start')}
-                          onclick={handleStartVoiceCall}
-                          use:tooltip
-                        ><span class="clickable-icon icon_phone top-button" aria-hidden="true"></span><span class="action-label">{$text('voicecall.start')}</span></button>
-                      </div>
-                    {/if}
-                    {#if !showWelcome}
-                      <div class="new-chat-button-wrapper">
-                        <button
-                          class="header-action"
-                          data-testid="chat-close-button"
-                          aria-label={$text('common.close')}
-                          disabled={closingChat}
-                          onclick={handleCloseChat}
-                          use:tooltip
-                          ><span
-                            class="clickable-icon icon_close top-button"
-                            aria-hidden="true"
-                          ></span><span class="action-label"
-                            >{$text('common.close')}</span
-                          ></button
-                        >
-                      </div>
-                    {/if}
+                    <VoiceCallHeaderActions
+                        callState={voiceCallController}
+                        showCall={voiceCallLaunchEligible && !voiceCallOwnsAudio && !showVoiceCallBarHere}
+                        showClose={!showWelcome}
+                        {closingChat}
+                        onToggleCall={handleStartVoiceCall}
+                        onClose={handleCloseChat}
+                    />
                   {/snippet}
-                </HeaderActionMenu>
+
+                    <!-- Top action buttons row.
+                         On the welcome screen (showWelcome=true): rendered in normal document flow
+                         below the daily inspiration banner (top-buttons-flow class removes position:absolute).
+                         On the active chat screen (showWelcome=false): absolutely positioned at top. -->
+                    <div
+                        class="top-buttons"
+                        use:headerOverlayControls
+                        data-testid="chat-top-actions"
+                        class:top-buttons-flow={showWelcome}
+                        class:guest-all-examples-top-buttons={guestAllExamplesVisible && !$authStore.isAuthenticated}
+                        class:welcome-hiding={showWelcome && hideWelcomeForKeyboard}
+                        class:call-strip-stuck={voiceCallStripStuck}
+                        inert={(showWelcome && hideWelcomeForKeyboard) || voiceCallStripStuck}
+                    >
+                        <HeaderActionMenu
+                            resetKey={currentChat?.chat_id}
+                            hasShare={hasActiveShareableChatSurface}
+                            hasPriorityAction={showChatPIIAction}
+                            actionCount={[showChatSettingsAction, showChatRemindersAction, isAdminUser].filter(Boolean).length}
+                            {report} {share} {priorityAction} {actions} {close}
+                        />
 
                         {#if guestAllExamplesVisible && !$authStore.isAuthenticated}
                             <div class="guest-all-examples-toolbar" data-testid="guest-all-examples-toolbar">
@@ -15018,10 +15020,26 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                         </button>
                     {/if}
 
+                    {#snippet boundCallControls(fixed: boolean)}
+                        <VoiceCallBar {fixed} onReturn={handleReturnToVoiceCallChat} onCloseChat={handleCloseChat}>
+                            {#snippet moreActions()}
+                                <VoiceCallMoreMenu
+                                    {report} {share} {priorityAction} {actions}
+                                    hasShare={hasActiveShareableChatSurface}
+                                    hasPriorityAction={showChatPIIAction}
+                                    hasActions={showChatSettingsAction || showChatRemindersAction || isAdminUser}
+                                />
+                            {/snippet}
+                        </VoiceCallBar>
+                    {/snippet}
+
                     {#key currentChat?.chat_id ?? temporaryChatId ?? 'new-chat'}
                      <ChatHistory
                           bind:this={chatHistoryRef}
                           disablePointerEvents={showWelcome}
+                          voiceCallBridge={showVoiceCallBarHere && !showWelcome
+                              ? { controls: boundCallControls, onStickyChange: (stuck) => { voiceCallStripStuck = stuck; } }
+                              : undefined}
                           messageInputHeight={0}
                           sourceMessages={currentMessages}
                           containerWidth={effectiveChatWidth}
@@ -15121,11 +15139,10 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                     {/if}
                 </div>
 
-                {#if showVoiceCallBarHere}
-                    <div class="voice-call-inline-region" bind:clientHeight={voiceCallInlineHeight}>
+                {#if showVoiceCallBarHere && showWelcome}
+                    <div class="voice-call-inline-region">
                         <VoiceCallBar
-                            underFloatingHeader={!showWelcome}
-                            onReturn={(chatId) => { void handleChatNavigate(chatId); }}
+                            onReturn={handleReturnToVoiceCallChat}
                         />
                     </div>
                 {/if}
@@ -15293,8 +15310,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                                     currentChatId={currentChat?.chat_id || temporaryChatId || undefined}
                                     isNewChatContext={(showWelcome && !currentChat?.chat_id) || isActiveDraftOnlyChat}
                                     firstTurnSendContext={firstTurnSourceReason === 'eligible_shell' || firstTurnSourceReason === 'eligible_draft'}
-                                    firstTurnSourceReason={firstTurnSourceReason}
-                                    onFreshShellFocus={bindUnclaimedFreshShellOnFocus}
                                     preserveChatIdOnNewChatCancellation={isActiveDraftOnlyChat}
                                     showActionButtons={showActionButtons}
                                     inlineCompact={showNewChatButtonBesideInput && !messageInputFocused}
@@ -17370,10 +17385,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         padding-inline-end: var(--spacing-10);
     }
 
-    .chat-side.voice-call-inline-active :global(.chat-history-wrapper) {
-        top: var(--voice-call-inline-reserve, 0px);
-    }
-
     .chat-side.welcome-chat-side {
         pointer-events: none;
     }
@@ -17466,6 +17477,10 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         top: calc(18px + var(--assistant-speech-overlay-reserve, 0px));
     }
 
+    .chat-side.voice-call-strip-stuck .scroll-to-top-button {
+        top: calc(68px + var(--assistant-speech-overlay-reserve, 0px));
+    }
+
     .scroll-to-bottom-button {
         bottom: 0px;
     }
@@ -17513,6 +17528,11 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         box-sizing: border-box;
     }
 
+    .top-buttons.call-strip-stuck:not(.top-buttons-flow) {
+        visibility: hidden;
+        pointer-events: none;
+    }
+
     .top-buttons.guest-all-examples-top-buttons {
         display: grid;
         grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
@@ -17546,10 +17566,20 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
     /* Adjust top-buttons position on small screens (absolute mode only) */
     @media (max-width: 730px) {
+        /* A completed call can retain its bound-chat class with zero reserve.
+           Both states must clear the toolbar and any expanded call history. */
+        .scroll-to-top-button {
+            top: calc(64px + var(--assistant-speech-overlay-reserve, 0px));
+        }
+        .chat-side.voice-call-strip-stuck .scroll-to-top-button {
+            top: calc(80px + var(--assistant-speech-overlay-reserve, 0px));
+        }
         .top-buttons:not(.top-buttons-flow) {
             top: 10px;
             left: 10px;
-            right: 10px;
+            /* The fixed Settings profile and GitHub control occupy the outer
+               columns. Keep the complete chat targets beside those hit areas. */
+            right: 110px;
         }
         /* On mobile the daily inspiration banner is fixed at 190px (not 35vh).
            Include the welcome top-buttons row below it so the greeting centers in
@@ -17576,7 +17606,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
     @media (max-width: 730px) {
         :global([dir="rtl"]) .top-buttons:not(.top-buttons-flow) {
-            left: 10px;
+            /* Settings anchors both fixed controls to inline-end in RTL too. */
+            left: 110px;
             right: 10px;
         }
     }

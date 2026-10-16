@@ -166,6 +166,11 @@ directus_users:
       length: 256
       note: "Timestamp of when the user consented to default privacy and app settings"
 
+    voice_google_processing_ack_v1_at:
+      type: integer
+      nullable: true
+      note: "Server timestamp of explicit first-call acknowledgment of Google audio processing disclosure, version 1."
+
     consent_mates_default_settings:
       type: string
       length: 256

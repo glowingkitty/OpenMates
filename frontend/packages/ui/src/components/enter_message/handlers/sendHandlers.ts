@@ -11,7 +11,6 @@ import { Extension } from "@tiptap/core";
 import { chatDB } from "../../../services/db";
 import { chatKeyManager } from "../../../services/encryption/ChatKeyManager";
 import { forgetPreparedChatForSend } from "../../../services/preparedChatForSend";
-import { beginFreshProjectRoutingForSend, forgetFreshProjectRoutingForSend } from "../../../services/earlyProjectRoutingForSend";
 import { incognitoMode } from "../../../stores/incognitoModeStore";
 import { chatSyncService, recordSendPreparationPhase } from "../../../services/chatSyncService"; // Import chatSyncService
 import { failPersonalChatTurn, reservePersonalChatTurn, type PersonalChatTurn } from "../../../services/personalChatTurnBarrier";
@@ -699,39 +698,13 @@ export async function handleSend(
   // A submission with ready embed references can leave the composer before any URL metadata,
   // draft-save, IndexedDB, or transport await. Its raw content stays in local
   // UI memory until the final PII-processed payload replaces the same row.
-  const earlyRowSkip = options.preserveDraft ? 'preserved_draft'
-    : !embedsReadyAtClick ? 'embed_not_ready'
-    : !get(authStore).isAuthenticated ? 'anonymous'
-    : get(forcedLogoutInProgress) ? 'logging_out'
-    : get(editMessageStore) ? 'editing' : null;
-  if (earlyRowSkip) recordSendPreparationPhase(`project_read_gate_${earlyRowSkip}`);
-  if (!earlyRowSkip) {
+  if (!options.preserveDraft && embedsReadyAtClick && get(authStore).isAuthenticated
+    && !get(forcedLogoutInProgress) && !get(editMessageStore)) {
     try {
       const rawMarkdown = tipTapToCanonicalMarkdown(submittedEditorContent).replace(/^\n+/, "");
       optimisticMessage = createMessagePayload(rawMarkdown, chatIdAtClick, [], teamSenderName);
-      // ActiveChat supplies first-turn context for an unsent shell or a persisted
-      // draft-only chat. Both have no messages; the immutable draft ID must match.
       const firstTurnAtClick = !currentChatId || (options.firstTurnContextAtClick === true
         && currentChatId === draftChatIdAtClick);
-      const projectReadSkip = !firstTurnAtClick ? 'not_first_turn'
-        : sourceDemoIdAtClick ? 'public_source'
-        : sendContext.teamId ? 'team'
-        : optimisticMessage.status !== 'sending' ? 'not_sending'
-        : incognitoMode.get() ? 'incognito'
-        : projectFocusIntent ? 'explicit_project'
-        : broadcastToSiblings ? 'broadcast'
-        : rawMarkdown.includes('```') ? 'code_block'
-        : rawMarkdown.includes('embed_id') ? 'embed_reference'
-        : rawMarkdown.includes('@memory') ? 'memory_reference'
-        : rawMarkdown.includes('| ') ? 'table'
-        : submittedEmbeds.length !== 0 ? 'attachments' : null;
-      recordSendPreparationPhase(`project_read_gate_${projectReadSkip ?? 'eligible'}`);
-      if (!projectReadSkip) {
-        beginFreshProjectRoutingForSend({
-          chatId: chatIdAtClick, messageId: optimisticMessage.message_id,
-          draftChatId: draftChatIdAtClick, recordPhase: recordSendPreparationPhase,
-        });
-      }
       const provisionalChat = !currentChatId || sourceDemoIdAtClick
         ? ({ chat_id: chatIdAtClick, team_id: sendContext.teamId,
             source_demo_id: sourceDemoIdAtClick, messages_v: 1, title_v: 0, draft_v: 0,
@@ -1877,8 +1850,6 @@ export async function handleSend(
     // OTel: IndexedDB write span (chat creation/update + message save)
     const idbSpan = tracer.startSpan('message.send.idb_write');
     // Check if incognito mode is enabled
-    const { incognitoMode } =
-      await import("../../../stores/incognitoModeStore");
     const isIncognitoEnabled = incognitoMode.get();
 
     if (isNewChatCreation) {
@@ -2565,7 +2536,6 @@ export async function handleSend(
         });
       }
     }
-    if (optimisticMessage) forgetFreshProjectRoutingForSend(optimisticMessage.message_id);
     sendInProgress = false;
     rootSpan.end();
   }

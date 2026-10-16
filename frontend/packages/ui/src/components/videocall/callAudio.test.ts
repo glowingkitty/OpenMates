@@ -46,6 +46,31 @@ describe('call audio lifecycle', () => {
   });
   afterEach(() => vi.unstubAllGlobals());
 
+  // contract-test: direct surface=gui.web assertions=video-call.chat.activity-status,video-call.audio.single-owner
+  it('returns actual queued playback timing and exposes the suspended/resumed audio clock', async () => {
+    const audio=new CallAudio(vi.fn(),vi.fn());
+    expect(audio.playbackAudioTime).toBeNull();
+    expect(audio.playPcm16(pcm16Base64(new Float32Array(960)))).toBeNull();
+    await audio.start();
+    const pcm=pcm16Base64(new Float32Array(960));
+    const first=audio.playPcm16(pcm);
+    const second=audio.playPcm16(pcm);
+    expect(first).toEqual({startTime:10.025,duration:.04,sampleRate:24_000});
+    expect(second?.startTime).toBeCloseTo(10.065);
+    expect(context.sources[0].start).toHaveBeenCalledWith(first!.startTime);
+    expect(context.sources[1].start).toHaveBeenCalledWith(second!.startTime);
+    context.state='suspended';
+    expect(audio.playbackAudioTime).toBe(10);
+    context.state='running';context.currentTime=10.07;
+    expect(audio.playbackAudioTime).toBe(10.07);
+    audio.interrupt();
+    const afterInterrupt=audio.playPcm16(pcm);
+    expect(afterInterrupt?.startTime).toBeCloseTo(10.095);
+    audio.stop();
+    expect(audio.playbackAudioTime).toBeNull();
+    expect(audio.playPcm16(pcm)).toBeNull();
+  });
+
   // contract-test: direct surface=gui.web assertions=video-call.experiment.live-voice,video-call.experiment.audio-mix,video-call.experiment.user-stop
   it('requests echo cancellation and releases microphone, graph and playback on hangup', async () => {
     const onMic = vi.fn();

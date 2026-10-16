@@ -7919,48 +7919,6 @@
           "text": "Fichiers de ce projet"
         }
       }
-    },
-    "jobs": {
-      "search": {
-        "result_count": {
-          "text": "{count} emplois"
-        },
-        "partial_results": {
-          "text": "Certaines sources étaient indisponibles"
-        },
-        "result": {
-          "title": {
-            "text": "Offre d’emploi"
-          },
-          "remote": {
-            "text": "À distance"
-          },
-          "published": {
-            "text": "Publié"
-          },
-          "source": {
-            "text": "Voir sur {provider}"
-          },
-          "listing": {
-            "text": "source de l’offre"
-          },
-          "apply": {
-            "text": "Ouvrir la page de candidature"
-          },
-          "company": {
-            "text": "Entreprise"
-          },
-          "employment_type": {
-            "text": "Type d’emploi"
-          },
-          "salary": {
-            "text": "Salaire"
-          },
-          "description": {
-            "text": "Description"
-          }
-        }
-      }
     }
   },
   "enter_message": {
@@ -8524,38 +8482,6 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"e7002718-62f4-43b0-9078-1ab77993edc0\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI workshop\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b110fb02-f635-45b1-8ba7-aaf75b3f7de7\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI meetup\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b2b2b2a7-6b9c-464d-a86e-86ceafcd3bcc\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"build with AI\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"0e453b88-1f20-43fc-9aa1-aad8aab6ae8a\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"top AI developer meetups Berlin 2026 for beginners\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"c7b51044-a947-4471-a287-496459454ad6\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Berlin AI builder communities and recurring workshops\", \"provider\": \"Brave\"}\n```\n\nBerlin has one of Europe's most active [AI](wiki:Artificial_intelligence) builder scenes, transitioning from general theory to practical \"hands-on\" engineering. For someone learning to build with AI tools, the focus in June 2026 is heavily on [AI agents](wiki:Software_agent), [RAG (Retrieval-Augmented Generation)](wiki:Retrieval-augmented_generation), and production-ready architectures.\n\nHere are the top upcoming workshops and meetups in Berlin where you can build, demo, and learn from other practitioners.\n\n### Featured Hands-On Workshops\nThese sessions are specifically designed for those who want to write code and build prototypes.\n\n*   **BLISS x QuantCo: Build Your Own AI Agent**\n    *   **Date:** June 10, 2026 | 17:30\n    *   **Location:** Berlin-Mitte (Altonaer Str. 26)\n    *   **Focus:** An interactive session transitioning from [LLM APIs](wiki:Large_language_model) to building a custom agent that automates complex document workflows. **Bring your laptop.**\n    *   [Event Details & RSVP](embed:bliss-x-quantco-dWg)\n*   **Open Source Europe Tour: AI in Practice**\n    *   **Date:** June 8, 2026 | 17:30\n    *   **Location:** Netlight Consulting (Invalidenstraße 117)\n    *   **Focus:** A \"hype-free\" walkthrough of modern AI, explaining Agentic AI, fine-tuning vs. RAG, and connecting AI to data architectures.\n    *   [Event Details & RSVP](embed:open-source-europe-S4k)\n*   **AI Future-Club Kickoff (Hackers / Founders)**\n    *   **Date:** June 11, 2026 | 18:00\n    *   **Location:** TBD (Berlin)\n    *   **Focus:** A session for developers to \"get their hands dirty,\" discussing what to build and ship together, featuring live demos of recent projects.\n    *   [Event Details & RSVP](embed:ai-future-club-XOk)\n\n### Community Meetups for Builders\nThese events are excellent for networking and seeing what other local developers are currently building.\n\n*   **OpenClaw Anonymous Berlin #9**\n    *   **Date:** June 9, 2026 | 19:00\n    *   **Location:** w3.hub (Möckernstraße 120)\n    *   **Focus:** Informal \"laptop-out\" meetup where people showcase OpenClaw and AI agent setups. Perfect for sharing what works and what doesn't.\n    *   [Event Details & RSVP](embed:openclaw-anonymous-berlin-JA8)\n*   **AI Tinkerers Berlin**\n    *   **Date:** June 17, 2026\n    *   **Focus:** A screened, demo-first, \"no-pitch\" community. Expect live code, architecture lessons, and technical Q&A from local founders and engineers.\n    *   Berlin AI Tinkerers Portal\n*   **Spec-Driven Development: AI for Full-Stack Java**\n    *   **Date:** June 9, 2026 | 18:30\n    *   **Location:** Capgemini (Potsdamer Platz 5)\n    *   **Focus:** Learning how AI can generate code, diagrams, and tests from structured specifications.\n    *   [Event Details & RSVP](embed:spec-driven-development-rxI)\n\n### Key Hubs to Follow\nIf you want to stay in the loop, these organizations host the majority of builder-centric AI events in Berlin:\n\n*   **Merantix AI Campus**: Located in Nord-Mitte, this 6,000m² campus is the heart of the Berlin AI ecosystem, hosting weekly reading groups and tech talks.\n    *   Campus Events Calendar\n*   **BLISS (Berlin AI Community)**: A student and professional community that organizes high-quality workshops and speaker series.\n    *   BLISS Official Site\n*   **[CODE University](wiki:CODE_University_of_Applied_Sciences)**: Often hosts \"Global AI Bootcamps\" and hands-on sessions for students and the public at their Delta Campus in Neukölln.\n\n### Practical Tips for Joining\n1.  **RSVP Early:** Many of these events (especially the BLISS and Tinkerers sessions) have limited spots and require screening or early registration.\n2.  **Bring a Laptop:** Most \"workshops\" expect you to follow along with code. Ensure you have a local environment or a [GitHub](wiki:GitHub) account ready.\n3.  **Join the Slacks:** Groups like AI Tinkerers and [Hackers/Founders](/#settings/apps/web) have local Slack/Discord channels where most \"last-minute\" build sessions are organized.\n\nWould you like me to help you find more specific resources for a particular AI tool you're learning, such as [PyTorch](wiki:PyTorch) or [LangChain](wiki:LangChain)?\n\n**Next Steps:**\n- [Browse more AI events in Berlin](/#settings/apps/events)\n- [Search for AI tutorials on YouTube](/#settings/apps/videos)"
-      }
-    },
-    "air_fryers_amazon_germany": {
-      "title": {
-        "text": "Comparatif de friteuses à air en Allemagne"
-      },
-      "summary": {
-        "text": "Comparaison des meilleures friteuses à air sur Amazon Allemagne par prix, capacité et notes, recommandant la Philips Airfryer Série 2000 pour un foyer de deux personnes."
-      },
-      "message_1": {
-        "text": "Trouve des friteuses à air que je peux acheter en ligne en Allemagne, y compris sur Amazon. Compare les prix actuels, les capacités et les évaluations, puis recommande-m'en une pour un foyer de deux personnes avec les liens vers les sources."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\nVoici un comparatif des friteuses sans huile les mieux notées actuellement disponibles sur Amazon Allemagne, comparant le prix, la capacité et les avis clients.\n\n---\n\n### Comparatif des modèles populaires en Allemagne\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### Meilleure recommandation pour un foyer de 2 personnes\n\n#### **Premier choix : [Philips Airfryer 2000 Series 6,2 L](embed:philips-airfryer-2000-fay)**\n\n* **Pourquoi elle convient le mieux à deux personnes :**\n  * **Capacité optimale (6,2 L) :** Les paniers de moins de 4,5–5 L nécessitent plusieurs fournées, même pour deux personnes. Un panier de 6,2 L permet de disposer deux filets de saumon et une portion complète de légumes ou de frites à plat sur une seule couche pour un croustillant homogène.\n  * **Encombrement en cuisine :** Les machines à double zone (comme Ninja ou Russell Hobbs) prennent beaucoup de place sur le plan de travail. Un panier unique de 6 L offre un volume généreux tout en conservant un encombrement compact adapté aux plans de travail typiques des cuisines allemandes.\n  * **Fenêtre transparente :** Permet de vérifier la cuisson sans ouvrir le tiroir et perdre de la chaleur.\n  * **Rapport qualité-prix :** À 99,99 €, elle offre la régularité de température fiable de [Philips](wiki:Philips) à un prix raisonnable.\n\n#### **Alternative (si tu cuisines souvent deux plats à des températures différentes) : [Philips Dual Basket 3000 Series (9,0 L)](embed:philips-airfryer-dual-pjD)**\nSi ton partenaire et toi préférez préparer des protéines et des légumes d'accompagnement simultanément à des températures et des durées différentes (par ex. des blancs de poulet à 180 °C et des pommes de terre croustillantes à 200 °C), ce modèle est actuellement en promotion à 119,99 € et dispose de temps de cuisson synchronisés.\n\n---\n\n### Facteurs clés à garder à l'esprit avant l'achat\n1. **Forme du tiroir :** Les paniers carrés (comme Cosori et Philips) accueillent les aliments plats (steaks, moules à pâtisserie, brochettes) bien mieux que les paniers ronds de même capacité.\n2. **Passage au lave-vaisselle :** Assure-toi que ton lave-vaisselle a une hauteur de panier suffisante pour un tiroir unique de 6 L, ou envisage de laver les revêtements antiadhésifs à la main pour prolonger leur durée de vie."
-      },
-      "follow_up_1": {
-        "text": "Cherche des recettes spécialement conçues pour les friteuses à air chaud"
-      },
-      "follow_up_2": {
-        "text": "Explique les principales différences entre les friteuses à air à un seul panier et celles à double panier"
-      },
-      "follow_up_3": {
-        "text": "Trouve des accessoires de cuisson compatibles pour cette friteuse à air chaud"
-      },
-      "follow_up_4": {
-        "text": "Liste des recettes simples pour débutants pour préparer le dîner dans une friteuse à air chaud"
-      },
-      "follow_up_5": {
-        "text": "Vérifie les indices de consommation d'énergie actuels pour ces modèles"
-      },
-      "follow_up_6": {
-        "text": "Compare les exigences de nettoyage et d'entretien pour les revêtements en céramique par rapport au téflon"
       }
     },
     "artemis_ii_mission": {
@@ -9798,38 +9724,6 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"3a8114d9-0472-4627-9a73-8d331bef481f\", \"app_id\": \"images\", \"skill_id\": \"vectorize\"}\n```\n\nI'll convert that image to SVG for you now.Your SVG vectorization is processing! The conversion is underway and I'll update you once it's complete. This typically takes a moment as the system traces the raster image and converts it into scalable vector paths."
       }
     },
-    "jobs_in_sweden": {
-      "title": {
-        "text": "Emplois de développeur en Suède"
-      },
-      "summary": {
-        "text": "Compare les offres d'emploi actuelles pour développeurs à Stockholm et Malmö avec les annonces originales et des détails vérifiés sur le lieu de travail."
-      },
-      "message_1": {
-        "text": "Trouve deux offres d'emploi actuelles de développeur logiciel à Stockholm et deux à Malmö via le service public de l'emploi suédois. Affiche une courte puce pour chacune avec le titre, l'employeur, la ville du lieu de travail et le lien vers l'annonce originale. Inclus un salaire ou une possibilité de télétravail uniquement si c'est explicitement mentionné dans l'annonce ; sinon, indique non précisé. Garde la réponse sous les 200 mots."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"ea23f42b-6a8d-4faf-912d-988d2ba20cf4\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"a9fafbeb-7f05-42d5-9dcd-cbc752f42ffd\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\nOffres d'emploi actuelles pour développeurs de logiciels d'Arbetsförmedlingen (Platsbanken) :\n\n### Stockholm\n\n* **Intitulé :** Senior Systemutvecklare  \n  **Employeur :** NXT Interim Stockholm AB  \n  **Ville :** Stockholm  \n  **Lien vers l'annonce originale :** [Platsbanken annons 31589252](embed:senior-systemutvecklare-2ps)  \n  **Salaire :** Non précisé  \n  **Télétravail :** Propose des postes à distance (*remote-arbetsplatser*)\n\n* **Intitulé :** Javautvecklare  \n  **Employeur :** AFRY AB  \n  **Ville :** Stockholm  \n  **Lien vers l'annonce originale :** [Platsbanken annons 31588186](embed:javautvecklare-y47)  \n  **Salaire :** Non précisé  \n  **Télétravail :** Possibilité de travail hybride (*möjlighet till hybridarbete*)\n\n---\n\n### Malmö\n\n* **Intitulé :** Senior AI Engineer  \n  **Employeur :** Iver Accelerate AB  \n  **Ville :** Malmö  \n  **Lien vers l'annonce originale :** [Platsbanken annons 31588387](embed:senior-ai-engineer-Duw)  \n  **Salaire :** Non précisé  \n  **Télétravail :** Possibilité de travail hybride (*möjlighet till hybridarbete*)\n\n* **Intitulé :** Malmö: Systemutvecklare Affärssystem Hybrid  \n  **Employeur :** Jobbakuten Väst AB  \n  **Ville :** Malmö  \n  **Lien vers l'annonce originale :** [Platsbanken annons 31574628](embed:malm-systemutvecklare-aff-umf)  \n  **Salaire :** Non précisé (l'annonce mentionne un salaire au prix du marché sans montant précis)  \n  **Télétravail :** Travail hybride (*Hybridarbete*)"
-      },
-      "follow_up_1": {
-        "text": "Cherche des emplois de développeur logiciel en télétravail à Göteborg"
-      },
-      "follow_up_2": {
-        "text": "Compare les exigences pour ces rôles de développeur senior"
-      },
-      "follow_up_3": {
-        "text": "Cherche des postes de développeur frontend à Stockholm"
-      },
-      "follow_up_4": {
-        "text": "Liste les piles technologiques les plus citées dans ces annonces"
-      },
-      "follow_up_5": {
-        "text": "Cherche des annonces pour développeur junior en Suède"
-      },
-      "follow_up_6": {
-        "text": "Résume les tendances du télétravail dans les emplois tech en Suède"
-      }
-    },
     "launch_readiness_checklist_doc": {
       "title": {
         "text": "Launch readiness checklist document"
@@ -11042,38 +10936,6 @@
         "text": "Explique le choix des condensateurs de découplage"
       }
     },
-    "vegetarian_recipes_from_fridge_vegetables": {
-      "title": {
-        "text": "Idées de recettes végétariennes avec les basiques du frigo"
-      },
-      "summary": {
-        "text": "L'utilisateur a demandé des idées de recettes végétariennes à base d'épinards, de carottes, de poivrons et de pois chiches ; l'assistant a proposé trois options."
-      },
-      "message_1": {
-        "text": "Des recommandations de recettes végétariennes ? Il me reste des épinards, des carottes, des poivrons et des pois chiches dans le frigo."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\nAvec des **épinards, des carottes, des poivrons et des pois chiches**, tu as une base solide pour de délicieux repas végétariens riches en fibres. \n\nVoici trois directions culinaires différentes selon tes envies :\n\n---\n\n### 1. Frais et croquant : Salade hachée à la thaïlandaise\nSi tu veux quelque chose de rapide, léger et croquant, mélange des poivrons crus finement hachés, des carottes et des épinards avec des pois chiches dans une vinaigrette acidulée à la [cacahuète](wiki:Peanut) et au citron vert.\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. Galettes savoureuses : Beignets croustillants aux pois chiches et légumes\nSi tu as envie de quelque chose de chaud et de format bouchée (parfait dans des wraps, des pains pita ou avec une sauce au yaourt), écrase les pois chiches et incorpore les carottes et poivrons émincés, ainsi que les épinards tombés à la poêle.\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. Alternative rapide pour la semaine : Curry de pois chiches et légumes à la poêle\nSi tu veux un plat unique utilisant des produits de base du placard (comme du lait de coco en conserve ou des tomates concassées) :\n1. **Fais revenir les aromates :** fais chauffer de l'huile d'olive dans une poêle, puis fais cuire l'oignon désé, l'ail haché et le gingembre jusqu'à ce qu'ils embaument.\n2. **Ajoute les légumes fermes :** coupe les carottes et les poivrons en morceaux. Ajoute-les avec du cumin moulu, du [curcuma](wiki:Turmeric) et une pincée de piment ou de curry en poudre.\n3. **Laisse mijoter :** ajoute tes pois chiches rincés ainsi qu'une tasse de bouillon de légumes ou de lait de coco. Couvre et laisse mijoter 10 à 12 minutes jusqu'à ce que les carottes soient tendres.\n4. **Fais tomber les épinards :** incorpore les épinards frais tout à la fin pendant 1 à 2 minutes jusqu'à ce qu'ils soient d'un vert éclatant et flétris. Termine par un filet de jus de citron.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"Quel style de cuisine préfères-tu préparer aujourd'hui ?\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"Salade hachée fraîche et croquante\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"Beignets ou galettes croustillants à la poêle\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"Curry ou ragoût chaud à la poêle\" }\n  ]\n}\n```"
-      },
-      "follow_up_1": {
-        "text": "Cherche des instructions plus détaillées et les quantités exactes des ingrédients pour le curry à la poêle"
-      },
-      "follow_up_2": {
-        "text": "Explique comment préparer et conserver les restes de beignets de pois chiches pour tes repas de la semaine"
-      },
-      "follow_up_3": {
-        "text": "Cherche des recettes de sauce au yaourt végétalien qui se marient bien avec les beignets de pois chiches"
-      },
-      "follow_up_4": {
-        "text": "Liste des substitutions d'épices simples si je n'ai pas de poudre de curry pour le plat à la poêle"
-      },
-      "follow_up_5": {
-        "text": "Cherche des recettes alternatives de vinaigrette au tahini pour la salade hachée de style thaï"
-      },
-      "follow_up_6": {
-        "text": "Compare la teneur en protéines et en fibres de ces trois options de recettes végétariennes"
-      }
-    },
     "vital_farms_sec_financials": {
       "title": {
         "text": "Données financières SEC de Vital Farms"
@@ -11136,6 +10998,70 @@
       },
       "follow_up_6": {
         "text": "Comparer différentes méthodes pour transformer des idées orales en tâches organisées"
+      }
+    },
+    "vegetarian_recipes_from_fridge_vegetables": {
+      "title": {
+        "text": "Idées de recettes végétariennes avec les basiques du frigo"
+      },
+      "summary": {
+        "text": "L'utilisateur a demandé des idées de recettes végétariennes à base d'épinards, de carottes, de poivrons et de pois chiches ; l'assistant a proposé trois options."
+      },
+      "message_1": {
+        "text": "Des recommandations de recettes végétariennes ? Il me reste des épinards, des carottes, des poivrons et des pois chiches dans le frigo."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\nAvec des **épinards, des carottes, des poivrons et des pois chiches**, tu as une base solide pour de délicieux repas végétariens riches en fibres. \n\nVoici trois directions culinaires différentes selon tes envies :\n\n---\n\n### 1. Frais et croquant : Salade hachée à la thaïlandaise\nSi tu veux quelque chose de rapide, léger et croquant, mélange des poivrons crus finement hachés, des carottes et des épinards avec des pois chiches dans une vinaigrette acidulée à la [cacahuète](wiki:Peanut) et au citron vert.\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. Galettes savoureuses : Beignets croustillants aux pois chiches et légumes\nSi tu as envie de quelque chose de chaud et de format bouchée (parfait dans des wraps, des pains pita ou avec une sauce au yaourt), écrase les pois chiches et incorpore les carottes et poivrons émincés, ainsi que les épinards tombés à la poêle.\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. Alternative rapide pour la semaine : Curry de pois chiches et légumes à la poêle\nSi tu veux un plat unique utilisant des produits de base du placard (comme du lait de coco en conserve ou des tomates concassées) :\n1. **Fais revenir les aromates :** fais chauffer de l'huile d'olive dans une poêle, puis fais cuire l'oignon désé, l'ail haché et le gingembre jusqu'à ce qu'ils embaument.\n2. **Ajoute les légumes fermes :** coupe les carottes et les poivrons en morceaux. Ajoute-les avec du cumin moulu, du [curcuma](wiki:Turmeric) et une pincée de piment ou de curry en poudre.\n3. **Laisse mijoter :** ajoute tes pois chiches rincés ainsi qu'une tasse de bouillon de légumes ou de lait de coco. Couvre et laisse mijoter 10 à 12 minutes jusqu'à ce que les carottes soient tendres.\n4. **Fais tomber les épinards :** incorpore les épinards frais tout à la fin pendant 1 à 2 minutes jusqu'à ce qu'ils soient d'un vert éclatant et flétris. Termine par un filet de jus de citron.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"Quel style de cuisine préfères-tu préparer aujourd'hui ?\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"Salade hachée fraîche et croquante\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"Beignets ou galettes croustillants à la poêle\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"Curry ou ragoût chaud à la poêle\" }\n  ]\n}\n```"
+      },
+      "follow_up_1": {
+        "text": "Cherche des instructions plus détaillées et les quantités exactes des ingrédients pour le curry à la poêle"
+      },
+      "follow_up_2": {
+        "text": "Explique comment préparer et conserver les restes de beignets de pois chiches pour tes repas de la semaine"
+      },
+      "follow_up_3": {
+        "text": "Cherche des recettes de sauce au yaourt végétalien qui se marient bien avec les beignets de pois chiches"
+      },
+      "follow_up_4": {
+        "text": "Liste des substitutions d'épices simples si je n'ai pas de poudre de curry pour le plat à la poêle"
+      },
+      "follow_up_5": {
+        "text": "Cherche des recettes alternatives de vinaigrette au tahini pour la salade hachée de style thaï"
+      },
+      "follow_up_6": {
+        "text": "Compare la teneur en protéines et en fibres de ces trois options de recettes végétariennes"
+      }
+    },
+    "air_fryers_amazon_germany": {
+      "title": {
+        "text": "Comparatif de friteuses à air en Allemagne"
+      },
+      "summary": {
+        "text": "Comparaison des meilleures friteuses à air sur Amazon Allemagne par prix, capacité et notes, recommandant la Philips Airfryer Série 2000 pour un foyer de deux personnes."
+      },
+      "message_1": {
+        "text": "Trouve des friteuses à air que je peux acheter en ligne en Allemagne, y compris sur Amazon. Compare les prix actuels, les capacités et les évaluations, puis recommande-m'en une pour un foyer de deux personnes avec les liens vers les sources."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\nVoici un comparatif des friteuses sans huile les mieux notées actuellement disponibles sur Amazon Allemagne, comparant le prix, la capacité et les avis clients.\n\n---\n\n### Comparatif des modèles populaires en Allemagne\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### Meilleure recommandation pour un foyer de 2 personnes\n\n#### **Premier choix : [Philips Airfryer 2000 Series 6,2 L](embed:philips-airfryer-2000-fay)**\n\n* **Pourquoi elle convient le mieux à deux personnes :**\n  * **Capacité optimale (6,2 L) :** Les paniers de moins de 4,5–5 L nécessitent plusieurs fournées, même pour deux personnes. Un panier de 6,2 L permet de disposer deux filets de saumon et une portion complète de légumes ou de frites à plat sur une seule couche pour un croustillant homogène.\n  * **Encombrement en cuisine :** Les machines à double zone (comme Ninja ou Russell Hobbs) prennent beaucoup de place sur le plan de travail. Un panier unique de 6 L offre un volume généreux tout en conservant un encombrement compact adapté aux plans de travail typiques des cuisines allemandes.\n  * **Fenêtre transparente :** Permet de vérifier la cuisson sans ouvrir le tiroir et perdre de la chaleur.\n  * **Rapport qualité-prix :** À 99,99 €, elle offre la régularité de température fiable de [Philips](wiki:Philips) à un prix raisonnable.\n\n#### **Alternative (si tu cuisines souvent deux plats à des températures différentes) : [Philips Dual Basket 3000 Series (9,0 L)](embed:philips-airfryer-dual-pjD)**\nSi ton partenaire et toi préférez préparer des protéines et des légumes d'accompagnement simultanément à des températures et des durées différentes (par ex. des blancs de poulet à 180 °C et des pommes de terre croustillantes à 200 °C), ce modèle est actuellement en promotion à 119,99 € et dispose de temps de cuisson synchronisés.\n\n---\n\n### Facteurs clés à garder à l'esprit avant l'achat\n1. **Forme du tiroir :** Les paniers carrés (comme Cosori et Philips) accueillent les aliments plats (steaks, moules à pâtisserie, brochettes) bien mieux que les paniers ronds de même capacité.\n2. **Passage au lave-vaisselle :** Assure-toi que ton lave-vaisselle a une hauteur de panier suffisante pour un tiroir unique de 6 L, ou envisage de laver les revêtements antiadhésifs à la main pour prolonger leur durée de vie."
+      },
+      "follow_up_1": {
+        "text": "Cherche des recettes spécialement conçues pour les friteuses à air chaud"
+      },
+      "follow_up_2": {
+        "text": "Explique les principales différences entre les friteuses à air à un seul panier et celles à double panier"
+      },
+      "follow_up_3": {
+        "text": "Trouve des accessoires de cuisson compatibles pour cette friteuse à air chaud"
+      },
+      "follow_up_4": {
+        "text": "Liste des recettes simples pour débutants pour préparer le dîner dans une friteuse à air chaud"
+      },
+      "follow_up_5": {
+        "text": "Vérifie les indices de consommation d'énergie actuels pour ces modèles"
+      },
+      "follow_up_6": {
+        "text": "Compare les exigences de nettoyage et d'entretien pour les revêtements en céramique par rapport au téflon"
       }
     }
   },
@@ -12925,7 +12851,7 @@
             "text": "Services de recherche d’emploi"
           },
           "description": {
-            "text": "Utilisés uniquement lors d’une recherche d’emploi. L’Agence fédérale allemande pour l’emploi et JobTech reçoivent les termes choisis, le lieu et les filtres applicables dans des requêtes côté serveur. Arbeitnow fournit un flux public filtré localement par OpenMates. Aucun identifiant utilisateur OpenMates, CV ou identifiant de compte n’est envoyé. 80,000 Hours envoie mots-clés et pays à Algolia ; Hard Problems ne reçoit que le pays. Le lieu et les autres filtres restent locaux."
+            "text": "Utilisés uniquement lors d’une recherche d’emploi. L’Agence fédérale allemande pour l’emploi et JobTech reçoivent les termes choisis, le lieu et les filtres applicables dans des requêtes côté serveur. Arbeitnow fournit un flux public filtré localement par OpenMates. Aucun identifiant utilisateur OpenMates, CV ou identifiant de compte n’est envoyé."
           },
           "arbeitsagentur": {
             "heading": {
@@ -12949,22 +12875,6 @@
             },
             "description": {
               "text": "OpenMates récupère le flux public d’emplois d’Arbeitnow. Tes mots-clés, ton lieu et tes filtres sont appliqués localement et ne sont pas envoyés à Arbeitnow."
-            }
-          },
-          "eighty_thousand_hours": {
-            "heading": {
-              "text": "80,000 Hours Job Board"
-            },
-            "description": {
-              "text": "Le site public d’offres de 80,000 Hours utilise Algolia. Vos mots-clés et le pays choisi sont envoyés ; OpenMates vérifie localement le lieu et les autres filtres. Aucun identifiant OpenMates, CV ou identifiant de compte n’est envoyé."
-            }
-          },
-          "hard_problems": {
-            "heading": {
-              "text": "Hard Problems"
-            },
-            "description": {
-              "text": "OpenMates récupère le flux public de Hard Problems pour le pays choisi. Vos mots-clés, le lieu et les autres filtres sont vérifiés localement et non envoyés à Hard Problems. Aucun identifiant OpenMates, CV ou identifiant de compte n’est envoyé."
             }
           }
         }
@@ -16496,16 +16406,6 @@
       }
     },
     "app_store_examples": {
-      "jobs": {
-        "search": {
-          "1": {
-            "text": "Emplois de développeur logiciel à Stockholm"
-          },
-          "2": {
-            "text": "Emplois de développeur logiciel à Malmö"
-          }
-        }
-      },
       "hosting": {
         "search_domains": {
           "1": {

@@ -7,9 +7,28 @@ goal: 'First we implement phase 1: the foundation - voice call only, where we en
 authorization: The user explicitly requested the three-phase Specification and immediate phase-1 implementation/testing
   on 2026-10-13, without further clarification. This overrides an additional Specification approval question; no
   permission is inferred from attached PDFs or historical Task content.
+current_authorization: On 2026-10-14 the user explicitly requested updating the voice Specification and implementing
+  the discussed Gemini architecture, including shared ethics/compressed context, direct Jev-selected memories/focus,
+  Flash-backed skills and OpenMates assistant fallback. The user also specified the audiocall handset, red downward
+  rotation and press-again hangup, with Call directly left of Close in one horizontal row. These requests authorize
+  this increment without another clarification round. The subsequent request adds investigation of Gemini's
+  billable audio and matching user charges, with pricing visibility tied to processing activity.
+  On 2026-10-15 the user explicitly approved the described background-loaded local speech detector,
+  five-second automatic input idle, immediate calling with bounded startup audio, continuous-streaming
+  fallback, and working/speaking/resume status copy, and requested updating the Specification and implementation.
+  The subsequent UI correction replaces visible status/credit text with real audio bars and an active-duration
+  counter that pauses/fades during confirmed idle. It requires inline-to-fixed chat controls, the corrected
+  brand-slot background-call pill, Coming soon video action and encrypted start/end history events.
+  The user additionally requested a round microphone control over the waveform, matching Close, with a
+  visibly active muted state that blocks background-noise interruptions while retaining the call connection,
+  plus brief distinct local confirmations for connected, manually muted/unmuted and ended transitions.
+  The subsequent first-call privacy request requires a Google processing disclosure with an attributed paid-API
+  no-training statement, explicit acceptance persisted in the account profile, and no microphone/provider
+  connection before successful acknowledgment; the user also requested hiding generic status footers on
+  voice-created transcripts while retaining Sending for pending typed submissions.
 specification_refs:
 - id: feature.video-call
-  version: 2
+  version: 7
   role: primary
 phases:
 - phase: 1
@@ -22,12 +41,33 @@ phases:
   - Persistent controls, fixed chat binding, mute/hangup/interruption cleanup; composer mic and separate speech
     disabled.
 - phase: 2
-  outcome: App skills, submitted files and embeds
+  outcome: Jev-routed memories, focus modes, app skills and encrypted embeds
   task_id: e3257206-797c-4dfb-96c7-d3e83693efed
   depends_on_phase: 1
   scope:
-  - Stable discovery/execution gateways; shared Jev/preprocessor capability selection and skill gates.
-  - Submitted file processing and structured embed delivery independent of spoken transcript.
+  - Stable request gateway with a concise public app catalogue; two-stage shared Jev app/Project and capability selection.
+  - Direct authorized memory loading and focus activation with existing UI/history and voice continuations.
+  - Gemini 3.8 Flash only for selected skill schemas, shared execution/billing/cancellation and structured encrypted embeds.
+  - Shared canonical ethics, latest compression checkpoint and uncovered recent messages at voice startup/refresh.
+  - Background shared compression of completed call transcripts with durable client-encrypted checkpoints and safe live-context refresh.
+  - OpenMates/favicon fallback for uncategorized assistant messages, preserving known identities.
+  - Adjacent Call/Close controls with the audiocall handset, red downward active state and press-again hangup.
+  - Provider-token charges with no connected-time fee; accessible usage-based billing information and an
+    active-duration counter that pauses/fades only when input and processing are confirmed idle.
+  - Background-loaded local speech detection never blocks calling; five-second silence pauses input on the
+    existing connection, with bounded prespeech/startup audio and continuous-streaming fallback.
+  - Real microphone/playback waveform with a dedicated Close-style microphone overlay and red muted icon,
+    accessible activity and authoritative manual mute that preserves the connection; no visible credit
+    count or resume/status text in the call strip.
+  - Brief distinct local connected, manual mute/unmute and ended sounds; silent automatic idle/resume and
+    deterministic cue cleanup without blocking call controls.
+  - One-time accessible Google voice-processing notice before capture/admission; explicit confirmed profile
+    acknowledgment follows the account across browsers/devices, with Cancel and failed saves leaving calls unopened.
+  - Voice-created transcripts omit generic sending/processing footers; typed input shows Sending until accepted.
+  - Screenshot-matched inline/fixed strip and corrected detached Header brand-slot pill, existing More actions,
+    Close chat beside Hang up in fixed mode, Coming soon video action and encrypted start/end system events.
+  deferred_followup:
+  - Submitted file processing remains a later phase-2 increment; video remains phase 3.
 - phase: 3
   outcome: Visual input and generated-video calls
   task_id: 18b14a5f-8096-435a-bc12-aefaff29e083
@@ -45,7 +85,14 @@ decisions:
 - Raw speech goes to the disclosed provider before text PII masking; no plaintext durable server storage.
 - No additional user approval round because the current request explicitly authorizes Specification creation and
   implementation.
+- Seal voice worker request/result transport with the existing user encryption boundary; do not retain plaintext in Celery/Redis.
+- Context and tool output feed the live conversation, never an independent ordinary text answer.
+- Preserve existing memory-sharing and focus authorization/activation policies; Jev decisions do not grant access.
+- Gemini 3.8 Live permanently enables proactive audio. Streaming microphone silence is billable input;
+  muted input uses the provider's audio-stream pause signal. Already generated playback is separate from processing.
 required_checks:
+- Isolated component and call checks prove first-use notice, Cancel, profile read/write failures, explicit
+  acceptance before capture/provider access and once-per-account persistence across reload.
 - Specification/examples and Plan validation with generated registry refresh.
 - Focused backend unit tests for auth/ownership/admission, turn identities, late transcripts, typed input, rollover,
   usage and ciphertext persistence.
@@ -55,6 +102,28 @@ required_checks:
   inference and microphone/hangup cleanup.
 - Retrieve and deliver selected successful E2E recordings with the receipt evidence command.
 - Scoped dev deployment after candidate checks, plus reviewed laptop/mobile visual smoke.
+- Focused broker/protocol tests prove direct memory/focus paths skip Flash, selected skill execution uses Flash,
+  sealed transport, cancellation and authorized continuations.
+- Focused client tests prove compression checkpoint/source-boundary loading, existing UI events and encrypted
+  embed/transcript coalescing; isolated call E2E covers these paths using deterministic provider fixtures.
+- Focused usage/protocol tests prove idle connection time adds no charge and reported usage settles once per
+  turn. Bare component and isolated voice checks prove active-duration progression during quiet streaming and
+  muted model processing, paused/faded duration during confirmed idle playback, and omitted credit/resume text.
+- Focused audio-gate and controller tests prove cold-loading/failure fallback, five seconds of verified silence,
+  buffered first-syllable resume and startup ordering, manual mute, bounded memory, and stale-callback cleanup.
+- Isolated browser proof exercises the real self-hosted speech model/worker, background initialization and
+  activity states on phone/laptop before the full encrypted call flow. Provider fixtures do not establish
+  real Gemini idle billing; an inference-dependent meter check uses default automatic routing on dev when leased.
+- Focused lifecycle persistence checks and isolated browser reload prove one encrypted started/ended event
+  per connected call, including close-chat and repeated end callbacks, with no events for refused calls.
+- Account-free scroll/Header integration proof precedes full call flow and verifies inline-to-fixed controls,
+  More/video/close behavior, detached pill/return and responsive layout against the supplied reference PNGs.
+design_reference:
+  source: User-supplied call-strip, desktop chat and corrected background-call screenshots on 2026-10-15.
+  figma_node: PzgE78TVxG0eWuEeO6o8ve/5903:73732
+  access: Outline, node and export probes returned 403; cached index generated 2026-10-06. Use supplied PNGs.
+  evidence_bundle: test-results/figma/voice-call-2026-10-15
+  scope: Match call controls and their chat/Header placement using existing design tokens; unrelated workspace UI is unchanged.
 evidence:
   phase_1:
     status: implemented_and_verified_pending_startup_proxy_persistence
@@ -106,5 +175,7 @@ evidence:
       startup_proxy_persistence: Pending host sudo. The root-owned /etc/caddy/Caddyfile remains unchanged; Caddy
         restart/reload would discard the live-only route/filter update. A private scoped candidate and guarded apply
         helper are prepared in the task workspace.
+    subsequent_user_feedback: The user ran the Caddy script and exercised voice calls, reporting UI and message
+      persistence bugs for later investigation. Previous synthetic checks do not establish that those defects are resolved.
 profile: concise
 status: approved

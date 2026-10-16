@@ -5,7 +5,7 @@ import { storageArchiveFetch } from "../config/api";
   import { collectHeaderImageRefs } from './embeds/embedPreviewHydration';
   import { embedStore, embedRefIndexVersion } from '../services/embedStore';
   import { createEventDispatcher, tick, onMount, onDestroy, untrack } from "svelte"; // Removed afterUpdate for runes mode compatibility
-  import type { SvelteComponent } from 'svelte';
+  import type { Snippet, SvelteComponent } from 'svelte';
   import { flip } from 'svelte/animate';
   import { parseMemoryRequest, mergeMemoryRequests } from "../utils/appMemoryRequests";
   import ChatMessage from "./ChatMessage.svelte";
@@ -986,7 +986,7 @@ import { storageArchiveFetch } from "../config/api";
       showForgottenMessages = !showForgottenMessages;
       return;
     }
-    if (!showForgottenMessages && oldCompressedMessages.length === 0 && locallyAvailableForgottenMessages.length === 0) {
+    if (!showForgottenMessages && oldCompressedMessages.length === 0) {
       await loadForgottenMessagePage();
     }
     showForgottenMessages = !showForgottenMessages;
@@ -1017,11 +1017,10 @@ import { storageArchiveFetch } from "../config/api";
         });
         return;
       }
-      const servedFromLocalHistory = await loadLocalForgottenMessagePage(beforeTimestamp, beforeMessageId);
-      if (servedFromLocalHistory) {
-        oldCompressedMessagesLoading = false;
-        return;
-      }
+      // Retained local rows can be only a fragment of a compressed prefix.
+      // Show them promptly, then fetch the canonical page with the original
+      // cursor so a cache fragment cannot conceal missing archived messages.
+      await loadLocalForgottenMessagePage(beforeTimestamp, beforeMessageId);
       await webSocketService.sendMessage('get_compressed_chat_old_messages', {
         chat_id: latestCompressionCheckpoint.chat_id,
         checkpoint_id: latestCompressionCheckpoint.id,
@@ -1195,6 +1194,20 @@ import { storageArchiveFetch } from "../config/api";
 
   // Bound to the chat-header-wrapper div; used by the IntersectionObserver below.
   let headerWrapperEl = $state<HTMLElement | null>(null);
+  let callStripStuck = $state(false);
+
+  function observeCallHeaderEnd(node: HTMLElement) {
+    const scrollRoot = node.closest<HTMLElement>('.chat-history-container');
+    if (!scrollRoot) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      const stuck = !entry.isIntersecting && !!entry.rootBounds &&
+        entry.boundingClientRect.bottom <= entry.rootBounds.top;
+      callStripStuck = stuck;
+      voiceCallBridge?.onStickyChange(stuck);
+    }, { root: scrollRoot, threshold: 0 });
+    observer.observe(node);
+    return { destroy() { observer.disconnect(); voiceCallBridge?.onStickyChange(false); } };
+  }
 
   // The intro video now uses the full banner as a media hero. Keep auth CTAs in
   // the app header so the banner can stay focused on playback.
@@ -1269,8 +1282,10 @@ import { storageArchiveFetch } from "../config/api";
     queuedActionBusyMessageId = null,
     queuedActionErrors = {},
     canAnnotate = true,
+    voiceCallBridge = undefined,
   }: {
     disablePointerEvents?: boolean;
+    voiceCallBridge?: { controls: Snippet<[boolean]>; onStickyChange: (stuck: boolean) => void };
     messageInputHeight?: number;
     sourceMessages?: GlobalMessage[];
     containerWidth?: number;
@@ -1530,6 +1545,7 @@ import { storageArchiveFetch } from "../config/api";
     // Rebuild the PendingPermissionRequest for the store
     const recoveredRequest: PendingPermissionRequest = {
       requestId: unpairedRequest.request_id,
+      responseTransport: unpairedRequest.response_transport,
       chatId: currentChatId,
       messageId: unpairedRequest.user_message_id,
       categories: fullCategories,
@@ -2872,6 +2888,7 @@ import { storageArchiveFetch } from "../config/api";
 <div class="chat-history-wrapper" class:disable-pointer-events={disablePointerEvents} style={containerStyle}>
 <div 
     class="chat-history-container"
+    class:has-call-strip={!!voiceCallBridge}
     data-testid="chat-history-container"
     data-scroll-state={isRestoringScroll || isScrolling || shouldScrollToNewUserMessage || pendingNewChatScrollMessageId ? 'busy' : 'ready'}
     class:empty={displayMessages.length === 0}
@@ -2917,6 +2934,13 @@ import { storageArchiveFetch } from "../config/api";
             />
             {/key}
         </div>
+    {/if}
+
+    {#if voiceCallBridge}
+      <div class="call-header-end" use:observeCallHeaderEnd aria-hidden="true"></div>
+      <div class="voice-call-strip" class:stuck={callStripStuck} data-testid="voice-call-strip">
+        {@render voiceCallBridge.controls(callStripStuck)}
+      </div>
     {/if}
 
     <!-- Floating up/down arrows for highlight navigation. Only visible when
@@ -3364,6 +3388,22 @@ import { storageArchiveFetch } from "../config/api";
         rgba(0, 0, 0, 0) 100%
     );
   }
+
+  .chat-history-container.has-call-strip {
+    mask-image: linear-gradient(to bottom,
+      rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 1) calc(100% - 30px),
+      rgba(0, 0, 0, 0) 100%);
+  }
+
+  .call-header-end { height: 1px; margin-top: -1px; pointer-events: none; }
+  .voice-call-strip {
+    position: sticky;
+    top: 0;
+    z-index: var(--z-index-dropdown-2);
+    margin-inline: calc(-1 * var(--spacing-5));
+    width: calc(100% + 2 * var(--spacing-5));
+  }
+  .voice-call-strip.stuck { top: calc(-1 * var(--spacing-5)); }
 
   /* Hide scrollbar and prevent any content height when chat is empty */
   .chat-history-container.empty {

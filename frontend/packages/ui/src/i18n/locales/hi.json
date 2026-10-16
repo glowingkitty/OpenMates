@@ -7892,48 +7892,6 @@
           "text": "इस प्रोजेक्ट की फ़ाइलें"
         }
       }
-    },
-    "jobs": {
-      "search": {
-        "result_count": {
-          "text": "{count} नौकरियाँ"
-        },
-        "partial_results": {
-          "text": "कुछ स्रोत उपलब्ध नहीं थे"
-        },
-        "result": {
-          "title": {
-            "text": "नौकरी की सूची"
-          },
-          "remote": {
-            "text": "दूरस्थ"
-          },
-          "published": {
-            "text": "प्रकाशित"
-          },
-          "source": {
-            "text": "{provider} पर देखें"
-          },
-          "listing": {
-            "text": "नौकरी का स्रोत"
-          },
-          "apply": {
-            "text": "आवेदन पृष्ठ खोलें"
-          },
-          "company": {
-            "text": "कंपनी"
-          },
-          "employment_type": {
-            "text": "रोज़गार का प्रकार"
-          },
-          "salary": {
-            "text": "वेतन"
-          },
-          "description": {
-            "text": "विवरण"
-          }
-        }
-      }
     }
   },
   "enter_message": {
@@ -8497,38 +8455,6 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"e7002718-62f4-43b0-9078-1ab77993edc0\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI workshop\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b110fb02-f635-45b1-8ba7-aaf75b3f7de7\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI meetup\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b2b2b2a7-6b9c-464d-a86e-86ceafcd3bcc\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"build with AI\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"0e453b88-1f20-43fc-9aa1-aad8aab6ae8a\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"top AI developer meetups Berlin 2026 for beginners\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"c7b51044-a947-4471-a287-496459454ad6\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Berlin AI builder communities and recurring workshops\", \"provider\": \"Brave\"}\n```\n\nBerlin has one of Europe's most active [AI](wiki:Artificial_intelligence) builder scenes, transitioning from general theory to practical \"hands-on\" engineering. For someone learning to build with AI tools, the focus in June 2026 is heavily on [AI agents](wiki:Software_agent), [RAG (Retrieval-Augmented Generation)](wiki:Retrieval-augmented_generation), and production-ready architectures.\n\nHere are the top upcoming workshops and meetups in Berlin where you can build, demo, and learn from other practitioners.\n\n### Featured Hands-On Workshops\nThese sessions are specifically designed for those who want to write code and build prototypes.\n\n*   **BLISS x QuantCo: Build Your Own AI Agent**\n    *   **Date:** June 10, 2026 | 17:30\n    *   **Location:** Berlin-Mitte (Altonaer Str. 26)\n    *   **Focus:** An interactive session transitioning from [LLM APIs](wiki:Large_language_model) to building a custom agent that automates complex document workflows. **Bring your laptop.**\n    *   [Event Details & RSVP](embed:bliss-x-quantco-dWg)\n*   **Open Source Europe Tour: AI in Practice**\n    *   **Date:** June 8, 2026 | 17:30\n    *   **Location:** Netlight Consulting (Invalidenstraße 117)\n    *   **Focus:** A \"hype-free\" walkthrough of modern AI, explaining Agentic AI, fine-tuning vs. RAG, and connecting AI to data architectures.\n    *   [Event Details & RSVP](embed:open-source-europe-S4k)\n*   **AI Future-Club Kickoff (Hackers / Founders)**\n    *   **Date:** June 11, 2026 | 18:00\n    *   **Location:** TBD (Berlin)\n    *   **Focus:** A session for developers to \"get their hands dirty,\" discussing what to build and ship together, featuring live demos of recent projects.\n    *   [Event Details & RSVP](embed:ai-future-club-XOk)\n\n### Community Meetups for Builders\nThese events are excellent for networking and seeing what other local developers are currently building.\n\n*   **OpenClaw Anonymous Berlin #9**\n    *   **Date:** June 9, 2026 | 19:00\n    *   **Location:** w3.hub (Möckernstraße 120)\n    *   **Focus:** Informal \"laptop-out\" meetup where people showcase OpenClaw and AI agent setups. Perfect for sharing what works and what doesn't.\n    *   [Event Details & RSVP](embed:openclaw-anonymous-berlin-JA8)\n*   **AI Tinkerers Berlin**\n    *   **Date:** June 17, 2026\n    *   **Focus:** A screened, demo-first, \"no-pitch\" community. Expect live code, architecture lessons, and technical Q&A from local founders and engineers.\n    *   Berlin AI Tinkerers Portal\n*   **Spec-Driven Development: AI for Full-Stack Java**\n    *   **Date:** June 9, 2026 | 18:30\n    *   **Location:** Capgemini (Potsdamer Platz 5)\n    *   **Focus:** Learning how AI can generate code, diagrams, and tests from structured specifications.\n    *   [Event Details & RSVP](embed:spec-driven-development-rxI)\n\n### Key Hubs to Follow\nIf you want to stay in the loop, these organizations host the majority of builder-centric AI events in Berlin:\n\n*   **Merantix AI Campus**: Located in Nord-Mitte, this 6,000m² campus is the heart of the Berlin AI ecosystem, hosting weekly reading groups and tech talks.\n    *   Campus Events Calendar\n*   **BLISS (Berlin AI Community)**: A student and professional community that organizes high-quality workshops and speaker series.\n    *   BLISS Official Site\n*   **[CODE University](wiki:CODE_University_of_Applied_Sciences)**: Often hosts \"Global AI Bootcamps\" and hands-on sessions for students and the public at their Delta Campus in Neukölln.\n\n### Practical Tips for Joining\n1.  **RSVP Early:** Many of these events (especially the BLISS and Tinkerers sessions) have limited spots and require screening or early registration.\n2.  **Bring a Laptop:** Most \"workshops\" expect you to follow along with code. Ensure you have a local environment or a [GitHub](wiki:GitHub) account ready.\n3.  **Join the Slacks:** Groups like AI Tinkerers and [Hackers/Founders](/#settings/apps/web) have local Slack/Discord channels where most \"last-minute\" build sessions are organized.\n\nWould you like me to help you find more specific resources for a particular AI tool you're learning, such as [PyTorch](wiki:PyTorch) or [LangChain](wiki:LangChain)?\n\n**Next Steps:**\n- [Browse more AI events in Berlin](/#settings/apps/events)\n- [Search for AI tutorials on YouTube](/#settings/apps/videos)"
-      }
-    },
-    "air_fryers_amazon_germany": {
-      "title": {
-        "text": "जर्मनी में एयर फ्रायर्स की तुलना"
-      },
-      "summary": {
-        "text": "कीमत, क्षमता और रेटिंग के आधार पर Amazon जर्मनी के टॉप एयर फ्रायर्स की तुलना की गई, और दो लोगों के परिवार के लिए Philips Airfryer 2000 Series का सुझाव दिया गया।"
-      },
-      "message_1": {
-        "text": "जर्मनी में ऑनलाइन खरीदे जा सकने वाले एयर फ्रायर खोजें, जिनमें Amazon लिस्टिंग भी शामिल हों। मौजूदा कीमतों, क्षमता और रिव्यू रेटिंग की तुलना करें, फिर सोर्स लिंक के साथ दो लोगों के परिवार के लिए किसी एक का सुझाव दें।"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\nअमेज़न जर्मनी पर वर्तमान में उपलब्ध टॉप-रेटेड एयर फ्रायर की तुलना यहाँ दी गई है, जिसमें कीमत, क्षमता और ग्राहक रेटिंग की तुलना की गई है।\n\n---\n\n### जर्मनी में लोकप्रिय मॉडलों की तुलना\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### 2-व्यक्तियों वाले परिवार के लिए शीर्ष अनुशंसा\n\n#### **प्राथमिक विकल्प: [Philips Airfryer 2000 Series 6.2L](embed:philips-airfryer-2000-fay)**\n\n* **यह दो लोगों के लिए सबसे उपयुक्त क्यों है:**\n  * **इष्टतम क्षमता (6.2 L):** 4.5–5 L से छोटी बास्केट में दो लोगों के लिए भी कई बार में खाना पकाना पड़ता है। 6.2 L की बास्केट आपको दो सैल्मन फिलेट्स और सब्जियों या फ्राइज़ की पूरी साइड को एक ही परत में सपाट रखने की अनुमति देती है ताकि वे समान रूप से क्रिस्पी हो सकें।\n  * **किचन फुटप्रिंट:** डुअल-ज़ोन मशीनें (जैसे Ninja या Russell Hobbs) काउंटर पर काफी जगह घेरती हैं। एक सिंगल 6 L बास्केट पर्याप्त वॉल्यूम प्रदान करती है और साथ ही इसका आकार कॉम्पैक्ट रहता है जो सामान्य जर्मन किचन वर्कटॉप के लिए उपयुक्त है।\n  * **पारदर्शी खिड़की:** दराज को खोले बिना और गर्मी को कम किए बिना खाना कितना पका है, यह देखने की अनुमति देती है।\n  * **वैल्यू:** €99.99 पर, यह [Philips](wiki:Philips) से उचित कीमत पर विश्वसनीय तापमान स्थिरता प्रदान करता है।\n\n#### **विकल्प (यदि आप अक्सर अलग-अलग तापमान पर दो व्यंजन पकाते हैं): [Philips Dual Basket 3000 Series (9.0L)](embed:philips-airfryer-dual-pjD)**\nयदि आप और आपके साथी अलग-अलग तापमान और समय पर प्रोटीन और साइड सब्जियां एक साथ तैयार करना पसंद करते हैं (जैसे, 180 °C पर चिकन ब्रेस्ट और 200 °C पर क्रिस्पी आलू), तो इस मॉडल पर वर्तमान में छूट है और यह €119.99 में उपलब्ध है और इसमें सिंक्रोनाइज़्ड कुकिंग टाइम की सुविधा है।\n\n---\n\n### खरीदने से पहले ध्यान रखने योग्य मुख्य बातें\n1. **दराज का आकार:** चौकोर बास्केट (जैसे Cosori और Philips) समान लीटर क्षमता वाली गोल बास्केट की तुलना में सपाट वस्तुओं (स्टेक, बेकिंग टिन, सीख) को बहुत बेहतर तरीके से समाहित करती हैं।\n2. **डिशवॉशर क्लीयरेंस:** सुनिश्चित करें कि आपके डिशवॉशर में 6 L की सिंगल दराज के लिए पर्याप्त रैक ऊंचाई है या नॉन-स्टिक कोटिंग के जीवन को बढ़ाने के लिए उन्हें हाथ से धोने पर विचार करें।"
-      },
-      "follow_up_1": {
-        "text": "एयर फ्रायर के लिए विशेष रूप से तैयार की गई रेसिपी खोजें"
-      },
-      "follow_up_2": {
-        "text": "सिंगल और डुअल बास्केट एयर फ्रायर के बीच मुख्य अंतर बताएं"
-      },
-      "follow_up_3": {
-        "text": "इस एयर फ्रायर के लिए संगत बेकिंग एक्सेसरीज खोजें"
-      },
-      "follow_up_4": {
-        "text": "एयर फ्रायर में रात का खाना बनाने के लिए शुरुआती लोगों के अनुकूल रेसिपी की सूची बनाएं"
-      },
-      "follow_up_5": {
-        "text": "इन मॉडलों के लिए वर्तमान ऊर्जा खपत रेटिंग की जांच करें"
-      },
-      "follow_up_6": {
-        "text": "सिरेमिक बनाम टेफ्लॉन कोटिंग्स के लिए सफाई और रखरखाव की आवश्यकताओं की तुलना करें"
       }
     },
     "artemis_ii_mission": {
@@ -9771,38 +9697,6 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"3a8114d9-0472-4627-9a73-8d331bef481f\", \"app_id\": \"images\", \"skill_id\": \"vectorize\"}\n```\n\nI'll convert that image to SVG for you now.Your SVG vectorization is processing! The conversion is underway and I'll update you once it's complete. This typically takes a moment as the system traces the raster image and converts it into scalable vector paths."
       }
     },
-    "jobs_in_sweden": {
-      "title": {
-        "text": "स्वीडन में डेवलपर जॉब्स"
-      },
-      "summary": {
-        "text": "स्टॉकहोम और माल्मो में वर्तमान डेवलपर नौकरियों की तुलना मूल लिस्टिंग और स्रोत-आधारित कार्यस्थल विवरणों के साथ करें।"
-      },
-      "message_1": {
-        "text": "स्वीडन की सार्वजनिक रोजगार सेवा से स्टॉकहोम में दो और माल्मो में दो वर्तमान सॉफ्टवेयर डेवलपर नौकरियां खोजें। प्रत्येक के लिए शीर्षक, नियोक्ता, कार्यस्थल शहर और मूल लिस्टिंग लिंक के साथ एक छोटा बुलेट दिखाएं। वेतन का आंकड़ा या घर से काम करने की व्यवस्था तभी शामिल करें जब उस लिस्टिंग में स्पष्ट रूप से बताया गया हो; अन्यथा 'उल्लेख नहीं है' कहें। उत्तर को 200 शब्दों से कम रखें।"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"ea23f42b-6a8d-4faf-912d-988d2ba20cf4\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"a9fafbeb-7f05-42d5-9dcd-cbc752f42ffd\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\nArbetsförmedlingen (Platsbanken) से वर्तमान सॉफ़्टवेयर डेवलपर लिस्टिंग:\n\n### स्टॉकहोम (Stockholm)\n\n* **पद:** Senior Systemutvecklare  \n  **नियोक्ता:** NXT Interim Stockholm AB  \n  **कार्यस्थल शहर:** स्टॉकहोम  \n  **मूल लिस्टिंग लिंक:** [Platsbanken annons 31589252](embed:senior-systemutvecklare-2ps)  \n  **वेतन:** उल्लेख नहीं है  \n  **घर से काम करने की व्यवस्था:** रिमोट वर्कप्लेस (*remote-arbetsplatser*) प्रदान करता है\n\n* **पद:** Javautvecklare  \n  **नियोक्ता:** AFRY AB  \n  **कार्यस्थल शहर:** स्टॉकहोम  \n  **मूल लिस्टिंग लिंक:** [Platsbanken annons 31588186](embed:javautvecklare-y47)  \n  **वेतन:** उल्लेख नहीं है  \n  **घर से काम करने की व्यवस्था:** हाइब्रिड काम का अवसर (*möjlighet till hybridarbete*)\n\n---\n\n### माल्मो (Malmö)\n\n* **पद:** Senior AI Engineer  \n  **नियोक्ता:** Iver Accelerate AB  \n  **कार्यस्थल शहर:** माल्मो  \n  **मूल लिस्टिंग लिंक:** [Platsbanken annons 31588387](embed:senior-ai-engineer-Duw)  \n  **वेतन:** उल्लेख नहीं है  \n  **घर से काम करने की व्यवस्था:** हाइब्रिड काम का अवसर (*möjlighet till hybridarbete*)\n\n* **पद:** Malmö: Systemutvecklare Affärssystem Hybrid  \n  **नियोक्ता:** Jobbakuten Väst AB  \n  **कार्यस्थल शहर:** माल्मो  \n  **मूल लिस्टिंग लिंक:** [Platsbanken annons 31574628](embed:malm-systemutvecklare-aff-umf)  \n  **वेतन:** उल्लेख नहीं है (लिस्टिंग में बिना किसी विशिष्ट आंकड़े के बाजार-दर वेतन का उल्लेख है)  \n  **घर से काम करने की व्यवस्था:** हाइब्रिड काम (*Hybridarbete*)"
-      },
-      "follow_up_1": {
-        "text": "गोथेनबर्ग में रिमोट सॉफ्टवेयर डेवलपर नौकरियों के लिए खोजें"
-      },
-      "follow_up_2": {
-        "text": "इन सीनियर डेवलपर भूमिकाओं की आवश्यकताओं की तुलना करें"
-      },
-      "follow_up_3": {
-        "text": "स्टॉकहोम में फ्रंटएंड डेवलपर पदों के लिए खोजें"
-      },
-      "follow_up_4": {
-        "text": "इन लिस्टिंग में बताए गए शीर्ष टेक्नोलॉजी स्टैक की सूची बनाएं"
-      },
-      "follow_up_5": {
-        "text": "स्वीडन में जूनियर डेवलपर लिस्टिंग के लिए खोजें"
-      },
-      "follow_up_6": {
-        "text": "स्वीडिश टेक नौकरियों में रिमोट वर्क ट्रेंड्स का सारांश दें"
-      }
-    },
     "launch_readiness_checklist_doc": {
       "title": {
         "text": "Launch readiness checklist document"
@@ -11015,38 +10909,6 @@
         "text": "डिकपलिंग कैपेसिटर विकल्पों के बारे में बताएं"
       }
     },
-    "vegetarian_recipes_from_fridge_vegetables": {
-      "title": {
-        "text": "फ्रिज की चीज़ों से शाकाहारी रेसिपी के आइडिया"
-      },
-      "summary": {
-        "text": "यूज़र ने पालक, गाजर, शिमला मिर्च और छोले का उपयोग करके शाकाहारी रेसिपी के आइडिया मांगे; असिस्टेंट ने तीन विकल्प दिए।"
-      },
-      "message_1": {
-        "text": "शाकाहारी रेसिपी के लिए कुछ सुझाव? मेरे पास फ्रिज में अभी भी पालक, गाजर, शिमला मिर्च और छोले हैं।"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\n**पालक, गाजर, शिमला मिर्च और छोले** के साथ, आपके पास स्वादिष्ट, फाइबर से भरपूर शाकाहारी भोजन के लिए एक ठोस आधार है।\n\nआप किस तरह का व्यंजन खाना चाहते हैं, इसके आधार पर यहाँ तीन अलग-अलग पाक दिशाएँ दी गई हैं:\n\n---\n\n### 1. ताज़ा और कुरकुरा: थाई-स्टाइल चॉप्ड सलाद\nयदि आप कुछ जल्दी बनने वाला, हल्का और कुरकुरा चाहते हैं, तो बारीक कटी हुई कच्ची मिर्च, गाजर और पालक को छोलों के साथ तीखी [मूंगफली](wiki:Peanut) और नींबू की ड्रेसिंग में मिलाएँ।\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. नमकीन पैटीज़: क्रिस्पी छोले और वेजी फ्रिटर्स\nयदि आप कुछ गर्म और छोटे आकार का (रैप्स, पीटा पॉकेट्स में बढ़िया, या दही के डिप के साथ) चाहते हैं, तो छोलों को मैश करें और उसमें बारीक कटी हुई गाजर, मिर्च और हल्का पका हुआ पालक मिलाएँ।\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. झटपट बनने वाला विकल्प: वार्म चिकपी एंड वेजिटेबल स्किलेट करी\nयदि आप बुनियादी पेंट्री स्टेपल (जैसे डिब्बाबंद नारियल का दूध या पिसे हुए टमाटर) का उपयोग करके वन-पैन मील बनाना चाहते हैं:\n1. **सुगंधित चीज़ों को भूनें:** एक कड़ाही में जैतून का तेल गरम करें, फिर कटा हुआ प्याज, बारीक कटा हुआ लहसुन और अदरक खुशबू आने तक पकाएं।\n2. **सख्त सब्जियां डालें:** गाजर और शिमला मिर्च को छोटे टुकड़ों में काट लें। उन्हें पिसा हुआ जीरा, [हल्दी](wiki:Turmeric), और एक चुटकी मिर्च पाउडर या करी पाउडर के साथ डालें।\n3. **धीमी आंच पर पकाएं:** धुले हुए छोले के साथ एक कप सब्जियों का शोरबा या नारियल का दूध डालें। ढककर 10-12 मिनट तक धीमी आंच पर पकाएं जब तक कि गाजर नरम न हो जाए।\n4. **पालक डालें:** अंत में ताज़ा पालक डालें और 1-2 मिनट तक पकाएं जब तक कि वह गहरा हरा और नरम न हो जाए। नींबू के रस के साथ समाप्त करें।\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"आज आप कौन सी कुकिंग स्टाइल पसंद करेंगे?\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"ताज़ा और कुरकुरा चॉप्ड सलाद\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"कुरकुरे पैन-फ्राइड फ्रिटर्स या पैटीज़\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"गरमागरम वन-पैन स्किलेट करी या स्टू\" }\n  ]\n}\n```"
-      },
-      "follow_up_1": {
-        "text": "स्किलिट करी के लिए अधिक विस्तृत निर्देश और सामग्री के सटीक माप खोजें"
-      },
-      "follow_up_2": {
-        "text": "मील प्रेप के लिए बचे हुए पके हुए छोले के पकोड़ों (चिकपी फ्रिटर्स) को तैयार करने और स्टोर करने का तरीका बताएं"
-      },
-      "follow_up_3": {
-        "text": "छोले के पकोड़ों के साथ अच्छे लगने वाले वीगन योगर्ट डिप की रेसिपी खोजें"
-      },
-      "follow_up_4": {
-        "text": "अगर मेरे पास स्किलिट मील के लिए करी पाउडर नहीं है, तो मसालों के सरल विकल्पों की सूची दें"
-      },
-      "follow_up_5": {
-        "text": "थाई-स्टाइल चॉप्ड सलाद के लिए ताहिनी का उपयोग करने वाली वैकल्पिक ड्रेसिंग रेसिपी खोजें"
-      },
-      "follow_up_6": {
-        "text": "इन तीन शाकाहारी रेसिपी विकल्पों के प्रोटीन और फाइबर सामग्री की तुलना करें"
-      }
-    },
     "vital_farms_sec_financials": {
       "title": {
         "text": "Vital Farms SEC वित्तीय विवरण (Financials)"
@@ -11109,6 +10971,70 @@
       },
       "follow_up_6": {
         "text": "बोले गए विचारों को व्यवस्थित टास्क में बदलने के विभिन्न तरीकों की तुलना करें"
+      }
+    },
+    "vegetarian_recipes_from_fridge_vegetables": {
+      "title": {
+        "text": "फ्रिज की चीज़ों से शाकाहारी रेसिपी के आइडिया"
+      },
+      "summary": {
+        "text": "यूज़र ने पालक, गाजर, शिमला मिर्च और छोले का उपयोग करके शाकाहारी रेसिपी के आइडिया मांगे; असिस्टेंट ने तीन विकल्प दिए।"
+      },
+      "message_1": {
+        "text": "शाकाहारी रेसिपी के लिए कुछ सुझाव? मेरे पास फ्रिज में अभी भी पालक, गाजर, शिमला मिर्च और छोले हैं।"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\n**पालक, गाजर, शिमला मिर्च और छोले** के साथ, आपके पास स्वादिष्ट, फाइबर से भरपूर शाकाहारी भोजन के लिए एक ठोस आधार है।\n\nआप किस तरह का व्यंजन खाना चाहते हैं, इसके आधार पर यहाँ तीन अलग-अलग पाक दिशाएँ दी गई हैं:\n\n---\n\n### 1. ताज़ा और कुरकुरा: थाई-स्टाइल चॉप्ड सलाद\nयदि आप कुछ जल्दी बनने वाला, हल्का और कुरकुरा चाहते हैं, तो बारीक कटी हुई कच्ची मिर्च, गाजर और पालक को छोलों के साथ तीखी [मूंगफली](wiki:Peanut) और नींबू की ड्रेसिंग में मिलाएँ।\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. नमकीन पैटीज़: क्रिस्पी छोले और वेजी फ्रिटर्स\nयदि आप कुछ गर्म और छोटे आकार का (रैप्स, पीटा पॉकेट्स में बढ़िया, या दही के डिप के साथ) चाहते हैं, तो छोलों को मैश करें और उसमें बारीक कटी हुई गाजर, मिर्च और हल्का पका हुआ पालक मिलाएँ।\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. झटपट बनने वाला विकल्प: वार्म चिकपी एंड वेजिटेबल स्किलेट करी\nयदि आप बुनियादी पेंट्री स्टेपल (जैसे डिब्बाबंद नारियल का दूध या पिसे हुए टमाटर) का उपयोग करके वन-पैन मील बनाना चाहते हैं:\n1. **सुगंधित चीज़ों को भूनें:** एक कड़ाही में जैतून का तेल गरम करें, फिर कटा हुआ प्याज, बारीक कटा हुआ लहसुन और अदरक खुशबू आने तक पकाएं।\n2. **सख्त सब्जियां डालें:** गाजर और शिमला मिर्च को छोटे टुकड़ों में काट लें। उन्हें पिसा हुआ जीरा, [हल्दी](wiki:Turmeric), और एक चुटकी मिर्च पाउडर या करी पाउडर के साथ डालें।\n3. **धीमी आंच पर पकाएं:** धुले हुए छोले के साथ एक कप सब्जियों का शोरबा या नारियल का दूध डालें। ढककर 10-12 मिनट तक धीमी आंच पर पकाएं जब तक कि गाजर नरम न हो जाए।\n4. **पालक डालें:** अंत में ताज़ा पालक डालें और 1-2 मिनट तक पकाएं जब तक कि वह गहरा हरा और नरम न हो जाए। नींबू के रस के साथ समाप्त करें।\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"आज आप कौन सी कुकिंग स्टाइल पसंद करेंगे?\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"ताज़ा और कुरकुरा चॉप्ड सलाद\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"कुरकुरे पैन-फ्राइड फ्रिटर्स या पैटीज़\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"गरमागरम वन-पैन स्किलेट करी या स्टू\" }\n  ]\n}\n```"
+      },
+      "follow_up_1": {
+        "text": "स्किलिट करी के लिए अधिक विस्तृत निर्देश और सामग्री के सटीक माप खोजें"
+      },
+      "follow_up_2": {
+        "text": "मील प्रेप के लिए बचे हुए पके हुए छोले के पकोड़ों (चिकपी फ्रिटर्स) को तैयार करने और स्टोर करने का तरीका बताएं"
+      },
+      "follow_up_3": {
+        "text": "छोले के पकोड़ों के साथ अच्छे लगने वाले वीगन योगर्ट डिप की रेसिपी खोजें"
+      },
+      "follow_up_4": {
+        "text": "अगर मेरे पास स्किलिट मील के लिए करी पाउडर नहीं है, तो मसालों के सरल विकल्पों की सूची दें"
+      },
+      "follow_up_5": {
+        "text": "थाई-स्टाइल चॉप्ड सलाद के लिए ताहिनी का उपयोग करने वाली वैकल्पिक ड्रेसिंग रेसिपी खोजें"
+      },
+      "follow_up_6": {
+        "text": "इन तीन शाकाहारी रेसिपी विकल्पों के प्रोटीन और फाइबर सामग्री की तुलना करें"
+      }
+    },
+    "air_fryers_amazon_germany": {
+      "title": {
+        "text": "जर्मनी में एयर फ्रायर्स की तुलना"
+      },
+      "summary": {
+        "text": "कीमत, क्षमता और रेटिंग के आधार पर Amazon जर्मनी के टॉप एयर फ्रायर्स की तुलना की गई, और दो लोगों के परिवार के लिए Philips Airfryer 2000 Series का सुझाव दिया गया।"
+      },
+      "message_1": {
+        "text": "जर्मनी में ऑनलाइन खरीदे जा सकने वाले एयर फ्रायर खोजें, जिनमें Amazon लिस्टिंग भी शामिल हों। मौजूदा कीमतों, क्षमता और रिव्यू रेटिंग की तुलना करें, फिर सोर्स लिंक के साथ दो लोगों के परिवार के लिए किसी एक का सुझाव दें।"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\nअमेज़न जर्मनी पर वर्तमान में उपलब्ध टॉप-रेटेड एयर फ्रायर की तुलना यहाँ दी गई है, जिसमें कीमत, क्षमता और ग्राहक रेटिंग की तुलना की गई है।\n\n---\n\n### जर्मनी में लोकप्रिय मॉडलों की तुलना\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### 2-व्यक्तियों वाले परिवार के लिए शीर्ष अनुशंसा\n\n#### **प्राथमिक विकल्प: [Philips Airfryer 2000 Series 6.2L](embed:philips-airfryer-2000-fay)**\n\n* **यह दो लोगों के लिए सबसे उपयुक्त क्यों है:**\n  * **इष्टतम क्षमता (6.2 L):** 4.5–5 L से छोटी बास्केट में दो लोगों के लिए भी कई बार में खाना पकाना पड़ता है। 6.2 L की बास्केट आपको दो सैल्मन फिलेट्स और सब्जियों या फ्राइज़ की पूरी साइड को एक ही परत में सपाट रखने की अनुमति देती है ताकि वे समान रूप से क्रिस्पी हो सकें।\n  * **किचन फुटप्रिंट:** डुअल-ज़ोन मशीनें (जैसे Ninja या Russell Hobbs) काउंटर पर काफी जगह घेरती हैं। एक सिंगल 6 L बास्केट पर्याप्त वॉल्यूम प्रदान करती है और साथ ही इसका आकार कॉम्पैक्ट रहता है जो सामान्य जर्मन किचन वर्कटॉप के लिए उपयुक्त है।\n  * **पारदर्शी खिड़की:** दराज को खोले बिना और गर्मी को कम किए बिना खाना कितना पका है, यह देखने की अनुमति देती है।\n  * **वैल्यू:** €99.99 पर, यह [Philips](wiki:Philips) से उचित कीमत पर विश्वसनीय तापमान स्थिरता प्रदान करता है।\n\n#### **विकल्प (यदि आप अक्सर अलग-अलग तापमान पर दो व्यंजन पकाते हैं): [Philips Dual Basket 3000 Series (9.0L)](embed:philips-airfryer-dual-pjD)**\nयदि आप और आपके साथी अलग-अलग तापमान और समय पर प्रोटीन और साइड सब्जियां एक साथ तैयार करना पसंद करते हैं (जैसे, 180 °C पर चिकन ब्रेस्ट और 200 °C पर क्रिस्पी आलू), तो इस मॉडल पर वर्तमान में छूट है और यह €119.99 में उपलब्ध है और इसमें सिंक्रोनाइज़्ड कुकिंग टाइम की सुविधा है।\n\n---\n\n### खरीदने से पहले ध्यान रखने योग्य मुख्य बातें\n1. **दराज का आकार:** चौकोर बास्केट (जैसे Cosori और Philips) समान लीटर क्षमता वाली गोल बास्केट की तुलना में सपाट वस्तुओं (स्टेक, बेकिंग टिन, सीख) को बहुत बेहतर तरीके से समाहित करती हैं।\n2. **डिशवॉशर क्लीयरेंस:** सुनिश्चित करें कि आपके डिशवॉशर में 6 L की सिंगल दराज के लिए पर्याप्त रैक ऊंचाई है या नॉन-स्टिक कोटिंग के जीवन को बढ़ाने के लिए उन्हें हाथ से धोने पर विचार करें।"
+      },
+      "follow_up_1": {
+        "text": "एयर फ्रायर के लिए विशेष रूप से तैयार की गई रेसिपी खोजें"
+      },
+      "follow_up_2": {
+        "text": "सिंगल और डुअल बास्केट एयर फ्रायर के बीच मुख्य अंतर बताएं"
+      },
+      "follow_up_3": {
+        "text": "इस एयर फ्रायर के लिए संगत बेकिंग एक्सेसरीज खोजें"
+      },
+      "follow_up_4": {
+        "text": "एयर फ्रायर में रात का खाना बनाने के लिए शुरुआती लोगों के अनुकूल रेसिपी की सूची बनाएं"
+      },
+      "follow_up_5": {
+        "text": "इन मॉडलों के लिए वर्तमान ऊर्जा खपत रेटिंग की जांच करें"
+      },
+      "follow_up_6": {
+        "text": "सिरेमिक बनाम टेफ्लॉन कोटिंग्स के लिए सफाई और रखरखाव की आवश्यकताओं की तुलना करें"
       }
     }
   },
@@ -12898,7 +12824,7 @@
             "text": "नौकरी खोज सेवाएँ"
           },
           "description": {
-            "text": "केवल नौकरी खोजते समय उपयोग की जाती हैं। जर्मन संघीय रोजगार एजेंसी और JobTech को सर्वर अनुरोधों में चुने गए खोज शब्द, स्थान और लागू फ़िल्टर मिलते हैं। Arbeitnow सार्वजनिक फ़ीड देता है जिसे OpenMates स्थानीय रूप से फ़िल्टर करता है। OpenMates उपयोगकर्ता ID, CV या खाते के क्रेडेंशियल नहीं भेजे जाते। 80,000 Hours खोज शब्द और देश Algolia को भेजता है; Hard Problems को केवल देश मिलता है। स्थान और अन्य फ़िल्टर स्थानीय रूप से जाँचे जाते हैं।"
+            "text": "केवल नौकरी खोजते समय उपयोग की जाती हैं। जर्मन संघीय रोजगार एजेंसी और JobTech को सर्वर अनुरोधों में चुने गए खोज शब्द, स्थान और लागू फ़िल्टर मिलते हैं। Arbeitnow सार्वजनिक फ़ीड देता है जिसे OpenMates स्थानीय रूप से फ़िल्टर करता है। OpenMates उपयोगकर्ता ID, CV या खाते के क्रेडेंशियल नहीं भेजे जाते।"
           },
           "arbeitsagentur": {
             "heading": {
@@ -12922,22 +12848,6 @@
             },
             "description": {
               "text": "OpenMates, Arbeitnow की सार्वजनिक नौकरी फ़ीड प्राप्त करता है। आपके खोज शब्द, स्थान और फ़िल्टर स्थानीय रूप से लागू होते हैं और Arbeitnow को नहीं भेजे जाते।"
-            }
-          },
-          "eighty_thousand_hours": {
-            "heading": {
-              "text": "80,000 Hours Job Board"
-            },
-            "description": {
-              "text": "80,000 Hours का सार्वजनिक जॉब बोर्ड Algolia खोज का उपयोग करता है। आपके शब्द और चुना गया देश भेजे जाते हैं; स्थान और अन्य फ़िल्टर OpenMates स्थानीय रूप से जाँचता है। OpenMates उपयोगकर्ता ID, CV या खाते की जानकारी नहीं भेजी जाती।"
-            }
-          },
-          "hard_problems": {
-            "heading": {
-              "text": "Hard Problems"
-            },
-            "description": {
-              "text": "OpenMates आपके चुने हुए देश के लिए Hard Problems की सार्वजनिक जॉब फ़ीड प्राप्त करता है। शब्द, स्थान और अन्य फ़िल्टर स्थानीय रूप से जाँचे जाते हैं और Hard Problems को नहीं भेजे जाते। OpenMates उपयोगकर्ता ID, CV या खाते की जानकारी नहीं भेजी जाती।"
             }
           }
         }
@@ -16469,16 +16379,6 @@
       }
     },
     "app_store_examples": {
-      "jobs": {
-        "search": {
-          "1": {
-            "text": "स्टॉकहोम में सॉफ़्टवेयर डेवलपर की नौकरियाँ"
-          },
-          "2": {
-            "text": "माल्मो में सॉफ़्टवेयर डेवलपर की नौकरियाँ"
-          }
-        }
-      },
       "hosting": {
         "search_domains": {
           "1": {

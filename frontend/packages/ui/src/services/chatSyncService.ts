@@ -2,7 +2,6 @@
 // Handles chat data synchronization between client and server via WebSockets.
 import { chatDB } from "./db";
 import { clearPersonalChatTurnBarriers, failPersonalChatMessage, failPersonalChatTurn, reservePersonalChatTurn } from "./personalChatTurnBarrier";
-import { clearDraftContextDispatchBarriers } from "./draftContextDispatchBarrier";
 import { getApiEndpoint } from '../config/api';
 import { getWorkspaceCacheIdentity } from './workspaceQueryCache';
 import { chatKeyManager } from "./encryption/ChatKeyManager";
@@ -862,10 +861,7 @@ export class ChatSynchronizationService extends EventTarget {
         // A lost transport cannot prove whether a terminal recovery ACK reached
         // this device. Reject queued dependents; they can retry after sync with
         // a fresh authoritative version instead of waiting indefinitely.
-        if (wasWebSocketConnected) {
-          clearPersonalChatTurnBarriers();
-          clearDraftContextDispatchBarriers();
-        }
+        if (wasWebSocketConnected) clearPersonalChatTurnBarriers();
         this.resetCacheStatusCountEvidence();
         console.warn(
           "[ChatSyncService] WebSocket disconnected or error.",
@@ -2289,6 +2285,12 @@ export class ChatSynchronizationService extends EventTarget {
           e,
         );
       }
+    });
+
+    webSocketService.on("voice_action_completed", (payload) => {
+      void import("./voiceCallActions").then(({ handleVoiceActionCompleted }) =>
+        handleVoiceActionCompleted(this, payload),
+      ).catch(() => { console.warn("[ChatSyncService] Committed voice action could not be persisted"); });
     });
 
     webSocketService.on("ai_message_ready", (payload) =>

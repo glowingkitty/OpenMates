@@ -119,6 +119,9 @@ export default defineConfig({
 		}
 	},
 	optimizeDeps: {
+		// Discover the lazy voice worker dependency at startup so dev previews do
+		// not reload and interrupt a call when local speech detection first starts.
+		include: ['@repo/ui > onnxruntime-web/wasm'],
 		// Exclude problematic modules from pre-bundling
 		exclude: [
 			'@fontsource-variable/lexend-deca',

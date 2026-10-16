@@ -1,3 +1,4 @@
+import { isActiveVoiceCallRow } from "./voiceCallOwnership";
 // frontend/packages/ui/src/services/db.ts
 // Manages IndexedDB storage for chat-related data.
 //
@@ -2343,7 +2344,13 @@ class ChatDatabase {
         const request = store.get(messageId);
         request.onsuccess = () => {
           const message = request.result as Message | undefined;
-          if (message?.chat_id !== chat_id) return;
+          if (message?.chat_id !== chat_id || message.status !== "synced" || isActiveVoiceCallRow(message)) return;
+          const pending = (message as Message & { call_persistence_v1?: {
+            typed_pending?: boolean; entries?: unknown[];
+          } }).call_persistence_v1;
+          // Compression archives only confirmed call revisions. A server receipt
+          // may race with newer provisional text or a durable ciphertext outbox.
+          if (pending?.typed_pending || pending?.entries?.length) return;
           store.delete(messageId);
           deleted += 1;
         };

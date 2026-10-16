@@ -7892,48 +7892,6 @@
           "text": "Filer i det här projektet"
         }
       }
-    },
-    "jobs": {
-      "search": {
-        "result_count": {
-          "text": "{count} jobb"
-        },
-        "partial_results": {
-          "text": "Vissa källor var inte tillgängliga"
-        },
-        "result": {
-          "title": {
-            "text": "Jobbannons"
-          },
-          "remote": {
-            "text": "På distans"
-          },
-          "published": {
-            "text": "Publicerad"
-          },
-          "source": {
-            "text": "Visa på {provider}"
-          },
-          "listing": {
-            "text": "annonskällan"
-          },
-          "apply": {
-            "text": "Öppna ansökningssidan"
-          },
-          "company": {
-            "text": "Företag"
-          },
-          "employment_type": {
-            "text": "Anställningsform"
-          },
-          "salary": {
-            "text": "Lön"
-          },
-          "description": {
-            "text": "Beskrivning"
-          }
-        }
-      }
     }
   },
   "enter_message": {
@@ -8497,38 +8455,6 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"e7002718-62f4-43b0-9078-1ab77993edc0\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI workshop\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b110fb02-f635-45b1-8ba7-aaf75b3f7de7\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI meetup\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b2b2b2a7-6b9c-464d-a86e-86ceafcd3bcc\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"build with AI\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"0e453b88-1f20-43fc-9aa1-aad8aab6ae8a\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"top AI developer meetups Berlin 2026 for beginners\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"c7b51044-a947-4471-a287-496459454ad6\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Berlin AI builder communities and recurring workshops\", \"provider\": \"Brave\"}\n```\n\nBerlin has one of Europe's most active [AI](wiki:Artificial_intelligence) builder scenes, transitioning from general theory to practical \"hands-on\" engineering. For someone learning to build with AI tools, the focus in June 2026 is heavily on [AI agents](wiki:Software_agent), [RAG (Retrieval-Augmented Generation)](wiki:Retrieval-augmented_generation), and production-ready architectures.\n\nHere are the top upcoming workshops and meetups in Berlin where you can build, demo, and learn from other practitioners.\n\n### Featured Hands-On Workshops\nThese sessions are specifically designed for those who want to write code and build prototypes.\n\n*   **BLISS x QuantCo: Build Your Own AI Agent**\n    *   **Date:** June 10, 2026 | 17:30\n    *   **Location:** Berlin-Mitte (Altonaer Str. 26)\n    *   **Focus:** An interactive session transitioning from [LLM APIs](wiki:Large_language_model) to building a custom agent that automates complex document workflows. **Bring your laptop.**\n    *   [Event Details & RSVP](embed:bliss-x-quantco-dWg)\n*   **Open Source Europe Tour: AI in Practice**\n    *   **Date:** June 8, 2026 | 17:30\n    *   **Location:** Netlight Consulting (Invalidenstraße 117)\n    *   **Focus:** A \"hype-free\" walkthrough of modern AI, explaining Agentic AI, fine-tuning vs. RAG, and connecting AI to data architectures.\n    *   [Event Details & RSVP](embed:open-source-europe-S4k)\n*   **AI Future-Club Kickoff (Hackers / Founders)**\n    *   **Date:** June 11, 2026 | 18:00\n    *   **Location:** TBD (Berlin)\n    *   **Focus:** A session for developers to \"get their hands dirty,\" discussing what to build and ship together, featuring live demos of recent projects.\n    *   [Event Details & RSVP](embed:ai-future-club-XOk)\n\n### Community Meetups for Builders\nThese events are excellent for networking and seeing what other local developers are currently building.\n\n*   **OpenClaw Anonymous Berlin #9**\n    *   **Date:** June 9, 2026 | 19:00\n    *   **Location:** w3.hub (Möckernstraße 120)\n    *   **Focus:** Informal \"laptop-out\" meetup where people showcase OpenClaw and AI agent setups. Perfect for sharing what works and what doesn't.\n    *   [Event Details & RSVP](embed:openclaw-anonymous-berlin-JA8)\n*   **AI Tinkerers Berlin**\n    *   **Date:** June 17, 2026\n    *   **Focus:** A screened, demo-first, \"no-pitch\" community. Expect live code, architecture lessons, and technical Q&A from local founders and engineers.\n    *   Berlin AI Tinkerers Portal\n*   **Spec-Driven Development: AI for Full-Stack Java**\n    *   **Date:** June 9, 2026 | 18:30\n    *   **Location:** Capgemini (Potsdamer Platz 5)\n    *   **Focus:** Learning how AI can generate code, diagrams, and tests from structured specifications.\n    *   [Event Details & RSVP](embed:spec-driven-development-rxI)\n\n### Key Hubs to Follow\nIf you want to stay in the loop, these organizations host the majority of builder-centric AI events in Berlin:\n\n*   **Merantix AI Campus**: Located in Nord-Mitte, this 6,000m² campus is the heart of the Berlin AI ecosystem, hosting weekly reading groups and tech talks.\n    *   Campus Events Calendar\n*   **BLISS (Berlin AI Community)**: A student and professional community that organizes high-quality workshops and speaker series.\n    *   BLISS Official Site\n*   **[CODE University](wiki:CODE_University_of_Applied_Sciences)**: Often hosts \"Global AI Bootcamps\" and hands-on sessions for students and the public at their Delta Campus in Neukölln.\n\n### Practical Tips for Joining\n1.  **RSVP Early:** Many of these events (especially the BLISS and Tinkerers sessions) have limited spots and require screening or early registration.\n2.  **Bring a Laptop:** Most \"workshops\" expect you to follow along with code. Ensure you have a local environment or a [GitHub](wiki:GitHub) account ready.\n3.  **Join the Slacks:** Groups like AI Tinkerers and [Hackers/Founders](/#settings/apps/web) have local Slack/Discord channels where most \"last-minute\" build sessions are organized.\n\nWould you like me to help you find more specific resources for a particular AI tool you're learning, such as [PyTorch](wiki:PyTorch) or [LangChain](wiki:LangChain)?\n\n**Next Steps:**\n- [Browse more AI events in Berlin](/#settings/apps/events)\n- [Search for AI tutorials on YouTube](/#settings/apps/videos)"
-      }
-    },
-    "air_fryers_amazon_germany": {
-      "title": {
-        "text": "Jämför airfryers i Tyskland"
-      },
-      "summary": {
-        "text": "Jämförde de populäraste airfryerna på Amazon Tyskland utifrån pris, kapacitet och betyg, och rekommenderade Philips Airfryer 2000-serien för ett hushåll på två personer."
-      },
-      "message_1": {
-        "text": "Hitta airfryers som jag kan köpa online i Tyskland, inklusive listningar på Amazon. Jämför aktuella priser, kapacitet och recensionsbetyg, och rekommendera sedan en för ett hushåll på två personer med källänkar."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\nHär är en jämförelse av topprankade airfryers som för närvarande finns tillgängliga på Amazon Tyskland, med jämförelse av pris, kapacitet och kundbetyg.\n\n---\n\n### Jämförelse av populära modeller i Tyskland\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### Topprekommendation för ett 2-personershushåll\n\n#### **Huvudval: [Philips Airfryer 2000 Series 6.2L](embed:philips-airfryer-2000-fay)**\n\n* **Varför den passar bäst för två personer:**\n  * **Optimal kapacitet (6,2 L):** Korgar mindre än 4,5–5 L kräver tillagning i flera omgångar även för två personer. En korg på 6,2 L gör att du kan lägga två laxfiléer och en hel portion grönsaker eller pommes frites platt i ett lager för jämn krispighet.\n  * **Plats i köket:** Maskiner med dubbla zoner (som Ninja eller Russell Hobbs) tar upp betydande bänkyta. En enkel korg på 6 L ger gott om volym samtidigt som den behåller ett kompakt format som passar typiska tyska köksbänkar.\n  * **Genomskinligt fönster:** Gör det möjligt att kontrollera bryningen utan att dra ut lådan och förlora värme.\n  * **Prisvärdhet:** För 99,99 € erbjuder den pålitlig temperaturstabilitet från [Philips](wiki:Philips) till en rimlig prispunkt.\n\n#### **Alternativ (om du ofta lagar två rätter vid olika temperaturer): [Philips Dual Basket 3000 Series (9.0L)](embed:philips-airfryer-dual-pjD)**\nOm du och din partner föredrar att tillaga protein och grönsaker samtidigt vid olika temperaturer och tider (t.ex. kycklingbröst vid 180 °C och krispig potatis vid 200 °C), är denna modell för närvarande nedsatt till 119,99 € och har synkroniserade tillagningstider.\n\n---\n\n### Viktiga faktorer att tänka på före köp\n1. **Lådans form:** Fyrkantiga korgar (som Cosori och Philips) rymmer platta föremål (biffar, bakformar, spett) mycket bättre än runda korgar med samma literkapacitet.\n2. **Plats i diskmaskinen:** Se till att din diskmaskin har tillräcklig höjd för en 6 L enkel låda, eller överväg att handdiska non-stick-beläggningar för att förlänga deras livslängd."
-      },
-      "follow_up_1": {
-        "text": "Sök efter recept som är specifikt framtagna för airfryers"
-      },
-      "follow_up_2": {
-        "text": "Förklara de främsta skillnaderna mellan airfryers med enkel och dubbel korg"
-      },
-      "follow_up_3": {
-        "text": "Hitta kompatibla baktillbehör till den här airfryern"
-      },
-      "follow_up_4": {
-        "text": "Lista nybörjarvänliga recept för att laga middag i en airfryer"
-      },
-      "follow_up_5": {
-        "text": "Kontrollera aktuell energiförbrukning för dessa modeller"
-      },
-      "follow_up_6": {
-        "text": "Jämför rengörings- och underhållskrav för keramik- kontra teflonbeläggningar"
       }
     },
     "artemis_ii_mission": {
@@ -9771,38 +9697,6 @@
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"3a8114d9-0472-4627-9a73-8d331bef481f\", \"app_id\": \"images\", \"skill_id\": \"vectorize\"}\n```\n\nI'll convert that image to SVG for you now.Your SVG vectorization is processing! The conversion is underway and I'll update you once it's complete. This typically takes a moment as the system traces the raster image and converts it into scalable vector paths."
       }
     },
-    "jobs_in_sweden": {
-      "title": {
-        "text": "Utvecklarjobb i Sverige"
-      },
-      "summary": {
-        "text": "Jämför aktuella utvecklarjobb i Stockholm och Malmö med originalannonser och källbaserad information om arbetsplatsen."
-      },
-      "message_1": {
-        "text": "Hitta två aktuella jobb som mjukvaruutvecklare i Stockholm och två i Malmö från Arbetsförmedlingen. Visa en kort punktlista för varje med titel, arbetsgivare, arbetsort och länk till originalannonsen. Inkludera lön eller möjlighet till distansarbete endast om det uttryckligen anges i annonsen; annars skriv att det inte anges. Håll svaret under 200 ord."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"ea23f42b-6a8d-4faf-912d-988d2ba20cf4\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"a9fafbeb-7f05-42d5-9dcd-cbc752f42ffd\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\nAktuella annonser för mjukvaruutvecklare från Arbetsförmedlingen (Platsbanken):\n\n### Stockholm\n\n* **Titel:** Senior Systemutvecklare  \n  **Arbetsgivare:** NXT Interim Stockholm AB  \n  **Arbetsort:** Stockholm  \n  **Länk till originalannons:** [Platsbanken annons 31589252](embed:senior-systemutvecklare-2ps)  \n  **Lön:** Ej angivet  \n  **Möjlighet till distansarbete:** Erbjuder distansarbetsplatser (*remote-arbetsplatser*)\n\n* **Titel:** Javautvecklare  \n  **Arbetsgivare:** AFRY AB  \n  **Arbetsort:** Stockholm  \n  **Länk till originalannons:** [Platsbanken annons 31588186](embed:javautvecklare-y47)  \n  **Lön:** Ej angivet  \n  **Möjlighet till distansarbete:** Möjlighet till hybridarbete (*möjlighet till hybridarbete*)\n\n---\n\n### Malmö\n\n* **Titel:** Senior AI Engineer  \n  **Arbetsgivare:** Iver Accelerate AB  \n  **Arbetsort:** Malmö  \n  **Länk till originalannons:** [Platsbanken annons 31588387](embed:senior-ai-engineer-Duw)  \n  **Lön:** Ej angivet  \n  **Möjlighet till distansarbete:** Möjlighet till hybridarbete (*möjlighet till hybridarbete*)\n\n* **Titel:** Malmö: Systemutvecklare Affärssystem Hybrid  \n  **Arbetsgivare:** Jobbakuten Väst AB  \n  **Arbetsort:** Malmö  \n  **Länk till originalannons:** [Platsbanken annons 31574628](embed:malm-systemutvecklare-aff-umf)  \n  **Lön:** Ej angivet (annonsen nämner marknadsmässig lön utan en specifik siffra)  \n  **Möjlighet till distansarbete:** Hybridarbete (*Hybridarbete*)"
-      },
-      "follow_up_1": {
-        "text": "Sök efter distansjobb som mjukvaruutvecklare i Göteborg"
-      },
-      "follow_up_2": {
-        "text": "Jämför kraven för dessa seniora utvecklarroller"
-      },
-      "follow_up_3": {
-        "text": "Sök efter frontend-utvecklartjänster i Stockholm"
-      },
-      "follow_up_4": {
-        "text": "Lista de vanligaste teknikstackarna som nämns i dessa annonser"
-      },
-      "follow_up_5": {
-        "text": "Sök efter juniora utvecklarannonser i Sverige"
-      },
-      "follow_up_6": {
-        "text": "Sammanfatta trenderna för distansarbete inom svenska teknikjobb"
-      }
-    },
     "launch_readiness_checklist_doc": {
       "title": {
         "text": "Launch readiness checklist document"
@@ -11015,38 +10909,6 @@
         "text": "Förklara valet av avkopplingskondensatorer"
       }
     },
-    "vegetarian_recipes_from_fridge_vegetables": {
-      "title": {
-        "text": "Vegetariska receptidéer med basvaror från kylen"
-      },
-      "summary": {
-        "text": "Användaren bad om vegetariska receptidéer med spenat, morötter, paprika och kikärtor; assistenten gav tre alternativ."
-      },
-      "message_1": {
-        "text": "Rekommendationer på vegetariska recept? Jag har fortfarande spenat, morötter, paprika och kikärtor i kylen."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\nMed **spenat, morötter, paprika och kikärtor** har du en bra grund för goda, fiberrika vegetariska måltider. \n\nHär är tre olika kulinariska inriktningar beroende på vilken typ av rätt du är sugen på:\n\n---\n\n### 1. Fräscht & krispigt: Hackad sallad i thailändsk stil\nOm du vill ha något snabbt, lätt och krispigt kan du blanda finhackad rå paprika, morötter och spenat med kikärtor i en syrlig [jordnöts-](wiki:Peanut) och limedressing.\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. Matiga biffar: Krispiga kikärts- och grönsaksfritters\nOm du vill ha något varmt i lagom stora bitar (perfekt i wraps, pitabröd eller tillsammans med en yoghurtdipp), mosa kikärtorna och vänd ner finhackade morötter, paprika och förvälld spenat.\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. Snabbt vardagsalternativ: Varm kikärts- och grönsakscurry i panna\nOm du vill ha en allt-i-ett-rätt med basvaror från skafferiet (som kokosmjölk på burk eller krossade tomater):\n1. **Fräs smakgivarna:** Hetta upp olivolja i en panna och stek tärnad lök, finhackad vitlök och ingefära tills det doftar gott.\n2. **Tillsätt de fasta grönsakerna:** Skär morötterna och paprikan i munsbitsstora bitar. Blanda ner dem tillsammans med mald spiskummin, [gurkmeja](wiki:Turmeric) och en nypa chilipulver eller curry.\n3. **Sjud:** Tillsätt dina sköljda kikärtor tillsammans med ett par deciliter grönsaksbuljong eller kokosmjölk. Lägg på ett lock och sjud i 10–12 minuter tills morötterna är mjuka.\n4. **Låt spenaten mjukna:** Rör ner den färska spenaten precis på slutet i 1–2 minuter tills den är klarstark grön och har mjuknat. Avsluta med en skvätt citronsaft.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"Vilken matlagningsstil föredrar du idag?\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"Fräsch och krispig hackad sallad\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"Krispiga stekta fritters eller biffar\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"Varm curry eller gryta i panna\" }\n  ]\n}\n```"
-      },
-      "follow_up_1": {
-        "text": "Sök efter mer detaljerade instruktioner och fullständiga mått för ingredienserna till curryn i stekpanna"
-      },
-      "follow_up_2": {
-        "text": "Förklara hur man förbereder och förvarar överblivna kikärtsbiffar för matlådor"
-      },
-      "follow_up_3": {
-        "text": "Sök efter recept på vegansk yoghurtdipp som passar bra till kikärtsbiffar"
-      },
-      "follow_up_4": {
-        "text": "Lista enkla kryddersättningar om jag saknar currypulver till stekpannerätten"
-      },
-      "follow_up_5": {
-        "text": "Sök efter alternativa dressingrecept med tahini till den thailändska hackade salladen"
-      },
-      "follow_up_6": {
-        "text": "Jämför protein- och fiberinnehållet i dessa tre vegetariska receptalternativ"
-      }
-    },
     "vital_farms_sec_financials": {
       "title": {
         "text": "Vital Farms SEC-ekonomi"
@@ -11109,6 +10971,70 @@
       },
       "follow_up_6": {
         "text": "Jämför olika metoder för att omvandla talade idéer till organiserade uppgifter"
+      }
+    },
+    "vegetarian_recipes_from_fridge_vegetables": {
+      "title": {
+        "text": "Vegetariska receptidéer med basvaror från kylen"
+      },
+      "summary": {
+        "text": "Användaren bad om vegetariska receptidéer med spenat, morötter, paprika och kikärtor; assistenten gav tre alternativ."
+      },
+      "message_1": {
+        "text": "Rekommendationer på vegetariska recept? Jag har fortfarande spenat, morötter, paprika och kikärtor i kylen."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\nMed **spenat, morötter, paprika och kikärtor** har du en bra grund för goda, fiberrika vegetariska måltider. \n\nHär är tre olika kulinariska inriktningar beroende på vilken typ av rätt du är sugen på:\n\n---\n\n### 1. Fräscht & krispigt: Hackad sallad i thailändsk stil\nOm du vill ha något snabbt, lätt och krispigt kan du blanda finhackad rå paprika, morötter och spenat med kikärtor i en syrlig [jordnöts-](wiki:Peanut) och limedressing.\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. Matiga biffar: Krispiga kikärts- och grönsaksfritters\nOm du vill ha något varmt i lagom stora bitar (perfekt i wraps, pitabröd eller tillsammans med en yoghurtdipp), mosa kikärtorna och vänd ner finhackade morötter, paprika och förvälld spenat.\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. Snabbt vardagsalternativ: Varm kikärts- och grönsakscurry i panna\nOm du vill ha en allt-i-ett-rätt med basvaror från skafferiet (som kokosmjölk på burk eller krossade tomater):\n1. **Fräs smakgivarna:** Hetta upp olivolja i en panna och stek tärnad lök, finhackad vitlök och ingefära tills det doftar gott.\n2. **Tillsätt de fasta grönsakerna:** Skär morötterna och paprikan i munsbitsstora bitar. Blanda ner dem tillsammans med mald spiskummin, [gurkmeja](wiki:Turmeric) och en nypa chilipulver eller curry.\n3. **Sjud:** Tillsätt dina sköljda kikärtor tillsammans med ett par deciliter grönsaksbuljong eller kokosmjölk. Lägg på ett lock och sjud i 10–12 minuter tills morötterna är mjuka.\n4. **Låt spenaten mjukna:** Rör ner den färska spenaten precis på slutet i 1–2 minuter tills den är klarstark grön och har mjuknat. Avsluta med en skvätt citronsaft.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"Vilken matlagningsstil föredrar du idag?\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"Fräsch och krispig hackad sallad\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"Krispiga stekta fritters eller biffar\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"Varm curry eller gryta i panna\" }\n  ]\n}\n```"
+      },
+      "follow_up_1": {
+        "text": "Sök efter mer detaljerade instruktioner och fullständiga mått för ingredienserna till curryn i stekpanna"
+      },
+      "follow_up_2": {
+        "text": "Förklara hur man förbereder och förvarar överblivna kikärtsbiffar för matlådor"
+      },
+      "follow_up_3": {
+        "text": "Sök efter recept på vegansk yoghurtdipp som passar bra till kikärtsbiffar"
+      },
+      "follow_up_4": {
+        "text": "Lista enkla kryddersättningar om jag saknar currypulver till stekpannerätten"
+      },
+      "follow_up_5": {
+        "text": "Sök efter alternativa dressingrecept med tahini till den thailändska hackade salladen"
+      },
+      "follow_up_6": {
+        "text": "Jämför protein- och fiberinnehållet i dessa tre vegetariska receptalternativ"
+      }
+    },
+    "air_fryers_amazon_germany": {
+      "title": {
+        "text": "Jämför airfryers i Tyskland"
+      },
+      "summary": {
+        "text": "Jämförde de populäraste airfryerna på Amazon Tyskland utifrån pris, kapacitet och betyg, och rekommenderade Philips Airfryer 2000-serien för ett hushåll på två personer."
+      },
+      "message_1": {
+        "text": "Hitta airfryers som jag kan köpa online i Tyskland, inklusive listningar på Amazon. Jämför aktuella priser, kapacitet och recensionsbetyg, och rekommendera sedan en för ett hushåll på två personer med källänkar."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\nHär är en jämförelse av topprankade airfryers som för närvarande finns tillgängliga på Amazon Tyskland, med jämförelse av pris, kapacitet och kundbetyg.\n\n---\n\n### Jämförelse av populära modeller i Tyskland\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### Topprekommendation för ett 2-personershushåll\n\n#### **Huvudval: [Philips Airfryer 2000 Series 6.2L](embed:philips-airfryer-2000-fay)**\n\n* **Varför den passar bäst för två personer:**\n  * **Optimal kapacitet (6,2 L):** Korgar mindre än 4,5–5 L kräver tillagning i flera omgångar även för två personer. En korg på 6,2 L gör att du kan lägga två laxfiléer och en hel portion grönsaker eller pommes frites platt i ett lager för jämn krispighet.\n  * **Plats i köket:** Maskiner med dubbla zoner (som Ninja eller Russell Hobbs) tar upp betydande bänkyta. En enkel korg på 6 L ger gott om volym samtidigt som den behåller ett kompakt format som passar typiska tyska köksbänkar.\n  * **Genomskinligt fönster:** Gör det möjligt att kontrollera bryningen utan att dra ut lådan och förlora värme.\n  * **Prisvärdhet:** För 99,99 € erbjuder den pålitlig temperaturstabilitet från [Philips](wiki:Philips) till en rimlig prispunkt.\n\n#### **Alternativ (om du ofta lagar två rätter vid olika temperaturer): [Philips Dual Basket 3000 Series (9.0L)](embed:philips-airfryer-dual-pjD)**\nOm du och din partner föredrar att tillaga protein och grönsaker samtidigt vid olika temperaturer och tider (t.ex. kycklingbröst vid 180 °C och krispig potatis vid 200 °C), är denna modell för närvarande nedsatt till 119,99 € och har synkroniserade tillagningstider.\n\n---\n\n### Viktiga faktorer att tänka på före köp\n1. **Lådans form:** Fyrkantiga korgar (som Cosori och Philips) rymmer platta föremål (biffar, bakformar, spett) mycket bättre än runda korgar med samma literkapacitet.\n2. **Plats i diskmaskinen:** Se till att din diskmaskin har tillräcklig höjd för en 6 L enkel låda, eller överväg att handdiska non-stick-beläggningar för att förlänga deras livslängd."
+      },
+      "follow_up_1": {
+        "text": "Sök efter recept som är specifikt framtagna för airfryers"
+      },
+      "follow_up_2": {
+        "text": "Förklara de främsta skillnaderna mellan airfryers med enkel och dubbel korg"
+      },
+      "follow_up_3": {
+        "text": "Hitta kompatibla baktillbehör till den här airfryern"
+      },
+      "follow_up_4": {
+        "text": "Lista nybörjarvänliga recept för att laga middag i en airfryer"
+      },
+      "follow_up_5": {
+        "text": "Kontrollera aktuell energiförbrukning för dessa modeller"
+      },
+      "follow_up_6": {
+        "text": "Jämför rengörings- och underhållskrav för keramik- kontra teflonbeläggningar"
       }
     }
   },
@@ -12898,7 +12824,7 @@
             "text": "Tjänster för jobbsökning"
           },
           "description": {
-            "text": "Används bara när du söker jobb. Tyska federala arbetsförmedlingen och JobTech får valda sökord, plats och relevanta filter via serverförfrågningar. Arbeitnow tillhandahåller ett offentligt flöde som OpenMates filtrerar lokalt. Inget OpenMates-användar-ID, CV eller kontouppgifter skickas. 80,000 Hours skickar sökord och land till Algolia; Hard Problems får bara landet. Plats och andra filter kontrolleras lokalt."
+            "text": "Används bara när du söker jobb. Tyska federala arbetsförmedlingen och JobTech får valda sökord, plats och relevanta filter via serverförfrågningar. Arbeitnow tillhandahåller ett offentligt flöde som OpenMates filtrerar lokalt. Inget OpenMates-användar-ID, CV eller kontouppgifter skickas."
           },
           "arbeitsagentur": {
             "heading": {
@@ -12922,22 +12848,6 @@
             },
             "description": {
               "text": "OpenMates hämtar Arbeitnows offentliga jobbflöde. Dina sökord, plats och filter används lokalt och skickas inte till Arbeitnow."
-            }
-          },
-          "eighty_thousand_hours": {
-            "heading": {
-              "text": "80,000 Hours Job Board"
-            },
-            "description": {
-              "text": "80,000 Hours offentliga jobbportal använder Algolia-sökning. Dina sökord och valt land skickas; OpenMates kontrollerar plats och andra filter lokalt. Inget OpenMates-användar-ID, CV eller kontouppgifter skickas."
-            }
-          },
-          "hard_problems": {
-            "heading": {
-              "text": "Hard Problems"
-            },
-            "description": {
-              "text": "OpenMates hämtar Hard Problems offentliga jobbflöde för valt land. Sökord, plats och andra filter kontrolleras lokalt och skickas inte till Hard Problems. Inget OpenMates-användar-ID, CV eller kontouppgifter skickas."
             }
           }
         }
@@ -16469,16 +16379,6 @@
       }
     },
     "app_store_examples": {
-      "jobs": {
-        "search": {
-          "1": {
-            "text": "Jobb som mjukvaruutvecklare i Stockholm"
-          },
-          "2": {
-            "text": "Jobb som mjukvaruutvecklare i Malmö"
-          }
-        }
-      },
       "hosting": {
         "search_domains": {
           "1": {
