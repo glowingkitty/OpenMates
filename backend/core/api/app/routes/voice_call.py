@@ -299,7 +299,7 @@ async def _personal_chat(websocket: WebSocket, chat_id: str, user_id: str) -> bo
     return chat.get("hashed_user_id") == hashlib.sha256(user_id.encode()).hexdigest()
 
 
-async def _charge_voice(websocket: WebSocket, ledger: UsageLedger, *, user_id: str, user_hash: str, call_id: str) -> None:
+async def _charge_voice(websocket: WebSocket, ledger: UsageLedger, *, user_id: str, user_hash: str, call_id: str, chat_id: str) -> None:
     due = _credits_for(ledger.gemini_cost) - ledger.charged
     if due <= 0:
         return
@@ -310,7 +310,8 @@ async def _charge_voice(websocket: WebSocket, ledger: UsageLedger, *, user_id: s
         idempotency_key=f"voice-call:{call_id}:{checkpoint}",
         require_full_charge=True,
         usage_details={
-            "usage_type": "voice_call", "model": GEMINI_MODEL,
+            "usage_type": "voice_call", "model_used": GEMINI_MODEL,
+            "chat_id": chat_id,
             "provider_cost_usd": float(ledger.gemini_cost),
             "gemini_input_tokens": ledger.prompt_tokens,
             "gemini_output_tokens": ledger.response_tokens,
@@ -1056,7 +1057,7 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                             turn_assistant_text = ""
                             turn_assistant_segments.clear()
                         if ledger.commit_gemini_turn():
-                            await _charge_voice(websocket, ledger, user_id=user_id, user_hash=user_hash, call_id=call_id)
+                            await _charge_voice(websocket, ledger, user_id=user_id, user_hash=user_hash, call_id=call_id, chat_id=chat_id)
                             settled_audio_bytes = max(settled_audio_bytes, last_finalized_audio_bytes)
                             await send({"type": "usage", "billing_basis": "provider_tokens", **{key: value for key, value in ledger.view(now - started).items() if key not in ("video_credits", "h3_generated_seconds", "h3_estimated_seconds", "video_credits_per_minute", "audio_credits_per_minute")}})
                     elif content.get("generationComplete"):
@@ -1171,7 +1172,7 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                 # An accepted provider turn can remain billable after browser
                 # cancellation. Keep its settlement inside the call lease.
                 charge_task = asyncio.create_task(_charge_voice(
-                    websocket, ledger, user_id=user_id, user_hash=user_hash, call_id=call_id,
+                    websocket, ledger, user_id=user_id, user_hash=user_hash, call_id=call_id, chat_id=chat_id,
                 ))
                 await _finish_accepted_job(charge_task)
         except asyncio.CancelledError:

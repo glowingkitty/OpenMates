@@ -542,27 +542,27 @@ assertions:
       surface: gui.web
     - &id058
       path: backend/tests/test_same_turn_skill_barrier.py
-      line: 208
+      line: 214
       name: test_resume_restores_provider_tool_ids_without_a_user_message
       surface: rest_api
     - &id059
       path: backend/tests/test_same_turn_skill_barrier.py
-      line: 234
+      line: 240
       name: test_restored_generated_child_is_trusted_at_final_answer_boundary
       surface: gui.web
     - &id060
       path: backend/tests/test_same_turn_skill_barrier.py
-      line: 362
+      line: 368
       name: test_restored_media_completion_carries_authored_parent_and_child_aliases
       surface: rest_api
     - &id061
       path: backend/tests/test_same_turn_skill_barrier.py
-      line: 417
+      line: 423
       name: test_native_multi_tool_transcript_keeps_sync_result_and_async_identity
       surface: rest_api
     - &id062
       path: backend/tests/test_same_turn_skill_barrier.py
-      line: 462
+      line: 468
       name: test_resume_rejects_changed_model_or_mate_instead_of_rerouting
       surface: rest_api
     - &id063
@@ -675,32 +675,32 @@ assertions:
       surface: rest_api
     - &id075
       path: backend/tests/test_same_turn_skill_barrier.py
-      line: 88
+      line: 89
       name: test_resumed_admission_builds_strict_recovery_output_context
       surface: rest_api
     - &id076
       path: backend/tests/test_same_turn_skill_barrier.py
-      line: 118
+      line: 119
       name: test_barrier_uses_real_cache_service_json_scalar_decoding
       surface: rest_api
     - &id077
       path: backend/tests/test_same_turn_skill_barrier.py
-      line: 148
+      line: 149
       name: test_json_decoded_armed_marker_resumes_and_accepts_existing_numeric_marker
       surface: rest_api
     - &id078
       path: backend/tests/test_same_turn_skill_barrier.py
-      line: 168
+      line: 170
       name: test_three_jobs_wait_for_all_terminals_in_original_order
       surface: rest_api
     - &id079
       path: backend/tests/test_same_turn_skill_barrier.py
-      line: 190
+      line: 196
       name: test_deadline_settles_only_missing_slots_and_new_turn_fences_resume
       surface: rest_api
     - &id080
       path: backend/tests/test_same_turn_skill_barrier.py
-      line: 417
+      line: 423
       name: test_native_multi_tool_transcript_keeps_sync_result_and_async_identity
       surface: rest_api
     - &id081
@@ -780,12 +780,12 @@ assertions:
       surface: rest_api
     - &id088
       path: backend/tests/test_same_turn_skill_barrier.py
-      line: 148
+      line: 149
       name: test_json_decoded_armed_marker_resumes_and_accepts_existing_numeric_marker
       surface: rest_api
     - &id089
       path: backend/tests/test_same_turn_skill_barrier.py
-      line: 168
+      line: 170
       name: test_three_jobs_wait_for_all_terminals_in_original_order
       surface: rest_api
     tests:
@@ -897,32 +897,32 @@ assertions:
       surface: rest_api
     - &id106
       path: backend/tests/test_same_turn_skill_barrier.py
-      line: 88
+      line: 89
       name: test_resumed_admission_builds_strict_recovery_output_context
       surface: rest_api
     - &id107
       path: backend/tests/test_same_turn_skill_barrier.py
-      line: 190
+      line: 196
       name: test_deadline_settles_only_missing_slots_and_new_turn_fences_resume
       surface: rest_api
     - &id108
       path: backend/tests/test_same_turn_skill_barrier.py
-      line: 273
+      line: 279
       name: test_private_checkpoint_round_trips_one_bounded_json_copy
       surface: rest_api
     - &id109
       path: backend/tests/test_same_turn_skill_barrier.py
-      line: 288
+      line: 294
       name: test_deadline_uses_longest_job_envelope_in_mixed_batch
       surface: rest_api
     - &id110
       path: backend/tests/test_same_turn_skill_barrier.py
-      line: 396
+      line: 402
       name: test_preflight_rejects_large_private_transcript_before_a_job_is_queued
       surface: rest_api
     - &id111
       path: backend/tests/test_same_turn_skill_barrier.py
-      line: 462
+      line: 468
       name: test_resume_rejects_changed_model_or_mate_instead_of_rerouting
       surface: rest_api
     - &id112
@@ -1275,27 +1275,27 @@ assertions:
       surface: rest_api
     - &id147
       path: backend/tests/test_same_turn_skill_barrier.py
-      line: 234
+      line: 240
       name: test_restored_generated_child_is_trusted_at_final_answer_boundary
       surface: gui.web
     - &id148
       path: backend/tests/test_same_turn_skill_barrier.py
-      line: 303
+      line: 309
       name: test_generated_refs_are_preserved_once_even_if_provider_omits_them
       surface: rest_api
     - &id149
       path: backend/tests/test_same_turn_skill_barrier.py
-      line: 314
+      line: 320
       name: test_generated_refs_match_complete_markdown_targets_and_uuid_aliases
       surface: rest_api
     - &id150
       path: backend/tests/test_same_turn_skill_barrier.py
-      line: 331
+      line: 337
       name: test_only_authored_successful_children_require_parent_and_child_preview
       surface: rest_api
     - &id151
       path: backend/tests/test_same_turn_skill_barrier.py
-      line: 362
+      line: 368
       name: test_restored_media_completion_carries_authored_parent_and_child_aliases
       surface: rest_api
     - &id153
@@ -55086,22 +55086,22 @@ assertions:
       surface: rest_api
     - &id6912
       path: backend/tests/test_anonymous_skill_access.py
-      line: 639
+      line: 640
       name: test_anonymous_sse_reports_pre_dispatch_usage_limit_without_generic_error
       surface: rest_api
     - &id6914
       path: backend/tests/test_anonymous_skill_access.py
-      line: 1049
+      line: 1060
       name: test_anonymous_sse_sanitizes_internal_inference_errors
       surface: rest_api
     - &id6916
       path: backend/tests/test_anonymous_skill_access.py
-      line: 1202
+      line: 1213
       name: test_anonymous_chat_keeps_json_response_for_native_clients
       surface: rest_api
     - &id6917
       path: backend/tests/test_anonymous_skill_access.py
-      line: 1258
+      line: 1269
       name: test_anonymous_json_does_not_double_finalize_worker_usage
       surface: rest_api
     - &id6918
@@ -55254,12 +55254,12 @@ assertions:
       surface: rest_api
     - &id6913
       path: backend/tests/test_anonymous_skill_access.py
-      line: 970
+      line: 981
       name: test_anonymous_sse_does_not_double_finalize_worker_usage
       surface: rest_api
     - &id6915
       path: backend/tests/test_anonymous_skill_access.py
-      line: 1130
+      line: 1141
       name: test_anonymous_sse_emits_initial_lifecycle_before_budget_reservation
       surface: rest_api
     - &id6921
@@ -55537,7 +55537,7 @@ assertions:
       surface: rest_api
     - &id6952
       path: backend/tests/test_anonymous_skill_access.py
-      line: 706
+      line: 717
       name: test_anonymous_sse_uses_authoritative_final_snapshot_after_redis_prefix_rewrite
       surface: rest_api
     - &id6953
@@ -74152,12 +74152,12 @@ assertions:
       surface: rest_api
     - &id9403
       path: backend/tests/test_anonymous_skill_access.py
-      line: 639
+      line: 640
       name: test_anonymous_sse_reports_pre_dispatch_usage_limit_without_generic_error
       surface: rest_api
     - &id9404
       path: backend/tests/test_anonymous_skill_access.py
-      line: 706
+      line: 717
       name: test_anonymous_sse_uses_authoritative_final_snapshot_after_redis_prefix_rewrite
       surface: rest_api
     - &id9407
@@ -74250,7 +74250,7 @@ assertions:
       surface: gui.web
     - &id9405
       path: backend/tests/test_anonymous_skill_access.py
-      line: 865
+      line: 876
       name: test_openai_stream_missing_terminal_frame_notifies_once_and_returns_error_frame
       surface: rest_api
     - &id9406
@@ -126153,7 +126153,7 @@ assertions:
       surface: gui.web
     - &id16060
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 1559
+      line: 1570
       name: saves voice and typed turns encrypted, reloads them and reuses their context
       surface: gui.web
     supporting_tests:
@@ -126260,7 +126260,7 @@ assertions:
       surface: gui.web
     - &id16069
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 1559
+      line: 1570
       name: saves voice and typed turns encrypted, reloads them and reuses their context
       surface: gui.web
     - &id16075
@@ -126370,7 +126370,7 @@ assertions:
       surface: gui.web
     - &id16081
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 1559
+      line: 1570
       name: saves voice and typed turns encrypted, reloads them and reuses their context
       surface: gui.web
     - &id16082
@@ -126424,7 +126424,7 @@ assertions:
       surface: gui.web
     - &id16087
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 1559
+      line: 1570
       name: saves voice and typed turns encrypted, reloads them and reuses their context
       surface: gui.web
     - &id16088
@@ -126505,7 +126505,7 @@ assertions:
     direct_tests:
     - &id16128
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 1559
+      line: 1570
       name: saves voice and typed turns encrypted, reloads them and reuses their context
       surface: gui.web
     supporting_tests:
@@ -126621,17 +126621,17 @@ assertions:
       surface: gui.web
     - &id16117
       path: backend/tests/test_voice_call_broker.py
-      line: 475
+      line: 479
       name: test_executor_retains_completed_result_only_for_voice_opt_in
       surface: gui.web
     - &id16118
       path: backend/tests/test_voice_call_broker.py
-      line: 505
+      line: 509
       name: test_executor_cancel_before_dispatch_never_commits_even_with_voice_opt_in
       surface: gui.web
     - &id16119
       path: backend/tests/test_voice_call_broker.py
-      line: 518
+      line: 522
       name: test_grouped_skill_outputs_produce_real_children_and_keep_billing_groups
       surface: gui.web
     - &id16120
@@ -126885,7 +126885,7 @@ assertions:
       surface: gui.web
     - &id16146
       path: backend/tests/test_voice_call_broker.py
-      line: 571
+      line: 575
       name: test_safety_candidate_uses_existing_confirmation_with_actual_transcript
       surface: gui.web
     - &id16147
@@ -126920,7 +126920,7 @@ assertions:
     direct_tests:
     - &id16159
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 1559
+      line: 1570
       name: saves voice and typed turns encrypted, reloads them and reuses their context
       surface: gui.web
     supporting_tests:
@@ -126951,7 +126951,7 @@ assertions:
       surface: gui.web
     - &id16154
       path: backend/tests/test_voice_call_broker.py
-      line: 588
+      line: 592
       name: test_failed_shared_compression_preserves_every_source_and_old_checkpoint
       surface: gui.web
     - &id16155
@@ -127177,7 +127177,7 @@ assertions:
     direct_tests:
     - &id16189
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 1559
+      line: 1570
       name: saves voice and typed turns encrypted, reloads them and reuses their context
       surface: gui.web
     supporting_tests:
@@ -127198,12 +127198,12 @@ assertions:
       surface: gui.web
     - &id16183
       path: backend/tests/test_voice_call_broker.py
-      line: 529
+      line: 533
       name: test_coroutine_cancel_seals_master_and_executor_cancellation_before_ids_are_delivered
       surface: gui.web
     - &id16184
       path: backend/tests/test_voice_call_broker.py
-      line: 556
+      line: 560
       name: test_focus_countdown_does_not_activate_orphan_after_source_request_cancel
       surface: gui.web
     - &id16185
@@ -127374,7 +127374,7 @@ assertions:
       surface: gui.web
     - &id16274
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 1559
+      line: 1570
       name: saves voice and typed turns encrypted, reloads them and reuses their context
       surface: gui.web
     supporting_tests:
@@ -127595,7 +127595,7 @@ assertions:
       surface: gui.web
     - &id16244
       path: backend/tests/test_voice_call_broker.py
-      line: 588
+      line: 592
       name: test_failed_shared_compression_preserves_every_source_and_old_checkpoint
       surface: gui.web
     - &id16245
@@ -127665,22 +127665,22 @@ assertions:
       surface: gui.web
     - &id16258
       path: backend/tests/test_voice_call_protocol.py
-      line: 1351
+      line: 1352
       name: test_invalid_startup_audio_declaration_never_opens_provider
       surface: gui.web
     - &id16259
       path: backend/tests/test_voice_call_protocol.py
-      line: 1387
+      line: 1390
       name: test_startup_audio_allowance_stays_bounded_and_preserves_legacy_jitter
       surface: gui.web
     - &id16260
       path: backend/tests/test_voice_call_protocol.py
-      line: 1399
+      line: 1402
       name: test_end_audio_and_provider_resume_cannot_replenish_startup_allowance
       surface: gui.web
     - &id16261
       path: backend/tests/test_voice_call_protocol.py
-      line: 1419
+      line: 1422
       name: test_startup_allowance_does_not_exempt_pcm_from_authoritative_credit_reserve
       surface: gui.web
     - &id16262
@@ -128398,7 +128398,7 @@ assertions:
       surface: gui.web
     - &id16357
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 1559
+      line: 1570
       name: saves voice and typed turns encrypted, reloads them and reuses their context
       surface: gui.web
     supporting_tests:
@@ -128768,7 +128768,7 @@ assertions:
       surface: gui.web
     - &id16390
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 1559
+      line: 1570
       name: saves voice and typed turns encrypted, reloads them and reuses their context
       surface: gui.web
     supporting_tests:
@@ -128892,19 +128892,19 @@ assertions:
       surface: gui.web
     - &id16406
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 1465
+      line: 1476
       name: flushes genuine pre-ready speech once in capture order with the bounded
         startup allowance
       surface: gui.web
     - &id16407
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 1518
+      line: 1529
       name: keeps the authenticated call continuously uploading after the actual model
         fetch fails
       surface: gui.web
     - &id16408
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 1559
+      line: 1570
       name: saves voice and typed turns encrypted, reloads them and reuses their context
       surface: gui.web
     - &id16409
@@ -129187,13 +129187,13 @@ assertions:
       surface: gui.web
     - &id16439
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 1465
+      line: 1476
       name: flushes genuine pre-ready speech once in capture order with the bounded
         startup allowance
       surface: gui.web
     - &id16440
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 1518
+      line: 1529
       name: keeps the authenticated call continuously uploading after the actual model
         fetch fails
       surface: gui.web
@@ -129355,34 +129355,34 @@ assertions:
       surface: gui.web
     - &id16463
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 1465
+      line: 1476
       name: flushes genuine pre-ready speech once in capture order with the bounded
         startup allowance
       surface: gui.web
     supporting_tests:
     - &id16457
       path: backend/tests/test_voice_call_protocol.py
-      line: 1351
+      line: 1352
       name: test_invalid_startup_audio_declaration_never_opens_provider
       surface: gui.web
     - &id16458
       path: backend/tests/test_voice_call_protocol.py
-      line: 1363
+      line: 1364
       name: test_startup_pcm_flushes_after_ready_and_keeps_provider_token_billing
       surface: gui.web
     - &id16459
       path: backend/tests/test_voice_call_protocol.py
-      line: 1387
+      line: 1390
       name: test_startup_audio_allowance_stays_bounded_and_preserves_legacy_jitter
       surface: gui.web
     - &id16460
       path: backend/tests/test_voice_call_protocol.py
-      line: 1399
+      line: 1402
       name: test_end_audio_and_provider_resume_cannot_replenish_startup_allowance
       surface: gui.web
     - &id16461
       path: backend/tests/test_voice_call_protocol.py
-      line: 1419
+      line: 1422
       name: test_startup_allowance_does_not_exempt_pcm_from_authoritative_credit_reserve
       surface: gui.web
     - &id16464
@@ -129449,7 +129449,7 @@ assertions:
       surface: gui.web
     - &id16470
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 1559
+      line: 1570
       name: saves voice and typed turns encrypted, reloads them and reuses their context
       surface: gui.web
     - &id16471
@@ -129545,19 +129545,19 @@ assertions:
       surface: gui.web
     - &id16503
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 1465
+      line: 1476
       name: flushes genuine pre-ready speech once in capture order with the bounded
         startup allowance
       surface: gui.web
     - &id16504
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 1518
+      line: 1529
       name: keeps the authenticated call continuously uploading after the actual model
         fetch fails
       surface: gui.web
     - &id16505
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 1559
+      line: 1570
       name: saves voice and typed turns encrypted, reloads them and reuses their context
       surface: gui.web
     - &id16507
@@ -129584,22 +129584,22 @@ assertions:
       surface: gui.web
     - &id16478
       path: backend/tests/test_voice_call_broker.py
-      line: 475
+      line: 479
       name: test_executor_retains_completed_result_only_for_voice_opt_in
       surface: gui.web
     - &id16479
       path: backend/tests/test_voice_call_broker.py
-      line: 505
+      line: 509
       name: test_executor_cancel_before_dispatch_never_commits_even_with_voice_opt_in
       surface: gui.web
     - &id16480
       path: backend/tests/test_voice_call_broker.py
-      line: 529
+      line: 533
       name: test_coroutine_cancel_seals_master_and_executor_cancellation_before_ids_are_delivered
       surface: gui.web
     - &id16481
       path: backend/tests/test_voice_call_broker.py
-      line: 556
+      line: 560
       name: test_focus_countdown_does_not_activate_orphan_after_source_request_cancel
       surface: gui.web
     - &id16482
@@ -129654,17 +129654,17 @@ assertions:
       surface: gui.web
     - &id16492
       path: backend/tests/test_voice_call_protocol.py
-      line: 1363
+      line: 1364
       name: test_startup_pcm_flushes_after_ready_and_keeps_provider_token_billing
       surface: gui.web
     - &id16493
       path: backend/tests/test_voice_call_protocol.py
-      line: 1399
+      line: 1402
       name: test_end_audio_and_provider_resume_cannot_replenish_startup_allowance
       surface: gui.web
     - &id16494
       path: backend/tests/test_voice_call_protocol.py
-      line: 1419
+      line: 1422
       name: test_startup_allowance_does_not_exempt_pcm_from_authoritative_credit_reserve
       surface: gui.web
     - &id16495
@@ -129889,13 +129889,13 @@ assertions:
       surface: gui.web
     - &id16534
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 1518
+      line: 1529
       name: keeps the authenticated call continuously uploading after the actual model
         fetch fails
       surface: gui.web
     - &id16535
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 1559
+      line: 1570
       name: saves voice and typed turns encrypted, reloads them and reuses their context
       surface: gui.web
     supporting_tests:

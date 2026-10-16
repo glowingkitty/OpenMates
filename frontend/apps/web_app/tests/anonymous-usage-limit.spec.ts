@@ -16,7 +16,7 @@ for (const partial of [false, true]) {
     // Deliberately leave this stale: the stream's admission decision is authoritative.
     await page.route('**/v1/anonymous/free-usage/status**', (route: any) => route.fulfill({ json: availability }));
     let sends = 0;
-    const partialContent = 'Completed useful work.\u0085Preserved line separator\u2028and paragraph separator\u2029content.';
+    const partialContent = 'Completed useful work.\u0085Preserved line separator\u2028and paragraph separator\u2029content.\n\nMedical advice is informational; consult a qualified professional.';
     await page.route('**/v1/anonymous/chat/stream', async (route: any) => {
       sends++;
       const body = route.request().postDataJSON();
@@ -51,6 +51,7 @@ for (const partial of [false, true]) {
       await expect(answer).toContainText('Completed useful work.');
       await expect(answer).toContainText('Preserved line separator');
       await expect(answer).toContainText('and paragraph separator');
+      await expect(answer).toContainText('Medical advice is informational');
     }
     await expect(answer).not.toContainText('The AI service encountered an error');
     const notice = page.getByTestId('notification').filter({ hasText: "You've reached the free usage limit." });

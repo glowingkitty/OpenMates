@@ -14,6 +14,7 @@ import json
 import logging
 import math
 import os
+import struct
 import uuid
 from typing import Any, Optional
 
@@ -321,6 +322,7 @@ async def realtime_transcription(
 
     await websocket.accept()
     bytes_received = 0
+    peak_pcm = 0
     provider_request_id = uuid.uuid4().hex
     provider_done = False
     billing_task: Optional[asyncio.Task[None]] = None
@@ -398,6 +400,8 @@ async def realtime_transcription(
                                 if not decoded or len(decoded) > MAX_CHUNK_BYTES:
                                     raise ValueError("Audio chunk size is invalid")
                                 bytes_received += len(decoded)
+                                peak_pcm = max(peak_pcm, max((abs(sample) for (sample,) in
+                                    struct.iter_unpack("<h", decoded[:len(decoded) // 2 * 2])), default=0))
                                 if (
                                     bytes_received
                                     > PCM_BYTES_PER_SECOND * MAX_AUDIO_SECONDS
@@ -453,6 +457,11 @@ async def realtime_transcription(
                                 audio_seconds = float(
                                     usage.get("prompt_audio_seconds")
                                     or bytes_received / PCM_BYTES_PER_SECOND
+                                )
+                                logger.info(
+                                    "Realtime transcription completed: audio_bytes=%d peak_pcm=%d "
+                                    "provider_seconds=%.3f transcript_chars=%d",
+                                    bytes_received, peak_pcm, audio_seconds, len(raw_transcript),
                                 )
                                 await websocket.send_json(
                                     {

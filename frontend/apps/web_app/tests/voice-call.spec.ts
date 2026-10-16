@@ -1360,6 +1360,17 @@ test.describe('Integrated voice-call foundation', () => {
         .toMatchObject({ inputListening: true, processing: false });
       await assertActivityCounter(page,true);
       await expect.poll(async()=>(await evidence(page)).received.some(frame=>frame.type==='usage'&&typeof frame.creditsCharged==='number'&&frame.creditsCharged>=0)).toBe(true);
+      const billedChatId = voiceFrames(await evidence(page), 'start')[0].chatId;
+      expect(billedChatId).toBeTruthy();
+      await expect.poll(() => page.evaluate(async ({ apiUrl, chatId }) => {
+        const response = await fetch(`${apiUrl}/v1/settings/usage/chat-entries?chat_id=${encodeURIComponent(chatId!)}`, { credentials: 'include' });
+        if (!response.ok) return false;
+        const data = await response.json();
+        const charges = (data.entries ?? []).filter((entry: { skill_id: string }) => entry.skill_id === 'voice_call');
+        return charges.length > 0 && charges.every((entry: { source: string; chat_id: string; model_used?: string }) =>
+          entry.source === 'chat' && entry.chat_id === chatId && !!entry.model_used);
+      }, { apiUrl: process.env.PLAYWRIGHT_TEST_API_URL, chatId: billedChatId }),
+      { timeout: 30_000, intervals: [1000, 2000], message: 'Voice charges must appear under their bound chat with model attribution' }).toBe(true);
       await expect(page.getByTestId('voice-call-credits')).toHaveCount(0);
       expect(voiceFrames(await evidence(page), 'audio_stream_end')).toHaveLength(0);
       expect((await nativeVoiceInput(page)).detectorReady).toBe(0);

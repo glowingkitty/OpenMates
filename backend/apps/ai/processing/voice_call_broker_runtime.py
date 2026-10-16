@@ -556,7 +556,10 @@ async def execute_voice_skills(data: dict, selection: dict, apps: dict, registry
                 await _make_internal_api_request("POST", "internal/billing/charge", {
                     "user_id": data["user_id"], "user_id_hash": data["user_hash"],
                     "credits": receipt["credits_charged"], "app_id": "ai", "skill_id": "voice_call",
-                    "idempotency_key": f"voice-broker:{data['operation_id']}:flash", "usage_details": receipt})
+                    "idempotency_key": f"voice-broker:{data['operation_id']}:flash", "usage_details": {
+                        **receipt, "chat_id": data["chat_id"],
+                        "message_id": data["user_message_id"], "operation_id": data["operation_id"],
+                    }})
     if not calls or len(calls) > MAX_TOOL_CALLS:
         raise ValueError("Voice tool generation returned no valid bounded call batch")
     validated = []

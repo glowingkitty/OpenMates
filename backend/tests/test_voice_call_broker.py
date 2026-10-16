@@ -467,6 +467,10 @@ async def test_real_flash_branch_validates_then_executes_bills_and_embeds(monkey
     assert "Canonical ethics" in invocations[0]["prompt"] and "Authoritative previous checkpoint" in invocations[0]["prompt"]
     assert receipts[0]["attempt_id"] == "reported-attempt" and receipts[0]["inference_host"] == "google_ai_studio"
     charge_model.assert_awaited_once()
+    charge = charge_model.call_args.args[2]
+    assert charge["usage_details"]["chat_id"] == "chat"
+    assert charge["usage_details"]["message_id"] == "user-turn"
+    assert charge["usage_details"]["operation_id"]
 
 
 # contract-test: supporting surface=gui.web assertions=video-call.chat.skill-integration,video-call.lifecycle.recovery-and-billing

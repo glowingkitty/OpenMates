@@ -324,7 +324,13 @@ async def claim_ready(cache: Any, *, batch_id: str, expire_missing: bool = False
         if not isinstance(slot, dict) or slot.get("task_id") != task_id:
             raise RuntimeError("Same-turn completion slot is unavailable")
         slots.append(slot)
-    delivery_id = str(uuid.uuid5(uuid.UUID(metadata["logical_task_id"]), f"resume:{batch_id}"))
+    logical_task_id = metadata["logical_task_id"]
+    if isinstance(logical_task_id, str) and re.fullmatch(r"[0-9a-f]{64}", logical_task_id):
+        task_namespace = uuid.uuid5(uuid.NAMESPACE_URL, f"openmates:logical-task:{logical_task_id}")
+    else:
+        # Preserve already-issued resume identities for UUID-based tasks.
+        task_namespace = uuid.UUID(logical_task_id)
+    delivery_id = str(uuid.uuid5(task_namespace, f"resume:{batch_id}"))
     await _set_once(cache, _key(batch_id, "resume_claim"), delivery_id)
     if await cache.get(_key(batch_id, "resume_claim")) != delivery_id:
         return None

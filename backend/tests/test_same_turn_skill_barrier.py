@@ -6,6 +6,7 @@ import importlib.util
 import sys
 import base64
 import random
+import uuid
 from types import SimpleNamespace
 from pathlib import Path
 
@@ -165,13 +166,14 @@ async def test_json_decoded_armed_marker_resumes_and_accepts_existing_numeric_ma
 
 @pytest.mark.asyncio
 # contract-test: supporting surface=rest_api assertions=app-skills.assistant.complete-result-barrier,app-skills.assistant.idempotent-resume
-async def test_three_jobs_wait_for_all_terminals_in_original_order():
+@pytest.mark.parametrize("logical_task_id", [LOGICAL, "a" * 64, "b" * 64])
+async def test_three_jobs_wait_for_all_terminals_in_original_order(logical_task_id):
     cache = FakeCache()
     cache.values["async_skill_latest_user_turn:user:chat"] = "turn"
     await register_barrier(cache, batch_id="batch", user_id="user", chat_id="chat",
                            turn_id="turn", task_ids=["a", "b", "c"],
                            checkpoint_ref="sealed", deadline=time.time() + 60,
-                           logical_task_id=LOGICAL, source_delivery_task_id=LOGICAL)
+                           logical_task_id=logical_task_id, source_delivery_task_id=logical_task_id)
     assert await claim_ready(cache, batch_id="batch") is None
     await arm_barrier(cache, "batch")
     await record_terminal(cache, batch_id="batch", task_id="c", payload_ref="ref-c", status="finished")
@@ -182,6 +184,10 @@ async def test_three_jobs_wait_for_all_terminals_in_original_order():
     ready = await claim_ready(cache, batch_id="batch")
     assert [slot["task_id"] for slot in ready["slots"]] == ["a", "b", "c"]
     assert [slot["status"] for slot in ready["slots"]] == ["finished", "failed", "finished"]
+    assert ready["logical_task_id"] == logical_task_id
+    assert str(uuid.UUID(ready["resume_task_id"])) == ready["resume_task_id"]
+    if logical_task_id == LOGICAL:
+        assert ready["resume_task_id"] == str(uuid.uuid5(uuid.UUID(LOGICAL), "resume:batch"))
     assert (await claim_ready(cache, batch_id="batch"))["resume_task_id"] == ready["resume_task_id"]
 
 
