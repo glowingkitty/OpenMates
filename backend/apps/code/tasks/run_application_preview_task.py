@@ -109,13 +109,25 @@ async def run_application_preview_session(
         files = [_file_from_payload(item) for item in payload.get("files", []) if isinstance(item, dict)]
         entrypoints = [_entrypoint_from_payload(item) for item in payload.get("entrypoints", []) if isinstance(item, dict)]
         plan_application_preview_startup(files=files, entrypoints=entrypoints)
+        async def publish_runtime_ready(runtime: ApplicationPreviewRuntime) -> None:
+            running_at = now if now is not None else time.time()
+            await _patch_session(cache_service, session_id, {
+                "status": "running", "sandbox_id": runtime.sandbox_id,
+                "upstream_base_url": runtime.upstream_base_url,
+                "upstream_base_urls": runtime.upstream_base_urls or {}, "ports": runtime.ports,
+                "updated_at": running_at, "billing_state.billable_started_at": running_at,
+                "events+": [{"kind": "status", "text": "Application preview is running.", "timestamp": running_at}],
+            })
+
         runtime = await _start_runtime(
-            provider_start,
+            provider_start, on_runtime_ready=publish_runtime_ready,
             files=files,
             entrypoints=entrypoints,
             api_key=str(payload.get("api_key") or ""),
             enable_internet=bool(payload.get("enable_internet", True)),
         )
+        if provider_start is not None:
+            await publish_runtime_ready(runtime)
         running_at = now if now is not None else time.time()
         thumbnail = await _store_thumbnail(
             thumbnail_store,
@@ -134,17 +146,10 @@ async def run_application_preview_session(
             cache_service,
             session_id,
             {
-                "status": "running",
-                "sandbox_id": runtime.sandbox_id,
-                "upstream_base_url": runtime.upstream_base_url,
-                "upstream_base_urls": runtime.upstream_base_urls or {},
-                "ports": runtime.ports,
                 "latest_screenshot_url": screenshot_url,
                 "latest_screenshot": thumbnail.get("metadata") if isinstance(thumbnail, dict) else None,
                 "latest_screenshot_captured_at": running_at if screenshot_url else None,
                 "updated_at": running_at,
-                "billing_state.billable_started_at": running_at,
-                "events+": [{"kind": "status", "text": "Application preview is running.", "timestamp": running_at}],
             },
         )
         if now is None:
@@ -233,9 +238,17 @@ def _entrypoint_from_payload(item: dict[str, Any]) -> ApplicationPreviewEntrypoi
 
 async def _start_runtime(
     provider_start: ProviderStart | None,
+    on_runtime_ready: Callable[[ApplicationPreviewRuntime], Awaitable[None]],
     **kwargs: Any,
 ) -> ApplicationPreviewRuntime:
     starter = provider_start or start_application_preview_in_e2b
+    if provider_start is None:
+        # E2B's SDK is synchronous. Keep Redis/status I/O responsive while its
+        # browser dependencies install, and expose the ready runtime immediately.
+        loop = asyncio.get_running_loop()
+        def ready(runtime: ApplicationPreviewRuntime) -> None:
+            asyncio.run_coroutine_threadsafe(on_runtime_ready(runtime), loop).result(timeout=15)
+        return await asyncio.to_thread(starter, on_runtime_ready=ready, **kwargs)
     result = starter(**kwargs)
     if asyncio.iscoroutine(result):
         return await result

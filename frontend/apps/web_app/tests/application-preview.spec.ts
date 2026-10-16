@@ -69,6 +69,7 @@ async function dismissVisibleNotifications(page: any): Promise<void> {
 	}).toPass({ timeout: 5000 });
 }
 
+// contract-test: supporting surface=gui.web assertions=app-skills.media.application-screenshot,code-run.execution.stream-status-visible
 test('generated application embed starts explicit isolated live preview', async ({ page }: { page: any }) => {
 	test.slow();
 	test.setTimeout(420_000);
@@ -104,6 +105,9 @@ test('generated application embed starts explicit isolated live preview', async 
 	await expect(assistantMessages.getByText('svelte:src/App.svelte')).toHaveCount(0);
 	await expect(applicationEmbed.getByTestId('application-preview-screenshot')).toBeVisible({ timeout: 10_000 });
 	await expect(applicationEmbed.getByTestId('application-preview-play-overlay')).toBeVisible({ timeout: 10_000 });
+	const liveScreenshot = applicationEmbed.getByTestId('application-preview-screenshot-image');
+	await expect(liveScreenshot).toBeVisible({ timeout: 180_000 });
+	await expect.poll(() => liveScreenshot.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0), { timeout: 30_000 }).toBe(true);
 
 	const fullscreenOverlay = await openFullscreen(page, applicationEmbed);
 	await expect(fullscreenOverlay.getByTestId('application-preview-panel')).toBeVisible({ timeout: 10_000 });
@@ -149,5 +153,14 @@ test('generated application embed starts explicit isolated live preview', async 
 	await expect(fullscreenOverlay.getByTestId('application-preview-logs')).toBeVisible({ timeout: 10_000 });
 
 	await closeFullscreen(page, fullscreenOverlay);
+	const reloadAutoStarts: string[] = [];
+	page.on('request', (request: any) => {
+		if (request.method() === 'POST' && request.url().includes('/preview/start') && request.postDataJSON()?.auto_started === true) reloadAutoStarts.push(request.url());
+	});
+	await page.reload({ waitUntil: 'domcontentloaded' });
+	const savedScreenshot = page.getByTestId('application-preview-screenshot-image').first();
+	await expect(savedScreenshot).toBeVisible({ timeout: 60_000 });
+	await expect.poll(() => savedScreenshot.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0), { timeout: 30_000 }).toBe(true);
+	expect(reloadAutoStarts, 'a saved screenshot must not start another capture on reload').toEqual([]);
 	await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'application-preview');
 });

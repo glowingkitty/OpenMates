@@ -686,3 +686,28 @@ async def test_charge_preview_credits_posts_internal_billing_payload(monkeypatch
             "timeout": 30,
         }
     ]
+
+
+# contract-test: supporting surface=rest_api assertions=code-run.execution.stream-status-visible,app-skills.media.application-screenshot
+@pytest.mark.anyio
+async def test_runtime_is_visible_before_screenshot_storage_completes() -> None:
+    worker = _load_worker_module()
+    cache = FakeCache()
+    await create_application_preview_session(cache_service=cache, session_id="session-1",
+        application_embed_id="app-embed-1", body=ApplicationPreviewStartRequest(chat_id="chat-1"),
+        current_user=_user("alice-user"), preview_origin="https://openmatesusercontent.org", now=2000)
+    async def provider(**_kwargs):
+        return ApplicationPreviewRuntime(sandbox_id="sandbox-1", upstream_base_url="https://sandbox.e2b.app", ports={"frontend": 5173})
+    async def thumbnail(**_kwargs):
+        data = json.loads(await cache.redis.get(application_preview_session_key("session-1")))
+        assert data["status"] == "running" and data["upstream_base_url"] == "https://sandbox.e2b.app"
+        # A user's stop while capture is pending must not be undone by its completion.
+        data["status"] = "stopped"
+        await cache.redis.set(application_preview_session_key("session-1"), json.dumps(data))
+        return {"download_url": "https://preview.example/screenshot", "metadata": {"variant": "preview"}}
+    await worker.run_application_preview_session(cache_service=cache, session_id="session-1",
+        payload={"files": [{"path": "index.html", "content": "<main>Fixture</main>"}],
+            "entrypoints": [{"name": "frontend", "command": "python3 -m http.server 5173", "port": 5173}]},
+        provider_start=provider, thumbnail_store=thumbnail, now=2030)
+    data = json.loads(await cache.redis.get(application_preview_session_key("session-1")))
+    assert data["status"] == "stopped" and data["latest_screenshot_url"].endswith("screenshot")
