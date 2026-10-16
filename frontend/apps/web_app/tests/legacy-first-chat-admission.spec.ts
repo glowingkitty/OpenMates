@@ -13,8 +13,20 @@ const apiUrl = process.env.PLAYWRIGHT_TEST_API_URL || 'https://api.dev.openmates
 skipWithoutCredentials(test, email, password, otpKey);
 
 // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
-test('epoch-zero first chat survives reload with one canonical user row and a follow-up', async ({ page }: { page: any }) => {
+test('epoch-zero first chat survives reload and a follow-up with Projects disabled', async ({ page }: { page: any }) => {
 	test.setTimeout(180_000);
+	const projectRequests: string[] = [];
+	await page.route('**/v1/features/availability', async (route: any) => {
+		const response = await route.fetch();
+		if (!response.ok()) throw new Error(`Feature availability failed (${response.status()}).`);
+		const data = await response.json();
+		await route.fulfill({ response, json: { ...data,
+			disabled: [...new Set([...(data.disabled ?? []), 'platform:projects'])] } });
+	});
+	await page.route('**/v1/projects**', (route: any) => {
+		projectRequests.push(route.request().url());
+		return route.fulfill({ status: 404, json: { detail: 'FEATURE_DISABLED' } });
+	});
 	const admissionFrames: Array<Record<string, any>> = [];
 	const acknowledgements: Array<Record<string, any>> = [];
 	const errors: Array<Record<string, any>> = [];
@@ -87,5 +99,6 @@ test('epoch-zero first chat survives reload with one canonical user row and a fo
 	}, { timeout: 30_000, message: 'Follow-up must add one canonical encrypted user row' }).toBe(true);
 	expect(errors.filter((error) => error.code === 'inference_temporarily_paused'
 		|| error.code === 'chat_not_found')).toHaveLength(0);
+	expect(projectRequests).toEqual([]);
 	await deleteActiveChat(page);
 });
